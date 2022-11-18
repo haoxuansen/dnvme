@@ -84,7 +84,7 @@ void test_mem_alloc(void)
     buffer_cq_entry = malloc(BUFFER_CQ_ENTRY_SIZE);
     if (buffer_cq_entry == NULL)
     {
-        LOG_ERROR("Malloc Failed\n");
+        pr_err("Malloc Failed\n");
     }
 
     /* Allocating buffer for Discontiguous IOSQ/IOCQ and setting to 0 */
@@ -99,14 +99,14 @@ void test_mem_alloc(void)
     if ((posix_memalign(&read_buffer, 4096, RW_BUFFER_SIZE)) ||
         (posix_memalign(&write_buffer, 4096, RW_BUFFER_SIZE)))
     {
-        LOG_ERROR("Memalign Failed\n");
+        pr_err("Memalign Failed\n");
     }
 #else
     read_buffer = malloc(RW_BUFFER_SIZE);
     write_buffer = malloc(RW_BUFFER_SIZE);
     if ((write_buffer == NULL) || (read_buffer == NULL))
     {
-        LOG_ERROR("Malloc Failed\n");
+        pr_err("Malloc Failed\n");
     }
 #endif
     // this malloc in test_init when runing 
@@ -159,17 +159,17 @@ int main(int argc, char *argv[])
 
     if ((argc > 2) || (argc == 1))
     {
-        LOG_ERROR("You need specified a nvme device\r\n");
+        pr_err("You need specified a nvme device\r\n");
         exit(-1);
     }
     device_file_name = argv[1];
     file_desc = open(device_file_name, 0);
     if (file_desc < 0)
     {
-        LOG_ERROR("Can't open device file:\033[31m %s \033[0m\n", device_file_name);
+        pr_err("Can't open device file:\033[31m %s \033[0m\n", device_file_name);
         exit(-1);
     }
-    LOG_COLOR(GREEN_LOG, "\nOpen device:%s OK!\n", device_file_name);
+    pr_color(LOG_COLOR_GREEN, "\nOpen device:%s OK!\n", device_file_name);
     test_mem_alloc();
 
     memset(buffer_cq_entry, 0, BUFFER_CQ_ENTRY_SIZE);
@@ -197,23 +197,23 @@ int main(int argc, char *argv[])
 
     // random_sq_cq_info();
 
-    LOG_INFO("%s", DISP_HELP);
-    // LOG(LOG_WARN,"LOG_WARN\n");
-    // LOG_ERROR("LOG_ERROR\n");
-    // LOG_INFO("LOG_INFO\n");
-    // LOG_DBUG("LOG_DBUG\n");
+    pr_info("%s", DISP_HELP);
+    // LOG(pr_warn,"pr_warn\n");
+    // pr_err("pr_err\n");
+    // pr_info("pr_info\n");
+    // pr_debug("pr_debug\n");
     do
     {
-        LOG_COLOR(SKBLU_LOG, "%s >", device_file_name);
+        pr_color(LOG_COLOR_CYAN, "%s >", device_file_name);
         fflush(stdout);
         scanf("%d", &test_case);
         switch (test_case)
         {
         case 0:
-            LOG_INFO("%s", DISP_HELP);
+            pr_info("%s", DISP_HELP);
             break;
         case 1:
-            LOG_INFO("\nTest: Disabling the controller completely\n");
+            pr_info("\nTest: Disabling the controller completely\n");
             ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
             break;
         case 2:
@@ -225,10 +225,10 @@ int main(int argc, char *argv[])
             cq_size = 65280;
             sq_size = 65472;
 
-            LOG_COLOR(PURPLE_LOG, "  Create discontig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+            pr_color(LOG_COLOR_PURPLE, "  Create discontig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
             nvme_create_discontig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id, discontg_cq_buf, DISCONTIG_IO_CQ_SIZE);
 
-            LOG_COLOR(PURPLE_LOG, "  Create discontig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+            pr_color(LOG_COLOR_PURPLE, "  Create discontig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
             nvme_create_discontig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO, discontg_sq_buf, DISCONTIG_IO_SQ_SIZE);
 
             break;
@@ -236,19 +236,19 @@ int main(int argc, char *argv[])
             io_sq_id = 1;
             io_cq_id = 1;
 
-            LOG_COLOR(PURPLE_LOG, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+            pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
             nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-            LOG_COLOR(PURPLE_LOG, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+            pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
             nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
             break;
         case 5: /* Delete the Queues */
-            LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+            pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
             nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
             nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
             break;
         case 6:
-            LOG_INFO("\nTest: Sending IO Write Command through sq_id %d\n", io_sq_id);
+            pr_info("\nTest: Sending IO Write Command through sq_id %d\n", io_sq_id);
             for (dword_t i = 0; i < RW_BUFFER_SIZE / 4; i += 4)
             {
                 // *(char *)(write_buffer + i) = BYTE_RAND();
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
             //buf_size = 4096*(rand()%10 + 1);
             wr_slba = 0; //0x40;
             wr_nlb = 8;
-            LOG_INFO("slba:%ld nlb:%d\n", wr_slba, wr_nlb);
+            pr_info("slba:%ld nlb:%d\n", wr_slba, wr_nlb);
             cmd_cnt = 0;
             // for (index = 0; index < (sq_size-1); index++)
             {
@@ -273,19 +273,19 @@ int main(int argc, char *argv[])
             if (ret == SUCCEED)
             {
                 ioctl_tst_ring_dbl(file_desc, io_sq_id);
-                LOG_INFO("Ringing Doorbell for sq_id %d\n", io_sq_id);
+                pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
                 cq_gain(io_cq_id, cmd_cnt, &reap_num);
                 // ioctl_tst_ring_dbl(file_desc, 1);
                 // cq_gain(io_cq_id, cmd_cnt, &reap_num);
-                LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+                pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
             }
             break;
         case 7:
-            LOG_INFO("\nTest: Sending IO Read Command through sq_id %d\n", io_sq_id);
+            pr_info("\nTest: Sending IO Read Command through sq_id %d\n", io_sq_id);
             wr_slba = 0; //0x40;
             wr_nlb = 32;
             memset(read_buffer, 0, wr_nlb * LBA_DAT_SIZE);
-            // LOG_INFO("slba:%ld nlb:%d\n", wr_slba, wr_nlb);
+            // pr_info("slba:%ld nlb:%d\n", wr_slba, wr_nlb);
             cmd_cnt = 0;
             // for (index = 0; index < 150; index++)
             {
@@ -300,31 +300,31 @@ int main(int argc, char *argv[])
                     cmd_cnt++;
                 }
             }
-            LOG_INFO("Ringing Doorbell for sq_id %d\n", io_sq_id);
+            pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
             ioctl_tst_ring_dbl(file_desc, io_sq_id);
             cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+            pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
             // ioctl_tst_ring_dbl(file_desc, 0);
             break;
         case 8:
             //WARNING!
-            LOG_INFO("Send IO cmp cmd slba=%ld, this shouldn't be output warning!(FPGA-06 may not work!)\n", wr_slba);
+            pr_info("Send IO cmp cmd slba=%ld, this shouldn't be output warning!(FPGA-06 may not work!)\n", wr_slba);
             ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
 
             ioctl_tst_ring_dbl(file_desc, io_sq_id);
             cq_gain(io_cq_id, 1, &reap_num);
-            LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+            pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
-            LOG_INFO("Send IO cmp cmd slba=%ld, this should be output warning!\n", wr_slba + 3);
+            pr_info("Send IO cmp cmd slba=%ld, this should be output warning!\n", wr_slba + 3);
             ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             ioctl_tst_ring_dbl(file_desc, io_sq_id);
             cq_gain(io_cq_id, 1, &reap_num);
-            LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+            pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
             break;
         case 9:
-            LOG_INFO("\nwrite_buffer Data:\n");
+            pr_info("\nwrite_buffer Data:\n");
             mem_disp(write_buffer, wr_nlb * LBA_DAT_SIZE);
-            LOG_INFO("\nRead_buffer Data:\n");
+            pr_info("\nRead_buffer Data:\n");
             mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
             break;
         case 10:
@@ -344,23 +344,23 @@ int main(int argc, char *argv[])
         case 15:
             io_sq_id = 1;
             io_cq_id = 1;
-            LOG_INFO("\nPreparing contig cq_id = %d, cq_size = %d\n", io_cq_id, cq_size);
+            pr_info("\nPreparing contig cq_id = %d, cq_size = %d\n", io_cq_id, cq_size);
             if (SUCCEED == nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id))
             {
-                LOG_INFO("create succeed\n");
+                pr_info("create succeed\n");
             }
 
-            LOG_INFO("\nPreparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+            pr_info("\nPreparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
             if (SUCCEED == nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO))
             {
-                LOG_INFO("create succeed\n");
+                pr_info("create succeed\n");
             }
             break;
         case 16:
-            LOG_COLOR(SKBLU_LOG, "pls enter wr_slba:");
+            pr_color(LOG_COLOR_CYAN, "pls enter wr_slba:");
             fflush(stdout);
             scanf("%d", (int *)&wr_slba);
-            LOG_COLOR(SKBLU_LOG, "pls enter wr_nlb:");
+            pr_color(LOG_COLOR_CYAN, "pls enter wr_nlb:");
             fflush(stdout);
             scanf("%d", (int *)&wr_nlb);
             memset(write_buffer, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
             {
                 if (SUCCEED == nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, 1))
                 {
-                    LOG_INFO("io write succeed\n");
+                    pr_info("io write succeed\n");
                 }
             }
             ioctl_meta_buf_delete(file_desc, 0);
@@ -383,13 +383,13 @@ int main(int argc, char *argv[])
             {
                 if (SUCCEED == nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, 1))
                 {
-                    LOG_INFO("io read succeed\n");
+                    pr_info("io read succeed\n");
                 }
             }
             ioctl_meta_buf_delete(file_desc, 0);
             break;
         case 18:
-            LOG_COLOR(SKBLU_LOG, "pls enter loop cnt:");
+            pr_color(LOG_COLOR_CYAN, "pls enter loop cnt:");
             fflush(stdout);
             scanf("%d", &test_loop);
             while (test_loop--)
@@ -401,7 +401,7 @@ int main(int argc, char *argv[])
                     wr_nlb = BYTE_RAND() % 32;
                     memset(read_buffer, 0, RW_BUFFER_SIZE);
                     memset(write_buffer, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-                    LOG_INFO("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+                    pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
                     cmd_cnt = 0;
                     ret = nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
                     cmd_cnt++;
@@ -409,12 +409,12 @@ int main(int argc, char *argv[])
                     {
                         ioctl_tst_ring_dbl(file_desc, io_sq_id);
                         cq_gain(io_cq_id, cmd_cnt, &reap_num);
-                        LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+                        pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
                     }
                     cmd_cnt = 0;
                     
                     data_len = 40 * 4;
-                    LOG_INFO("send_maxio_fwdma_wr\n");
+                    pr_info("send_maxio_fwdma_wr\n");
                     //memset((uint8_t *)write_buffer, rand() % 0xff, data_len);
                     fwdma_parameter.addr = write_buffer;
                     fwdma_parameter.cdw10 = data_len;  //data_len
@@ -422,7 +422,7 @@ int main(int argc, char *argv[])
                     nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
                     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
                     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-                    LOG_INFO("\nfwdma wr cmd send done!\n");
+                    pr_info("\nfwdma wr cmd send done!\n");
 
                     ret = nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
                     cmd_cnt++;
@@ -430,17 +430,17 @@ int main(int argc, char *argv[])
                     {
                         ioctl_tst_ring_dbl(file_desc, io_sq_id);
                         cq_gain(io_cq_id, cmd_cnt, &reap_num);
-                        LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+                        pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
                     }
                     if (SUCCEED == dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
                     {
-                        LOG_COLOR(GREEN_LOG, "dw_cmp pass!\n");
+                        pr_color(LOG_COLOR_GREEN, "dw_cmp pass!\n");
                     }
                 }
             }
             break;
         case 19:
-            LOG_INFO("host2reg tets send_maxio_fwdma_rd\n");
+            pr_info("host2reg tets send_maxio_fwdma_rd\n");
             data_len = 4 * 4;
             fwdma_parameter.addr = read_buffer;
             fwdma_parameter.cdw10 = data_len;  //data_len
@@ -451,8 +451,8 @@ int main(int argc, char *argv[])
             nvme_maxio_fwdma_rd(file_desc, &fwdma_parameter);
             ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_INFO("\tfwdma wr cmd send done!\n");
-            LOG_INFO("host2reg tets send_maxio_fwdma_rd\n");
+            pr_info("\tfwdma wr cmd send done!\n");
+            pr_info("host2reg tets send_maxio_fwdma_rd\n");
             //memset((uint8_t *)write_buffer, rand() % 0xff, data_len);
             fwdma_parameter.addr = read_buffer;
             fwdma_parameter.cdw10 = data_len;  //data_len
@@ -463,12 +463,12 @@ int main(int argc, char *argv[])
             nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
             ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_INFO("\tfwdma wr cmd send done!\n");
+            pr_info("\tfwdma wr cmd send done!\n");
             break;
         case 20:
             i = 10;
             memset((uint8_t *)&fwdma_parameter, 0, sizeof(fwdma_parameter));
-            // LOG_COLOR(SKBLU_LOG,"pls enter loop cnt:");
+            // pr_color(LOG_COLOR_CYAN,"pls enter loop cnt:");
             // fflush(stdout);
             // scanf("%d", &i);
             while (i--)
@@ -485,12 +485,12 @@ int main(int argc, char *argv[])
                 }
                 ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
                 cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-                LOG_INFO("\nfwdma wr cmd send done!\n");
+                pr_info("\nfwdma wr cmd send done!\n");
             }
 
             break;
         case 21:
-            LOG_INFO("send_maxio_fwdma_rd\n");
+            pr_info("send_maxio_fwdma_rd\n");
             data_len = 40 * 4;
             fwdma_parameter.addr = read_buffer;
             fwdma_parameter.cdw10 = data_len;  //data_len
@@ -501,16 +501,16 @@ int main(int argc, char *argv[])
             nvme_maxio_fwdma_rd(file_desc, &fwdma_parameter);
             ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_INFO("\nfwdma wr cmd send done!\n");
+            pr_info("\nfwdma wr cmd send done!\n");
 
             dw_cmp(write_buffer, read_buffer, data_len);
             break;
         case 22:
             for (index = 0; index < 400; index++)
             {
-                LOG_INFO("send_fwdma_wr/rd test cnt:%d\n", index);
+                pr_info("send_fwdma_wr/rd test cnt:%d\n", index);
                 wr_nlb = (BYTE_RAND() % 8) + 1;
-                LOG_INFO(" nlb:%d\n", wr_nlb);
+                pr_info(" nlb:%d\n", wr_nlb);
                 memset((uint8_t *)write_buffer, rand() % 0xff, wr_nlb * LBA_DAT_SIZE);
                 fwdma_parameter.cdw10 = wr_nlb * LBA_DAT_SIZE; //data_len
                 fwdma_parameter.cdw11 = 0x40754C0;             //axi_addr
@@ -530,9 +530,9 @@ int main(int argc, char *argv[])
 
                 if (FAILED == dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DAT_SIZE))
                 {
-                    LOG_INFO("\nwrite_buffer Data:\n");
+                    pr_info("\nwrite_buffer Data:\n");
                     mem_disp(write_buffer, wr_nlb * LBA_DAT_SIZE);
-                    LOG_INFO("\nRead_buffer Data:\n");
+                    pr_info("\nRead_buffer Data:\n");
                     mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
                     break;
                 }
@@ -610,7 +610,7 @@ int main(int argc, char *argv[])
             case_register_test();
             break;
         case 55:
-            LOG_COLOR(SKBLU_LOG, "test_0_full_disk_wr.pls enter loop cnt:");
+            pr_color(LOG_COLOR_CYAN, "test_0_full_disk_wr.pls enter loop cnt:");
             fflush(stdout);
             scanf("%d", &cmd_cnt);
             while (cmd_cnt--)
@@ -641,12 +641,12 @@ int main(int argc, char *argv[])
             break;
 
         case 78:
-            LOG_INFO("set to D0 state\n");
+            pr_info("set to D0 state\n");
             set_power_state(g_nvme_dev.pmcap_ofst, D0);
             break;
 
         case 79:
-            LOG_INFO("set to D3 state\n");
+            pr_info("set to D3 state\n");
             set_power_state(g_nvme_dev.pmcap_ofst, D3hot);
             break;
 
@@ -696,7 +696,7 @@ int main(int argc, char *argv[])
             break;
 
         case 98:
-            LOG_COLOR(SKBLU_LOG, "pcie_set_width:");
+            pr_color(LOG_COLOR_CYAN, "pcie_set_width:");
             fflush(stdout);
             scanf("%d", &test_loop);
             pcie_set_width(test_loop);
@@ -704,7 +704,7 @@ int main(int argc, char *argv[])
             g_nvme_dev.link_width = test_loop;
             break;
         case 99:
-            LOG_COLOR(SKBLU_LOG, "pls enter loop cnt:");
+            pr_color(LOG_COLOR_CYAN, "pls enter loop cnt:");
             fflush(stdout);
             scanf("%d", &test_loop);
             while (test_loop--)
@@ -720,16 +720,16 @@ int main(int argc, char *argv[])
             break;
 
         case 255:
-            LOG_COLOR(SKBLU_LOG, "pls enter auto loop cnt:");
+            pr_color(LOG_COLOR_CYAN, "pls enter auto loop cnt:");
             fflush(stdout);
             int loop = 0;
             scanf("%d", &test_loop);
             while (test_loop--)
             {
                 loop++;
-                LOG_COLOR(SKBLU_LOG, "auto_case_loop_cnt:%d\r\n",loop);
+                pr_color(LOG_COLOR_CYAN, "auto_case_loop_cnt:%d\r\n",loop);
                 u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
-                LOG_COLOR(SKBLU_LOG, "\nCurrent link status: Gen%d, X%d\n", u32_tmp_data & 0x0F, (u32_tmp_data >> 4) & 0x3F);
+                pr_color(LOG_COLOR_CYAN, "\nCurrent link status: Gen%d, X%d\n", u32_tmp_data & 0x0F, (u32_tmp_data >> 4) & 0x3F);
                 if(test_list_exe(TestCaseList, ARRAY_SIZE(TestCaseList)))
                 {
                     break;
@@ -737,25 +737,25 @@ int main(int argc, char *argv[])
                 random_list(TestCaseList, ARRAY_SIZE(TestCaseList));
                 // pcie_random_speed_width();
             }
-            LOG_COLOR(SKBLU_LOG, "auto_case_run_loop:%d\r\n",loop);
+            pr_color(LOG_COLOR_CYAN, "auto_case_run_loop:%d\r\n",loop);
             
             break;
         default:
             if (test_case < 256)
-                LOG_ERROR("Error case number! please try again:\n %s", DISP_HELP);
+                pr_err("Error case number! please try again:\n %s", DISP_HELP);
             break;
         }
     } while (test_case < 256);
-    LOG_ERROR("test_case num should < 256, Now test will Exiting...\n");
-    LOG_INFO("\nCalling Dump Metrics to closefile\n");
+    pr_err("test_case num should < 256, Now test will Exiting...\n");
+    pr_info("\nCalling Dump Metrics to closefile\n");
     ioctl_dump(file_desc, closefile);
 
     /* Exit gracefully */
-    LOG_INFO("\nNow Exiting gracefully....\n");
+    pr_info("\nNow Exiting gracefully....\n");
     ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
     set_irqs(file_desc, INT_NONE, 0);
     test_mem_free();
-    LOG_INFO("\n\n****** END OF TEST ******\n\n");
+    pr_info("\n\n****** END OF TEST ******\n\n");
     close(file_desc);
     return 0;
 }

@@ -45,14 +45,14 @@ int case_queue_cq_int_all_mask(void)
 
     test_loop = 10;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -108,12 +108,12 @@ int msi_cap_access(void)
     struct pcie_msi_cap msi_cap;
 	ret_val = read_pcie_register(file_desc, g_nvme_dev.msicap_ofst, sizeof(struct pcie_msi_cap), BYTE_LEN, (uint8_t *)&msi_cap);
 
-    LOG_INFO("\nmsi_cap_id: %#x\n",msi_cap.cap_id);
-    LOG_INFO("msg_ctrl: %#x\n",msi_cap.msg_ctrl);
-    LOG_INFO("msg_adrl: %#x\n",msi_cap.msg_adrl);
-    LOG_INFO("msg_dat: %#x\n",msi_cap.msg_dat);
-    LOG_INFO("mask_bit: %#x\n",msi_cap.mask_bit);
-    LOG_INFO("pending_bit: %#x\n",msi_cap.pending_bit);
+    pr_info("\nmsi_cap_id: %#x\n",msi_cap.cap_id);
+    pr_info("msg_ctrl: %#x\n",msi_cap.msg_ctrl);
+    pr_info("msg_adrl: %#x\n",msi_cap.msg_adrl);
+    pr_info("msg_dat: %#x\n",msi_cap.msg_dat);
+    pr_info("mask_bit: %#x\n",msi_cap.mask_bit);
+    pr_info("pending_bit: %#x\n",msi_cap.pending_bit);
 
     return ret_val;
 }

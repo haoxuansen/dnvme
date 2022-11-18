@@ -25,7 +25,7 @@ static void test_sub(void)
     int cmds;
 
     /************************** D0 to D3 *********************/
-    LOG_INFO("\nD0 to D3\n");
+    pr_info("\nD0 to D3\n");
 
     u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
     u32_tmp_data |= 0x03;
@@ -37,11 +37,11 @@ static void test_sub(void)
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 3)
     {
-        LOG_INFO("D0 to D3 OK\n");
+        pr_info("D0 to D3 OK\n");
     }
     else
     {
-        LOG_ERROR("D0 to D3 failed: D%d\n", u32_tmp_data);
+        pr_err("D0 to D3 failed: D%d\n", u32_tmp_data);
         test_flag = FAILED;
     }
 
@@ -49,7 +49,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 
     /************************** D3 to D0 *********************/
-    LOG_INFO("\nD3 to D0\n");
+    pr_info("\nD3 to D0\n");
 
     u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
     u32_tmp_data &= 0xFFFFFFFC;
@@ -61,11 +61,11 @@ static void test_sub(void)
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 0)
     {
-        LOG_INFO("D3 to D0 OK\n");
+        pr_info("D3 to D0 OK\n");
     }
     else
     {
-        LOG_ERROR("D3 to D0 failed: D%d\n", u32_tmp_data);
+        pr_err("D3 to D0 failed: D%d\n", u32_tmp_data);
         test_flag = FAILED;
     }
 
@@ -78,8 +78,8 @@ int case_pcie_PM(void)
     int test_round = 0;
     uint32_t offset, u32_tmp_data = 0;
 
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
     /**********************************************************************/
 
     //find PM CAP
@@ -102,12 +102,12 @@ int case_pcie_PM(void)
     // first displaly power up PM status
     u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
     u32_tmp_data &= 0x03;
-    LOG_INFO("\nPower up PM status: D%d\n", u32_tmp_data);
+    pr_info("\nPower up PM status: D%d\n", u32_tmp_data);
     usleep(200000);
 
     for (test_round = 1; test_round <= 1; test_round++)
     {
-        //LOG_INFO("\nlink status: %d\n", test_round);
+        //pr_info("\nlink status: %d\n", test_round);
         test_sub();
         if (test_flag)
         {
@@ -117,11 +117,11 @@ int case_pcie_PM(void)
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

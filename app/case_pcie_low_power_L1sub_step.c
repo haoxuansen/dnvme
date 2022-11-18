@@ -107,7 +107,7 @@ static void test_sub(void)
     set_speed = 3; // gen1 gen2 gen3
     set_width = 4; // x1 x2 x4
 
-    LOG_COLOR(RED_LOG, "\n .......... Set PCIe Gen%d, lane width X%d ..........\n", set_speed, set_width);
+    pr_color(LOG_COLOR_RED, "\n .......... Set PCIe Gen%d, lane width X%d ..........\n", set_speed, set_width);
 
     // cfg speed (RC)
     pcie_RC_cfg_speed(set_speed);
@@ -122,49 +122,49 @@ static void test_sub(void)
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
     {
-        //LOG_INFO("Successful linked\n");
+        //pr_info("Successful linked\n");
     }
     else
     {
-        LOG_ERROR("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
+        pr_err("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
         test_flag = FAILED;
     }
     #endif
 
     // scanf("%d", &cmds);
-    // LOG_INFO("\n/************************** L0 --> L1 --> L1sub --> L1.1 *********************/\n");
+    // pr_info("\n/************************** L0 --> L1 --> L1sub --> L1.1 *********************/\n");
 
-    // LOG_INFO("\nEnable L1.1\n");
+    // pr_info("\nEnable L1.1\n");
     // pcie_L11_enable();
 
     // scanf("%d", &cmds);
 
     // //clkreq# rise
-    // LOG_INFO("\nL1.1 exit then enter\n");
+    // pr_info("\nL1.1 exit then enter\n");
     //pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x10);       //access EP
 
     // scanf("%d", &cmds);
     // //clkreq# fall
 
-    // LOG_INFO("\nDisable L1.1\n");
+    // pr_info("\nDisable L1.1\n");
     // pcie_L11_disable();
 
     scanf("%d", &cmds);
 
-    LOG_INFO("\n/************************** L0 --> L1 --> L1sub --> L1.2 *********************/\n");
+    pr_info("\n/************************** L0 --> L1 --> L1sub --> L1.2 *********************/\n");
 
-    LOG_INFO("\nEnable L1.2\n");
+    pr_info("\nEnable L1.2\n");
     pcie_L12_enable();
     
     scanf("%d", &cmds);
 
     //clkreq# rise
-    LOG_INFO("\nL1.2 exit then enter\n");
+    pr_info("\nL1.2 exit then enter\n");
     pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10); //access EP
     scanf("%d", &cmds);
     //clkreq# fall
 
-    LOG_INFO("\nDisable L1.2\n");
+    pr_info("\nDisable L1.2\n");
     pcie_L12_disable();
 }
 
@@ -173,14 +173,14 @@ int case_pcie_low_power_L1sub_step(void)
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
 
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
     u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
-    LOG_INFO("\nPower up linked status: Gen%d, X%d\n", speed, width);
+    pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
 
     // get register value
     reg_value = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
@@ -191,7 +191,7 @@ int case_pcie_low_power_L1sub_step(void)
     /**********************************************************************/
     for (test_round = 1; test_round <= 1; test_round++)
     {
-        //LOG_INFO("\nlink status: %d\n", test_round);
+        //pr_info("\nlink status: %d\n", test_round);
         test_sub();
         if (test_flag)
         {
@@ -201,11 +201,11 @@ int case_pcie_low_power_L1sub_step(void)
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

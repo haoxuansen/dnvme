@@ -60,7 +60,7 @@ int case_queue_cq_int_coalescing(void)
     // }
     // else
     // {
-    // 	LOG_ERROR("acq_num or sq_id is wrong!!!\n");
+    // 	pr_err("acq_num or sq_id is wrong!!!\n");
     // }
 
     // /**********************************************************************/
@@ -73,23 +73,23 @@ int case_queue_cq_int_coalescing(void)
     // }
     // else
     // {
-    // 	LOG_ERROR("acq_num or sq_id is wrong!!!\n");
+    // 	pr_err("acq_num or sq_id is wrong!!!\n");
     // }
     // /**********************************************************************/
 
-    // LOG_INFO("aggr_time: %d\n", aggr_time);
-    // LOG_INFO("aggr_thr: %d\n", aggr_thr);
-    // LOG_INFO("int_vertor: %d\n", int_vertor);
-    // LOG_INFO("coals_disable: %d\n", coals_disable);
+    // pr_info("aggr_time: %d\n", aggr_time);
+    // pr_info("aggr_thr: %d\n", aggr_thr);
+    // pr_info("int_vertor: %d\n", int_vertor);
+    // pr_info("coals_disable: %d\n", coals_disable);
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }

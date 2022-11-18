@@ -59,14 +59,14 @@ int case_queue_delete_q(void)
 
     test_loop = 50;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -88,11 +88,11 @@ static dword_t sub_case_use_1_q_del_it(void)
     cq_parameter.irq_no = io_cq_id;
 
     test_flag |= create_iocq(file_desc, &cq_parameter);
-    ASSERT(!test_flag);
+    assert(!test_flag);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-    LOG_INFO("Preparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d, cq_size = %d\n", io_sq_id, io_cq_id, sq_size, cq_size);
+    pr_info("Preparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d, cq_size = %d\n", io_sq_id, io_cq_id, sq_size, cq_size);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
@@ -116,7 +116,7 @@ static dword_t sub_case_use_1_q_del_it(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
@@ -154,7 +154,7 @@ static dword_t sub_case_use_3_q_del_2_use_remian_del_it(void)
     cmd_cnt = 0;
     for (dword_t index = 2; index <= 4; index++)
     {
-        // LOG_INFO("create sq %d, assoc cq = %d\n", index, index);
+        // pr_info("create sq %d, assoc cq = %d\n", index, index);
         sq_parameter.cq_id = index;
         sq_parameter.sq_id = index;
         test_flag |= create_iosq(file_desc, &sq_parameter);
@@ -164,7 +164,7 @@ static dword_t sub_case_use_3_q_del_2_use_remian_del_it(void)
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
 
     /**********************************************************************/
-    LOG_INFO("use 3 sq\n");
+    pr_info("use 3 sq\n");
     for (dword_t index = 2; index <= 4; index++)
     {
         io_sq_id = index;
@@ -183,7 +183,7 @@ static dword_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= cq_gain(io_cq_id, 2, &reap_num);
     }
 
-    LOG_INFO("delete 2 sq\n");
+    pr_info("delete 2 sq\n");
     /**********************************************************************/
     cmd_cnt = 0;
     for (dword_t index = 2; index <= 3; index++)
@@ -207,7 +207,7 @@ static dword_t sub_case_use_3_q_del_2_use_remian_del_it(void)
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
     /**********************************************************************/
     /**********************************************************************/
-    LOG_INFO("use remian 1 sq\n");
+    pr_info("use remian 1 sq\n");
     for (dword_t index = 4; index <= 4; index++)
     {
         io_sq_id = index;
@@ -226,7 +226,7 @@ static dword_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= cq_gain(io_cq_id, 2, &reap_num);
     }
 
-    LOG_INFO("delete remian 2 sq\n");
+    pr_info("delete remian 2 sq\n");
     /**********************************************************************/
     cmd_cnt = 0;
     for (dword_t index = 4; index <= 4; index++)
@@ -270,7 +270,7 @@ static dword_t sub_case_del_cq_before_sq(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-    LOG_INFO("Preparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d, cq_size = %d\n", io_sq_id, io_cq_id, sq_size, cq_size);
+    pr_info("Preparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d, cq_size = %d\n", io_sq_id, io_cq_id, sq_size, cq_size);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
@@ -294,14 +294,14 @@ static dword_t sub_case_del_cq_before_sq(void)
 
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     /**********************************************************************/
-    LOG_INFO("delete_iocq:%d\n", io_cq_id);
+    pr_info("delete_iocq:%d\n", io_cq_id);
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     /*test_flag |= */ cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-    LOG_INFO("delete_iosq:%d\n", io_sq_id);
+    pr_info("delete_iosq:%d\n", io_sq_id);
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
@@ -343,7 +343,7 @@ static dword_t delete_runing_cmd_queue(void)
         }
         if (cmd_cnt == 0)
         {
-            ASSERT(0);
+            assert(0);
         }
         test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, ctrl_sq_info[qid - 1].sq_id);
         test_flag |= ioctl_tst_ring_dbl(file_desc, ctrl_sq_info[qid - 1].sq_id);
@@ -389,7 +389,7 @@ static dword_t delete_runing_fua_cmd_queue(void)
         }
         if (cmd_cnt == 0)
         {
-            ASSERT(0);
+            assert(0);
         }
         test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, ctrl_sq_info[qid - 1].sq_id);
 
@@ -431,12 +431,12 @@ static dword_t delete_runing_iocmd_queue(void)
             }
         }
     }
-    LOG_INFO("Preparing iocmds to %d sq\n", queue_num);
+    pr_info("Preparing iocmds to %d sq\n", queue_num);
     for (word_t i = 0; i < queue_num; i++)
     {
         test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, ctrl_sq_info[i].sq_id);
     }
-    LOG_INFO("Preparing delete %d sq cmd\n", queue_num);
+    pr_info("Preparing delete %d sq cmd\n", queue_num);
 
     //***delete queue with cmd runing**************************************************************************************
     for (word_t i = 0; i < queue_num; i++)
@@ -450,7 +450,7 @@ static dword_t delete_runing_iocmd_queue(void)
         test_flag |= cq_gain_disp_cq(ctrl_sq_info[i].cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num, FALSE);
     }
     test_flag |= cq_gain(ADMIN_QUEUE_ID, queue_num, &reap_num);
-    LOG_INFO("delete %d sq done\n", queue_num);
+    pr_info("delete %d sq done\n", queue_num);
 
     for (word_t i = 0; i < queue_num; i++)
     {
@@ -472,7 +472,7 @@ static dword_t delete_runing_iocmd_queue(void)
     }
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, (g_nvme_dev.max_sq_num - queue_num), &reap_num);
-    LOG_INFO("delete remain sq done\n");
+    pr_info("delete remain sq done\n");
 
     // delete_all_io_queue();
     test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);

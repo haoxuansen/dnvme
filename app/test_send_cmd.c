@@ -69,11 +69,11 @@ int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
     {
         if (opcode == nvme_admin_delete_sq)
         {
-            LOG_ERROR("Delete_SQ:%d failed %d\n", qid, ret_val);
+            pr_err("Delete_SQ:%d failed %d\n", qid, ret_val);
         }
         else if (opcode == nvme_admin_delete_cq)
         {
-            LOG_ERROR("Delete_CQ:%d failed %d\n", qid, ret_val);
+            pr_err("Delete_CQ:%d failed %d\n", qid, ret_val);
         }
         return ret_val;
     }
@@ -114,13 +114,13 @@ int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
+        pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
                   sq_id, (uint32_t)slba, nlb + 1);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -161,13 +161,13 @@ int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
+        pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
                   sq_id, (uint32_t)slba, nlb + 1);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -218,13 +218,13 @@ int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
+        pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
                   sq_id, (uint32_t)slba, nlb + 1);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -268,12 +268,12 @@ int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("NVME_VENDOR_FWDMA_RD Sending Command Failed!\n");
+        pr_err("NVME_VENDOR_FWDMA_RD Sending Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("NVME_VENDOR_FWDMA_RD Sending Command Succesfully!\n");
+        pr_debug("NVME_VENDOR_FWDMA_RD Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -312,12 +312,12 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
+        pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
+        pr_debug("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -370,12 +370,12 @@ int nvme_firmware_commit(int file_desc, byte_t bpid, byte_t ca, byte_t fs)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
+        pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
+        pr_debug("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -414,12 +414,12 @@ int nvme_firmware_download(int file_desc, dword_t numd, dword_t ofst, byte_t *dp
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("firmware_download Sending Command Failed!\n");
+        pr_err("firmware_download Sending Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("firmware_download Sending Command Succesfully!\n");
+        pr_debug("firmware_download Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -450,12 +450,12 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
     ret_val = ioctl(file_desc, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
     if (ret_val < 0)
     {
-        LOG_ERROR("\tCQ ID = %d Preparation Failed! %d\n", prep_cq.cq_id, ret_val);
+        pr_err("\tCQ ID = %d Preparation Failed! %d\n", prep_cq.cq_id, ret_val);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
+        pr_debug("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
     }
 
     /* Fill the command for create IOSQ*/
@@ -486,12 +486,12 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command Failed!\n");
+        pr_err("Sending of Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("Command sent succesfully\n\n");
+        pr_debug("Command sent succesfully\n\n");
     }
     return SUCCEED;
 }
@@ -521,12 +521,12 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
 
     if (ret_val < 0)
     {
-        LOG_ERROR("\tSQ ID = %d Preparation Failed!\n", prep_sq.sq_id);
+        pr_err("\tSQ ID = %d Preparation Failed!\n", prep_sq.sq_id);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("\tSQ ID = %d Preparation success\n", prep_sq.sq_id);
+        pr_debug("\tSQ ID = %d Preparation success\n", prep_sq.sq_id);
     }
 
     /* Fill the command for create IOSQ*/
@@ -535,7 +535,7 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
     create_sq_cmd.qsize = sq_parameter->sq_size - 1;
     create_sq_cmd.cqid = sq_parameter->cq_id;
     create_sq_cmd.sq_flags = ((((uint16_t)sq_parameter->sq_prio) << 1) | sq_parameter->contig);
-    //LOG_ERROR("!!!!!!!!!!  create_sq_cmd.sq_flags: 0x%x\n",   create_sq_cmd.sq_flags);
+    //pr_err("!!!!!!!!!!  create_sq_cmd.sq_flags: 0x%x\n",   create_sq_cmd.sq_flags);
     //  create_sq_cmd.sq_flags = 0x03;
     create_sq_cmd.rsvd1[0] = 0x00;
 
@@ -560,12 +560,12 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command Failed!\n");
+        pr_err("Sending of Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("Command sent succesfully\n\n");
+        pr_debug("Command sent succesfully\n\n");
     }
     return SUCCEED;
 }
@@ -595,12 +595,12 @@ int keep_alive_cmd(int file_desc)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending cmd Failed! ret_val:%d\n", ret_val);
+        pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("%s sent succesfully\n\n", __FUNCTION__);
+        pr_debug("%s sent succesfully\n\n", __FUNCTION__);
     }
     return SUCCEED;
 }
@@ -630,12 +630,12 @@ int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending cmd Failed! ret_val:%d\n", ret_val);
+        pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("%s sent succesfully\n\n", __FUNCTION__);
+        pr_debug("%s sent succesfully\n\n", __FUNCTION__);
     }
     return SUCCEED;
 }
@@ -653,33 +653,33 @@ void ioctl_device_status(int file_desc)
     ret_val = ioctl(file_desc, NVME_IOCTL_ERR_CHK, &dev_sts);
     if (ret_val < 0)
     {
-        LOG_ERROR("Device Status Failed!\n");
+        pr_err("Device Status Failed!\n");
     }
 
-    LOG_INFO("\n************************ device status check ************************\n");
-    LOG_INFO("PCI Device Status (STS) = 0x%04x\n", dev_sts.pci_device_status);
+    pr_info("\n************************ device status check ************************\n");
+    pr_info("PCI Device Status (STS) = 0x%04x\n", dev_sts.pci_device_status);
 
     if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_PM)
-        LOG_INFO("PCI Power Managment CAP is supported, Control and Status = 0x%04x\n", dev_sts.cap_pm_ctr_st);
+        pr_info("PCI Power Managment CAP is supported, Control and Status = 0x%04x\n", dev_sts.cap_pm_ctr_st);
     else
-        LOG_INFO("PCI Power Managment CAP is not supported\n");
+        pr_info("PCI Power Managment CAP is not supported\n");
 
     if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_MSI)
-        LOG_INFO("PCI MSI CAP is supported, Message Control = 0x%04x\n", dev_sts.cap_msi_mc);
+        pr_info("PCI MSI CAP is supported, Message Control = 0x%04x\n", dev_sts.cap_msi_mc);
     else
-        LOG_INFO("PCI MSI CAP is not supported\n");
+        pr_info("PCI MSI CAP is not supported\n");
 
     if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_MSIX)
-        LOG_INFO("PCI MSIX CAP is supported, Message Control = 0x%04x\n", dev_sts.cap_msix_mc);
+        pr_info("PCI MSIX CAP is supported, Message Control = 0x%04x\n", dev_sts.cap_msix_mc);
     else
-        LOG_INFO("PCI MSIX CAP is not supported\n");
+        pr_info("PCI MSIX CAP is not supported\n");
 
     if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_PCIE)
-        LOG_INFO("PCI PCIE CAP is supported, PCIe device status = 0x%04x\n", dev_sts.cap_pcie_dev_st);
+        pr_info("PCI PCIE CAP is supported, PCIe device status = 0x%04x\n", dev_sts.cap_pcie_dev_st);
     else
-        LOG_INFO("PCI PCIE CAP is not supported\n");
+        pr_info("PCI PCIE CAP is not supported\n");
 
-    LOG_INFO("NVME Controller Status CSTS = 0x%08x\n", dev_sts.nvme_control_st);
+    pr_info("NVME Controller Status CSTS = 0x%08x\n", dev_sts.nvme_control_st);
 }
 /**
  * @brief  
@@ -710,12 +710,12 @@ int ioctl_send_abort(int file_desc, uint16_t sq_id, uint16_t cmd_id)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command Failed!\n");
+        pr_err("Sending of Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("Command sent succesfully\n\n");
+        pr_debug("Command sent succesfully\n\n");
     }
 
     return SUCCEED;
@@ -748,12 +748,12 @@ int ioctl_send_flush(int file_desc, uint16_t sq_id)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command Failed!\n");
+        pr_err("Sending of Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("Command sent succesfully\n\n");
+        pr_debug("Command sent succesfully\n\n");
     }
 
     return SUCCEED;
@@ -799,13 +799,13 @@ int ioctl_send_write_zero(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
+        pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
                   sq_id, (uint32_t)slba, nlb);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb);
     }
     return SUCCEED;
@@ -848,13 +848,13 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
+        pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
                   sq_id, (uint32_t)slba, nlb);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -866,12 +866,12 @@ int subsys_reset(void)
     ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, ST_NVM_SUBSYSTEM);
     if (ret_val < 0)
     {
-        LOG_ERROR("User Call to subsys_reset: Failed!\n");
+        pr_err("User Call to subsys_reset: Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("User Call to subsys_reset: SUCCESS\n");
+        pr_debug("User Call to subsys_reset: SUCCESS\n");
         return SUCCEED;
     }
 
@@ -889,12 +889,12 @@ int ctrl_disable(void)
     ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, ST_DISABLE_COMPLETELY);
     if (ret_val < 0)
     {
-        LOG_ERROR("User Call to Disable Ctrlr: Failed!\n");
+        pr_err("User Call to Disable Ctrlr: Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("User Call to Disable Ctrlr: success\n");
+        pr_debug("User Call to Disable Ctrlr: success\n");
         return SUCCEED;
     }
 
@@ -921,7 +921,7 @@ uint8_t pci_find_cap_ofst(int file_desc, uint8_t cap_id)
         data = pci_read_word(file_desc, pci_cap);
         if (++to_cnt > 100)
         {
-            LOG_ERROR("can't find cap_id:%x\n", cap_id);
+            pr_err("can't find cap_id:%x\n", cap_id);
             return BYTE_MASK;
         }
     }
@@ -973,7 +973,7 @@ write_again:
     ret_val = ioctl_pci_write_data(file_desc, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_pci_write_data failed:%d\n", ret_val);
+        pr_err("ioctl_pci_write_data failed:%d\n", ret_val);
         usleep(10000);
         if (++retry_cnt < 10)
             goto write_again;
@@ -984,11 +984,11 @@ write_again:
     u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
     if ((u32_tmp_data & 0x3) != dstate)
     {
-        LOG_ERROR("set_state:%#x,but read:%#x\r\n", dstate, u32_tmp_data & 0x3);
+        pr_err("set_state:%#x,but read:%#x\r\n", dstate, u32_tmp_data & 0x3);
         if (++retry_cnt1 < 10)
             goto write_again;    
     }
-    ASSERT((u32_tmp_data & 0x3) == dstate);
+    assert((u32_tmp_data & 0x3) == dstate);
     return SUCCEED;
 }
 
@@ -1025,12 +1025,12 @@ int ioctl_send_format(int file_desc, uint8_t lbaf)
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command Failed!\n");
+        pr_err("Sending of Command Failed!\n");
         return FAILED;
     }
     else
     {
-        LOG_DBUG("Command sent succesfully\n\n");
+        pr_debug("Command sent succesfully\n\n");
     }
 
     return SUCCEED;
@@ -1119,7 +1119,7 @@ int nvme_io_read_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid
     };
     data_size = nlb * LBA_DATA_SIZE(nsid);
     // data_size = nlb * LBA_DAT_SIZE;
-    //LOG_INFO("### %d,%d %d,%d\n", nlb * LBA_DAT_SIZE, nlb * LBA_DATA_SIZE(nsid), LBA_DAT_SIZE, g_nvme_ns_info[nsid - 1].lbads);
+    //pr_info("### %d,%d %d,%d\n", nlb * LBA_DAT_SIZE, nlb * LBA_DATA_SIZE(nsid), LBA_DAT_SIZE, g_nvme_ns_info[nsid - 1].lbads);
     return nvme_io_cmd(file_desc, sq_id, data_addr, data_size, DMA_BIDIRECTIONAL, &io_cmd);
 }
 
@@ -1421,7 +1421,7 @@ int nvme_create_contig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, uin
     ret_val = nvme_prep_cq(file_desc, cq_id, cq_size, 1, irq_en, irq_no);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
+        pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
         return FAILED;
     }
 
@@ -1444,7 +1444,7 @@ int nvme_create_contig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, uin
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(file_desc);
@@ -1469,7 +1469,7 @@ int nvme_create_discontig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, 
     ret_val = nvme_prep_cq(file_desc, cq_id, cq_size, 0, irq_en, irq_no);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
+        pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
         return FAILED;
     }
 
@@ -1492,7 +1492,7 @@ int nvme_create_discontig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(file_desc);
@@ -1537,7 +1537,7 @@ int nvme_create_contig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint3
     ret_val = nvme_prep_sq(file_desc, sq_id, cq_id, sq_size, 1, sq_prio);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
+        pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
         return FAILED;
     }
 
@@ -1560,7 +1560,7 @@ int nvme_create_contig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint3
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(file_desc);
@@ -1585,7 +1585,7 @@ int nvme_create_discontig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, ui
     ret_val = nvme_prep_sq(file_desc, sq_id, cq_id, sq_size, 0, sq_prio);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
+        pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
         return FAILED;
     }
     struct nvme_create_sq create_sq_cmd = {
@@ -1607,7 +1607,7 @@ int nvme_create_discontig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, ui
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(file_desc);
@@ -1619,7 +1619,7 @@ int nvme_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
     ret_val = ioctl_delete_ioq(file_desc, opcode, qid);
     if (SUCCEED != ret_val)
     {
-        LOG_ERROR("\tdel qid:%d Failed! %d\n", qid, ret_val);
+        pr_err("\tdel qid:%d Failed! %d\n", qid, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(file_desc);
@@ -1706,8 +1706,8 @@ void pcie_RC_cfg_speed(int speed)
 {
     if (!((1 == speed) || (2 == speed) || (3 == speed)))
     {
-        LOG_ERROR("speed error\r\n");
-        ASSERT(0);
+        pr_err("speed error\r\n");
+        assert(0);
     }
     char spd[3][8] = {"1:0F", "2:0F", "3:0F"};
     char cmd[64] = "setpci -s " RC_CAP_LINK_CONTROL2 ".b=";
@@ -1725,8 +1725,8 @@ void pcie_set_width(int width)
 {
     if (!((1 == width) || (2 == width) || (4 == width)))
     {
-        LOG_ERROR("width error\r\n");
-        ASSERT(0);
+        pr_err("width error\r\n");
+        assert(0);
     }
     //beagle;cougar;eagle;falcon
     uint32_t u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
@@ -1753,7 +1753,7 @@ void pcie_random_speed_width(void)
     {
         set_width = g_nvme_dev.link_width;
     }
-    LOG_INFO("Set_PCIe_Gen%d, lane width X%d\n", set_speed, set_width);
+    pr_info("Set_PCIe_Gen%d, lane width X%d\n", set_speed, set_width);
     // fflush(stdout);
     // cfg speed (RC)
     pcie_RC_cfg_speed(set_speed);
@@ -1767,12 +1767,12 @@ void pcie_random_speed_width(void)
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
     {
-        //LOG_INFO("Successful linked\n");
+        //pr_info("Successful linked\n");
     }
     else
     {
-        LOG_ERROR("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
-        ASSERT(0);
+        pr_err("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
+        assert(0);
     }
 }
 
@@ -1786,20 +1786,20 @@ dword_t nvme_msi_register_test(void)
     uint32_t u32_tmp_data = 0;
 
     u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMS_OFST, 4);
-    LOG_INFO("NVME_REG_INTMS_OFST:%#x\n", u32_tmp_data);
+    pr_info("NVME_REG_INTMS_OFST:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
     if (ioctl_write_data(file_desc, NVME_REG_INTMS_OFST, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
     u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMS_OFST, 4);
-    LOG_INFO("set NVME_REG_INTMS_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
+    pr_info("set NVME_REG_INTMS_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
     u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMC_OFST, 4);
-    LOG_INFO("NVME_REG_INTMC_OFST:%#x\n", u32_tmp_data);
+    pr_info("NVME_REG_INTMC_OFST:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
     if (ioctl_write_data(file_desc, NVME_REG_INTMC_OFST, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
     u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMC_OFST, 4);
-    LOG_INFO("set NVME_REG_INTMC_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
+    pr_info("set NVME_REG_INTMC_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
     return SUCCEED;
 }
@@ -1833,7 +1833,7 @@ dword_t create_all_io_queue(byte_t flags)
     }
 
     rdm_irq_no = BYTE_RAND() % num_irqs;
-    LOG_DBUG("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
+    pr_debug("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
 
     test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, int_type, num_irqs);
 
@@ -1860,12 +1860,12 @@ dword_t create_all_io_queue(byte_t flags)
                 cq_parameter.irq_no = ctrl_sq_info[sqidx].cq_int_vct;
             }
         }
-        LOG_DBUG("create cq: %d\n");
+        pr_debug("create cq: %d\n", cq_parameter.cq_id);
         create_iocq(file_desc, &cq_parameter);
     }
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
     for (dword_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
@@ -1874,12 +1874,13 @@ dword_t create_all_io_queue(byte_t flags)
         sq_parameter.sq_size = ctrl_sq_info[sqidx].sq_size;
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
-        LOG_DBUG("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
+        pr_debug("create sq: %d, assoc cq: %d\n", sq_parameter.sq_id, 
+            sq_parameter.cq_id);
         create_iosq(file_desc, &sq_parameter);
     }
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
 
@@ -1892,7 +1893,7 @@ dword_t delete_all_io_queue(void)
     }
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
     for (dword_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
@@ -1900,7 +1901,7 @@ dword_t delete_all_io_queue(void)
     }
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
 

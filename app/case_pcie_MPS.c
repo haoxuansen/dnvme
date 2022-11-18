@@ -46,10 +46,10 @@ static void set_pcie_mps_128(void)
     pcie_retrain_link();
     u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
-    //LOG_INFO("\nread g_nvme_dev.pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
+    //pr_info("\nread g_nvme_dev.pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
     //u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x4);
     //u32_tmp_data &= 0x07;
-    LOG_INFO("\nEP Max Payload Size support 128 byte, 0x%x\n", u32_tmp_data);
+    pr_info("\nEP Max Payload Size support 128 byte, 0x%x\n", u32_tmp_data);
 }
 
 static void set_pcie_mps_256(void)
@@ -67,12 +67,12 @@ static void set_pcie_mps_256(void)
     pcie_retrain_link();
     u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
-    LOG_INFO("\nEP Max Payload Size support 256 byte, 0x%x\n", u32_tmp_data);
+    pr_info("\nEP Max Payload Size support 256 byte, 0x%x\n", u32_tmp_data);
 }
 
 static void pcie_packet(void)
 {
-    LOG_INFO("\nTest: Sending IO Read Command through sq_id %d\n", io_sq_id);
+    pr_info("\nTest: Sending IO Read Command through sq_id %d\n", io_sq_id);
     wr_slba = 0;
     wr_nlb = 64;
     cmd_cnt = 0;
@@ -81,10 +81,10 @@ static void pcie_packet(void)
         nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
         cmd_cnt++;
     }
-    LOG_INFO("Ringing Doorbell for sq_id %d\n", io_sq_id);
+    pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
     ioctl_tst_ring_dbl(file_desc, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 }
 
 static void test_sub(void)
@@ -92,13 +92,13 @@ static void test_sub(void)
     int cmds;
 
     /************************** 128 byte *********************/
-    LOG_INFO("\nMPS: 128 byte\n");
+    pr_info("\nMPS: 128 byte\n");
     set_pcie_mps_128();
     pcie_packet();
     scanf("%d", &cmds);
 
     /************************** 256 byte *********************/
-    LOG_INFO("\nMPS: 256 byte\n");
+    pr_info("\nMPS: 256 byte\n");
     set_pcie_mps_256();
     pcie_packet();
     scanf("%d", &cmds);
@@ -110,54 +110,54 @@ int case_pcie_MPS(void)
     uint32_t u32_tmp_data = 0;
     cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
     sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
     /**********************************************************************/
 
-    LOG_INFO("\nPreparing contig cq_id = %d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_info("\nPreparing contig cq_id = %d, cq_size = %d\n", io_cq_id, cq_size);
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
     test_flag |= create_iocq(file_desc, &cq_parameter);
-    LOG_INFO("Ringing Doorbell for ADMIN_QUEUE_ID\n");
+    pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
-    LOG_INFO("\nPreparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_info("\nPreparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(file_desc, &sq_parameter);
-    LOG_INFO("Ringing Doorbell for ADMIN_QUEUE_ID\n");
+    pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
     ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_INFO("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Payload Size support
     u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x4);
     u32_tmp_data &= 0x07;
     if (u32_tmp_data == 0)
     {
-        LOG_INFO("\nEP Max Payload Size support 128 byte\n");
+        pr_info("\nEP Max Payload Size support 128 byte\n");
     }
     else if (u32_tmp_data == 1)
     {
-        LOG_INFO("\nEP Max Payload Size support 256 byte\n");
+        pr_info("\nEP Max Payload Size support 256 byte\n");
     }
     else if (u32_tmp_data == 2)
     {
-        LOG_INFO("\nEP Max Payload Size support 512 byte\n");
+        pr_info("\nEP Max Payload Size support 512 byte\n");
     }
     usleep(200000);
 
     for (test_round = 1; test_round <= 1; test_round++)
     {
-        //LOG_INFO("\nlink status: %d\n", test_round);
+        //pr_info("\nlink status: %d\n", test_round);
         test_sub();
         if (test_flag)
         {
@@ -167,11 +167,11 @@ int case_pcie_MPS(void)
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

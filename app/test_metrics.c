@@ -40,7 +40,7 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
     uint16_t tmp;
     struct nvme_get_q_metrics get_q_metrics = {0};
 
-    LOG_DBUG("User App Calling Get Q Metrics...\n");
+    pr_debug("User App Calling Get Q Metrics...\n");
 
     get_q_metrics.q_id = q_id;
     get_q_metrics.type = q_type;
@@ -58,44 +58,44 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
     }
     if (get_q_metrics.buffer == NULL)
     {
-        LOG_ERROR("Malloc Failed");
+        pr_err("Malloc Failed");
         return;
     }
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
 
     if (ret_val < 0)
     {
-        LOG_ERROR("\tQ metrics could not be checked!\n");
+        pr_err("\tQ metrics could not be checked!\n");
     }
     else
     {
         if (q_type == 1)
         {
             memcpy(&tmp, &get_q_metrics.buffer[0], sizeof(uint16_t));
-            LOG_DBUG("\nMetrics for SQ Id = %d\n", tmp);
+            pr_debug("\nMetrics for SQ Id = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[2], sizeof(uint16_t));
-            LOG_DBUG("\tCQ Id = %d\n", tmp);
+            pr_debug("\tCQ Id = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[4], sizeof(uint16_t));
-            LOG_DBUG("\tTail Ptr = %d\n", tmp);
+            pr_debug("\tTail Ptr = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[6], sizeof(uint16_t));
-            LOG_DBUG("\tTail_Ptr_Virt = %d\n", tmp);
+            pr_debug("\tTail_Ptr_Virt = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[8], sizeof(uint16_t));
-            LOG_DBUG("\tHead Ptr = %d\n", tmp);
+            pr_debug("\tHead Ptr = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[10], sizeof(uint16_t));
-            LOG_DBUG("\tElements = %d\n", tmp);
+            pr_debug("\tElements = %d\n", tmp);
         }
         else
         {
             memcpy(&tmp, &get_q_metrics.buffer[0], sizeof(uint16_t));
-            LOG_DBUG("\nMetrics for CQ Id = %d\n", tmp);
+            pr_debug("\nMetrics for CQ Id = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[2], sizeof(uint16_t));
-            LOG_DBUG("\tTail_Ptr = %d\n", tmp);
+            pr_debug("\tTail_Ptr = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[4], sizeof(uint16_t));
-            LOG_DBUG("\tHead Ptr = %d\n", tmp);
+            pr_debug("\tHead Ptr = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[6], sizeof(uint16_t));
-            LOG_DBUG("\tElements = %d\n", tmp);
+            pr_debug("\tElements = %d\n", tmp);
             memcpy(&tmp, &get_q_metrics.buffer[8], sizeof(uint16_t));
-            LOG_DBUG("\tIrq Enabled = %d\n", tmp);
+            pr_debug("\tIrq Enabled = %d\n", tmp);
         }
     }
     free(get_q_metrics.buffer);
@@ -115,10 +115,10 @@ void test_drv_metrics(int file_desc)
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_DRIVER_METRICS, &get_drv_metrics);
     if (ret_val < 0)
     {
-        LOG_ERROR("\tDrv metrics Failed!\n");
+        pr_err("\tDrv metrics Failed!\n");
     }
-    LOG_DBUG("Drv Version = 0x%X\n", get_drv_metrics.driver_version);
-    LOG_DBUG("Api Version = 0x%X\n", get_drv_metrics.api_version);
+    pr_debug("Drv Version = 0x%X\n", get_drv_metrics.driver_version);
+    pr_debug("Api Version = 0x%X\n", get_drv_metrics.api_version);
 }
 
 void test_dev_metrics(int file_desc)
@@ -129,10 +129,10 @@ void test_dev_metrics(int file_desc)
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEVICE_METRICS, &get_dev_metrics);
     if (ret_val < 0)
     {
-        LOG_ERROR("\tDev metrics Failed!\n");
+        pr_err("\tDev metrics Failed!\n");
     }
-    LOG_DBUG("IRQ Type = %d (0=S/1=M/2=X/3=N)\n", get_dev_metrics.irq_active.irq_type);
-    LOG_DBUG("IRQ No's = %d\n", get_dev_metrics.irq_active.num_irqs);
+    pr_debug("IRQ Type = %d (0=S/1=M/2=X/3=N)\n", get_dev_metrics.irq_active.irq_type);
+    pr_debug("IRQ No's = %d\n", get_dev_metrics.irq_active.num_irqs);
 }
 
 /**
@@ -157,31 +157,31 @@ uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t nBytes)
     test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
     if (test_data.buffer == NULL)
     {
-        LOG_ERROR("Malloc Failed");
+        pr_err("Malloc Failed");
         exit(-1);
     }
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
     u32_data = *(uint32_t *)test_data.buffer;
 #if 0
     if (nBytes / 4 == 0)
-        LOG_INFO("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
+        pr_info("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
     else if (nBytes % 4 != 0)
     {
         for (uint32_t i = 0; i < (nBytes / 4 + 1); i++)
         {
-            LOG_INFO("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset + i * 4, *(uint32_t *)(test_data.buffer + i * 4));
+            pr_info("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset + i * 4, *(uint32_t *)(test_data.buffer + i * 4));
         }
     }
     else
     {
         for (uint32_t i = 0; i < (nBytes / 4); i++)
         {
-            LOG_INFO("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset + i * 4, *(uint32_t *)(test_data.buffer + i * 4));
+            pr_info("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset + i * 4, *(uint32_t *)(test_data.buffer + i * 4));
         }
     }
 #endif
@@ -209,7 +209,7 @@ int read_nvme_register(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t 
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
     return ret_val;
@@ -239,19 +239,19 @@ int ioctl_write_data(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *b
     test_data.buffer = malloc(test_data.nBytes);
     if (test_data.buffer == NULL)
     {
-        LOG_ERROR("malloc failed!");
+        pr_err("malloc failed!");
         goto err;
     }
 
     memcpy(test_data.buffer, byte_buffer, nBytes);
 #if 0
-    LOG_INFO("NVME Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
+    pr_info("NVME Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
 #endif
     ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
 
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
 
@@ -274,22 +274,22 @@ void ioctl_create_acq(int file_desc, uint32_t queue_size)
     // check queue size
     if (queue_size > MAX_ADMIN_QUEUE_SIZE)
     {
-        LOG_ERROR("\tadmin cq size \033[32mexceed\033[0m\n");
+        pr_err("\tadmin cq size \033[32mexceed\033[0m\n");
     }
 
     aq_data.elements = queue_size;
     aq_data.type = ADMIN_CQ;
 
-    LOG_DBUG("\tAdmin CQ No. of Elements = %d\n", aq_data.elements);
+    pr_debug("\tAdmin CQ No. of Elements = %d\n", aq_data.elements);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("\tCreation of ACQ Failed!  ret_val=%d\n", ret_val);
+        pr_err("\tCreation of ACQ Failed!  ret_val=%d\n", ret_val);
     }
     else
     {
-        LOG_DBUG("\tACQ Creation success\n");
+        pr_debug("\tACQ Creation success\n");
     }
 }
 /**
@@ -306,22 +306,22 @@ void ioctl_create_asq(int file_desc, uint32_t queue_size)
     // check queue size
     if (queue_size > MAX_ADMIN_QUEUE_SIZE)
     {
-        LOG_ERROR("\tadmin sq size \033[32mexceed\033[0m\n");
+        pr_err("\tadmin sq size \033[32mexceed\033[0m\n");
     }
 
     aq_data.elements = queue_size;
     aq_data.type = ADMIN_SQ;
 
-    LOG_DBUG("\tAdmin SQ No. of Elements = %d\n", aq_data.elements);
+    pr_debug("\tAdmin SQ No. of Elements = %d\n", aq_data.elements);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("\tCreation of ASQ Failed! ret_val=%d\n", ret_val);
+        pr_err("\tCreation of ASQ Failed! ret_val=%d\n", ret_val);
     }
     else
     {
-        LOG_DBUG("\tASQ Creation success\n");
+        pr_debug("\tASQ Creation success\n");
     }
 }
 /**
@@ -337,11 +337,11 @@ void ioctl_enable_ctrl(int file_desc)
     ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, new_state);
     if (ret_val < 0)
     {
-        LOG_ERROR("Enable Ctrlr: Failed!\n");
+        pr_err("Enable Ctrlr: Failed!\n");
     }
     else
     {
-        LOG_DBUG("Enable Ctrlr: success\n");
+        pr_debug("Enable Ctrlr: success\n");
     }
 }
 /**
@@ -357,11 +357,11 @@ int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
     ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, new_state);
     if (ret_val < 0)
     {
-        LOG_ERROR("User Call to Disable Ctrlr: Failed!\n");
+        pr_err("User Call to Disable Ctrlr: Failed!\n");
     }
     else
     {
-        LOG_DBUG("User Call to Disable Ctrlr: success\n");
+        pr_debug("User Call to Disable Ctrlr: success\n");
     }
     return ret_val;
 }
@@ -372,20 +372,20 @@ void ioctl_dump(int file_desc, char *tmpfile)
     struct nvme_file pfile = {0};
 
     pfile.flen = strlen(tmpfile);
-    //LOG_INFO("size = %d\n", pfile.flen);
+    //pr_info("size = %d\n", pfile.flen);
     pfile.file_name = malloc(pfile.flen);
     strcpy((char *)pfile.file_name, tmpfile);
 
-    LOG_INFO("File name = %s\n", pfile.file_name);
+    pr_info("File name = %s\n", pfile.file_name);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_DUMP_METRICS, &pfile);
     if (ret_val < 0)
     {
-        LOG_ERROR("Dump Metrics Failed!\n");
+        pr_err("Dump Metrics Failed!\n");
     }
     else
     {
-        LOG_DBUG("Dump Metrics success\n");
+        pr_debug("Dump Metrics success\n");
     }
 }
 
@@ -412,17 +412,17 @@ struct cq_completion *send_get_feature(int file_desc, uint8_t feature_id)
     //send command
     if (nvme_get_feature_cmd(file_desc, 1, feature_id))
     {
-        LOG_ERROR("send get feature cmd Failed!\n");
+        pr_err("send get feature cmd Failed!\n");
     }
     // ring doorbell
     if (ioctl_tst_ring_dbl(file_desc, 0))
     {
-        LOG_ERROR("DBL ERR!");
+        pr_err("DBL ERR!");
     }
     //get 1 cq from admin cq
     if (cq_gain(0, 1, &reap_num))
     {
-        LOG_ERROR("cq_gain failed!!!\n");
+        pr_err("cq_gain failed!!!\n");
     }
     //get cq entry
     return get_cq_entry();
@@ -440,7 +440,7 @@ uint32_t pci_read_dword(int file_desc, uint32_t offset)
     uint32_t data = 0;
     struct rw_generic test_data;
     if(offset%4 != 0)
-        ASSERT(0);
+        assert(0);
     test_data.type = NVMEIO_PCI_HDR;
     test_data.offset = offset;
     test_data.nBytes = sizeof(data);
@@ -449,7 +449,7 @@ uint32_t pci_read_dword(int file_desc, uint32_t offset)
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
     return data;
@@ -468,7 +468,7 @@ uint16_t pci_read_word(int file_desc, uint32_t offset)
     uint16_t data = 0;
     struct rw_generic test_data;
     if(offset%2 != 0)
-        ASSERT(0);
+        assert(0);
     test_data.type = NVMEIO_PCI_HDR;
     test_data.offset = offset;
     test_data.nBytes = sizeof(data);
@@ -477,7 +477,7 @@ uint16_t pci_read_word(int file_desc, uint32_t offset)
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
     return data;
@@ -503,7 +503,7 @@ uint8_t pci_read_byte(int file_desc, uint32_t offset)
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
     return data;
@@ -531,7 +531,7 @@ int read_pcie_register(int file_desc, uint32_t offset, uint32_t nBytes, enum nvm
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("ioctl_set_msg failed:%d\n", ret_val);
+        pr_err("ioctl_set_msg failed:%d\n", ret_val);
         exit(-1);
     }
     return ret_val;
@@ -560,18 +560,18 @@ int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t nBytes, uint8_
     test_data.buffer = malloc(test_data.nBytes);
     if (test_data.buffer == NULL)
     {
-        LOG_ERROR("malloc failed!");
+        pr_err("malloc failed!");
         return FAILED;
     }
     memcpy(test_data.buffer, byte_buffer, nBytes);
 #if 0
-    LOG_INFO("PCIe Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
+    pr_info("PCIe Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
 #endif
     ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
 
     if (ret_val < 0)
     {
-        LOG_ERROR("NVME_IOCTL_WRITE_GENERIC failed:%d\n", ret_val);
+        pr_err("NVME_IOCTL_WRITE_GENERIC failed:%d\n", ret_val);
     }
 
     free(test_data.buffer);
@@ -636,11 +636,11 @@ void test_encrypt_decrypt(void)
             *((uint32_t *)write_buffer + k - 3) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
             *((uint32_t *)write_buffer + 64 + k - 3) = *((uint32_t *)write_buffer + k - 3);
             j += 4;
-            //LOG_INFO("k:%d,j:%d,i:%d,write_buffer[%d]:0x%08x\n",k,j,i,i,((uint32_t *)write_buffer)[i]);
+            //pr_info("k:%d,j:%d,i:%d,write_buffer[%d]:0x%08x\n",k,j,i,i,((uint32_t *)write_buffer)[i]);
         }
     // for(i=0; i<128; i++)
     // {
-    //     LOG_INFO("write_buffer[%d]:0x%08x\n",i,((uint32_t *)write_buffer)[i]);
+    //     pr_info("write_buffer[%d]:0x%08x\n",i,((uint32_t *)write_buffer)[i]);
     // }
     #else
     // //ECB-AES128/256
@@ -745,18 +745,18 @@ void test_encrypt_decrypt(void)
 #else
     if (FAILED == dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DAT_SIZE))
     {
-        LOG_INFO("\nwrite_buffer Data:\n");
+        pr_info("\nwrite_buffer Data:\n");
         mem_disp(write_buffer, LBA_DAT_SIZE);
-        LOG_INFO("\nRead_buffer Data:\n");
+        pr_info("\nRead_buffer Data:\n");
         mem_disp(read_buffer, LBA_DAT_SIZE);
     }
 #endif
     if (err_flg)
     {
-        LOG_ERROR("Data enc ERROR!!!\n");
+        pr_err("Data enc ERROR!!!\n");
     }
     else
     {
-        LOG_INFO("Data enc PASS!!!\n");
+        pr_info("Data enc PASS!!!\n");
     }
 }

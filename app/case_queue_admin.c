@@ -43,14 +43,14 @@ int case_queue_admin(void)
 
     test_loop = 1;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -78,14 +78,14 @@ static dword_t sub_case_asq_size_loop_array(void)
     uint32_t admin_sq_size = 4096;
 
     /*******************************************************************************************************************************/
-    LOG_INFO("\n1. tests qsize: asq_size range: 2,64,65,66,128,129,130,4096,acq_size range: 2,256,257,258,512,513,4096\n");
+    pr_info("\n1. tests qsize: asq_size range: 2,64,65,66,128,129,130,4096,acq_size range: 2,256,257,258,512,513,4096\n");
     for (cq_size_idx = 0; cq_size_idx < ARRAY_SIZE(acq_size); cq_size_idx++)
     {
         admin_cq_size = acq_size[cq_size_idx];
         for (sq_size_idx = 0; sq_size_idx < ARRAY_SIZE(asq_size); sq_size_idx++)
         {
             admin_sq_size = asq_size[sq_size_idx];
-            LOG_COLOR(GREEN_LOG, "\ncfg admin_cq_size:%d, admin_sq_size:%d\n", acq_size[cq_size_idx], asq_size[sq_size_idx]);
+            pr_color(LOG_COLOR_GREEN, "\ncfg admin_cq_size:%d, admin_sq_size:%d\n", acq_size[cq_size_idx], asq_size[sq_size_idx]);
 
             test_change_init(file_desc, admin_sq_size, admin_cq_size, INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
@@ -99,16 +99,16 @@ static dword_t sub_case_asq_size_loop_array(void)
             // usleep(500000);
             nvme_msi_register_test();
             test_flag |= cq_gain(0, cmd_cnt, &reap_num);
-            LOG_COLOR(PURPLE_LOG, "  acq:%d reaped ok! reap_num:%d\n", 0, reap_num);
+            pr_color(LOG_COLOR_PURPLE, "  acq:%d reaped ok! reap_num:%d\n", 0, reap_num);
         }
     }
     /*******************************************************************************************************************************/
-    LOG_INFO("\n2. Send cmd 2 times, first + scend > q_size. asq_size range: 2,64,65,66,128,129,130,4096\n");
+    pr_info("\n2. Send cmd 2 times, first + scend > q_size. asq_size range: 2,64,65,66,128,129,130,4096\n");
     for (sq_size_idx = 0; sq_size_idx < ARRAY_SIZE(test2_asq_size); sq_size_idx++)
     {
         admin_sq_size = test2_asq_size[sq_size_idx];
         admin_cq_size = test2_asq_size[sq_size_idx];
-        LOG_COLOR(GREEN_LOG, "\ncfg acq_size:%d, asq_size:%d\n",
+        pr_color(LOG_COLOR_GREEN, "\ncfg acq_size:%d, asq_size:%d\n",
                   test2_asq_size[sq_size_idx], test2_asq_size[sq_size_idx]);
         test_change_init(file_desc, admin_sq_size, admin_cq_size, INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
@@ -121,7 +121,7 @@ static dword_t sub_case_asq_size_loop_array(void)
         }
         test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
-        LOG_COLOR(PURPLE_LOG, "first send, admin q reaped ok! reap_num:%d\n", reap_num);
+        pr_color(LOG_COLOR_PURPLE, "first send, admin q reaped ok! reap_num:%d\n", reap_num);
 
         /**********************************************************************/
         cmd_cnt = 0;
@@ -132,14 +132,14 @@ static dword_t sub_case_asq_size_loop_array(void)
         }
         test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
-        LOG_COLOR(PURPLE_LOG, "second send, admin q reaped ok! reap_num:%d\n", reap_num);
+        pr_color(LOG_COLOR_PURPLE, "second send, admin q reaped ok! reap_num:%d\n", reap_num);
     }
     /*******************************************************************************************************************************/
-    LOG_INFO("\n3. issue illegal admin cmd opcodes\n");
+    pr_info("\n3. issue illegal admin cmd opcodes\n");
     test_flag |= admin_illegal_opcode_cmd(file_desc, 0xff);
     test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
     cq_gain(0, 1, &reap_num);
-    LOG_COLOR(PURPLE_LOG, "send illegal admin cmd reaped ok! reap_num:%d\n", reap_num);
+    pr_color(LOG_COLOR_PURPLE, "send illegal admin cmd reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
     return test_flag;
 }
@@ -178,7 +178,7 @@ static dword_t sub_case_asq_size_random(void)
         // usleep(500000);
         nvme_msi_register_test();
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
-        LOG_COLOR(PURPLE_LOG, "  acq reaped %d ok!\n", reap_num);
+        pr_color(LOG_COLOR_PURPLE, "  acq reaped %d ok!\n", reap_num);
     }
     return test_flag;
 }

@@ -38,14 +38,14 @@ int case_nvme_boot_partition(void)
 {
     uint32_t round_idx = 0;
     test_loop = 1;
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -67,14 +67,14 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     ret_val = ioctl_write_data(file_desc, NVME_REG_BPRSEL_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("[E] NVME_REG_BPRSEL_OFST ret_val:%d!\n", ret_val);
+        pr_err("[E] NVME_REG_BPRSEL_OFST ret_val:%d!\n", ret_val);
         goto error_out;
     }
     //7. writing to the Boot Partition Read Select(BPRSEL) register.
     ret_val = read_nvme_register(file_desc, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("[E] NVME_REG_BPINFO_OFST1 ret_val:%d! %x\n", ret_val, u32_tmp_data);
+        pr_err("[E] NVME_REG_BPINFO_OFST1 ret_val:%d! %x\n", ret_val, u32_tmp_data);
         goto error_out;
     }
     try_cnt = 0;
@@ -84,13 +84,13 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
         ret_val = read_nvme_register(file_desc, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
         if (ret_val < 0)
         {
-            LOG_ERROR("[E] NVME_REG_BPINFO_OFST2 ret_val:%d! %x\n", ret_val, u32_tmp_data);
+            pr_err("[E] NVME_REG_BPINFO_OFST2 ret_val:%d! %x\n", ret_val, u32_tmp_data);
             goto error_out;
         }
         try_cnt++;
         if (try_cnt > try_max)
         {
-            LOG_ERROR("[E] try_cnt > try_max %x\n", u32_tmp_data);
+            pr_err("[E] try_cnt > try_max %x\n", u32_tmp_data);
             goto error_out;
         }
     }
@@ -119,13 +119,13 @@ int reading_boot_partition(void)
     ret_val = read_nvme_register(file_desc, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("[E] NVME_REG_BPINFO_OFST ret_val:%d!\n", ret_val);
+        pr_err("[E] NVME_REG_BPINFO_OFST ret_val:%d!\n", ret_val);
         goto error_out;
     }
     ABPID = (u32_tmp_data & 0x80000000) >> 31;
     //This field defines the size of each Boot Partition in multiples of 128KB.Both Boot Partitions are the same size.
     BPSZ = u32_tmp_data & 0x7fff;
-    LOG_INFO("ABPID:%d,BPSZ:%d\n", ABPID, BPSZ);
+    pr_info("ABPID:%d,BPSZ:%d\n", ABPID, BPSZ);
 
     //4. Allocate a physically contiguous memory buffer
     if ((fd = open("/sys/class/u-dma-buf/udmabuf0/phys_addr", O_RDONLY)) != -1)
@@ -134,7 +134,7 @@ int reading_boot_partition(void)
         sscanf(attr, "%lx", &phys_addr);
         close(fd);
     }
-    LOG_INFO("phys_addr:0x%lx\n", phys_addr);
+    pr_info("phys_addr:0x%lx\n", phys_addr);
     bprsz_4k = 1;
     boot_read_cnt = (BPSZ * 128 * 1024) / (bprsz_4k * 4096);
     for (idx = 0; idx < boot_read_cnt; idx++)
@@ -143,19 +143,19 @@ int reading_boot_partition(void)
         ret_val = ioctl_write_data(file_desc, NVME_REG_BPMBL_OFST, sizeof(uint64_t), (uint8_t *)&BMBBA);
         if (ret_val < 0)
         {
-            LOG_ERROR("[E] NVME_REG_BPMBL_OFST ret_val:%d!\n", ret_val);
+            pr_err("[E] NVME_REG_BPMBL_OFST ret_val:%d!\n", ret_val);
             goto error_out;
         }
-        // LOG_INFO("boot_read_cnt:%d!\n", idx);
+        // pr_info("boot_read_cnt:%d!\n", idx);
         ret_val = read_one_boot_part(ABPID, idx, bprsz_4k);
         if (ret_val < 0)
         {
-            LOG_ERROR("[E] read_one_boot_part ret_val:%d!\n", ret_val);
+            pr_err("[E] read_one_boot_part ret_val:%d!\n", ret_val);
             goto error_out;
         }
     }
 
-    LOG_INFO("Boot partition Read done!\n");
+    pr_info("Boot partition Read done!\n");
     if ((fd = open("/dev/udmabuf0", O_RDWR)) != -1)
     {
         boot_buffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -166,7 +166,7 @@ int reading_boot_partition(void)
     test_flag = SUCCEED;
     return test_flag;
 error_out:
-    LOG_ERROR("[%s]ioctl ret_val:%d!\n", __FUNCTION__, ret_val);
+    pr_err("[%s]ioctl ret_val:%d!\n", __FUNCTION__, ret_val);
     test_flag = FAILED;
     return test_flag;
 }
@@ -184,12 +184,12 @@ int writeing_boot_partition(void)
     // 4. Allocate a physically contiguous memory buffer
     if (posix_memalign(&boot_buffer, 4096, 128 * 1024))
     {
-        LOG_ERROR("Memalign Failed\n");
+        pr_err("Memalign Failed\n");
         return test_flag;
     }
 
     memset((void *)boot_buffer, BYTE_RAND(), 128 * 1024);
-    LOG_COLOR(GREEN_LOG, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
+    pr_color(LOG_COLOR_GREEN, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
 
     if (SUCCEED == nvme_firmware_download(file_desc, (128 * 1024 / 4) - 1, 0, (byte_t *)boot_buffer))
     {
@@ -227,23 +227,23 @@ static dword_t rd_wr_boot_part_ccen_0(void)
     ret_val = read_nvme_register(file_desc, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
+        pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
         goto error_out;
     }
     if ((u32_tmp_data & 0x2000) == 0x2000)
     {
         /************************************************************************************************/
-        LOG_INFO(".1 Reading from a Boot Partition\n");
+        pr_info(".1 Reading from a Boot Partition\n");
         reading_boot_partition();
         /************************************************************************************************/
         /************************************************************************************************/
-        LOG_INFO(".2 Writing to a Boot Partition\n");
+        pr_info(".2 Writing to a Boot Partition\n");
         writeing_boot_partition();
         reading_boot_partition();
     }
     else
     {
-        LOG_WARN("This Device does not support Boot Partitions!\n");
+        pr_warn("This Device does not support Boot Partitions!\n");
         goto skip_out;
     }
     test_flag = SUCCEED;
@@ -266,23 +266,23 @@ static dword_t rd_wr_boot_part_ccen_1(void)
     ret_val = read_nvme_register(file_desc, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        LOG_ERROR("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
+        pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
         goto error_out;
     }
     if ((u32_tmp_data & 0x2000) == 0x2000)
     {
         /************************************************************************************************/
-        LOG_INFO(".1 Reading from a Boot Partition\n");
+        pr_info(".1 Reading from a Boot Partition\n");
         reading_boot_partition();
         /************************************************************************************************/
         /************************************************************************************************/
-        LOG_INFO(".2 Writing to a Boot Partition\n");
+        pr_info(".2 Writing to a Boot Partition\n");
         writeing_boot_partition();
         reading_boot_partition();
     }
     else
     {
-        LOG_WARN("This Device does not support Boot Partitions!\n");
+        pr_warn("This Device does not support Boot Partitions!\n");
         goto skip_out;
     }
     test_flag = SUCCEED;

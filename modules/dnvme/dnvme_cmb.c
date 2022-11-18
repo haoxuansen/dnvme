@@ -46,17 +46,17 @@ void nvme_map_cmb(struct nvme_device *dev)
 	if (dev->cmb_size)
 		return;
     dev->cmbsz = readl(&dev->private_dev.ctrlr_regs->cmbsz);
-	LOG_NRM("cmbsz:%x",dev->cmbsz);        
+	pr_info("cmbsz:%x",dev->cmbsz);        
 	if (!dev->cmbsz)
 		return;
 	dev->cmbloc = readl(&dev->private_dev.ctrlr_regs->cmbloc);
-	LOG_NRM("cmbloc:%x",dev->cmbloc);        
+	pr_info("cmbloc:%x",dev->cmbloc);        
 	size = nvme_cmb_size_unit(dev) * nvme_cmb_size(dev);
 	offset = nvme_cmb_size_unit(dev) * NVME_CMB_OFST(dev->cmbloc);
 	bar = NVME_CMB_BIR(dev->cmbloc);
 	bar_size = pci_resource_len(pdev, bar);
-	// LOG_DBG("CMB:%llx %llx %x %x",size,offset,bar, *((int*)bar_size));
-	LOG_NRM("cmb:%llx %llx %x",size,offset,bar);
+	// pr_debug("CMB:%llx %llx %x %x",size,offset,bar, *((int*)bar_size));
+	pr_info("cmb:%llx %llx %x",size,offset,bar);
 
 	if (offset > bar_size)
 		return;
@@ -70,7 +70,7 @@ void nvme_map_cmb(struct nvme_device *dev)
 		size = bar_size - offset;
 
 	if (pci_p2pdma_add_resource(pdev, bar, size, offset)) {
-		LOG_ERR("failed to register the CMB");
+		pr_err("failed to register the CMB");
 		return;
 	}
 
@@ -83,7 +83,7 @@ void nvme_map_cmb(struct nvme_device *dev)
 
 	// if (sysfs_add_file_to_group(&dev->private_dev.spcl_dev->kobj,
 	// 			    &dev_attr_cmb.attr, NULL))
-	// 	LOG_ERR("failed to add sysfs attribute for CMB\n");
+	// 	pr_err("failed to add sysfs attribute for CMB\n");
 }
 
 

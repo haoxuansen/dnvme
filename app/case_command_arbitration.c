@@ -58,7 +58,7 @@ enum sq_prio_type get_q_prio(uint16_t id)
     }
     else
     {
-        LOG_ERROR("get_q_prio q_id %d error!", id);
+        pr_err("get_q_prio q_id %d error!", id);
         exit(-1);
     }
 }
@@ -94,7 +94,7 @@ uint32_t get_q_cmd_num(uint8_t id)
     //     ret = sq8_cmd_num;
     //     break;
     default:
-        LOG_ERROR("get_q_cmd_num q_id %d error!", id);
+        pr_err("get_q_cmd_num q_id %d error!", id);
         exit(-1);
         break;
     }
@@ -246,7 +246,7 @@ uint32_t get_higt_weight_q_min_num(void)
             {
                 ret = get_q_cmd_num(i);
             }
-            //LOG_INFO("i:%d, get_q_cmd_num(i):%d\n",i,get_q_cmd_num(i));
+            //pr_info("i:%d, get_q_cmd_num(i):%d\n",i,get_q_cmd_num(i));
         }
     }
     return ret;
@@ -271,10 +271,10 @@ static void test_sub(void)
 
     struct arbitration_parameter arb_parameter = {0};
 
-    LOG_COLOR(PURPLE_LOG, "this case will tests command_arbitration\n");
+    pr_color(LOG_COLOR_PURPLE, "this case will tests command_arbitration\n");
     /*******************************************************************************************************************************/
     /**********************************************************************/
-    LOG_INFO("create SQ1 prio = LOW_PRIO\n");
+    pr_info("create SQ1 prio = LOW_PRIO\n");
     /**********************************************************************/
     for (q_index = 1; q_index <= 1; q_index++)
     {
@@ -289,7 +289,7 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -300,10 +300,10 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     }
     /**********************************************************************/
-    LOG_INFO("create SQ2 prio = MEDIUM_PRIO\n");
+    pr_info("create SQ2 prio = MEDIUM_PRIO\n");
     /**********************************************************************/
     for (q_index = 2; q_index <= 2; q_index++)
     {
@@ -318,7 +318,7 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -329,10 +329,10 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     }
     /**********************************************************************/
-    LOG_INFO("create SQ3 prio = URGENT_PRIO\n");
+    pr_info("create SQ3 prio = URGENT_PRIO\n");
     /**********************************************************************/
     for (q_index = 3; q_index <= 3; q_index++)
     {
@@ -347,7 +347,7 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -358,10 +358,10 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     }
     /**********************************************************************/
-    LOG_INFO("create SQ4 prio = HIGH_PRIO\n");
+    pr_info("create SQ4 prio = HIGH_PRIO\n");
     /**********************************************************************/
     for (q_index = 4; q_index <= 4; q_index++)
     {
@@ -377,7 +377,7 @@ static void test_sub(void)
 
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -388,7 +388,7 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     }
     /**********************************************************************/
 
@@ -453,7 +453,7 @@ static void test_sub(void)
 
     /**********************************************************************/
 
-    // LOG_INFO("!!!!!!!!!!!!!!!!!!!!!before dbl sleep(20)\n");
+    // pr_info("!!!!!!!!!!!!!!!!!!!!!before dbl sleep(20)\n");
     // sleep(20);
     io_sq_id = 3;
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
@@ -479,7 +479,7 @@ static void test_sub(void)
     // io_sq_id = 8;
     // test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
 
-    // LOG_INFO("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@after dbl sleep(30)\n");
+    // pr_info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@after dbl sleep(30)\n");
     // sleep(30);
 
     arb_parameter.urgent_prio_cmd_num = sq3_cmd_num;
@@ -496,7 +496,7 @@ static void test_sub(void)
     test_flag |= arb_reap_all_cq_2(4, &arb_parameter);
     //g_nvme_dev.max_sq_num
     /*******************************************************************************************************************************/
-    LOG_INFO("delete all sq\n");
+    pr_info("delete all sq\n");
     for (q_index = 1; q_index <= 4; q_index++)
     {
         io_cq_id = q_index;
@@ -506,13 +506,13 @@ static void test_sub(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
         test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         /**********************************************************************/
     }
     /****************************************************************************
@@ -527,8 +527,8 @@ int case_command_arbitration(void)
 
     struct cq_completion *cq_entry = get_cq_entry();
 
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s", disp_this_case);
 
     u32_tmp_data = ioctl_read_data(file_desc, 0x0, 4); // bit 18:17 Arbitration Mechanism Supported (AMS):
 
@@ -552,12 +552,12 @@ int case_command_arbitration(void)
     }
     else
     {
-        LOG_ERROR("acq_num or sq_id is wrong!!!\n");
+        pr_err("acq_num or sq_id is wrong!!!\n");
     }
-    LOG_INFO("Arbit_HPW: %d\n", Arbit_HPW);
-    LOG_INFO("Arbit_MPW: %d\n", Arbit_MPW);
-    LOG_INFO("Arbit_LPW: %d\n", Arbit_LPW);
-    LOG_INFO("Arbit_AB: %d\n", Arbit_AB);
+    pr_info("Arbit_HPW: %d\n", Arbit_HPW);
+    pr_info("Arbit_MPW: %d\n", Arbit_MPW);
+    pr_info("Arbit_LPW: %d\n", Arbit_LPW);
+    pr_info("Arbit_AB: %d\n", Arbit_AB);
 
     /**********************************************************************/
     //set Arbitration (Feature Identifier 01h)
@@ -581,33 +581,33 @@ int case_command_arbitration(void)
     }
     else
     {
-        LOG_ERROR("acq_num or sq_id is wrong!!!\n");
+        pr_err("acq_num or sq_id is wrong!!!\n");
     }
-    LOG_INFO("Arbit_HPW: %d\n", Arbit_HPW);
-    LOG_INFO("Arbit_MPW: %d\n", Arbit_MPW);
-    LOG_INFO("Arbit_LPW: %d\n", Arbit_LPW);
-    LOG_INFO("Arbit_AB: %d\n", Arbit_AB);
+    pr_info("Arbit_HPW: %d\n", Arbit_HPW);
+    pr_info("Arbit_MPW: %d\n", Arbit_MPW);
+    pr_info("Arbit_LPW: %d\n", Arbit_LPW);
+    pr_info("Arbit_AB: %d\n", Arbit_AB);
     /**********************************************************************/
-    LOG_INFO("get_higt_weight_q_min_num(): %d\n", get_higt_weight_q_min_num());
-    LOG_INFO("get_prio_order(1): %d\n", get_prio_order(1));
-    LOG_INFO("get_prio_order(2): %d\n", get_prio_order(2));
-    LOG_INFO("get_prio_order(3): %d\n", get_prio_order(3));
+    pr_info("get_higt_weight_q_min_num(): %d\n", get_higt_weight_q_min_num());
+    pr_info("get_prio_order(1): %d\n", get_prio_order(1));
+    pr_info("get_prio_order(2): %d\n", get_prio_order(2));
+    pr_info("get_prio_order(3): %d\n", get_prio_order(3));
 
     /**********************************************************************/
 
     for (test_round = 1; test_round <= 1; test_round++)
     {
-        LOG_INFO("\ntest_round: %d\n", test_round);
+        pr_info("\ntest_round: %d\n", test_round);
         test_sub();
     }
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

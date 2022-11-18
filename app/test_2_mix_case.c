@@ -63,10 +63,10 @@ int test_2_mix_case(void)
 
     test_loop = 2;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
         {
             io_sq_id = index;
@@ -75,7 +75,7 @@ int test_2_mix_case(void)
         }
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -84,18 +84,18 @@ int test_2_mix_case(void)
 
 static dword_t sub_case_pre(void)
 {
-    LOG_INFO("==>QID:%d\n", io_sq_id);
-    LOG_COLOR(PURPLE_LOG, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_info("==>QID:%d\n", io_sq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_COLOR(PURPLE_LOG, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 
 static dword_t sub_case_end(void)
 {
-    LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
@@ -113,7 +113,7 @@ static dword_t sub_case_io_cmd(void)
         wr_slba = 0;
         wr_nlb = 32;
 
-        LOG_INFO("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 
         for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / wr_nlb)); i++)
         {
@@ -152,10 +152,10 @@ static dword_t sub_case_io_cmd(void)
                 test_flag |= tmp_fg;
                 if (tmp_fg != SUCCEED)
                 {
-                    LOG_INFO("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
-                    LOG_INFO("\nwrite_buffer Data:\n");
+                    pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
+                    pr_info("\nwrite_buffer Data:\n");
                     mem_disp(write_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid));
-                    LOG_INFO("\nRead_buffer Data:\n");
+                    pr_info("\nRead_buffer Data:\n");
                     mem_disp(read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid));
                     break;
                 }
@@ -179,7 +179,7 @@ static dword_t sub_case_fwdma_cmd(void)
     if ((posix_memalign(&fwdma_wr_buffer, 4096, 8192)) ||
         (posix_memalign(&fwdma_rd_buffer, 4096, 8192)))
     {
-        LOG_ERROR("Memalign Failed\n");
+        pr_err("Memalign Failed\n");
         return FAILED;
     }
 #else
@@ -187,14 +187,14 @@ static dword_t sub_case_fwdma_cmd(void)
     fwdma_rd_buffer = malloc(8192);
     if ((write_buffer == NULL) || (read_buffer == NULL))
     {
-        LOG_ERROR("Malloc Failed\n");
+        pr_err("Malloc Failed\n");
         return FAILED;
     }
 #endif
     /**********************************************************************/
-    LOG_INFO("send_fwdma_wr/rd test crc enc-dec wr/rd\n");
+    pr_info("send_fwdma_wr/rd test crc enc-dec wr/rd\n");
     data_len = 4096; //((WORD_RAND() % 255) + 1) * 16;
-    LOG_INFO(" data_len:%d\n", data_len);
+    pr_info(" data_len:%d\n", data_len);
     memset((uint8_t *)fwdma_wr_buffer, rand() % 0xff, data_len);
     memset((uint8_t *)fwdma_rd_buffer, 0, data_len);
     fwdma_parameter.cdw10 = data_len;  //data_len
@@ -221,9 +221,9 @@ static dword_t sub_case_fwdma_cmd(void)
 
     if (mem_cmp(fwdma_wr_buffer, fwdma_rd_buffer, data_len))
     {
-        LOG_INFO("\nwrite_buffer Data:\n");
+        pr_info("\nwrite_buffer Data:\n");
         mem_disp(fwdma_wr_buffer, data_len);
-        LOG_INFO("\nRead_buffer Data:\n");
+        pr_info("\nRead_buffer Data:\n");
         mem_disp(fwdma_rd_buffer, data_len);
         test_flag |= 1;
     }

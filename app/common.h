@@ -16,11 +16,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 // #include <sys/types.h>
 // #include <malloc.h>
 
 #include "common_types.h"
 #include "common_define.h"
-#include "common_logs.h"
+#include "log.h"
 
 #endif

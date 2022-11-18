@@ -155,14 +155,14 @@ int case_register_test(void)
 
     test_loop = 2;
     scan_control_reister();
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -171,11 +171,11 @@ int case_register_test(void)
 
 static dword_t sub_case_pre(void)
 {
-    LOG_INFO("==>QID:%d\n", io_sq_id);
-    LOG_COLOR(PURPLE_LOG, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_info("==>QID:%d\n", io_sq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_COLOR(PURPLE_LOG, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
 
     return test_flag;
@@ -183,7 +183,7 @@ static dword_t sub_case_pre(void)
 
 static dword_t sub_case_end(void)
 {
-    LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
@@ -202,7 +202,7 @@ static dword_t sub_case_nvme_reg_normal(void)
             u32_tmp_data &= nvme_ctrl_reg[i].mark;
             if ((nvme_ctrl_reg[i].def_val&nvme_ctrl_reg[i].mark) != u32_tmp_data)
             {
-                LOG_ERROR("addr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
+                pr_err("addr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
                           nvme_ctrl_reg[i].addr,
                           nvme_ctrl_reg[i].mark,
                           u32_tmp_data,
@@ -212,7 +212,7 @@ static dword_t sub_case_nvme_reg_normal(void)
 #if 1
             rand_data = rand();
             u32_tmp_data = (rand_data & nvme_ctrl_reg[i].mark);
-            // LOG_INFO("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
+            // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          nvme_ctrl_reg[i].addr,rand_data, nvme_ctrl_reg[i].mark, u32_tmp_data);
             ioctl_write_data(file_desc, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
@@ -220,7 +220,7 @@ static dword_t sub_case_nvme_reg_normal(void)
             u32_tmp_data &= nvme_ctrl_reg[i].mark;
             if ((nvme_ctrl_reg[i].def_val&nvme_ctrl_reg[i].mark) != u32_tmp_data)
             {
-                LOG_ERROR("\taddr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
+                pr_err("\taddr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
                           nvme_ctrl_reg[i].addr,
                           nvme_ctrl_reg[i].mark,
                           u32_tmp_data,
@@ -230,7 +230,7 @@ static dword_t sub_case_nvme_reg_normal(void)
 #endif
         }
     }
-    LOG_COLOR(GREEN_LOG, "nvme ctrl reg tests done!\n\n");
+    pr_color(LOG_COLOR_GREEN, "nvme ctrl reg tests done!\n\n");
 
     test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
@@ -250,7 +250,7 @@ static dword_t sub_case_pcie_reg_normal(void)
             u32_tmp_data &= pcie_ids_reg[i].mark;
             if (pcie_ids_reg[i].def_val != u32_tmp_data)
             {
-                LOG_ERROR("addr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
+                pr_err("addr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
                           pcie_ids_reg[i].addr,
                           pcie_ids_reg[i].mark,
                           u32_tmp_data,
@@ -260,7 +260,7 @@ static dword_t sub_case_pcie_reg_normal(void)
 #if 1
             rand_data = rand();
             u32_tmp_data = (rand_data & pcie_ids_reg[i].mark);
-            // LOG_INFO("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
+            // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          pcie_ids_reg[i].addr,rand_data, pcie_ids_reg[i].mark, u32_tmp_data);
             ioctl_pci_write_data(file_desc, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
@@ -268,7 +268,7 @@ static dword_t sub_case_pcie_reg_normal(void)
             u32_tmp_data &= pcie_ids_reg[i].mark;
             if (pcie_ids_reg[i].def_val != u32_tmp_data)
             {
-                LOG_ERROR("\taddr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
+                pr_err("\taddr:0x%08x, mark:0x%08x, read reg_val(0x%08x) != def_val(0x%08x)\n",
                           pcie_ids_reg[i].addr,
                           pcie_ids_reg[i].mark,
                           u32_tmp_data,
@@ -278,7 +278,7 @@ static dword_t sub_case_pcie_reg_normal(void)
 #endif
         }
     }
-    LOG_COLOR(GREEN_LOG, "pcie ids reg tests done!\n\n");
+    pr_color(LOG_COLOR_GREEN, "pcie ids reg tests done!\n\n");
 
     test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
@@ -309,7 +309,7 @@ static dword_t sub_case_iocmd_nvme_reg(void)
         mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
         mem_set(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
 
-        LOG_INFO("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
@@ -326,7 +326,7 @@ static dword_t sub_case_iocmd_nvme_reg(void)
         }
         else
         {
-            LOG_ERROR("nvme_io_write_cmd");
+            pr_err("nvme_io_write_cmd");
             goto out;
         }
 
@@ -346,13 +346,13 @@ static dword_t sub_case_iocmd_nvme_reg(void)
         }
         else
         {
-            LOG_ERROR("nvme_io_read_cmd");
+            pr_err("nvme_io_read_cmd");
             goto out;
         }
         if (dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
         {
             test_flag |= FAILED;
-            LOG_ERROR("dw_cmp");
+            pr_err("dw_cmp");
             goto out;
         }
         sub_case_end();
@@ -383,7 +383,7 @@ static dword_t sub_case_iocmd_nvme_reg_normal(void)
         mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
         mem_set(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
 
-        LOG_INFO("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
@@ -400,7 +400,7 @@ static dword_t sub_case_iocmd_nvme_reg_normal(void)
         }
         else
         {
-            LOG_ERROR("nvme_io_write_cmd");
+            pr_err("nvme_io_write_cmd");
             goto out;
         }
 
@@ -420,13 +420,13 @@ static dword_t sub_case_iocmd_nvme_reg_normal(void)
         }
         else
         {
-            LOG_ERROR("nvme_io_read_cmd");
+            pr_err("nvme_io_read_cmd");
             goto out;
         }
         if (dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
         {
             test_flag |= FAILED;
-            LOG_ERROR("dw_cmp");
+            pr_err("dw_cmp");
             goto out;
         }
         sub_case_end();

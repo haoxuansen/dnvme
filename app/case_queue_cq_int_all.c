@@ -56,14 +56,14 @@ int case_queue_cq_int_all(void)
 
     test_loop = 10;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -84,13 +84,13 @@ static dword_t sub_case_int_pin(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = 0; // 0's based
-    LOG_INFO("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
+    pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_INFO("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
+    pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
@@ -99,7 +99,7 @@ static dword_t sub_case_int_pin(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
     wr_slba = 0;
@@ -124,12 +124,12 @@ static dword_t sub_case_int_pin(void)
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
     return test_flag;
 }
@@ -147,13 +147,13 @@ static dword_t sub_case_int_msi_single(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = 0; // 0's based
-    LOG_INFO("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
+    pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_INFO("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
+    pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
@@ -162,7 +162,7 @@ static dword_t sub_case_int_msi_single(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
     wr_slba = 0;
@@ -190,12 +190,12 @@ static dword_t sub_case_int_msi_single(void)
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
     return test_flag;
 }
@@ -217,13 +217,13 @@ static dword_t sub_case_int_msi_multi(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    LOG_INFO("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
+    pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_INFO("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
+    pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
@@ -232,7 +232,7 @@ static dword_t sub_case_int_msi_multi(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 128;
@@ -254,18 +254,18 @@ static dword_t sub_case_int_msi_multi(void)
         test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     }
-    //LOG_INFO("  cq:%d io cmd reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    //pr_info("  cq:%d io cmd reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     return test_flag;
 }
 
@@ -285,13 +285,13 @@ static dword_t sub_case_int_msix(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    LOG_INFO("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
+    pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_INFO("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
+    pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     sq_parameter.sq_size = sq_size;
@@ -300,7 +300,7 @@ static dword_t sub_case_int_msix(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 128;
@@ -326,12 +326,12 @@ static dword_t sub_case_int_msix(void)
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     return test_flag;
 }
 

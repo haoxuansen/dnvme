@@ -50,7 +50,7 @@ static SubCaseHeader_t sub_case_header = {
     sub_case_pre,
     sub_case_end,
 };
-//LOG_COLOR(PURPLE_LOG, "write_fua->read->compare cmd loop:%d\n", i);
+//pr_color(LOG_COLOR_PURPLE, "write_fua->read->compare cmd loop:%d\n", i);
 
 static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_write_read_compare, "this case will tests write->read->compare cmd"),
@@ -68,10 +68,10 @@ int test_5_fua_wr_rd_cmp(void)
     test_loop = 2;
     g_wr_nlb = 32;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
         {
             io_sq_id = index;
@@ -80,7 +80,7 @@ int test_5_fua_wr_rd_cmp(void)
         }
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -89,17 +89,17 @@ int test_5_fua_wr_rd_cmp(void)
 
 static dword_t sub_case_pre(void)
 {
-    LOG_INFO("==>QID:%d\n", io_sq_id);
-    LOG_COLOR(PURPLE_LOG, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_info("==>QID:%d\n", io_sq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_COLOR(PURPLE_LOG, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 static dword_t sub_case_end(void)
 {
-    LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
@@ -122,26 +122,26 @@ static dword_t sub_case_write_read_compare(void)
             cmd_cnt++;
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             /****************************************************************/
             cmd_cnt = 0;
             test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
             cmd_cnt++;
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /****************************************************************/
             test_flag |= ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, 1, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             //WARNING!
             test_flag |= ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             cq_gain(io_cq_id, 1, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
         }
     }
     return test_flag;
@@ -163,24 +163,24 @@ static dword_t sub_case_fua_write_read_compare(void)
             cmd_cnt++;
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             /****************************************************************/
             cmd_cnt = 0;
             test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
             cmd_cnt++;
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             /****************************************************************/
             test_flag |= ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, 1, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             //WARNING!
             test_flag |= ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             cq_gain(io_cq_id, 1, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
         }
     }
     return test_flag;
@@ -202,24 +202,24 @@ static dword_t sub_case_write_read_fua_compare(void)
             cmd_cnt++;
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             /****************************************************************/
             cmd_cnt = 0;
             test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
             cmd_cnt++;
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             /****************************************************************/
             test_flag |= ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba, wr_nlb, FUA_ENABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, 1, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
             //WARNING!
             test_flag |= ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba + 3, wr_nlb, FUA_ENABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             cq_gain(io_cq_id, 1, &reap_num);
-            LOG_DBUG("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%#x reaped ok! reap_num:%d\n", io_cq_id, reap_num);
         }
     }
     return test_flag;

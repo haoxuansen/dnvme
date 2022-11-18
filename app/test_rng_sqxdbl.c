@@ -34,12 +34,12 @@ int ioctl_tst_ring_dbl(int file_desc, int sq_id)
     ret_val = ioctl(file_desc, NVME_IOCTL_RING_SQ_DOORBELL, sq_id);
     if (ret_val < 0)
     {
-        LOG_ERROR("\t\tRing Doorbell of SQ ID = %d Failed!\n", sq_id);
+        pr_err("\t\tRing Doorbell of SQ ID = %d Failed!\n", sq_id);
         return FAILED;
     }
     else
     {
-        LOG_DBUG("\t\tRing Doorbell of SQ ID = %d success\n", sq_id);
+        pr_debug("\t\tRing Doorbell of SQ ID = %d success\n", sq_id);
     }
     return SUCCEED;
 }

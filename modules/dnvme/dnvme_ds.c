@@ -59,12 +59,12 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     /* Allocating memory for user struct in kernel space */
     user_data = kmalloc(sizeof(struct nvme_logstr), GFP_KERNEL);
     if (user_data == NULL) {
-        LOG_ERR("Unable to alloc kernel memory to copy user data");
+        pr_err("Unable to alloc kernel memory to copy user data");
         err = -ENOMEM;
         goto fail_out;
     }
     if (copy_from_user(user_data, logStr, sizeof(struct nvme_logstr))) {
-        LOG_ERR("Unable to copy from user space");
+        pr_err("Unable to copy from user space");
         err = -EFAULT;
         goto fail_out;
     }
@@ -72,21 +72,21 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     /* Allocating memory for the data in kernel space, add 1 for a NULL term */
     fmtText = kmalloc(user_data->slen+1, (GFP_KERNEL | __GFP_ZERO));
     if (NULL == fmtText) {
-        LOG_ERR("Unable to allocate kernel memory");
+        pr_err("Unable to allocate kernel memory");
         err = -ENOMEM;
         goto fail_out;
     }
 
     /* Copy userspace buffer to kernel memory */
     if (copy_from_user(fmtText, user_data->log_str, user_data->slen)) {
-        LOG_ERR("Unable to copy from user space");
+        pr_err("Unable to copy from user space");
         err = -EFAULT;
         goto fail_out;
     }
 
     /* If the user didn't provide a NULL term, we will to avoid problems */
     fmtText[user_data->slen] = '\0';
-    LOG_NRM("%s", fmtText);
+    pr_info("%s", fmtText);
     /* Fall through to label in intended */
 
 fail_out:
@@ -121,12 +121,12 @@ int driver_log(struct nvme_file *n_file)
     /* Allocating memory for user struct in kernel space */
     user_data = kmalloc(sizeof(struct nvme_file), GFP_KERNEL);
     if (user_data == NULL) {
-        LOG_ERR("Unable to alloc kernel memory to copy user data");
+        pr_err("Unable to alloc kernel memory to copy user data");
         err = -ENOMEM;
         goto fail_out;
     }
     if (copy_from_user(user_data, n_file, sizeof(struct nvme_file))) {
-        LOG_ERR("Unable to copy from user space");
+        pr_err("Unable to copy from user space");
         err = -EFAULT;
         goto fail_out;
     }
@@ -134,14 +134,14 @@ int driver_log(struct nvme_file *n_file)
     /* Allocating memory for the data in kernel space, add 1 for a NULL term */
     filename = kmalloc(user_data->flen+1, (GFP_KERNEL | __GFP_ZERO));
     if (NULL == filename) {
-        LOG_ERR("Unable to allocate kernel memory");
+        pr_err("Unable to allocate kernel memory");
         err = -ENOMEM;
         goto fail_out;
     }
 
     /* Copy userspace buffer to kernel memory */
     if (copy_from_user(filename, user_data->file_name, user_data->flen)) {
-        LOG_ERR("Unable to copy from user space");
+        pr_err("Unable to copy from user space");
         err = -EFAULT;
         goto fail_out;
     }
@@ -149,7 +149,7 @@ int driver_log(struct nvme_file *n_file)
     /* If the user didn't provide a NULL term, we will to avoid problems */
     filename[user_data->flen] = '\0';
 
-    LOG_DBG("Dumping dnvme metrics to output file: %s", filename);
+    pr_debug("Dumping dnvme metrics to output file: %s", filename);
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)//2021.05.14 meng_yu add
         oldfs = force_uaccess_begin();
     #else

@@ -26,7 +26,7 @@ static void test_sub(void)
     int cmds;
 
     /************************** Issue hot reset *********************/
-    LOG_INFO("\nIssue hot reset\n");
+    pr_info("\nIssue hot reset\n");
     pcie_hot_reset();
 
     // check status
@@ -35,17 +35,17 @@ static void test_sub(void)
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
     {
-        //LOG_INFO("linked status OK\n");
+        //pr_info("linked status OK\n");
     }
     else
     {
-        LOG_ERROR("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
+        pr_err("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
         test_flag = FAILED;
     }
     scanf("%d", &cmds);
 
     /************************** Issue link down *********************/
-    LOG_INFO("\nIssue link down\n");
+    pr_info("\nIssue link down\n");
     pcie_link_down();
 
     // check status
@@ -54,17 +54,17 @@ static void test_sub(void)
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
     {
-        //LOG_INFO("linked status OK\n");
+        //pr_info("linked status OK\n");
     }
     else
     {
-        LOG_ERROR("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
+        pr_err("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
         test_flag = FAILED;
     }
     scanf("%d", &cmds);
 
     /************************** Issue FLR reset *********************/
-    LOG_INFO("\nIssue FLR reset\n");
+    pr_info("\nIssue FLR reset\n");
     u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data |= 0x00008000;
     ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
@@ -81,11 +81,11 @@ static void test_sub(void)
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
     {
-        //LOG_INFO("linked status OK\n");
+        //pr_info("linked status OK\n");
     }
     else
     {
-        LOG_ERROR("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
+        pr_err("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
         test_flag = FAILED;
     }
 }
@@ -95,20 +95,20 @@ int case_pcie_reset_single(void)
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
 
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
     /**********************************************************************/
 
     // first displaly power up link status
     u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
-    LOG_INFO("\nPower up linked status: Gen%d, X%d\n", speed, width);
+    pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
     usleep(200000);
 
     for (test_round = 1; test_round <= 1; test_round++)
     {
-        LOG_INFO("\nlink status: %d\n", test_round);
+        pr_info("\nlink status: %d\n", test_round);
         test_sub();
         if (test_flag)
         {
@@ -118,11 +118,11 @@ int case_pcie_reset_single(void)
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

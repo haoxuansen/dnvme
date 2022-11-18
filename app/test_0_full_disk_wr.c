@@ -69,10 +69,10 @@ int test_0_full_disk_wr(void)
     wr_slba = 0;
     io_sq_id = io_cq_id =1;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\nloop cnt: %d\n", round_idx);
+        pr_info("\nloop cnt: %d\n", round_idx);
         for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
         {
             io_sq_id = index;
@@ -88,18 +88,18 @@ int test_0_full_disk_wr(void)
 static dword_t sub_case_pre(void)
 {
     int test_flag = SUCCEED;
-    LOG_INFO("==>QID:%d\n", io_sq_id);
-    LOG_COLOR(PURPLE_LOG, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_info("==>QID:%d\n", io_sq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_COLOR(PURPLE_LOG, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 static dword_t sub_case_end(void)
 {
     int test_flag = SUCCEED;
-    LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
@@ -127,7 +127,7 @@ static dword_t sub_case_write_order(void)
     if (cmd_cnt > 0)
     {
         test_flag |= nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, cmd_cnt);
-        LOG_INFO("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
+        pr_info("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
     }
     return test_flag;
 }
@@ -149,7 +149,7 @@ static dword_t sub_case_write_random(void)
     if (cmd_cnt > 0)
     {
         test_flag |= nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, cmd_cnt);
-        LOG_INFO("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
+        pr_info("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
     }
     return test_flag;
 }
@@ -174,7 +174,7 @@ static dword_t sub_case_read_order(void)
         }
     }
     test_flag |= nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, cmd_cnt);
-    LOG_INFO("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
+    pr_info("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
     return test_flag;
 }
 
@@ -195,7 +195,7 @@ static dword_t sub_case_read_random(void)
     if (cmd_cnt > 0)
     {
         test_flag |= nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, cmd_cnt);
-        LOG_INFO("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
+        pr_info("  cq:%d reaped ok! cmd_cnt:%d\n", io_cq_id, cmd_cnt);
     }
     return test_flag;
 }
@@ -242,7 +242,7 @@ static dword_t sub_case_write_read_verify_1(void)
     test_flag |= nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, cmd_cnt);
     if(test_flag<0)
         goto OUT;
-    // LOG_INFO("  cq:%d wr cnt:%d\n", io_cq_id, cmd_cnt);
+    // pr_info("  cq:%d wr cnt:%d\n", io_cq_id, cmd_cnt);
     
     cmd_cnt = 0;
     wr_slba = 0;//DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
@@ -258,15 +258,15 @@ static dword_t sub_case_write_read_verify_1(void)
     test_flag |= nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id, io_cq_id, cmd_cnt);
     if(test_flag<0)
         goto OUT;
-    // LOG_INFO("  cq:%d rd cnt:%d\n", io_cq_id, cmd_cnt);
+    // pr_info("  cq:%d rd cnt:%d\n", io_cq_id, cmd_cnt);
 
     cmp_fg = memcmp(write_buffer, read_buffer, 16*1024*16);
     test_flag |= cmp_fg;
     if (cmp_fg != SUCCEED)
     {
-        LOG_INFO("\nwrite_buffer Data:\n");
+        pr_info("\nwrite_buffer Data:\n");
         mem_disp(write_buffer, 16*1024*16);
-        LOG_INFO("\nRead_buffer Data:\n");
+        pr_info("\nRead_buffer Data:\n");
         mem_disp(read_buffer, 16*1024*16);
         //break;
     }
@@ -296,16 +296,16 @@ static dword_t sub_case_write_read_verify_1(void)
             test_flag |= cmp_fg;
             if (cmp_fg != SUCCEED)
             {
-                LOG_INFO("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
-                LOG_INFO("\nwrite_buffer Data:\n");
+                pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
+                pr_info("\nwrite_buffer Data:\n");
                 mem_disp(write_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid));
-                LOG_INFO("\nRead_buffer Data:\n");
+                pr_info("\nRead_buffer Data:\n");
                 mem_disp(read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid));
                 //break;
             }
         }
     }
-    LOG_INFO("  cq:%d wr/rd check ok! cnt:%d\n", io_cq_id, cmd_cnt);
+    pr_info("  cq:%d wr/rd check ok! cnt:%d\n", io_cq_id, cmd_cnt);
     #endif
     OUT:
     return test_flag;
@@ -316,7 +316,7 @@ static dword_t sub_case_sgl_write_read_verify(void)
     byte_t flags = 0;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
-    LOG_INFO("ctrl.sgls:%#x\n", g_nvme_dev.id_ctrl.sgls);
+    pr_info("ctrl.sgls:%#x\n", g_nvme_dev.id_ctrl.sgls);
     memset(write_buffer, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
     memset(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
     for (uint32_t i = 0; i < 128; i++)
@@ -351,16 +351,16 @@ static dword_t sub_case_sgl_write_read_verify(void)
             test_flag |= cmp_fg;
             if (cmp_fg != SUCCEED)
             {
-                LOG_INFO("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
-                LOG_INFO("\nwrite_buffer Data:\n");
+                pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
+                pr_info("\nwrite_buffer Data:\n");
                 mem_disp(write_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid));
-                LOG_INFO("\nRead_buffer Data:\n");
+                pr_info("\nRead_buffer Data:\n");
                 mem_disp(read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid));
                 break;
             }
         }
     }
-    LOG_INFO("  cq:%d wr/rd check ok! cnt:%d\n", io_cq_id, cmd_cnt);
+    pr_info("  cq:%d wr/rd check ok! cnt:%d\n", io_cq_id, cmd_cnt);
 OUT:
     return test_flag;
 SKIP:

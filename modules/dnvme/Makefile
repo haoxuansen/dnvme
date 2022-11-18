@@ -5,6 +5,7 @@ CUR_DIR := $(TOP_DIR)/modules/dnvme
 
 EXTRA_CFLAGS := -I$(TOP_DIR)/include
 EXTRA_CFLAGS += -I$(TOP_DIR)/include/uapi
+EXTRA_CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
 
 TARGET					:= dnvme.ko
 obj-m					:= dnvme.o

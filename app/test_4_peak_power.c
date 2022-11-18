@@ -42,26 +42,26 @@ static byte_t test_sub(void);
 int test_4_peak_power(void)
 {
     uint32_t round_idx = 0;
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s", case_brief);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s", case_brief);
 
     test_loop = 1;
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         test_sub();
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
 
     if (test_flag != SUCCEED)
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     else
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     return test_flag;
 }
 
@@ -88,9 +88,9 @@ static byte_t test_sub(void)
     {
         io_sq_id = index;
         io_cq_id = index;
-        LOG_INFO("==>CQID:%d\n", io_cq_id);
+        pr_info("==>CQID:%d\n", io_cq_id);
         /**********************************************************************/
-        LOG_COLOR(PURPLE_LOG, "  Preparing io_cq_id %d, cq_size = %d \n", io_cq_id, cq_size);
+        pr_color(LOG_COLOR_PURPLE, "  Preparing io_cq_id %d, cq_size = %d \n", io_cq_id, cq_size);
         cq_parameter.cq_size = cq_size;
         cq_parameter.irq_en = 1;
         cq_parameter.contig = 1;
@@ -99,10 +99,10 @@ static byte_t test_sub(void)
         test_flag |= create_iocq(file_desc, &cq_parameter);
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         /**********************************************************************/
-        LOG_INFO("==>SQID:%d\n", io_sq_id);
-        LOG_COLOR(PURPLE_LOG, "  Preparing io_sq_id %d, sq_size = %d \n", io_sq_id, sq_size);
+        pr_info("==>SQID:%d\n", io_sq_id);
+        pr_color(LOG_COLOR_PURPLE, "  Preparing io_sq_id %d, sq_size = %d \n", io_sq_id, sq_size);
         sq_parameter.sq_size = sq_size;
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
@@ -111,7 +111,7 @@ static byte_t test_sub(void)
         test_flag |= create_iosq(file_desc, &sq_parameter);
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         /**********************************************************************/
     }
     gettimeofday(&last_time, NULL);
@@ -140,22 +140,22 @@ static byte_t test_sub(void)
     gettimeofday(&curr_time, NULL);
     perf_ms = (curr_time.tv_sec * 1000 + curr_time.tv_usec / 1000) - (last_time.tv_sec * 1000 + last_time.tv_usec / 1000);
     perf_speed = g_nvme_dev.max_sq_num * reap_num * wr_nlb / 2;
-    LOG_INFO("time:%lu ms,%lu,speed:%luMB/s\n", perf_ms, perf_speed, (perf_speed) / (perf_ms));
+    pr_info("time:%lu ms,%lu,speed:%luMB/s\n", perf_ms, perf_speed, (perf_speed) / (perf_ms));
 
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_sq_id = index;
         io_cq_id = index;
-        //LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%x\n", io_sq_id);
+        //pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%x\n", io_sq_id);
         test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        //LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
-        //LOG_COLOR(PURPLE_LOG, "  Deleting CQID:%x\n", io_cq_id);
+        //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        //pr_color(LOG_COLOR_PURPLE, "  Deleting CQID:%x\n", io_cq_id);
         test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
         test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        //LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     }
     return test_flag;
 }

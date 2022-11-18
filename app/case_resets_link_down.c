@@ -37,7 +37,7 @@ static void test_sub(void)
 
     /**********************************************************************/
     io_sq_id = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
-    LOG_INFO("create SQ %d\n", io_sq_id);
+    pr_info("create SQ %d\n", io_sq_id);
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
@@ -47,7 +47,7 @@ static void test_sub(void)
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
@@ -57,7 +57,7 @@ static void test_sub(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 8;
@@ -75,16 +75,16 @@ static void test_sub(void)
             cmd_cnt++;
         }
     }
-    LOG_INFO("send cmd num: %d\n", cmd_cnt);
+    pr_info("send cmd num: %d\n", cmd_cnt);
     /**********************************************************************/
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     /**********************************************************************/
     //reap cq
     test_flag |= cq_gain(io_cq_id, (DWORD_RAND() % (cmd_cnt + 1)), &reap_num);
-    LOG_INFO("reaped cq num: %d\n", reap_num);
+    pr_info("reaped cq num: %d\n", reap_num);
 
     /************************** Issue link down *********************/
-    LOG_INFO("\nIssue link down\n");
+    pr_info("\nIssue link down\n");
 
     pcie_link_down();
 
@@ -98,21 +98,21 @@ static void test_sub(void)
 int case_resets_link_down(void)
 {
     int test_round = 0;
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
     /**********************************************************************/
     for (test_round = 1; test_round <= 2; test_round++) //reset just can run 1 times!!!!!!
     {
-        LOG_INFO("\ntest_round: %d\n", test_round);
+        pr_info("\ntest_round: %d\n", test_round);
         test_sub();
     }
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

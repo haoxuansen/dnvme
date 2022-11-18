@@ -56,10 +56,10 @@ int case_queue_abort(void)
 
     test_loop = 1;
 
-    LOG_INFO("\ntest will loop number: %d\n", test_loop);
+    pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
-        LOG_INFO("\ntest cnt: %d\n", round_idx);
+        pr_info("\ntest cnt: %d\n", round_idx);
         for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
         {
             test_flag = SUCCEED;
@@ -69,7 +69,7 @@ int case_queue_abort(void)
         }
         if (FAILED == test_flag)
         {
-            LOG_ERROR("test_flag == FAILED\n");
+            pr_err("test_flag == FAILED\n");
             break;
         }
     }
@@ -78,17 +78,17 @@ int case_queue_abort(void)
 
 static dword_t sub_case_pre(void)
 {
-    LOG_INFO("==>QID:%d\n", io_sq_id);
-    LOG_COLOR(PURPLE_LOG, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_info("==>QID:%d\n", io_sq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_COLOR(PURPLE_LOG, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 static dword_t sub_case_end(void)
 {
-    LOG_COLOR(PURPLE_LOG, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+    pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
@@ -108,10 +108,10 @@ static dword_t sub_case_abort_1_wrd_cmd(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
 
     /*test_flag |= */ cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
 
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     return test_flag;
 }
 
@@ -132,10 +132,10 @@ static dword_t sub_case_random_abort_1_wrd_cmd(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
 
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*test_flag |= */ cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
 
     return test_flag;
 }
@@ -159,10 +159,10 @@ static dword_t sub_case_abort_2_wrd_cmd(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
 
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 2, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*test_flag |=*/cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
     return test_flag;
 }
 
@@ -187,10 +187,10 @@ static dword_t sub_case_abort_3_wrd_cmd(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
 
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 3, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*test_flag |=*/cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
     return test_flag;
 }
 
@@ -215,9 +215,9 @@ static dword_t sub_case_abort_4_wrd_cmd(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
 
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 4, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*test_flag |=*/cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_INFO("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
     return test_flag;
 }

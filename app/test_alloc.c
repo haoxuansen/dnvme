@@ -41,21 +41,21 @@ int ioctl_prep_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint16_t elem, 
     prep_sq.contig = contig;
     prep_sq.sq_prio = MEDIUM_PRIO;
 
-    LOG_DBUG("Calling Prepare SQ Creation...");
-    LOG_DBUG("  SQ ID = %d", prep_sq.sq_id);
-    LOG_DBUG("  Assoc CQ ID = %d", prep_sq.cq_id);
-    LOG_DBUG("  No. of Elem = %d", prep_sq.elements);
-    LOG_DBUG("  Contig(Y|N=(1|0)) = %d\n", prep_sq.contig);
+    pr_debug("Calling Prepare SQ Creation...");
+    pr_debug("  SQ ID = %d", prep_sq.sq_id);
+    pr_debug("  Assoc CQ ID = %d", prep_sq.cq_id);
+    pr_debug("  No. of Elem = %d", prep_sq.elements);
+    pr_debug("  Contig(Y|N=(1|0)) = %d\n", prep_sq.contig);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
 
     if (ret_val < 0)
     {
-        LOG_ERROR("\tSQ ID = %d Preparation Failed!\n", prep_sq.sq_id);
+        pr_err("\tSQ ID = %d Preparation Failed!\n", prep_sq.sq_id);
     }
     else
     {
-        LOG_DBUG("\tSQ ID = %d Preparation success\n", prep_sq.sq_id);
+        pr_debug("\tSQ ID = %d Preparation success\n", prep_sq.sq_id);
     }
     return ret_val;
 }
@@ -73,20 +73,20 @@ int ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig)
     prep_cq.cq_irq_no = 0;
     /***************************/
 
-    LOG_DBUG("Calling Prepare CQ Creation...");
-    LOG_DBUG("  CQ ID = %d", prep_cq.cq_id);
-    LOG_DBUG("  No. of Elem = %d", prep_cq.elements);
-    LOG_DBUG("  Contig(Y|N=(1|0)) = %d\n", prep_cq.contig);
+    pr_debug("Calling Prepare CQ Creation...");
+    pr_debug("  CQ ID = %d", prep_cq.cq_id);
+    pr_debug("  No. of Elem = %d", prep_cq.elements);
+    pr_debug("  Contig(Y|N=(1|0)) = %d\n", prep_cq.contig);
 
     ret_val = ioctl(file_desc, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
 
     if (ret_val < 0)
     {
-        LOG_ERROR("\tCQ ID = %d Preparation Failed!\n", prep_cq.cq_id);
+        pr_err("\tCQ ID = %d Preparation Failed!\n", prep_cq.cq_id);
     }
     else
     {
-        LOG_DBUG("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
+        pr_debug("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
     }
     return ret_val;
 }
@@ -101,13 +101,13 @@ uint32_t ioctl_reap_inquiry(int file_desc, int cq_id)
     ret_val = ioctl(file_desc, NVME_IOCTL_REAP_INQUIRY, &rp_inq);
     if (ret_val < 0)
     {
-        LOG_ERROR("reap inquiry Failed! ret_val:%d\n", ret_val);
+        pr_err("reap inquiry Failed! ret_val:%d\n", ret_val);
         exit(-1);
     }
     // else
     // {
     //     if (rp_inq.num_remaining)
-    //         LOG_INFO("\tReap Inquiry on CQ ID = %d, Num_Remaining = %d, ISR_count = %d\n",
+    //         pr_info("\tReap Inquiry on CQ ID = %d, Num_Remaining = %d, ISR_count = %d\n",
     //                rp_inq.q_id, rp_inq.num_remaining, rp_inq.isr_count);
     // }
     return rp_inq.num_remaining;
@@ -122,7 +122,7 @@ int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display)
         cq_entry = (struct cq_completion *)cq_buffer;
         if (cq_entry->status_field) // status != 0 !!!!! force display
         {
-            LOG_WARN("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
+            pr_warn("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
                 cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
                 cq_entry->sq_identifier, cq_entry->status_field);
             ret_val = -1;
@@ -131,7 +131,7 @@ int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display)
         {
             if (display)
             {
-                LOG_INFO("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
+                pr_info("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
                     cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
                     cq_entry->sq_identifier, cq_entry->status_field);
             }
@@ -154,17 +154,17 @@ int ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display)
     rp_cq.buffer = malloc(sizeof(char) * rp_cq.size);
     if (rp_cq.buffer == NULL)
     {
-        LOG_ERROR("Malloc Failed");
+        pr_err("Malloc Failed");
         return -1;
     }
     ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
     if (ret_val < 0)
     {
-        LOG_ERROR("reap cq Failed! ret_val:%d\n", ret_val);
+        pr_err("reap cq Failed! ret_val:%d\n", ret_val);
     }
     else
     {
-        LOG_DBUG("  Reaped on CQ ID = %d, No Request = %d, No Reaped = %d, No Rem = %d, ISR_count = %d\n",
+        pr_debug("  Reaped on CQ ID = %d, No Request = %d, No Reaped = %d, No Rem = %d, ISR_count = %d\n",
             rp_cq.q_id, rp_cq.elements, rp_cq.num_reaped, rp_cq.num_remaining, rp_cq.isr_count);
         if (display_cq_data(rp_cq.buffer, rp_cq.num_reaped, display))
             ret_val = -1;
@@ -179,11 +179,11 @@ int ioctl_meta_buf_create(int file_desc, int size)
     ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
     if (ret_val < 0)
     {
-        LOG_ERROR("Meta data creation failed!\n");
+        pr_err("Meta data creation failed!\n");
     }
     else
     {
-        LOG_DBUG("Meta Data creation success!!\n");
+        pr_debug("Meta Data creation success!!\n");
     }
     return ret_val;
 }
@@ -194,11 +194,11 @@ int ioctl_meta_buf_alloc(int file_desc, uint32_t meta_id)
     ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_ALLOC, meta_id);
     if (ret_val < 0)
     {
-        LOG_ERROR("\nMeta Id = %d allocation failed!\n", meta_id);
+        pr_err("\nMeta Id = %d allocation failed!\n", meta_id);
     }
     else
     {
-        LOG_DBUG("Meta Id = %d allocation success!!\n", meta_id);
+        pr_debug("Meta Id = %d allocation success!!\n", meta_id);
     }
     return ret_val;
 }
@@ -209,11 +209,11 @@ int ioctl_meta_buf_delete(int file_desc, uint32_t meta_id)
     ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
     if (ret_val < 0)
     {
-        LOG_ERROR("\nMeta Id = %d allocation failed!\n", meta_id);
+        pr_err("\nMeta Id = %d allocation failed!\n", meta_id);
     }
     else
     {
-        LOG_DBUG("Meta Id = %d allocation success!!\n", meta_id);
+        pr_debug("Meta Id = %d allocation success!!\n", meta_id);
     }
     return ret_val;
 }
@@ -253,11 +253,11 @@ void test_meta(int file_desc)
     ret_val = ioctl_meta_buf_alloc(file_desc, meta_id);
 
     meta_id = 0x80004;
-    LOG_INFO("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", meta_id);
+    pr_info("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", meta_id);
     kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * meta_id);
     if (!kadr)
     {
-        LOG_ERROR("mapping failed\n");
+        pr_err("mapping failed\n");
         exit(-1);
     }
     mem_disp(kadr,4096);

@@ -43,12 +43,12 @@ static void test_sub(void)
     uint32_t reap_num = 0;
 
     /*******************************************************************************************************************************/
-    LOG_INFO(".1 one to one test: cq 1 <---> sq 1, from 1 to max_sq_num\n");
+    pr_info(".1 one to one test: cq 1 <---> sq 1, from 1 to max_sq_num\n");
 
     cq_size = 16384;
     sq_size = 16384;
 
-    LOG_COLOR(PURPLE_LOG, "  Create contig sq assoc cq 1-max_sq_num, sq_size = %d\n", sq_size);
+    pr_color(LOG_COLOR_PURPLE, "  Create contig sq assoc cq 1-max_sq_num, sq_size = %d\n", sq_size);
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_cq_id = io_sq_id = index;
@@ -59,14 +59,14 @@ static void test_sub(void)
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 8;
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ1-max \033[0m\n");
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ1-max \033[0m\n");
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
         test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
     }
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ1-max IO cmd\033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ1-max IO cmd\033[0m\n");
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_sq_id = index;
@@ -76,26 +76,26 @@ static void test_sub(void)
     {
         io_cq_id = index;
         test_flag |= cq_gain(io_cq_id, 2, &reap_num);
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     }
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting SQ1\033[0m\n");
+    pr_debug("\033[35m  Deleting SQ1\033[0m\n");
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, 1);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting CQ1\033[0m\n");
+    pr_debug("\033[35m  Deleting CQ1\033[0m\n");
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, 1);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_INFO(".1.1: after delete sq1/cq1, run io cmd on the remain sq\n");
+    pr_info(".1.1: after delete sq1/cq1, run io cmd on the remain sq\n");
     /*******************************************************************************************************************************/
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ2-max \033[0m\n");
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ2-max \033[0m\n");
 
     wr_slba = 0;
     wr_nlb = 8;
@@ -106,7 +106,7 @@ static void test_sub(void)
         test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
         test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
     }
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ 2-max IO cmd\033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ 2-max IO cmd\033[0m\n");
     for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_sq_id = index;
@@ -117,12 +117,12 @@ static void test_sub(void)
     {
         io_cq_id = index;
         test_flag |= cq_gain(io_cq_id, 2, &reap_num);
-        LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     }
 
-    LOG_INFO(".1.2: after run io cmd on the  SQ 2-max delete it\n");
+    pr_info(".1.2: after run io cmd on the  SQ 2-max delete it\n");
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting SQ1-max\033[0m\n");
+    pr_debug("\033[35m  Deleting SQ1-max\033[0m\n");
     cmd_cnt = 0;
     for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
     {
@@ -132,10 +132,10 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting CQ1-max\033[0m\n");
+    pr_debug("\033[35m  Deleting CQ1-max\033[0m\n");
     cmd_cnt = 0;
     for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
     {
@@ -145,12 +145,12 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*******************************************************************************************************************************/
 
     io_cq_id = rand() % g_nvme_dev.max_sq_num + 1;
-    LOG_COLOR(PURPLE_LOG,".2: cq %d <---> sq 1~g_nvme_dev.max_sq_num\n", io_cq_id);
+    pr_color(LOG_COLOR_PURPLE,".2: cq %d <---> sq 1~g_nvme_dev.max_sq_num\n", io_cq_id);
     io_sq_id = 1;
 
     cq_size = 16384;
@@ -158,7 +158,7 @@ static void test_sub(void)
 
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_DBUG("\n\033[35m  Preparing io_sq_id 1-g_nvme_dev.max_sq_num: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
+    pr_debug("\n\033[35m  Preparing io_sq_id 1-g_nvme_dev.max_sq_num: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
     cmd_cnt = 0;
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
@@ -172,10 +172,10 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ1-max \033[0m\n");
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ1-max \033[0m\n");
     wr_slba = 0;
     wr_nlb = 8;
     cmd_cnt = 0;
@@ -189,17 +189,17 @@ static void test_sub(void)
         wr_slba += wr_nlb;
     }
 
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ1-max IO cmd\033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ1-max IO cmd\033[0m\n");
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     }
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting SQ1-max\033[0m\n");
+    pr_debug("\033[35m  Deleting SQ1-max\033[0m\n");
     cmd_cnt = 0;
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
@@ -209,18 +209,18 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_DBUG("\033[35m  Deleting CQ 1\033[0m\n");
+    pr_debug("\033[35m  Deleting CQ 1\033[0m\n");
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*******************************************************************************************************************************/
 
     io_cq_id = rand() % g_nvme_dev.max_sq_num + 1;
-    LOG_COLOR(PURPLE_LOG,".3: cq %d <---> sq g_nvme_dev.max_sq_num~1\n", io_cq_id);
+    pr_color(LOG_COLOR_PURPLE,".3: cq %d <---> sq g_nvme_dev.max_sq_num~1\n", io_cq_id);
     io_sq_id = 1;
 
     cq_size = 16384;
@@ -228,7 +228,7 @@ static void test_sub(void)
 
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    LOG_DBUG("\n\033[35m  Preparing io_sq_id g_nvme_dev.max_sq_num-1: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
+    pr_debug("\n\033[35m  Preparing io_sq_id g_nvme_dev.max_sq_num-1: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
     cmd_cnt = 0;
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
@@ -242,10 +242,10 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ8-SQ1 \033[0m\n");
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ8-SQ1 \033[0m\n");
     cmd_cnt = 0;
     wr_nlb = 8;
     cmd_cnt = 0;
@@ -259,17 +259,17 @@ static void test_sub(void)
         wr_slba += wr_nlb;
     }
 
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ8-SQ1 IO cmd\033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ8-SQ1 IO cmd\033[0m\n");
     for (index = g_nvme_dev.max_sq_num; index >= 1; index--)
     {
         io_sq_id = index;
         test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     }
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting SQ8-SQ1\033[0m\n");
+    pr_debug("\033[35m  Deleting SQ8-SQ1\033[0m\n");
     cmd_cnt = 0;
     for (index = g_nvme_dev.max_sq_num; index >= 1; index--)
     {
@@ -279,17 +279,17 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_DBUG("\033[35m Deleting CQ 1\033[0m\n");
+    pr_debug("\033[35m Deleting CQ 1\033[0m\n");
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*******************************************************************************************************************************/
     //5, 3, 2, 7, 6, 4, 8, 1
-    LOG_COLOR(PURPLE_LOG,".4: cq 1 <---> sq 4 "
+    pr_color(LOG_COLOR_PURPLE,".4: cq 1 <---> sq 4 "
                   "| cq 2 <---> sq 3 "
                   "| cq 3 <---> sq 1,2\n");
 
@@ -299,7 +299,7 @@ static void test_sub(void)
     cq_size = 16384;
     sq_size = 16384;
 
-    LOG_DBUG("\n\033[35m  Preparing io_cq_id 1,2,3; cq_size = %d \033[0m\n", cq_size);
+    pr_debug("\n\033[35m  Preparing io_cq_id 1,2,3; cq_size = %d \033[0m\n", cq_size);
 
     cq_parameter.cq_size = cq_size;
     cq_parameter.contig = 1;
@@ -323,9 +323,9 @@ static void test_sub(void)
 
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 3, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
-    LOG_DBUG("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
+    pr_debug("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
 
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
@@ -348,10 +348,10 @@ static void test_sub(void)
 
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 4, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ1-SQ8 \033[0m\n");
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ1-SQ8 \033[0m\n");
     wr_slba = 0;
     wr_nlb = 8;
     //cmd_cnt = 0;
@@ -365,28 +365,28 @@ static void test_sub(void)
         wr_slba += wr_nlb;
     }
 
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ1-SQ8 \033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ1-SQ8 \033[0m\n");
     for (index = 1; index <= 4; index++)
     {
         io_sq_id = index;
         test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     }
 
-    LOG_DBUG("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
+    pr_debug("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
     io_cq_id = 1; //
     test_flag |= cq_gain(io_cq_id, 1 * 2, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     io_cq_id = 2; //
     test_flag |= cq_gain(io_cq_id, 1 * 2, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     io_cq_id = 3; //cq 3 <---> sq 1,2
     test_flag |= cq_gain(io_cq_id, 2 * 2, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting SQ4\033[0m\n");
+    pr_debug("\033[35m  Deleting SQ4\033[0m\n");
     cmd_cnt = 0;
     for (index = 4; index <= 4; index++)
     {
@@ -396,23 +396,23 @@ static void test_sub(void)
     }
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
-    LOG_DBUG("\033[35m  Deleting CQ 1\033[0m\n");
+    pr_debug("\033[35m  Deleting CQ 1\033[0m\n");
     io_cq_id = 1;
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
 
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
 
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
-    LOG_INFO(".4.1: after delete sq 4, run io cmd on sq 1-2\n");
+    pr_info(".4.1: after delete sq 4, run io cmd on sq 1-2\n");
 
     /**********************************************************************/
     //".4 cq/sq random match test: cq 3 <---> sq 5 | cq 1 <---> sq 3,2 | cq 6 <---> sq 7,6,4 | cq 5 <---> sq 8,1\n"
-    // LOG_DBUG("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ1,SQ2 \033[0m\n");
+    // pr_debug("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ1,SQ2 \033[0m\n");
     io_sq_id = 1;
     test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
     test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
@@ -423,7 +423,7 @@ static void test_sub(void)
     test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
     wr_slba += wr_nlb;
 
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ2,SQ3 \033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ2,SQ3 \033[0m\n");
     io_sq_id = 1;
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     io_sq_id = 2;
@@ -431,27 +431,27 @@ static void test_sub(void)
 
     io_cq_id = 3; //cq 
     test_flag |= cq_gain(io_cq_id, 2 * 2, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
-    LOG_INFO(".4.2: after run io cmd on sq 1,2, delete it\n");
+    pr_info(".4.2: after run io cmd on sq 1,2, delete it\n");
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, 1);
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, 2);
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, 3);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 3, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);//
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);//
 
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, 2);
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, 3);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 2, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);//
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);//
 
     /*******************************************************************************************************************************/
 
     io_cq_id = rand() % g_nvme_dev.max_sq_num + 1;
     io_sq_id = rand() % g_nvme_dev.max_sq_num + 1;
-    LOG_COLOR(PURPLE_LOG,".5 random sq:%d/cq:%d  match\n", io_sq_id, io_cq_id);
+    pr_color(LOG_COLOR_PURPLE,".5 random sq:%d/cq:%d  match\n", io_sq_id, io_cq_id);
 
     cq_size = 16384;
     sq_size = 16384;
@@ -464,7 +464,7 @@ static void test_sub(void)
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_size = sq_size;
@@ -475,10 +475,10 @@ static void test_sub(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\n\033[35m  Sending IO Write && Read Command to SQ \033[0m\n");
+    pr_debug("\n\033[35m  Sending IO Write && Read Command to SQ \033[0m\n");
     wr_slba = 0;
     wr_nlb = 8 * (rand() % 10 + 1);
     cmd_cnt = 0;
@@ -487,25 +487,25 @@ static void test_sub(void)
     test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
     cmd_cnt++;
 
-    LOG_DBUG("\033[35m  Ringing Doorbell for SQ1-SQ8 IO cmd\033[0m\n");
+    pr_debug("\033[35m  Ringing Doorbell for SQ1-SQ8 IO cmd\033[0m\n");
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     /**********************************************************************/
-    LOG_DBUG("\033[35m  Deleting SQ\033[0m\n");
+    pr_debug("\033[35m  Deleting SQ\033[0m\n");
     cmd_cnt = 0;
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     cmd_cnt++;
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
-    LOG_DBUG("\033[35m  Deleting CQ 1\033[0m\n");
+    pr_debug("\033[35m  Deleting CQ 1\033[0m\n");
     test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     /*******************************************************************************************************************************/
 }
@@ -513,22 +513,22 @@ static void test_sub(void)
 int case_queue_sq_cq_match(void)
 {
     int test_round = 0;
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s", disp_this_case);
 
     for (test_round = 1; test_round <= 50; test_round++)
     {
-        LOG_INFO("\n\ntest_round: %d\n", test_round);
+        pr_info("\n\ntest_round: %d\n", test_round);
         test_sub();
     }
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

@@ -45,7 +45,7 @@ static void test_sub(void)
 #endif
     /**********************************************************************/
     io_sq_id = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
-    LOG_INFO("create SQ %d\n", io_sq_id);
+    pr_info("create SQ %d\n", io_sq_id);
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
@@ -58,7 +58,7 @@ static void test_sub(void)
     test_flag |= create_iocq(file_desc, &cq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
@@ -68,7 +68,7 @@ static void test_sub(void)
     test_flag |= create_iosq(file_desc, &sq_parameter);
     test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 8;
@@ -121,49 +121,49 @@ static void test_sub(void)
     //reap cq
     // test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     // test_flag |= cq_gain(io_cq_id, (rand() % (cmd_cnt-10) + 10), &reap_num);
-    // LOG_INFO("send:%d reaped:%d\n", cmd_cnt, reap_num);
+    // pr_info("send:%d reaped:%d\n", cmd_cnt, reap_num);
 #if 0 //def FWDMA_RST_OPEN
     test_flag |= cq_gain(ADMIN_CQ, 2, &reap_num);
 #endif
     test_type = BYTE_RAND() % 6 + 1;
     if (test_type == 1)
     {
-        LOG_COLOR(YELLOW_LOG, "controller disable Reset ...\n");
+        pr_color(LOG_COLOR_YELLOW, "controller disable Reset ...\n");
         test_flag |= ctrl_disable();
-        LOG_COLOR(YELLOW_LOG, "controller disable Reset Done\n");
+        pr_color(LOG_COLOR_YELLOW, "controller disable Reset Done\n");
     }
     else if (test_type == 2)
     {
-        LOG_COLOR(YELLOW_LOG, "NVM Subsystem Reset ...\n");
+        pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset ...\n");
         test_flag |= subsys_reset();
-        LOG_COLOR(YELLOW_LOG, "NVM Subsystem Reset Done\n");
+        pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset Done\n");
     }
     else if (test_type == 3)
     {
-        LOG_COLOR(YELLOW_LOG, "controller flr Reset ...\n");
+        pr_color(LOG_COLOR_YELLOW, "controller flr Reset ...\n");
         test_flag |= ctrl_pci_flr();
-        LOG_COLOR(YELLOW_LOG, "controller flr Reset Done\n");
+        pr_color(LOG_COLOR_YELLOW, "controller flr Reset Done\n");
     }
     else if (test_type == 4)
     {
-        LOG_COLOR(YELLOW_LOG, "controller d0d3 Reset ...\n");
+        pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset ...\n");
         test_flag |= set_power_state(g_nvme_dev.pmcap_ofst, D3hot);
-        ASSERT(test_flag == SUCCEED);
+        assert(test_flag == SUCCEED);
         test_flag |= set_power_state(g_nvme_dev.pmcap_ofst, D0);
-        ASSERT(test_flag == SUCCEED);
-        LOG_COLOR(YELLOW_LOG, "controller d0d3 Reset Done\n");
+        assert(test_flag == SUCCEED);
+        pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset Done\n");
     }
     else if (test_type == 5)
     {
-        LOG_COLOR(YELLOW_LOG, "controller hot Reset ...\n");
+        pr_color(LOG_COLOR_YELLOW, "controller hot Reset ...\n");
         pcie_hot_reset();
-        LOG_COLOR(YELLOW_LOG, "controller hot Reset Done\n");
+        pr_color(LOG_COLOR_YELLOW, "controller hot Reset Done\n");
     }
     else if (test_type == 6)
     {
-        LOG_COLOR(YELLOW_LOG, "controller linkdown Reset ...\n");
+        pr_color(LOG_COLOR_YELLOW, "controller linkdown Reset ...\n");
         pcie_link_down();
-        LOG_COLOR(YELLOW_LOG, "controller linkdown Reset Done\n");
+        pr_color(LOG_COLOR_YELLOW, "controller linkdown Reset Done\n");
     }
 
     usleep(10000);
@@ -176,13 +176,13 @@ static void test_sub(void)
 int case_resets_random_all(void)
 {
     int test_round = 0;
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
 #if 0 //def RW_BUF_4K_ALN_EN
     if ((posix_memalign(&fwdma_wr_buffer, 4096, 8192)) ||
         (posix_memalign(&fwdma_rd_buffer, 4096, 8192)))
     {
-        LOG_ERROR("Memalign Failed\n");
+        pr_err("Memalign Failed\n");
         return FAILED;
     }
 #else
@@ -190,7 +190,7 @@ int case_resets_random_all(void)
     fwdma_rd_buffer = malloc(8192);
     if ((write_buffer == NULL) || (read_buffer == NULL))
     {
-        LOG_ERROR("Malloc Failed\n");
+        pr_err("Malloc Failed\n");
         return FAILED;
     }
 #endif
@@ -200,16 +200,16 @@ int case_resets_random_all(void)
     /**********************************************************************/
     for (test_round = 1; test_round <= 50; test_round++)
     {
-        LOG_INFO("\ntest_round: %d\n", test_round);
+        pr_info("\ntest_round: %d\n", test_round);
         test_sub();
     }
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     free(fwdma_wr_buffer);
     free(fwdma_rd_buffer);

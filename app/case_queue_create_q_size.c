@@ -47,7 +47,7 @@ static void test_sub(void)
 
     /*******************************************************************************************************************************/
     /*******************************************************************************************************************************/
-    LOG_INFO("\n1. Full cmd with q_size, range: 2,3,4,16,32,64,128,512,1024,2048,4096,8192,16384,32768,60000,65534\n");
+    pr_info("\n1. Full cmd with q_size, range: 2,3,4,16,32,64,128,512,1024,2048,4096,8192,16384,32768,60000,65534\n");
     io_cq_id = 1;
     io_sq_id = 1;
 
@@ -71,7 +71,7 @@ static void test_sub(void)
             test_flag |= create_iocq(file_desc, &cq_parameter);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
             /**********************************************************************/
             io_sq_id = q_index;
@@ -80,7 +80,7 @@ static void test_sub(void)
             test_flag |= create_iosq(file_desc, &sq_parameter);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
             /**********************************************************************/
             //fill full cmd with q
@@ -89,7 +89,7 @@ static void test_sub(void)
             cmd_cnt = 0;
             for (index = 0; index < (uint32_t)(sq_parameter.sq_size - 1) / 2; index++)
             {
-                // LOG_INFO("cmd_cnt:%d\n", cmd_cnt);
+                // pr_info("cmd_cnt:%d\n", cmd_cnt);
                 test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
                 cmd_cnt++;
                 test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
@@ -97,27 +97,27 @@ static void test_sub(void)
 
                 //wr_slba += wr_nlb;
             }
-            LOG_INFO("q_id:%d, q_size:%d(full cmd), cmd_cnt:%d\n", q_index, sq_size, cmd_cnt);
+            pr_info("q_id:%d, q_size:%d(full cmd), cmd_cnt:%d\n", q_index, sq_size, cmd_cnt);
 
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /**********************************************************************/
             test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
             test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         }
     }
     /*******************************************************************************************************************************/
     /*******************************************************************************************************************************/
-    LOG_INFO("\n2. Send cmd 2 times, first + scend > sq_size. test sq size is 8,32,128,1024,4096,8192\n");
+    pr_info("\n2. Send cmd 2 times, first + scend > sq_size. test sq size is 8,32,128,1024,4096,8192\n");
     io_cq_id = 1;
     io_sq_id = 1;
 
@@ -141,7 +141,7 @@ static void test_sub(void)
             test_flag |= create_iocq(file_desc, &cq_parameter);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
             /**********************************************************************/
             io_sq_id = q_index;
@@ -150,7 +150,7 @@ static void test_sub(void)
             test_flag |= create_iosq(file_desc, &sq_parameter);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
             /**********************************************************************/
             //first send read cmd
@@ -159,18 +159,18 @@ static void test_sub(void)
             cmd_cnt = 0;
             for (index = 1; index <= test2_sq_1_send[qsize_index] / 2; index++)
             {
-                // LOG_INFO("cmd_cnt:%d\n", cmd_cnt);
+                // pr_info("cmd_cnt:%d\n", cmd_cnt);
                 test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
                 cmd_cnt++;
                 test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
                 cmd_cnt++;
                 //wr_slba += wr_nlb;
             }
-            LOG_INFO("first send q_id:%d, sq_size:%d, cmd_cnt:%d\n", q_index, sq_size, cmd_cnt);
+            pr_info("first send q_id:%d, sq_size:%d, cmd_cnt:%d\n", q_index, sq_size, cmd_cnt);
 
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /**********************************************************************/
             //second send write cmd
@@ -185,22 +185,22 @@ static void test_sub(void)
                 cmd_cnt++;
                 // wr_slba += wr_nlb;
             }
-            LOG_INFO("second send q_id:%d, sq_size:%d, cmd_cnt:%d\n", q_index, sq_size, cmd_cnt);
+            pr_info("second send q_id:%d, sq_size:%d, cmd_cnt:%d\n", q_index, sq_size, cmd_cnt);
 
             test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /**********************************************************************/
             test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
             test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
             test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
             test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-            LOG_DBUG("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+            pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         }
     }
     /*******************************************************************************************************************************/
@@ -209,23 +209,23 @@ static void test_sub(void)
 int case_queue_create_q_size(void)
 {
     int test_round = 0;
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s", disp_this_case);
 
     //Warning: this sub case will take a long time a round.
     for (test_round = 1; test_round <= 1; test_round++)
     {
-        LOG_INFO("\ntest_round: %d\n", test_round);
+        pr_info("\ntest_round: %d\n", test_round);
         test_sub();
     }
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

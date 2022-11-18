@@ -53,20 +53,20 @@ dword_t test_list_exe(TestCase_t *CaseList, dword_t NumOfCase)
             NumOfCase,
         };
 
-    LOG_COLOR(GREEN_LOG, "%s-%s %s start:\n", test_suite.Date, test_suite.Time, test_suite.TestSuiteTitle);
+    pr_color(LOG_COLOR_GREEN, "%s-%s %s start:\n", test_suite.Date, test_suite.Time, test_suite.TestSuiteTitle);
 
     memset((void *)&test_report, 0, sizeof(TestReport_t));
     test_report.tests = test_suite.NumOfTestCase;
 
-    LOG_INFO("CaseNum|TestFuncName\n");
+    pr_info("CaseNum|TestFuncName\n");
     for (idx = 0; idx < test_suite.NumOfTestCase; idx++)
     {
-        LOG_INFO("%4d   |%-26s\n", idx, test_suite.TestCase[idx].FuncName);
+        pr_info("%4d   |%-26s\n", idx, test_suite.TestCase[idx].FuncName);
     }
     /* Execute test cases */
     for (idx = 0; idx < test_suite.NumOfTestCase; idx++)
     {
-        LOG_COLOR(GREEN_LOG, "\nCase:%d,%s() Start:\n", idx, test_suite.TestCase[idx].FuncName);
+        pr_color(LOG_COLOR_GREEN, "\nCase:%d,%s() Start:\n", idx, test_suite.TestCase[idx].FuncName);
         // if(test_suite.TestCase[idx].PreFunc != NULL)
         // {
         //     test_suite.TestCase[idx].PreFunc();
@@ -90,25 +90,25 @@ dword_t test_list_exe(TestCase_t *CaseList, dword_t NumOfCase)
         //     test_suite.TestCase[idx].EndFunc();
         // }
     }
-    LOG_INFO("\n------------------------------------------------------------------\n");
-    LOG_COLOR(GREEN_LOG, "%s result:\n", test_suite.TestSuiteTitle);
-    LOG_INFO("CaseNum|Result|TestFuncName\n");
+    pr_info("\n------------------------------------------------------------------\n");
+    pr_color(LOG_COLOR_GREEN, "%s result:\n", test_suite.TestSuiteTitle);
+    pr_info("CaseNum|Result|TestFuncName\n");
     for (idx = 0; idx < test_suite.NumOfTestCase; idx++)
     {
         if (test_suite.TestCase[idx].Result == SUCCEED)
         {
-            LOG_INFO("%4d   | %s |%-26s\n", idx, "PASS", test_suite.TestCase[idx].FuncName);
+            pr_info("%4d   | %s |%-26s\n", idx, "PASS", test_suite.TestCase[idx].FuncName);
         }
         else if (test_suite.TestCase[idx].Result == SKIPED)
         {
-            LOG_COLOR(SKBLU_LOG,"%4d   | %s |%-26s\n", idx, "SKIP", test_suite.TestCase[idx].FuncName);
+            pr_color(LOG_COLOR_CYAN,"%4d   | %s |%-26s\n", idx, "SKIP", test_suite.TestCase[idx].FuncName);
         }
         else
         {
-            LOG_COLOR(RED_LOG, "%4d   | %s |%-26s\n", idx, "FAIL", test_suite.TestCase[idx].FuncName);
+            pr_color(LOG_COLOR_RED, "%4d   | %s |%-26s\n", idx, "FAIL", test_suite.TestCase[idx].FuncName);
         }
     }
-    LOG_INFO("All Test Summary: %d Tests, %d Executed, %d Passed, %d Failed, %d Skiped, %d Warnings.\n",
+    pr_info("All Test Summary: %d Tests, %d Executed, %d Passed, %d Failed, %d Skiped, %d Warnings.\n",
              test_report.tests,
              test_report.executed,
              test_report.passed,
@@ -133,15 +133,15 @@ dword_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseList
     memset((void *)&test_report, 0, sizeof(TestReport_t));
     test_report.tests = SubCaseNum;
 
-    LOG_INFO("\n********************\t Case:%s \t********************\n", SubCaseHeader->CaseHeaderName);
-    LOG_INFO("%s\r\n", SubCaseHeader->CaseHeaderDesc);
+    pr_info("\n********************\t Case:%s \t********************\n", SubCaseHeader->CaseHeaderName);
+    pr_info("%s\r\n", SubCaseHeader->CaseHeaderDesc);
     if (SubCaseHeader->PreFunc != NULL)
     {
         SubCaseHeader->PreFunc();
     }
     for (idx = 0; idx < SubCaseNum; idx++)
     {
-        LOG_COLOR(GREEN_LOG, "Case:%d,%s():%s\r\n", idx, SubCaseList[idx].FuncName, SubCaseList[idx].FuncDesc);
+        pr_color(LOG_COLOR_GREEN, "Case:%d,%s():%s\r\n", idx, SubCaseList[idx].FuncName, SubCaseList[idx].FuncDesc);
         test_report.executed++;
         SubCaseList[idx].Result = SubCaseList[idx].CaseFunc();
         if (SubCaseList[idx].Result == SUCCEED)
@@ -161,24 +161,24 @@ dword_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseList
     {
         SubCaseHeader->EndFunc();
     }
-    LOG_INFO("------------------------------------------------------------------\n");
-    LOG_INFO("SubCaseNum|Result|SubCaseName\r\n");
+    pr_info("------------------------------------------------------------------\n");
+    pr_info("SubCaseNum|Result|SubCaseName\r\n");
     for (idx = 0; idx < SubCaseNum; idx++)
     {
         if (SubCaseList[idx].Result == SUCCEED)
         {
-            LOG_INFO("  %4d    | %s |%-26s\r\n", idx, "PASS", SubCaseList[idx].FuncDesc);
+            pr_info("  %4d    | %s |%-26s\r\n", idx, "PASS", SubCaseList[idx].FuncDesc);
         }
         else if (SubCaseList[idx].Result == SKIPED)
         {
-            LOG_COLOR(SKBLU_LOG,"  %4d    | %s |%-26s\r\n", idx, "SKIP", SubCaseList[idx].FuncDesc);
+            pr_color(LOG_COLOR_CYAN,"  %4d    | %s |%-26s\r\n", idx, "SKIP", SubCaseList[idx].FuncDesc);
         }
         else
         {
-            LOG_COLOR(RED_LOG, "  %4d    | %s |%-26s\r\n", idx, "FAIL", SubCaseList[idx].FuncDesc);
+            pr_color(LOG_COLOR_RED, "  %4d    | %s |%-26s\r\n", idx, "FAIL", SubCaseList[idx].FuncDesc);
         }
     }
-    LOG_INFO("SubCase Summary [%s]: %d Tests, %d Executed, %d Passed, %d Failed, %d Skiped, %d Warnings.\r\n",
+    pr_info("SubCase Summary [%s]: %d Tests, %d Executed, %d Passed, %d Failed, %d Skiped, %d Warnings.\r\n",
             SubCaseHeader->CaseHeaderName,
             test_report.tests,
             test_report.executed,
@@ -186,7 +186,7 @@ dword_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseList
             test_report.failed,
             test_report.skiped,
             test_report.warnings);
-    LOG_INFO("------------------------------------------------------------------\n");
+    pr_info("------------------------------------------------------------------\n");
     return test_report.failed;
 }
 
@@ -204,22 +204,22 @@ void mem_disp(void *mem_addr, dword_t data_size)
     column_cnt = 8;
     row_cnt = data_size / column_cnt / 4;
     if (column_cnt == 16)
-        LOG_INFO("<--addr---dword-->: 03----00 07----04 11----08 15----12 19----16 23----20 27----24 31----28 "
+        pr_info("<--addr---dword-->: 03----00 07----04 11----08 15----12 19----16 23----20 27----24 31----28 "
                  "35----32 39----36 43----40 47----44 51----48 55----52 59----56 63----60\n");
     else
-        LOG_INFO("<--addr---dword-->: 03----00 07----04 11----08 15----12 19----16 23----20 27----24 31----28\n");
+        pr_info("<--addr---dword-->: 03----00 07----04 11----08 15----12 19----16 23----20 27----24 31----28\n");
 
     ptr = (dword_t *)mem_addr;
     for (rows = 0; rows < row_cnt; rows++)
     {
-        // LOG_INFO("%p: ", mem_addr + rows * 4 * column_cnt);
-        LOG_INFO("0x%016lx: ", (qword_t)(mem_addr + rows * 4 * column_cnt));
-        // LOG_INFO("0x%-16lx: ", (qword_t)(+ rows * 4 * column_cnt));
+        // pr_info("%p: ", mem_addr + rows * 4 * column_cnt);
+        pr_info("0x%016lx: ", (qword_t)(mem_addr + rows * 4 * column_cnt));
+        // pr_info("0x%-16lx: ", (qword_t)(+ rows * 4 * column_cnt));
         for (columns = 0; columns < column_cnt; columns++)
         {
-            LOG_INFO("%08x ", ptr[columns]);
+            pr_info("%08x ", ptr[columns]);
         }
-        LOG_INFO("\n");
+        pr_info("\n");
         ptr += column_cnt;
     }
 }
@@ -236,9 +236,9 @@ int_t mem_cmp(dword_t *mem_addr1, dword_t *mem_addr2, dword_t data_size)
     int_t idx = 0;
     idx = memcmp(mem_addr1, mem_addr2, data_size);
     if (idx)
-        LOG_ERROR("Compare ERROR!!! idx:%d\n", idx);
+        pr_err("Compare ERROR!!! idx:%d\n", idx);
     else
-        LOG_DBUG("Compare OK!!! \n");
+        pr_debug("Compare OK!!! \n");
     return idx;
 }
 /**
@@ -280,9 +280,9 @@ int_t pat_cmp(dword_t *mem_addr1, dword_t pattern, dword_t data_size)
             flg = 1;
     }
     if (flg)
-        LOG_ERROR("Compare ERROR!!! idx:%d\n", idx);
+        pr_err("Compare ERROR!!! idx:%d\n", idx);
     else
-        LOG_DBUG("Compare OK!!! \n");
+        pr_debug("Compare OK!!! \n");
     return idx;
 }
 
@@ -308,11 +308,11 @@ int_t dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size)
     }
     if (flg == SUCCEED)
     {
-        LOG_DBUG("Compare OK!!! \n");
+        pr_debug("Compare OK!!! \n");
     }
     else
     {
-        LOG_ERROR("Compare ERROR!!! idx:%d\n", idx);
+        pr_err("Compare ERROR!!! idx:%d\n", idx);
     }
     return flg;
 }

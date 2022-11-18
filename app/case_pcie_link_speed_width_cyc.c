@@ -33,7 +33,7 @@ static void test_sub(void)
     {
         set_width = 4;
     }
-    LOG_INFO("\nSet PCIe Gen%d, lane width X%d\n", set_speed, set_width);
+    pr_info("\nSet PCIe Gen%d, lane width X%d\n", set_speed, set_width);
 
     // cfg speed (RC)
     pcie_RC_cfg_speed(set_speed);
@@ -48,11 +48,11 @@ static void test_sub(void)
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
     {
-        //LOG_INFO("Successful linked\n");
+        //pr_info("Successful linked\n");
     }
     else
     {
-        LOG_ERROR("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
+        pr_err("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
         test_flag = FAILED;
     }
 }
@@ -63,19 +63,19 @@ int case_pcie_link_speed_width_cyc(void)
     uint32_t u32_tmp_data = 0;
     srand(time(0));
 
-    LOG_INFO("\n********************\t %s \t********************\n", __FUNCTION__);
-    LOG_INFO("%s\n", disp_this_case);
+    pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
+    pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
     u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
-    LOG_INFO("\nPower up linked status: Gen%d, X%d\n", speed, width);
+    pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
     usleep(200000);
     /**********************************************************************/
     for (test_round = 1; test_round <= 10; test_round++)
     {
-        //LOG_INFO("\nlink status: %d\n", test_round);
+        //pr_info("\nlink status: %d\n", test_round);
         test_sub();
         if (test_flag)
         {
@@ -85,11 +85,11 @@ int case_pcie_link_speed_width_cyc(void)
 
     if (test_flag != SUCCEED)
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
     }
     else
     {
-        LOG_INFO("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
     }
     return test_flag;
 }

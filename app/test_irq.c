@@ -36,13 +36,13 @@ void set_irqs(int fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
     int ret_val;
     struct interrupts new_irq = {0};
 
-    LOG_INFO("Set interrupts, Type: %s, num_irqs:%d\n", int_type[irq_type], num_irqs);
+    pr_info("Set interrupts, Type: %s, num_irqs:%d\n", int_type[irq_type], num_irqs);
     #ifdef AMD_MB_EN
     //Warning: AMD MB may not support msi-multi
     if (irq_type == INT_MSI_MULTI)
     {
         irq_type = INT_MSIX;
-        LOG_WARN("AMD MB may not support msi-multi, use msi-x replace\n");
+        pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
     }
     #endif
 
@@ -54,11 +54,11 @@ void set_irqs(int fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
     ret_val = ioctl(fd, NVME_IOCTL_SET_IRQ, &new_irq);
     if (ret_val < 0)
     {
-        LOG_ERROR("Set interrupts ioctl \033[31mfailed!\033[0m\n");
+        pr_err("Set interrupts ioctl \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Set interrupts ioctl success!\n");
+        pr_debug("Set interrupts ioctl success!\n");
     }
 }
 
@@ -69,11 +69,11 @@ void mask_irqs(int fd, uint16_t irq_no)
     ret_val = ioctl(fd, NVME_IOCTL_MASK_IRQ, irq_no);
     if (ret_val < 0)
     {
-        LOG_ERROR("mask interrupts ioctl \033[31mfailed!\033[0m\n");
+        pr_err("mask interrupts ioctl \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("mask interrupts ioctl success!\n");
+        pr_debug("mask interrupts ioctl success!\n");
     }
 }
 
@@ -84,11 +84,11 @@ void umask_irqs(int fd, uint16_t irq_no)
     ret_val = ioctl(fd, NVME_IOCTL_UNMASK_IRQ, irq_no);
     if (ret_val < 0)
     {
-        LOG_ERROR("unmask interrupts ioctl \033[31mfailed!\033[0m\n");
+        pr_err("unmask interrupts ioctl \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("unmask interrupts ioctl success!\n");
+        pr_debug("unmask interrupts ioctl success!\n");
     }
 }
 
@@ -98,14 +98,14 @@ void test_irq_review568(int fd)
     i = 10000;
     while (i)
     {
-        LOG_INFO("\nIRQ Loop Test = %d\n", i + 1);
+        pr_info("\nIRQ Loop Test = %d\n", i + 1);
         set_irqs(fd, INT_MSIX, 2);
         i--;
     }
     set_irqs(file_desc, INT_NONE, 0);
-    LOG_INFO("\nCalling Dump Metrics to irq_loop_test\n");
+    pr_info("\nCalling Dump Metrics to irq_loop_test\n");
     ioctl_dump(fd, "/tmp/test_rev568.txt");
-    LOG_INFO("\nPressAny key..\n");
+    pr_info("\nPressAny key..\n");
     getchar();
 }
 
@@ -116,12 +116,12 @@ void test_loop_irq(int fd)
     void *rd_buffer;
     if (posix_memalign(&rd_buffer, 4096, RW_BUFFER_SIZE))
     {
-        LOG_ERROR("Memalign Failed");
+        pr_err("Memalign Failed");
         return;
     }
     num = ioctl_reap_inquiry(fd, 0);
     /* Submit 10 cmds */
-    LOG_INFO("\nEnter no of commands in ACQ:");
+    pr_info("\nEnter no of commands in ACQ:");
     fflush(stdout);
     scanf("%d", &cmds);
     for (i = 0; i < cmds; i++)
@@ -160,16 +160,16 @@ int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    LOG_INFO("User Call to send command\n");
+    pr_info("User Call to send command\n");
 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command \033[31mfailed!\033[0m\n");
+        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Command sent \033[32msuccesfully\033[0m\n");
+        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
@@ -197,16 +197,16 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 0;
 
-    LOG_INFO("User Call to send command\n");
+    pr_info("User Call to send command\n");
 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command \033[31mfailed!\033[0m\n");
+        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Command sent \033[32msuccesfully\033[0m\n");
+        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
@@ -234,16 +234,16 @@ void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    LOG_INFO("User Call to send command\n");
+    pr_info("User Call to send command\n");
 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command \033[31mfailed!\033[0m\n");
+        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Command sent \033[32msuccesfully\033[0m\n");
+        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
     }
 }
 
@@ -271,16 +271,16 @@ void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t meta_id)
     user_cmd.meta_buf_id = meta_id;
     user_cmd.data_dir = 0;
 
-    LOG_INFO("User Call to send command\n");
+    pr_info("User Call to send command\n");
 
     ret_val = nvme_64b_cmd(file_desc, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command \033[31mfailed!\033[0m\n");
+        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Command sent \033[32msuccesfully\033[0m\n");
+        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
     }
 }
 
@@ -310,11 +310,11 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
     ret_val = nvme_64b_cmd(fd, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending Admin Command Create IO CQ ID:%d \033[31mfailed!\033[0m\n", cq_id);
+        pr_err("Sending Admin Command Create IO CQ ID:%d \033[31mfailed!\033[0m\n", cq_id);
     }
     else
     {
-        LOG_DBUG("Admin Command Create IO CQ ID:%d success!\n\n", cq_id);
+        pr_debug("Admin Command Create IO CQ ID:%d success!\n\n", cq_id);
     }
     return ret_val;
 }
@@ -396,16 +396,16 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 2;
 
-    LOG_INFO("User Call to send command\n");
+    pr_info("User Call to send command\n");
 
     ret_val = nvme_64b_cmd(fd, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command \033[31mfailed!\033[0m\n");
+        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Command sent \033[32msuccesfully\033[0m\n");
+        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
@@ -435,11 +435,11 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
     ret_val = nvme_64b_cmd(fd, &user_cmd);
     if (ret_val < 0)
     {
-        LOG_ERROR("Sending of Command \033[31mfailed!\033[0m\n");
+        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
     }
     else
     {
-        LOG_DBUG("Command sent \033[32msuccesfully\033[0m\n");
+        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
