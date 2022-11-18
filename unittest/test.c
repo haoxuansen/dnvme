@@ -78,8 +78,53 @@ static TestCase_t TestCaseList[] = {
     TCD(test_6_all_ns_lbads_test),//case_60
 };
 
-void test_mem_alloc(void);
-void test_mem_free(void);
+void test_mem_alloc(void)
+{
+    // allocate for cq entry buffer
+    buffer_cq_entry = malloc(BUFFER_CQ_ENTRY_SIZE);
+    if (buffer_cq_entry == NULL)
+    {
+        LOG_ERROR("Malloc Failed\n");
+    }
+
+    /* Allocating buffer for Discontiguous IOSQ/IOCQ and setting to 0 */
+    if ((posix_memalign(&discontg_sq_buf, 4096, DISCONTIG_IO_SQ_SIZE)) ||
+        (posix_memalign(&discontg_cq_buf, 4096, DISCONTIG_IO_CQ_SIZE)))
+    {
+        printf("Memalign Failed");
+    }
+
+/* Allocating buffer for Read & write*/
+#ifdef RW_BUF_4K_ALN_EN
+    if ((posix_memalign(&read_buffer, 4096, RW_BUFFER_SIZE)) ||
+        (posix_memalign(&write_buffer, 4096, RW_BUFFER_SIZE)))
+    {
+        LOG_ERROR("Memalign Failed\n");
+    }
+#else
+    read_buffer = malloc(RW_BUFFER_SIZE);
+    write_buffer = malloc(RW_BUFFER_SIZE);
+    if ((write_buffer == NULL) || (read_buffer == NULL))
+    {
+        LOG_ERROR("Malloc Failed\n");
+    }
+#endif
+    // this malloc in test_init when runing 
+    // ctrl_sq_info = (struct nvme_sq_info *)(malloc(g_nvme_dev.max_sq_num * sizeof(struct nvme_sq_info)));
+    // g_nvme_ns_info = (struct nvme_ns *)malloc(g_nvme_dev.id_ctrl.nn * sizeof(struct nvme_ns));
+
+}
+
+void test_mem_free(void)
+{
+    free(read_buffer);
+    free(write_buffer);
+    free(discontg_sq_buf);
+    free(discontg_cq_buf);
+    free(buffer_cq_entry);
+    free(ctrl_sq_info);
+    free(g_nvme_ns_info);
+}
 
 /**
  * @brief main
@@ -715,50 +760,3 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void test_mem_alloc(void)
-{
-    // allocate for cq entry buffer
-    buffer_cq_entry = malloc(BUFFER_CQ_ENTRY_SIZE);
-    if (buffer_cq_entry == NULL)
-    {
-        LOG_ERROR("Malloc Failed\n");
-    }
-
-    /* Allocating buffer for Discontiguous IOSQ/IOCQ and setting to 0 */
-    if ((posix_memalign(&discontg_sq_buf, 4096, DISCONTIG_IO_SQ_SIZE)) ||
-        (posix_memalign(&discontg_cq_buf, 4096, DISCONTIG_IO_CQ_SIZE)))
-    {
-        printf("Memalign Failed");
-    }
-
-/* Allocating buffer for Read & write*/
-#ifdef RW_BUF_4K_ALN_EN
-    if ((posix_memalign(&read_buffer, 4096, RW_BUFFER_SIZE)) ||
-        (posix_memalign(&write_buffer, 4096, RW_BUFFER_SIZE)))
-    {
-        LOG_ERROR("Memalign Failed\n");
-    }
-#else
-    read_buffer = malloc(RW_BUFFER_SIZE);
-    write_buffer = malloc(RW_BUFFER_SIZE);
-    if ((write_buffer == NULL) || (read_buffer == NULL))
-    {
-        LOG_ERROR("Malloc Failed\n");
-    }
-#endif
-    // this malloc in test_init when runing 
-    // ctrl_sq_info = (struct nvme_sq_info *)(malloc(g_nvme_dev.max_sq_num * sizeof(struct nvme_sq_info)));
-    // g_nvme_ns_info = (struct nvme_ns *)malloc(g_nvme_dev.id_ctrl.nn * sizeof(struct nvme_ns));
-
-}
-
-void test_mem_free(void)
-{
-    free(read_buffer);
-    free(write_buffer);
-    free(discontg_sq_buf);
-    free(discontg_cq_buf);
-    free(buffer_cq_entry);
-    free(ctrl_sq_info);
-    free(g_nvme_ns_info);
-}

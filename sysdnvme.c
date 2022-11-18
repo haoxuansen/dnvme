@@ -52,47 +52,511 @@
 #define VM_RESERVED (VM_DONTEXPAND | VM_DONTDUMP)
 #endif
 
-/* local functions static declarations */
-static int __init dnvme_init(void);
-static void __exit dnvme_exit(void);
-static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id);
-static void dnvme_remove(struct pci_dev *dev);
-static struct metrics_device_list *lock_device(struct inode *inode);
-static void unlock_device(struct  metrics_device_list *pmetrics_device);
-static struct metrics_device_list *find_device(struct inode *inode);
-int dnvme_open(struct inode *inode, struct file *filp);
-int dnvme_release(struct inode *inode, struct file *filp);
-int dnvme_mmap(struct file *filp, struct vm_area_struct *vma);
-long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
-    unsigned long ioctl_param);
-
 /* Module globals */
 static int nvme_major;
 LIST_HEAD(metrics_dev_ll);
 static struct class *class_nvme;
 struct metrics_driver g_metrics_drv;
 
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:"DRV_NAME);
-MODULE_AUTHOR("nvmecompliance@intel.com");
-MODULE_DESCRIPTION("NVMe compliance suite kernel driver");
-MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
+/*
+ * find device from the device linked list. Returns pointer to the
+ * device if found otherwise returns NULL.
+ */
+static struct metrics_device_list *find_device(struct inode *inode)
+{
+    int dev_found = 1;
+    struct metrics_device_list *pmetrics_device;
 
-module_init(dnvme_init);
-module_exit(dnvme_exit);
+    /* Loop through the devices available in the metrics list */
+    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
 
-static struct pci_device_id dnvme_ids[] = {
-    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
-    { 0, }
-};
-MODULE_DEVICE_TABLE(pci, dnvme_ids);
+        if (iminor(inode) == pmetrics_device->metrics_device->
+                private_dev.minor_no) {
 
-static struct pci_driver dnvme_driver = {
-    .name     = DRV_NAME,
-    .id_table = dnvme_ids,
-    .probe    = dnvme_probe,
-    .remove   = dnvme_remove,
-};
+            return pmetrics_device;
+        } else {
+            dev_found = 0;
+        }
+    }
+
+    /* The specified device could not be found in the list */
+    if (dev_found == 0) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return NULL;
+    }
+    return NULL;
+}
+
+
+/*
+ * lock_device function will call find_device and if found device locks my
+ * taking the mutex. This function returns a pointer to successfully found
+ * device.
+ */
+static struct metrics_device_list *lock_device(struct inode *inode)
+{
+    struct  metrics_device_list *pmetrics_device;
+    pmetrics_device = find_device(inode);
+    if (pmetrics_device == NULL) {
+        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
+        return NULL;
+    }
+
+    /* Grab the Mutex for this device in the linked list */
+    mutex_lock(&pmetrics_device->metrics_mtx);
+    return pmetrics_device;
+}
+
+
+static void unlock_device(struct  metrics_device_list *pmetrics_device)
+{
+    if (mutex_is_locked(&pmetrics_device->metrics_mtx)) {
+        mutex_unlock(&pmetrics_device->metrics_mtx);
+    }
+}
+
+/*
+ * dnvme_mmap - This function maps the contiguous device mapped area
+ * to user space. This is specfic to device which is called though fd.
+ */
+static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+    struct  metrics_device_list *pmetrics_device; /* Metrics device */
+    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
+    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
+    struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
+    u8 *vir_kern_addr;
+    unsigned long pfn = 0;
+    struct inode *inode = filp->f_path.dentry->d_inode;
+    u32 type;
+    u32 id;
+    u32 mmap_range;
+    int npages;
+    int err = SUCCESS;
+
+    LOG_DBG("Device Calling mmap function...");
+
+    pmetrics_device = lock_device(inode);
+    if (pmetrics_device == NULL) {
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        err = -ENODEV;
+        goto mmap_exit;
+    }
+
+    vma->vm_flags |= (VM_IO | VM_RESERVED);
+
+    /* Calculate the id and type from offset */
+    type = (vma->vm_pgoff >> 0x12) & 0x3;
+    id = vma->vm_pgoff & 0x3FFFF;
+
+    LOG_DBG("Type = %d", type);
+    LOG_DBG("ID = 0x%x", id);
+
+    /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
+    if (type == 0x1) {
+        /* Process for SQ */
+        if (id > USHRT_MAX) { /* 16 bits */
+            LOG_ERR("SQ Id is greater than 16 bits..");
+            err = -EINVAL;
+            goto mmap_exit;
+        }
+        /* Find SQ node in the list with id */
+        pmetrics_sq_list = find_sq(pmetrics_device, id);
+        if (pmetrics_sq_list == NULL) {
+            err = -EBADSLT;
+            goto mmap_exit;
+        }
+        if (pmetrics_sq_list->private_sq.contig == 0) {
+            LOG_ERR("MMAP does not work on non contig SQ's");
+            #ifndef ENOTSUP
+                err = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
+            #else                      /*  parisc does define it separately.*/
+                err = -ENOTSUP;
+            #endif
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmetrics_sq_list->private_sq.vir_kern_addr;
+        mmap_range = pmetrics_sq_list->private_sq.size;
+    } else if (type == 0x0) {
+        /* Process for CQ */
+        if (id > USHRT_MAX) { /* 16 bits */
+            LOG_ERR("CQ Id is greater than 16 bits..");
+            err = -EINVAL;
+            goto mmap_exit;
+        }
+        /* Find CQ node in the list with id */
+        pmetrics_cq_list = find_cq(pmetrics_device, id);
+        if (pmetrics_cq_list == NULL) {
+            err = -EBADSLT;
+            goto mmap_exit;
+        }
+        if (pmetrics_cq_list->private_cq.contig == 0) {
+            LOG_ERR("MMAP does not work on non contig CQ's");
+            #ifndef ENOTSUP
+                err = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
+            #else                      /*  parisc does define it separately.*/
+                err = -ENOTSUP;
+            #endif
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmetrics_cq_list->private_cq.vir_kern_addr;
+        mmap_range = pmetrics_cq_list->private_cq.size;
+    } else if (type == 0x2) {
+        /* Process for Meta data */
+        if (id > (2^18)) { /* 18 bits */
+            LOG_ERR("Meta Id is greater than 18 bits..");
+            err = -EINVAL;
+            goto mmap_exit;
+        }
+        /* find Meta Node data */
+        pmeta_data = find_meta_node(pmetrics_device, id);
+        if (pmeta_data == NULL) {
+            err = -EBADSLT;
+            goto mmap_exit;
+        }
+        vir_kern_addr = pmeta_data->vir_kern_addr;
+        mmap_range = pmetrics_device->metrics_meta.meta_buf_size;
+    } else {
+        err = -EINVAL;
+        goto mmap_exit;
+    }
+
+    npages = (mmap_range/PAGE_SIZE) + 1;
+    if ((npages * PAGE_SIZE) < (vma->vm_end - vma->vm_start)) {
+        LOG_ERR("Request to Map more than allocated pages...");
+        err = -EINVAL;
+        goto mmap_exit;
+    }
+    LOG_DBG("Virt Address = 0x%llx", (u64)vir_kern_addr);
+    LOG_DBG("Npages = %d", npages);
+
+    /* Associated struct page ptr for kernel logical address */
+    pfn = virt_to_phys(vir_kern_addr) >> PAGE_SHIFT;
+    if (!pfn) {
+        LOG_ERR("pfn is NULL");
+        err = -EINVAL;
+        goto mmap_exit;
+    }
+    LOG_DBG("PFN = 0x%lx", pfn);
+
+    /* remap kernel memory to userspace */
+    err = remap_pfn_range(vma, vma->vm_start, pfn,
+                    vma->vm_end - vma->vm_start, vma->vm_page_prot);
+
+mmap_exit:
+    unlock_device(pmetrics_device);
+    return err;
+}
+
+
+/*
+ * This function is called whenever a process tries to do an ioctl on our
+ * device file. We get two extra parameters (additional to the inode and file
+ * structures, which all device functions get): the number of the ioctl called
+ * and the parameter given to the ioctl function.
+ *
+ * If the ioctl is write or read/write (meaning output is returned to the
+ * calling process), the ioctl call returns the output of this function.
+ *
+ */
+static long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
+    unsigned long ioctl_param)
+{
+    int err = -EINVAL;
+    struct metrics_device_list *pmetrics_device;
+    struct nvme_create_admn_q *create_admn_q;
+    struct inode *inode = inode = filp->f_path.dentry->d_inode;
+
+
+    LOG_DBG("Processing IOCTL 0x%08x", ioctl_num);
+    pmetrics_device = lock_device(inode);
+    if (pmetrics_device == NULL) {
+        LOG_ERR("Unable to lock DUT; minor #%d", iminor(inode));
+        err = -ENODEV;
+        goto ioctl_exit;
+    }
+
+    switch (ioctl_num) {
+
+    case NVME_IOCTL_ERR_CHK:
+        LOG_DBG("NVME_IOCTL_ERR_CHK");
+        err = device_status_chk(pmetrics_device, (struct device_status *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_READ_GENERIC:
+        LOG_DBG("NVME_IOCTL_READ_GENERIC");
+        err = driver_generic_read((struct rw_generic *)ioctl_param,
+            pmetrics_device);
+        break;
+
+    case NVME_IOCTL_WRITE_GENERIC:
+        LOG_DBG("NVME_IOCTL_WRITE_GENERIC");
+        err = driver_generic_write((struct rw_generic *)ioctl_param,
+            pmetrics_device);
+        break;
+
+    case NVME_IOCTL_CREATE_ADMN_Q:
+        LOG_DBG("NVME_IOCTL_CREATE_ADMN_Q");
+        /* Allocating memory for user struct in kernel space */
+        create_admn_q = kmalloc(sizeof(struct nvme_create_admn_q), GFP_KERNEL);
+        if (create_admn_q == NULL) {
+            LOG_ERR("Unable to alloc kernel memory to copy user data");
+            err = -ENOMEM;
+            break;
+        }
+        if (copy_from_user(create_admn_q, (void *)ioctl_param,
+            sizeof(struct nvme_create_admn_q))) {
+
+            LOG_ERR("Unable to copy from user space");
+            kfree(create_admn_q);
+            err = -EFAULT;
+            break;
+        }
+
+        if (create_admn_q->type == ADMIN_SQ) {
+            LOG_DBG("Create ASQ");
+            err = driver_create_asq(create_admn_q, pmetrics_device);
+        } else if (create_admn_q->type == ADMIN_CQ) {
+            LOG_DBG("Create ACQ");
+            err = driver_create_acq(create_admn_q, pmetrics_device);
+        } else {
+            LOG_ERR("Unknown Q type specified");
+            err = -EINVAL;
+        }
+        kfree(create_admn_q);
+        break;
+
+    case NVME_IOCTL_DEVICE_STATE:
+        LOG_DBG("NVME_IOCTL_DEVICE_STATE");
+        switch ((enum nvme_state)ioctl_param) {
+        case ST_ENABLE:
+            LOG_DBG("Enabling the DUT");
+            err = nvme_ctrl_set_state(pmetrics_device, 1);
+            break;
+        case ST_ENABLE_IOL_TO:
+            LOG_DBG("Enabling the DUT");
+            err = iol_nvme_ctrl_set_state(pmetrics_device, 1);
+            break;
+        case ST_DISABLE_IOL_TO:
+            LOG_DBG("Disabling the DUT");
+            if ((err = iol_nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
+                device_cleanup(pmetrics_device, ST_DISABLE);
+            }
+            break;
+        case ST_DISABLE:
+        case ST_DISABLE_COMPLETELY:
+            LOG_DBG("Disabling the DUT");
+            if ((err = nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
+                device_cleanup(pmetrics_device, (enum nvme_state)ioctl_param);
+            }
+            break;
+        case ST_NVM_SUBSYSTEM:
+            LOG_DBG("Performing NVM Subsystem reset");
+            err = nvme_nvm_subsystem_reset(pmetrics_device);
+            break;
+         default:
+            LOG_ERR("Unknown IOCTL parameter");
+            err = -EINVAL;
+            break;
+        }
+        break;
+
+    case NVME_IOCTL_GET_Q_METRICS:
+        LOG_DBG("NVME_IOCTL_GET_Q_METRICS");
+        err = get_public_qmetrics(pmetrics_device,
+            (struct nvme_get_q_metrics *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_PREPARE_SQ_CREATION:
+        LOG_DBG("NVME_IOCTL_PREPARE_SQ_CREATION");
+        err = driver_nvme_prep_sq((struct nvme_prep_sq *)ioctl_param,
+            pmetrics_device);
+        break;
+
+    case NVME_IOCTL_PREPARE_CQ_CREATION:
+        LOG_DBG("NVME_IOCTL_PREPARE_CQ_CREATION");
+        err = driver_nvme_prep_cq((struct nvme_prep_cq *)ioctl_param,
+            pmetrics_device);
+        break;
+
+    case NVME_IOCTL_RING_SQ_DOORBELL:
+        LOG_DBG("NVME_IOCTL_RING_SQ_DOORBELL");
+        err = nvme_ring_sqx_dbl((u16)ioctl_param, pmetrics_device);
+        break;
+
+    case NVME_IOCTL_SEND_64B_CMD:
+        LOG_DBG("NVME_IOCTL_SEND_64B_CMD");
+        err = driver_send_64b(pmetrics_device,
+            (struct nvme_64b_send *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_TOXIC_64B_DWORD:
+        LOG_DBG("NVME_TOXIC_64B_DWORD");
+        err = driver_toxic_dword(pmetrics_device,
+            (struct backdoor_inject *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_DUMP_METRICS:
+        LOG_DBG("NVME_IOCTL_DUMP_METRICS");
+        err = driver_log((struct nvme_file *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_REAP_INQUIRY:
+        LOG_DBG("NVME_IOCTL_REAP_INQUIRY");
+        err = driver_reap_inquiry(pmetrics_device,
+            (struct nvme_reap_inquiry *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_REAP:
+        LOG_DBG("NVME_IOCTL_REAP");
+        err = driver_reap_cq(pmetrics_device, (struct nvme_reap *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_GET_DRIVER_METRICS:
+        LOG_DBG("NVME_IOCTL_GET_DRIVER_METRICS");
+        if (copy_to_user((struct metrics_driver *)ioctl_param,
+            &g_metrics_drv, sizeof(struct metrics_driver))) {
+
+            LOG_ERR("Unable to copy to user space");
+            err = -EFAULT;
+        } else {
+            err = SUCCESS;
+        }
+        break;
+
+    case NVME_IOCTL_METABUF_CREATE:
+        LOG_DBG("NVME_IOCTL_METABUF_CREATE");
+        if (ioctl_param > MAX_METABUFF_SIZE) {
+            LOG_ERR("Meta buffer size exceeds max(0x%08X) > 0x%08X",
+                MAX_METABUFF_SIZE, (u32)ioctl_param);
+            err = -EINVAL;
+        } else {
+            err = metabuff_create(pmetrics_device, (u32)ioctl_param);
+        }
+        break;
+
+    case NVME_IOCTL_METABUF_ALLOC:
+        LOG_DBG("NVME_IOCTL_METABUF_ALLOC");
+        err = metabuff_alloc(pmetrics_device, (u32)ioctl_param);
+        break;
+
+    case NVME_IOCTL_METABUF_DELETE:
+        LOG_DBG("NVME_IOCTL_METABUF_DELETE");
+        err = metabuff_del(pmetrics_device, (u32)ioctl_param);
+        break;
+
+    case NVME_IOCTL_SET_IRQ:
+        LOG_DBG("NVME_IOCTL_SET_IRQ");
+        err = nvme_set_irq(pmetrics_device, (struct interrupts *)ioctl_param);
+        break;
+
+    case NVME_IOCTL_MASK_IRQ:
+        LOG_DBG("NVME_IOCTL_MASK_IRQ");
+        err = nvme_mask_irq(pmetrics_device, (u16)ioctl_param);
+        break;
+
+    case NVME_IOCTL_UNMASK_IRQ:
+        LOG_DBG("NVME_IOCTL_UNMASK_IRQ");
+        err = nvme_unmask_irq(pmetrics_device, (u16)ioctl_param);
+        break;
+
+    case NVME_IOCTL_GET_DEVICE_METRICS:
+        LOG_DBG("NVME_IOCTL_GET_DEVICE_METRICS");
+        if (copy_to_user((struct public_metrics_dev *)ioctl_param,
+            &pmetrics_device->metrics_device->public_dev,
+            sizeof(struct public_metrics_dev))) {
+
+            LOG_ERR("Unable to copy to user space");
+            err = -EFAULT;
+        } else {
+            err = SUCCESS;
+        }
+        break;
+
+    case NVME_IOCTL_MARK_SYSLOG:
+        LOG_DBG("NVME_IOCTL_MARK_SYSLOG");
+        err = driver_logstr((struct nvme_logstr *)ioctl_param);
+        break;
+
+    //***************************boot partition test MengYu***************************
+    //   case NVME_IOCTL_WRITE_BP_BUF:
+    //     LOG_DBG("NVME_IOCTL_WRITE_BP_BUF");
+    //     err = driver_nvme_write_bp_buf((struct nvme_write_bp_buf *)ioctl_param, pmetrics_device);
+    //     break;  
+    //   case NVME_IOCTL_GET_BP_MEM_ADDR:
+    //     LOG_DBG("NVME_IOCTL_GET_BP_MEM_ADDR");
+    //     break;  
+    //***************************boot partition test MengYu***************************
+    default:
+        LOG_ERR("Unknown IOCTL");
+        break;
+    }
+
+ioctl_exit:
+    unlock_device(pmetrics_device);
+    return err;
+}
+
+/*
+ * This operation is always the first operation performed on the device file.
+ * when the user call open fd, this is where it lands.
+ */
+static int dnvme_open(struct inode *inode, struct file *filp)
+{
+    struct metrics_device_list *pmetrics_device;
+    int err = SUCCESS;
+
+    LOG_ERR("Opening NVMe device");
+    pmetrics_device = lock_device(inode);
+    if (pmetrics_device == NULL) {
+        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
+        err = -ENODEV;
+        goto op_exit;
+    }
+
+    if (pmetrics_device->metrics_device->private_dev.open_flag == 0) {
+        pmetrics_device->metrics_device->private_dev.open_flag = 1;
+        device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
+    } else {
+        LOG_ERR("Attempt to open device multiple times not allowed!");
+        err = -EPERM;
+    }
+
+op_exit:
+    unlock_device(pmetrics_device);
+    return err;
+}
+
+
+/*
+ * This operation is invoked when the file structure is being released. When
+ * the user app close a device then this is where the entry point is. The
+ * driver cleans up any memory it has reference to. This ensures a clean state
+ * of the device.
+ */
+static int dnvme_release(struct inode *inode, struct file *filp)
+{
+    /* Metrics device */
+    struct  metrics_device_list *pmetrics_device;
+    int err = SUCCESS;
+
+    LOG_DBG("Call to Release the device");
+    pmetrics_device = lock_device(inode);
+    if (pmetrics_device == NULL) {
+        LOG_ERR("Cannot lock on this device with minor # %d", iminor(inode));
+        err = -ENODEV;
+        goto rel_exit;
+    }
+
+    /* Set the device open flag to false */
+    pmetrics_device->metrics_device->private_dev.open_flag = 0;
+    device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
+
+rel_exit:
+    LOG_DBG("NVMe device closed");
+    unlock_device(pmetrics_device);
+    return err;
+}
 
 static const struct file_operations dnvme_fops = {
     .owner          = THIS_MODULE,
@@ -101,55 +565,6 @@ static const struct file_operations dnvme_fops = {
     .release        = dnvme_release,
     .mmap           = dnvme_mmap,
 };
-
-
-static int __init dnvme_init(void)
-{
-    int err = SUCCESS;
-
-    LOG_NRM("dnvme INIT; version: %d.%d", VER_MAJOR, VER_MINOR);
-    g_metrics_drv.api_version = API_VERSION;
-    g_metrics_drv.driver_version = DRIVER_VERSION;
-
-    /* Get a dynamically alloc'd major number for this driver */
-    nvme_major = register_chrdev(0, NVME_DEVICE_NAME, &dnvme_fops);
-    if (nvme_major < 0) {
-        LOG_ERR("dnvme char device driver registration fail");
-        return -ENODEV;
-    }
-
-    /* Check if class_nvme creation has any issues */
-    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
-    if (IS_ERR(class_nvme)) {
-        LOG_ERR("NVMe class creation failed");
-        err = PTR_ERR(class_nvme);
-        goto unreg_chrdrv_fail_out;
-    }
-
-    /* Register this driver */
-    err = pci_register_driver(&dnvme_driver);
-    if (err) {
-        LOG_ERR("PCIe driver registration failed");
-        goto class_create_fail_out;
-    }
-    return err;
-
-class_create_fail_out:
-    class_destroy(class_nvme);
-unreg_chrdrv_fail_out:
-    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
-    return err;
-}
-
-
-static void __exit dnvme_exit(void)
-{
-    pci_unregister_driver(&dnvme_driver);
-    class_destroy(class_nvme);
-    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
-    LOG_NRM("dnvme EXIT; version: %d.%d", VER_MAJOR, VER_MINOR);
-}
-
 
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -411,505 +826,70 @@ static void dnvme_remove(struct pci_dev *dev)
     }
 }
 
+static struct pci_device_id dnvme_ids[] = {
+    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
+    { 0, }
+};
+MODULE_DEVICE_TABLE(pci, dnvme_ids);
 
-/*
- * find device from the device linked list. Returns pointer to the
- * device if found otherwise returns NULL.
- */
-static struct metrics_device_list *find_device(struct inode *inode)
+static struct pci_driver dnvme_driver = {
+    .name     = DRV_NAME,
+    .id_table = dnvme_ids,
+    .probe    = dnvme_probe,
+    .remove   = dnvme_remove,
+};
+
+static int __init dnvme_init(void)
 {
-    int dev_found = 1;
-    struct metrics_device_list *pmetrics_device;
-
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
-
-        if (iminor(inode) == pmetrics_device->metrics_device->
-                private_dev.minor_no) {
-
-            return pmetrics_device;
-        } else {
-            dev_found = 0;
-        }
-    }
-
-    /* The specified device could not be found in the list */
-    if (dev_found == 0) {
-        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return NULL;
-    }
-    return NULL;
-}
-
-
-/*
- * lock_device function will call find_device and if found device locks my
- * taking the mutex. This function returns a pointer to successfully found
- * device.
- */
-static struct metrics_device_list *lock_device(struct inode *inode)
-{
-    struct  metrics_device_list *pmetrics_device;
-    pmetrics_device = find_device(inode);
-    if (pmetrics_device == NULL) {
-        LOG_ERR("Cannot find the device with minor no. %d", iminor(inode));
-        return NULL;
-    }
-
-    /* Grab the Mutex for this device in the linked list */
-    mutex_lock(&pmetrics_device->metrics_mtx);
-    return pmetrics_device;
-}
-
-
-static void unlock_device(struct  metrics_device_list *pmetrics_device)
-{
-    if (mutex_is_locked(&pmetrics_device->metrics_mtx)) {
-        mutex_unlock(&pmetrics_device->metrics_mtx);
-    }
-}
-
-
-/*
- * This operation is always the first operation performed on the device file.
- * when the user call open fd, this is where it lands.
- */
-int dnvme_open(struct inode *inode, struct file *filp)
-{
-    struct metrics_device_list *pmetrics_device;
     int err = SUCCESS;
 
-    LOG_ERR("Opening NVMe device");
-    pmetrics_device = lock_device(inode);
-    if (pmetrics_device == NULL) {
-        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
-        err = -ENODEV;
-        goto op_exit;
+    LOG_NRM("dnvme INIT; version: %d.%d", VER_MAJOR, VER_MINOR);
+    g_metrics_drv.api_version = API_VERSION;
+    g_metrics_drv.driver_version = DRIVER_VERSION;
+
+    /* Get a dynamically alloc'd major number for this driver */
+    nvme_major = register_chrdev(0, NVME_DEVICE_NAME, &dnvme_fops);
+    if (nvme_major < 0) {
+        LOG_ERR("dnvme char device driver registration fail");
+        return -ENODEV;
     }
 
-    if (pmetrics_device->metrics_device->private_dev.open_flag == 0) {
-        pmetrics_device->metrics_device->private_dev.open_flag = 1;
-        device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
-    } else {
-        LOG_ERR("Attempt to open device multiple times not allowed!");
-        err = -EPERM;
+    /* Check if class_nvme creation has any issues */
+    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
+    if (IS_ERR(class_nvme)) {
+        LOG_ERR("NVMe class creation failed");
+        err = PTR_ERR(class_nvme);
+        goto unreg_chrdrv_fail_out;
     }
 
-op_exit:
-    unlock_device(pmetrics_device);
+    /* Register this driver */
+    err = pci_register_driver(&dnvme_driver);
+    if (err) {
+        LOG_ERR("PCIe driver registration failed");
+        goto class_create_fail_out;
+    }
+    return err;
+
+class_create_fail_out:
+    class_destroy(class_nvme);
+unreg_chrdrv_fail_out:
+    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
     return err;
 }
+module_init(dnvme_init);
 
-
-/*
- * This operation is invoked when the file structure is being released. When
- * the user app close a device then this is where the entry point is. The
- * driver cleans up any memory it has reference to. This ensures a clean state
- * of the device.
- */
-int dnvme_release(struct inode *inode, struct file *filp)
+static void __exit dnvme_exit(void)
 {
-    /* Metrics device */
-    struct  metrics_device_list *pmetrics_device;
-    int err = SUCCESS;
-
-    LOG_DBG("Call to Release the device");
-    pmetrics_device = lock_device(inode);
-    if (pmetrics_device == NULL) {
-        LOG_ERR("Cannot lock on this device with minor # %d", iminor(inode));
-        err = -ENODEV;
-        goto rel_exit;
-    }
-
-    /* Set the device open flag to false */
-    pmetrics_device->metrics_device->private_dev.open_flag = 0;
-    device_cleanup(pmetrics_device, ST_DISABLE_COMPLETELY);
-
-rel_exit:
-    LOG_DBG("NVMe device closed");
-    unlock_device(pmetrics_device);
-    return err;
+    pci_unregister_driver(&dnvme_driver);
+    class_destroy(class_nvme);
+    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
+    LOG_NRM("dnvme EXIT; version: %d.%d", VER_MAJOR, VER_MINOR);
 }
+module_exit(dnvme_exit);
 
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:"DRV_NAME);
+MODULE_AUTHOR("nvmecompliance@intel.com");
+MODULE_DESCRIPTION("NVMe compliance suite kernel driver");
+MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
 
-/*
- * dnvme_mmap - This function maps the contiguous device mapped area
- * to user space. This is specfic to device which is called though fd.
- */
-int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
-{
-    struct  metrics_device_list *pmetrics_device; /* Metrics device */
-    struct  metrics_sq  *pmetrics_sq_list;  /* SQ linked list               */
-    struct  metrics_cq  *pmetrics_cq_list;  /* CQ linked list               */
-    struct  metrics_meta *pmeta_data;       /* pointer to meta node         */
-    u8 *vir_kern_addr;
-    unsigned long pfn = 0;
-    struct inode *inode = filp->f_path.dentry->d_inode;
-    u32 type;
-    u32 id;
-    u32 mmap_range;
-    int npages;
-    int err = SUCCESS;
-
-    LOG_DBG("Device Calling mmap function...");
-
-    pmetrics_device = lock_device(inode);
-    if (pmetrics_device == NULL) {
-        LOG_ERR("Cannot lock on this device with minor no. %d", iminor(inode));
-        err = -ENODEV;
-        goto mmap_exit;
-    }
-
-    vma->vm_flags |= (VM_IO | VM_RESERVED);
-
-    /* Calculate the id and type from offset */
-    type = (vma->vm_pgoff >> 0x12) & 0x3;
-    id = vma->vm_pgoff & 0x3FFFF;
-
-    LOG_DBG("Type = %d", type);
-    LOG_DBG("ID = 0x%x", id);
-
-    /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
-    if (type == 0x1) {
-        /* Process for SQ */
-        if (id > USHRT_MAX) { /* 16 bits */
-            LOG_ERR("SQ Id is greater than 16 bits..");
-            err = -EINVAL;
-            goto mmap_exit;
-        }
-        /* Find SQ node in the list with id */
-        pmetrics_sq_list = find_sq(pmetrics_device, id);
-        if (pmetrics_sq_list == NULL) {
-            err = -EBADSLT;
-            goto mmap_exit;
-        }
-        if (pmetrics_sq_list->private_sq.contig == 0) {
-            LOG_ERR("MMAP does not work on non contig SQ's");
-            #ifndef ENOTSUP
-                err = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
-            #else                      /*  parisc does define it separately.*/
-                err = -ENOTSUP;
-            #endif
-            goto mmap_exit;
-        }
-        vir_kern_addr = pmetrics_sq_list->private_sq.vir_kern_addr;
-        mmap_range = pmetrics_sq_list->private_sq.size;
-    } else if (type == 0x0) {
-        /* Process for CQ */
-        if (id > USHRT_MAX) { /* 16 bits */
-            LOG_ERR("CQ Id is greater than 16 bits..");
-            err = -EINVAL;
-            goto mmap_exit;
-        }
-        /* Find CQ node in the list with id */
-        pmetrics_cq_list = find_cq(pmetrics_device, id);
-        if (pmetrics_cq_list == NULL) {
-            err = -EBADSLT;
-            goto mmap_exit;
-        }
-        if (pmetrics_cq_list->private_cq.contig == 0) {
-            LOG_ERR("MMAP does not work on non contig CQ's");
-            #ifndef ENOTSUP
-                err = -EOPNOTSUPP; /* aka ENOTSUP in userland for POSIX */
-            #else                      /*  parisc does define it separately.*/
-                err = -ENOTSUP;
-            #endif
-            goto mmap_exit;
-        }
-        vir_kern_addr = pmetrics_cq_list->private_cq.vir_kern_addr;
-        mmap_range = pmetrics_cq_list->private_cq.size;
-    } else if (type == 0x2) {
-        /* Process for Meta data */
-        if (id > (2^18)) { /* 18 bits */
-            LOG_ERR("Meta Id is greater than 18 bits..");
-            err = -EINVAL;
-            goto mmap_exit;
-        }
-        /* find Meta Node data */
-        pmeta_data = find_meta_node(pmetrics_device, id);
-        if (pmeta_data == NULL) {
-            err = -EBADSLT;
-            goto mmap_exit;
-        }
-        vir_kern_addr = pmeta_data->vir_kern_addr;
-        mmap_range = pmetrics_device->metrics_meta.meta_buf_size;
-    } else {
-        err = -EINVAL;
-        goto mmap_exit;
-    }
-
-    npages = (mmap_range/PAGE_SIZE) + 1;
-    if ((npages * PAGE_SIZE) < (vma->vm_end - vma->vm_start)) {
-        LOG_ERR("Request to Map more than allocated pages...");
-        err = -EINVAL;
-        goto mmap_exit;
-    }
-    LOG_DBG("Virt Address = 0x%llx", (u64)vir_kern_addr);
-    LOG_DBG("Npages = %d", npages);
-
-    /* Associated struct page ptr for kernel logical address */
-    pfn = virt_to_phys(vir_kern_addr) >> PAGE_SHIFT;
-    if (!pfn) {
-        LOG_ERR("pfn is NULL");
-        err = -EINVAL;
-        goto mmap_exit;
-    }
-    LOG_DBG("PFN = 0x%lx", pfn);
-
-    /* remap kernel memory to userspace */
-    err = remap_pfn_range(vma, vma->vm_start, pfn,
-                    vma->vm_end - vma->vm_start, vma->vm_page_prot);
-
-mmap_exit:
-    unlock_device(pmetrics_device);
-    return err;
-}
-
-
-/*
- * This function is called whenever a process tries to do an ioctl on our
- * device file. We get two extra parameters (additional to the inode and file
- * structures, which all device functions get): the number of the ioctl called
- * and the parameter given to the ioctl function.
- *
- * If the ioctl is write or read/write (meaning output is returned to the
- * calling process), the ioctl call returns the output of this function.
- *
- */
-long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
-    unsigned long ioctl_param)
-{
-    int err = -EINVAL;
-    struct metrics_device_list *pmetrics_device;
-    struct nvme_create_admn_q *create_admn_q;
-    struct inode *inode = inode = filp->f_path.dentry->d_inode;
-
-
-    LOG_DBG("Processing IOCTL 0x%08x", ioctl_num);
-    pmetrics_device = lock_device(inode);
-    if (pmetrics_device == NULL) {
-        LOG_ERR("Unable to lock DUT; minor #%d", iminor(inode));
-        err = -ENODEV;
-        goto ioctl_exit;
-    }
-
-    switch (ioctl_num) {
-
-    case NVME_IOCTL_ERR_CHK:
-        LOG_DBG("NVME_IOCTL_ERR_CHK");
-        err = device_status_chk(pmetrics_device, (struct device_status *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_READ_GENERIC:
-        LOG_DBG("NVME_IOCTL_READ_GENERIC");
-        err = driver_generic_read((struct rw_generic *)ioctl_param,
-            pmetrics_device);
-        break;
-
-    case NVME_IOCTL_WRITE_GENERIC:
-        LOG_DBG("NVME_IOCTL_WRITE_GENERIC");
-        err = driver_generic_write((struct rw_generic *)ioctl_param,
-            pmetrics_device);
-        break;
-
-    case NVME_IOCTL_CREATE_ADMN_Q:
-        LOG_DBG("NVME_IOCTL_CREATE_ADMN_Q");
-        /* Allocating memory for user struct in kernel space */
-        create_admn_q = kmalloc(sizeof(struct nvme_create_admn_q), GFP_KERNEL);
-        if (create_admn_q == NULL) {
-            LOG_ERR("Unable to alloc kernel memory to copy user data");
-            err = -ENOMEM;
-            break;
-        }
-        if (copy_from_user(create_admn_q, (void *)ioctl_param,
-            sizeof(struct nvme_create_admn_q))) {
-
-            LOG_ERR("Unable to copy from user space");
-            kfree(create_admn_q);
-            err = -EFAULT;
-            break;
-        }
-
-        if (create_admn_q->type == ADMIN_SQ) {
-            LOG_DBG("Create ASQ");
-            err = driver_create_asq(create_admn_q, pmetrics_device);
-        } else if (create_admn_q->type == ADMIN_CQ) {
-            LOG_DBG("Create ACQ");
-            err = driver_create_acq(create_admn_q, pmetrics_device);
-        } else {
-            LOG_ERR("Unknown Q type specified");
-            err = -EINVAL;
-        }
-        kfree(create_admn_q);
-        break;
-
-    case NVME_IOCTL_DEVICE_STATE:
-        LOG_DBG("NVME_IOCTL_DEVICE_STATE");
-        switch ((enum nvme_state)ioctl_param) {
-        case ST_ENABLE:
-            LOG_DBG("Enabling the DUT");
-            err = nvme_ctrl_set_state(pmetrics_device, 1);
-            break;
-        case ST_ENABLE_IOL_TO:
-            LOG_DBG("Enabling the DUT");
-            err = iol_nvme_ctrl_set_state(pmetrics_device, 1);
-            break;
-        case ST_DISABLE_IOL_TO:
-            LOG_DBG("Disabling the DUT");
-            if ((err = iol_nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
-                device_cleanup(pmetrics_device, ST_DISABLE);
-            }
-            break;
-        case ST_DISABLE:
-        case ST_DISABLE_COMPLETELY:
-            LOG_DBG("Disabling the DUT");
-            if ((err = nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
-                device_cleanup(pmetrics_device, (enum nvme_state)ioctl_param);
-            }
-            break;
-        case ST_NVM_SUBSYSTEM:
-            LOG_DBG("Performing NVM Subsystem reset");
-            err = nvme_nvm_subsystem_reset(pmetrics_device);
-            break;
-         default:
-            LOG_ERR("Unknown IOCTL parameter");
-            err = -EINVAL;
-            break;
-        }
-        break;
-
-    case NVME_IOCTL_GET_Q_METRICS:
-        LOG_DBG("NVME_IOCTL_GET_Q_METRICS");
-        err = get_public_qmetrics(pmetrics_device,
-            (struct nvme_get_q_metrics *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_PREPARE_SQ_CREATION:
-        LOG_DBG("NVME_IOCTL_PREPARE_SQ_CREATION");
-        err = driver_nvme_prep_sq((struct nvme_prep_sq *)ioctl_param,
-            pmetrics_device);
-        break;
-
-    case NVME_IOCTL_PREPARE_CQ_CREATION:
-        LOG_DBG("NVME_IOCTL_PREPARE_CQ_CREATION");
-        err = driver_nvme_prep_cq((struct nvme_prep_cq *)ioctl_param,
-            pmetrics_device);
-        break;
-
-    case NVME_IOCTL_RING_SQ_DOORBELL:
-        LOG_DBG("NVME_IOCTL_RING_SQ_DOORBELL");
-        err = nvme_ring_sqx_dbl((u16)ioctl_param, pmetrics_device);
-        break;
-
-    case NVME_IOCTL_SEND_64B_CMD:
-        LOG_DBG("NVME_IOCTL_SEND_64B_CMD");
-        err = driver_send_64b(pmetrics_device,
-            (struct nvme_64b_send *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_TOXIC_64B_DWORD:
-        LOG_DBG("NVME_TOXIC_64B_DWORD");
-        err = driver_toxic_dword(pmetrics_device,
-            (struct backdoor_inject *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_DUMP_METRICS:
-        LOG_DBG("NVME_IOCTL_DUMP_METRICS");
-        err = driver_log((struct nvme_file *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_REAP_INQUIRY:
-        LOG_DBG("NVME_IOCTL_REAP_INQUIRY");
-        err = driver_reap_inquiry(pmetrics_device,
-            (struct nvme_reap_inquiry *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_REAP:
-        LOG_DBG("NVME_IOCTL_REAP");
-        err = driver_reap_cq(pmetrics_device, (struct nvme_reap *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_GET_DRIVER_METRICS:
-        LOG_DBG("NVME_IOCTL_GET_DRIVER_METRICS");
-        if (copy_to_user((struct metrics_driver *)ioctl_param,
-            &g_metrics_drv, sizeof(struct metrics_driver))) {
-
-            LOG_ERR("Unable to copy to user space");
-            err = -EFAULT;
-        } else {
-            err = SUCCESS;
-        }
-        break;
-
-    case NVME_IOCTL_METABUF_CREATE:
-        LOG_DBG("NVME_IOCTL_METABUF_CREATE");
-        if (ioctl_param > MAX_METABUFF_SIZE) {
-            LOG_ERR("Meta buffer size exceeds max(0x%08X) > 0x%08X",
-                MAX_METABUFF_SIZE, (u32)ioctl_param);
-            err = -EINVAL;
-        } else {
-            err = metabuff_create(pmetrics_device, (u32)ioctl_param);
-        }
-        break;
-
-    case NVME_IOCTL_METABUF_ALLOC:
-        LOG_DBG("NVME_IOCTL_METABUF_ALLOC");
-        err = metabuff_alloc(pmetrics_device, (u32)ioctl_param);
-        break;
-
-    case NVME_IOCTL_METABUF_DELETE:
-        LOG_DBG("NVME_IOCTL_METABUF_DELETE");
-        err = metabuff_del(pmetrics_device, (u32)ioctl_param);
-        break;
-
-    case NVME_IOCTL_SET_IRQ:
-        LOG_DBG("NVME_IOCTL_SET_IRQ");
-        err = nvme_set_irq(pmetrics_device, (struct interrupts *)ioctl_param);
-        break;
-
-    case NVME_IOCTL_MASK_IRQ:
-        LOG_DBG("NVME_IOCTL_MASK_IRQ");
-        err = nvme_mask_irq(pmetrics_device, (u16)ioctl_param);
-        break;
-
-    case NVME_IOCTL_UNMASK_IRQ:
-        LOG_DBG("NVME_IOCTL_UNMASK_IRQ");
-        err = nvme_unmask_irq(pmetrics_device, (u16)ioctl_param);
-        break;
-
-    case NVME_IOCTL_GET_DEVICE_METRICS:
-        LOG_DBG("NVME_IOCTL_GET_DEVICE_METRICS");
-        if (copy_to_user((struct public_metrics_dev *)ioctl_param,
-            &pmetrics_device->metrics_device->public_dev,
-            sizeof(struct public_metrics_dev))) {
-
-            LOG_ERR("Unable to copy to user space");
-            err = -EFAULT;
-        } else {
-            err = SUCCESS;
-        }
-        break;
-
-    case NVME_IOCTL_MARK_SYSLOG:
-        LOG_DBG("NVME_IOCTL_MARK_SYSLOG");
-        err = driver_logstr((struct nvme_logstr *)ioctl_param);
-        break;
-
-    //***************************boot partition test MengYu***************************
-    //   case NVME_IOCTL_WRITE_BP_BUF:
-    //     LOG_DBG("NVME_IOCTL_WRITE_BP_BUF");
-    //     err = driver_nvme_write_bp_buf((struct nvme_write_bp_buf *)ioctl_param, pmetrics_device);
-    //     break;  
-    //   case NVME_IOCTL_GET_BP_MEM_ADDR:
-    //     LOG_DBG("NVME_IOCTL_GET_BP_MEM_ADDR");
-    //     break;  
-    //***************************boot partition test MengYu***************************
-    default:
-        LOG_ERR("Unknown IOCTL");
-        break;
-    }
-
-ioctl_exit:
-    unlock_device(pmetrics_device);
-    return err;
-}

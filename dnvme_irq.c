@@ -1440,7 +1440,7 @@ void deallocate_irq_trk(struct  metrics_device_list
 /*
  * Disable and free IRQ's which were requested earlier
  */
-void irq_disable(struct  metrics_device_list
+void irq_disable(struct metrics_device_list
     *pmetrics_device_elem)
 {
     struct  irq_track   *pirq_trk_node; /* Node iside IRQ track list */
