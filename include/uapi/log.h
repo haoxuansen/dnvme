@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef __LOG_H
-#define __LOG_H
+#ifndef _UAPI_LOG_H_
+#define _UAPI_LOG_H_
 
 #include <stdarg.h>
 
@@ -111,4 +111,4 @@
 #define pr_color(color, fmt, ...) \
 	printf(color pr_fmt(fmt), ##__VA_ARGS__)
 
-#endif /* !__LOG_H */
+#endif /* !_UAPI_LOG_H_ */

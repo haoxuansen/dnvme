@@ -27,7 +27,7 @@
 #include <linux/interrupt.h>
 
 #include "definitions.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
@@ -103,7 +103,7 @@ int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev, u8 rdy_val)
         }
     }
     pr_debug("NVME Controller CSTS.RDY set to %hhu within CAP.TO", rdy_val);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -147,7 +147,7 @@ int iol_nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev, u8 rdy_val)
     }
 
     pr_debug("NVME Controller CSTS.RDY set to %hhu within CAP.TO", rdy_val);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -164,11 +164,11 @@ int iol_nvme_ctrl_set_state(struct metrics_device_list *pmetrics_device, u8 stat
     writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
 
     /* Check the Timeout flag */
-    if (iol_nvme_ctrlrdy_capto(pnvme_dev, state) != SUCCESS) {
+    if (iol_nvme_ctrlrdy_capto(pnvme_dev, state) != 0) {
         pr_err("CSTS.RDY set to %hhu with TO",state);
         return -EINVAL;
     }
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -185,11 +185,11 @@ int nvme_ctrl_set_state(struct metrics_device_list *pmetrics_device, u8 state)
     writel(regCC, &pnvme_dev->private_dev.ctrlr_regs->cc);
 
     /* Check the Timeout flag */
-    if (nvme_ctrlrdy_capto(pnvme_dev, state) != SUCCESS) {
+    if (nvme_ctrlrdy_capto(pnvme_dev, state) != 0) {
         pr_err("CSTS.RDY set to %hhu with TO",state);
         return -EINVAL;
     }
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -212,20 +212,20 @@ int nvme_nvm_subsystem_reset(struct metrics_device_list *pmetrics_device)
     writel(regVal, &pnvme_dev->private_dev.ctrlr_regs->nssr);
 
     /* Check the Timeout flag */
-    if (nvme_ctrlrdy_capto(pnvme_dev, 0) != SUCCESS) {
+    if (nvme_ctrlrdy_capto(pnvme_dev, 0) != 0) {
         u8 i;
         /* poll until constant T/O since subsystem reset time is not defined */
         for (i = 0; i < 200; i++) {
             msleep(100);
             if (!(readl(&pnvme_dev->private_dev.ctrlr_regs->csts)
                 & NVME_CSTS_RDY)) {
-                return SUCCESS;
+                return 0;
             }
         }
         pr_err("subsystem_reset ctrlr failed. CSTS.RDY=1 after T/O");
         return -EINVAL;
     }
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -256,7 +256,7 @@ int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
     u32 aqa;            /* Admin Q attributes in 32 bits size */
     u32 tmp_aqa;        /* Temp var to hold admin q attributes */
     u32 asq_depth = 0;  /* the size of bytes to allocate */
-    int ret_code = SUCCESS;
+    int ret_code = 0;
 
     pr_debug("Creating Admin Submission Queue...");
 
@@ -355,7 +355,7 @@ asq_out:
 int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
     struct  metrics_cq  *pmetrics_cq_list)
 {
-    int ret_code = SUCCESS; /* Ret code set to SUCCESS check for otherwise */
+    int ret_code = 0; /* Ret code set to SUCCESS check for otherwise */
     u16 acq_id;             /* Admin Submission Q Id                       */
     u32 aqa;                /* Admin Q attributes in 32 bits size          */
     u32 tmp_aqa;            /* local var to hold admin q attributes        */
@@ -508,7 +508,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
     pmetrics_sq_list->private_sq.dbs = (u32 __iomem *)
         (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL +
         ((2 * pmetrics_sq_list->public_sq.sq_id) * (4 << cap_dstrd)));
-    return SUCCESS;
+    return 0;
 
 psq_out:
     if (pmetrics_sq_list->private_sq.vir_kern_addr != NULL) {
@@ -581,7 +581,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
     pmetrics_cq_list->private_cq.dbs = (u32 __iomem *)
         (pnvme_dev->private_dev.bar0 + NVME_SQ0TBDL +
         ((2 * pmetrics_cq_list->public_cq.q_id + 1) * (4 << cap_dstrd)));
-    return SUCCESS;
+    return 0;
 
 pcq_out:
     if (pmetrics_cq_list->private_cq.vir_kern_addr != NULL) {
@@ -624,7 +624,7 @@ int nvme_ring_sqx_dbl(u16 ring_sqx, struct metrics_device_list *pmetrics_device)
     //         pmetrics_sq->public_sq.sq_id,
     //         pmetrics_sq->public_sq.cq_id,
     //         pmetrics_sq->public_sq.tail_ptr);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -663,8 +663,8 @@ static void deallocate_metrics_cq(struct device *dev,
  * command list are deleted.
  */
 static void deallocate_metrics_sq(struct device *dev,
-    struct  metrics_sq  *pmetrics_sq_list,
-    struct  metrics_device_list *pmetrics_device)
+    struct metrics_sq *pmetrics_sq_list,
+    struct metrics_device_list *pmetrics_device)
 {
     /* Clean the Cmd track list */
     empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
@@ -690,7 +690,7 @@ static void deallocate_metrics_sq(struct device *dev,
  * Reinitialize the admin completion queue's public parameters, when
  * a controller is not completely disabled
  */
-static void reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
+static void reinit_admn_cq(struct metrics_cq *pmetrics_cq_list)
 {
     /* reinit required params in admin node */
     pmetrics_cq_list->public_cq.head_ptr = 0;
@@ -706,8 +706,8 @@ static void reinit_admn_cq(struct  metrics_cq  *pmetrics_cq_list)
  * Reinitialize the admin Submission queue's public parameters, when
  * a controller is not completely disabled
  */
-static void reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
-    struct  metrics_device_list *pmetrics_device)
+static void reinit_admn_sq(struct metrics_sq *pmetrics_sq_list,
+    struct metrics_device_list *pmetrics_device)
 {
     /* Free command track list for admin */
     empty_cmd_track_list(pmetrics_device->metrics_device, pmetrics_sq_list);
@@ -726,7 +726,7 @@ static void reinit_admn_sq(struct  metrics_sq  *pmetrics_sq_list,
  * 'new_state', ST_DISABLE or ST_DISABLE_COMPLETELY, identifies if you need to
  * clear Admin Q along with other Q's.
  */
-void deallocate_all_queues(struct  metrics_device_list *pmetrics_device,
+void deallocate_all_queues(struct metrics_device_list *pmetrics_device,
     enum nvme_state new_state)
 {
     char preserve_admin_qs = (new_state == ST_DISABLE_COMPLETELY) ? 0 : -1;
@@ -873,7 +873,7 @@ u32 reap_inquiry(struct metrics_cq  *pmetrics_cq_node, struct device *dev)
 int driver_reap_inquiry(struct metrics_device_list *pmetrics_device,
     struct nvme_reap_inquiry *usr_reap_inq)
 {
-    int err = SUCCESS;
+    int err = 0;
     struct metrics_cq *pmetrics_cq_node;   /* ptr to cq node */
     struct nvme_reap_inquiry *user_data = NULL;
 
@@ -975,7 +975,7 @@ fail_out:
 struct metrics_sq *find_sq(struct metrics_device_list *pmetrics_device,
     u16 sq_id)
 {
-    struct  metrics_sq  *pmetrics_sq_list;
+    struct metrics_sq *pmetrics_sq_list;
 
     list_for_each_entry(pmetrics_sq_list, &pmetrics_device->
             metrics_sq_list, sq_list_hd) {
@@ -1060,7 +1060,7 @@ static int remove_cmd_node(struct metrics_sq *pmetrics_sq_node, u16 cmd_id)
 
     list_del(&pcmd_node->cmd_list_hd);
     kfree(pcmd_node);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -1080,7 +1080,7 @@ static int remove_sq_node(struct metrics_device_list *pmetrics_device,
 
     deallocate_metrics_sq(&pmetrics_device->metrics_device->private_dev.
         pdev->dev, pmetrics_sq_node, pmetrics_device);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -1092,7 +1092,7 @@ static int remove_cq_node(struct  metrics_device_list *pmetrics_device,
     u16 cq_id)
 {
     struct  metrics_cq  *pmetrics_cq_node;
-    int err = SUCCESS;
+    int err = 0;
 
     pmetrics_cq_node = find_cq(pmetrics_device, cq_id);
     if (pmetrics_cq_node == NULL) {
@@ -1122,7 +1122,7 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
     struct  metrics_device_list *pmetrics_device,
     enum metrics_type type)
 {
-    int err = SUCCESS;
+    int err = 0;
 
     pr_debug("Persist Q Id = %d", pcmd_node->persist_q_id);
     pr_debug("Unique Cmd Id = %d", pcmd_node->unique_id);
@@ -1136,21 +1136,21 @@ static int process_algo_q(struct metrics_sq *pmetrics_sq_node,
         }
         if (type == METRICS_CQ) {
             err = remove_cq_node(pmetrics_device, pcmd_node->persist_q_id);
-            if (err != SUCCESS) {
+            if (err != 0) {
                 pr_err("CQ Removal failed...");
                 return err;
             }
 
         } else if (type == METRICS_SQ) {
             err = remove_sq_node(pmetrics_device, pcmd_node->persist_q_id);
-            if (err != SUCCESS) {
+            if (err != 0) {
                 pr_err("SQ Removal failed...");
                 return err;
             }
         }
     }
     err = remove_cmd_node(pmetrics_sq_node, pcmd_node->unique_id);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("Cmd Removal failed...");
         return err;
     }
@@ -1182,7 +1182,7 @@ static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
     struct cmd_track *pcmd_node, u16 status,
     struct  metrics_device_list *pmetrics_device)
 {
-    int err = SUCCESS;
+    int err = 0;
 
     switch (pcmd_node->opcode) {
     case 0x00:
@@ -1222,7 +1222,7 @@ static int process_admin_cmd(struct metrics_sq *pmetrics_sq_node,
 static int process_reap_algos(struct cq_completion *cq_entry,
     struct  metrics_device_list *pmetrics_device)
 {
-    int err = SUCCESS;
+    int err = 0;
     u16 ceStatus;
     struct metrics_sq *pmetrics_sq_node = NULL;
     struct cmd_track *pcmd_node = NULL;
@@ -1316,7 +1316,7 @@ static int copy_cq_data(struct metrics_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
         }
     }
 
-    return SUCCESS;
+    return 0;
 }
 
 /*
@@ -1353,7 +1353,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     u32 num_will_fit;
     u32 num_could_reap;
     u32 num_should_reap;
-    struct metrics_cq  *pmetrics_cq_node;   /* ptr to CQ node in ll */
+    struct metrics_cq *pmetrics_cq_node;   /* ptr to CQ node in ll */
     u32 comp_entry_size = 16;               /* Assumption is for ACQ */
     u8 *queue_base_addr;    /* base addr for both contig and discontig queues */
     struct nvme_reap *user_data = NULL;
@@ -1450,6 +1450,8 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
 
     /* Adjust our assumption based on size and elements */
     if (user_data->elements <= num_could_reap) {
+    	// !FIXME: num_should_reap may greater than "user_data->elements"
+
         if (user_data->size < (num_could_reap * comp_entry_size)) {
             /* Buffer not large enough to hold all requested */
             num_should_reap = num_will_fit;
@@ -1497,7 +1499,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
     /* Updating the user structure */
     if (copy_to_user(usr_reap_data, user_data, sizeof(struct nvme_reap))) {
         pr_err("Unable to copy request data to user space");
-        err = (err == SUCCESS) ? -EFAULT : err;
+        err = (err == 0) ? -EFAULT : err;
         goto mtx_unlk;
     }
 
@@ -1520,7 +1522,7 @@ int driver_reap_cq(struct  metrics_device_list *pmetrics_device,
         if (reset_isr_flag(pmetrics_device,
             pmetrics_cq_node->public_cq.irq_no) < 0) {
             pr_err("reset isr fired flag failed");
-            err = (err == SUCCESS) ? -EINVAL : err;
+            err = (err == 0) ? -EINVAL : err;
         }
     }
 

@@ -175,20 +175,20 @@ typedef union _reg_nvme_ioq1_hdbl {
 
 struct reg_nvme_ctrl
 {
-  reg_nvme_cap0 nvme_cap0;         // offset = 0x0
-  reg_nvme_cap1 nvme_cap1;         // offset = 0x4
-  reg_nvme_vs nvme_vs;             // offset = 0x8
-  reg_nvme_intm_set nvme_intm_set; // offset = 0xc
-  reg_nvme_intm_clr nvme_intm_clr; // offset = 0x10
-  reg_nvme_cc nvme_cc;             // offset = 0x14
-  uint32_t uint32_gap_0;
-  reg_nvme_csts nvme_csts;                       // offset = 0x1c
-  reg_nvme_subsystem_reset nvme_subsystem_reset; // offset = 0x20
-  reg_nvme_aqa nvme_aqa;                         // offset = 0x24
-  reg_nvme_asq0 nvme_asq0;                       // offset = 0x28
-  reg_nvme_asq1 nvme_asq1;                       // offset = 0x2c
-  reg_nvme_acq0 nvme_acq0;                       // offset = 0x30
-  reg_nvme_acq1 nvme_acq1;                       // offset = 0x34
+	reg_nvme_cap0 nvme_cap0;         // offset = 0x0
+	reg_nvme_cap1 nvme_cap1;         // offset = 0x4
+	reg_nvme_vs nvme_vs;             // offset = 0x8
+	reg_nvme_intm_set nvme_intm_set; // offset = 0xc
+	reg_nvme_intm_clr nvme_intm_clr; // offset = 0x10
+	reg_nvme_cc nvme_cc;             // offset = 0x14
+	uint32_t uint32_gap_0;
+	reg_nvme_csts nvme_csts;                       // offset = 0x1c
+	reg_nvme_subsystem_reset nvme_subsystem_reset; // offset = 0x20
+	reg_nvme_aqa nvme_aqa;                         // offset = 0x24
+	reg_nvme_asq0 nvme_asq0;                       // offset = 0x28
+	reg_nvme_asq1 nvme_asq1;                       // offset = 0x2c
+	reg_nvme_acq0 nvme_acq0;                       // offset = 0x30
+	reg_nvme_acq1 nvme_acq1;                       // offset = 0x34
 };
 
 #endif

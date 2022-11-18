@@ -30,7 +30,7 @@
 
 #include "dnvme_ds.h"
 #include "dnvme_reg.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_interface.h"
 
 
@@ -71,7 +71,7 @@ int device_status_chk(struct metrics_device_list *pmetrics_device, struct device
  * driver_create_asq - Driver Admin Submission Queue creation routine
  * @param create_admn_q
  * @param pmetrics_device
- * @return ASQ creation SUCCESS or FAIL
+ * @return ASQ creation 0 or -1
  */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     struct metrics_device_list *pmetrics_device);
@@ -81,7 +81,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
  * issue  ioctls.
  * @param pdev
  * @param pmetrics_device_list
- * @return init SUCCESS or FAIL
+ * @return init 0 or -1
  */
 int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
     void __iomem *bar1, void __iomem *bar2,
@@ -91,7 +91,7 @@ int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
  * driver_create_acq - Driver Admin completion  Queue creation routine
  * @param create_admn_q
  * @param pmetrics_device_list
- * @return ACQ creation SUCCESS or FAIL
+ * @return ACQ creation 0 or -1
  */
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     struct metrics_device_list *pmetrics_device_list);
@@ -101,7 +101,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
  * for prepating the IO SQ.
  * @param prep_sq
  * @param pmetrics_device
- * @return allocation of contig mem SUCCESS or FAIL.
+ * @return allocation of contig mem 0 or -1.
  */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     struct  metrics_device_list *pmetrics_device);
@@ -111,7 +111,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
  * for prepating the IO CQ.
  * @param prep_cq
  * @param pmetrics_device
- * @return allocation of contig mem SUCCESS or FAIL.
+ * @return allocation of contig mem 0 or -1.
  */
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     struct  metrics_device_list *pmetrics_device);
@@ -140,14 +140,14 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
 /**
  * driver_log - Driver routine to log data into file from metrics
  * @param n_file
- * @return allocation of contig mem SUCCESS or FAIL.
+ * @return allocation of contig mem 0 or -1.
  */
 int driver_log(struct nvme_file *n_file);
 
 /**
  * driver_logstr - Driver routine to log a custom string to the system log
  * @param logStr
- * @return SUCCESS or FAIL.
+ * @return 0 or -1.
  */
 int driver_logstr(struct nvme_logstr *logStr);
 
@@ -219,7 +219,7 @@ int driver_reap_cq(struct metrics_device_list *pmetrics_device,
  * with DWORD alignment and associate it with the active device.
  * @param pmetrics_device
  * @param alloc_size
- * @return SUCCESS or FAIL based on dma pool creation.
+ * @return 0 or -1 based on dma pool creation.
  */
 int metabuff_create(struct metrics_device_list *pmetrics_device,
     u32 alloc_size);

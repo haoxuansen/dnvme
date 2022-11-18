@@ -8,7 +8,8 @@
 #define _LINUX_NVME_H
 
 #include <linux/types.h>
-#include <linux/uuid.h>
+#include "uuid.h"
+#include "compiler.h"
 
 /* NQN names in commands fields specified one size */
 #define NVMF_NQN_FIELD_LEN	256
@@ -963,8 +964,14 @@ enum {
 	NVME_ENABLE_ACRE	= 1,
 };
 
-/* Admin commands */
-
+/*
+ * Admin commands
+ * 
+ * 1.All commands, including vendor specific commands, shall follow this
+ * convention:
+ *   00b = no data transfer; 01b = host to controller;
+ *   10b = controller to host; 11b = bidirectional;
+ */
 enum nvme_admin_opcode {
 	nvme_admin_delete_sq		= 0x00,
 	nvme_admin_create_sq		= 0x01,
@@ -995,12 +1002,11 @@ enum nvme_admin_opcode {
 	nvme_admin_get_lba_status	= 0x86,
 	nvme_admin_vendor_start		= 0xC0,
 
-    nvme_admin_vendor_write = 0xc1,
-    nvme_admin_vendor_read = 0xc2,
-    nvme_admin_vendor_para_set = 0xc5,
-    nvme_admin_fwdma_write_test = 0xc3,
-    nvme_admin_fwdma_read_test = 0xc4,
-
+	nvme_admin_vendor_write		= 0xc1,
+	nvme_admin_vendor_read		= 0xc2,
+	nvme_admin_vendor_fwdma_write	= 0xc3,
+	nvme_admin_vendor_fwdma_read	= 0xc4,
+	nvme_admin_vendor_para_set	= 0xc5,
 };
 
 #define nvme_admin_opcode_name(opcode)	{ opcode, #opcode }
@@ -1349,14 +1355,14 @@ struct nvmf_connect_command {
 	__u8		resv4[12];
 };
 
-// struct nvmf_connect_data {
-// 	uuid_t		hostid;
-// 	__le16		cntlid;
-// 	char		resv4[238];
-// 	char		subsysnqn[NVMF_NQN_FIELD_LEN];
-// 	char		hostnqn[NVMF_NQN_FIELD_LEN];
-// 	char		resv5[256];
-// };
+struct nvmf_connect_data {
+	uuid_t		hostid;
+	__le16		cntlid;
+	char		resv4[238];
+	char		subsysnqn[NVMF_NQN_FIELD_LEN];
+	char		hostnqn[NVMF_NQN_FIELD_LEN];
+	char		resv5[256];
+};
 
 struct nvmf_property_set_command {
 	__u8		opcode;
@@ -1457,7 +1463,7 @@ static inline bool nvme_is_write(struct nvme_command *cmd)
 	 *
 	 * Why can't we simply have a Fabrics In and Fabrics out command?
 	 */
-	if (!(nvme_is_fabrics(cmd)))
+	if (unlikely(nvme_is_fabrics(cmd)))
 		return cmd->fabrics.fctype & 1;
 	return cmd->common.opcode & 1;
 }
@@ -1489,7 +1495,7 @@ enum {
 	NVME_SC_ATOMIC_WU_EXCEEDED	= 0x14,
 	NVME_SC_OP_DENIED		= 0x15,
 	NVME_SC_SGL_INVALID_OFFSET	= 0x16,
-	NVME_SC_RESERVED		= 0x17,
+	/* 17h - Reserved */
 	NVME_SC_HOST_ID_INCONSIST	= 0x18,
 	NVME_SC_KA_TIMEOUT_EXPIRED	= 0x19,
 	NVME_SC_KA_TIMEOUT_INVALID	= 0x1A,
@@ -1500,13 +1506,23 @@ enum {
 	NVME_SC_CMD_NOT_SUP_CMB_QUEUE	= 0x1F,
 	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
 	NVME_SC_CMD_INTERRUPTED		= 0x21,
-	NVME_SC_TRANSIENT_TR_ERR	= 0x22,
+	NVME_SC_TRANSIENT_TRANSPORT_ERR	= 0x22,
+	NVME_SC_PROHIBIT_BY_LOCKDOWN	= 0x23,
+	NVME_SC_ADMIN_CMD_MEDIA_NOTRDY	= 0x24,
+	/* 25h to 7Fh - Reserved */
 
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
 	NVME_SC_RESERVATION_CONFLICT	= 0x83,
 	NVME_SC_FORMAT_IN_PROGRESS	= 0x84,
+	NVME_SC_VALUE_SIZE_INVALID	= 0x85,
+	NVME_SC_KEY_SIZE_INVALID	= 0x86,
+	NVME_SC_KV_KEY_NOT_EXIST	= 0x87,
+	NVME_SC_UNRECOVER_ERR		= 0x88,
+	NVME_SC_KEY_EXISTS		= 0x89,
+	/* 90h to BFh - Reserved */
+	/* C0h to FFh - Vendor Specific */
 
 	/*
 	 * Command Specific Status:
@@ -1544,10 +1560,20 @@ enum {
 	NVME_SC_CTRL_ID_INVALID		= 0x11f,
 	NVME_SC_SEC_CTRL_STATE_INVALID	= 0x120,
 	NVME_SC_CTRL_RES_NUM_INVALID	= 0x121,
-	NVME_SC_RES_ID_INVALID		= 0x122,
+	NVME_SC_RESOURCE_ID_INVALID	= 0x122,
 	NVME_SC_PMR_SAN_PROHIBITED	= 0x123,
 	NVME_SC_ANA_GROUP_ID_INVALID	= 0x124,
-	NVME_SC_ANA_ATTACH_FAILED	= 0x125,
+	NVME_SC_ANA_ATTACH_FAIL		= 0x125,
+	NVME_SC_CAP_INSUFFICIENT	= 0x126,
+	NVME_SC_NS_EXCEED_ATTACH_LIMIT	= 0x127,
+	NVME_SC_CMD_NOTSUP_PROHIBIT	= 0x128,
+	NVME_SC_IOCMD_SET_NOTSUP	= 0x129,
+	NVME_SC_IOCMD_SET_NOTEN		= 0x12a,
+	NVME_SC_IOCMD_SET_REJECT_COMB	= 0x12b,
+	NVME_SC_IOCMD_SET_INVALID	= 0x12c,
+	NVME_SC_ID_UNAVAILABLE		= 0x12d,
+	/* 12Eh to 16Fh - Reserved */
+	/* 170h to 17Fh - Directive Specific */
 
 	/*
 	 * I/O Command Set Specific - NVM commands:

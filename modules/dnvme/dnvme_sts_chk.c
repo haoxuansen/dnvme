@@ -24,7 +24,7 @@
 #include "dnvme_sts_chk.h"
 #include "dnvme_queue.h"
 #include "definitions.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_reg.h"
 
 
@@ -35,7 +35,7 @@
  */
 int pci_status_chk(u16 device_data)
 {
-    int status = SUCCESS;
+    int status = 0;
 
     pr_debug("PCI Device Status (STS) Data = 0x%X", device_data);
     pr_debug("Checking all the PCI register error bits");
@@ -64,14 +64,14 @@ int pci_status_chk(u16 device_data)
             pr_err("Device Status - RTA Set");
             pr_err("Received Target Abort...");
         }
-		status = FAIL;
+		status = -1;
     }
 
     if((device_data & CAP_LIST_BIT_MASK) == 0) 
 	{
         pr_err("In STS, the CL bit indicates empty Capabilites list.");
         pr_err("Empty Capabilites list: The controller should support PCI Power Mnmt as a min.");
-        status = FAIL;
+        status = -1;
     }
 
     return status;
@@ -83,7 +83,7 @@ int pci_status_chk(u16 device_data)
  */
 int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts)
 {
-    int status = SUCCESS;
+    int status = 0;
     u32 u32data;
 
     pr_debug("Checking the NVME Controller Status (CSTS)...");
@@ -94,7 +94,7 @@ int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts)
 
 	if(u32data & NVME_CSTS_CFS_BIT_MASK) 
 	{
-        status = FAIL;
+        status = -1;
         pr_err("NVME Controller Fatal Status (CFS) is set...");
     }
 
@@ -128,13 +128,13 @@ int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts)
  * device_status_next  - This function will check if the NVME device supports
  * NEXT capability item in the linked list. If the device supports the NEXT
  * capabilty then it goes into each of the status registers and checks the
- * device current state. It reports back to the caller wither SUCCESS or FAIL.
+ * device current state. It reports back to the caller wither 0 or -1.
  * Print out to the kernel message details of the status.
  */
 int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc, u16 *msix_mc, 
 					 u16 *pcie_dev_st)
 {
-    int status     = SUCCESS;
+    int status     = 0;
     int ret_val   = 0;
     u16 reg_cap_id    = 0;
     u8 next_item;
@@ -219,7 +219,7 @@ int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc
 	{
         pr_err("The controller should support PCI Pwr management as a min");
         pr_err("PCI Power Management Capability is not Supported.");
-        status = FAIL;
+        status = -1;
     }
 
     return status;
@@ -250,12 +250,12 @@ int pmcs_status_chk(struct pci_dev *pdev, u8 pci_cfg_pmcs_offset, u16 *sts)
 	else 
 	{
 	    pr_debug("Invalid offset = 0x%x", pci_cfg_pmcs_offset);
-		return FAIL;
+		return -1;
 	}
 
 	*sts = data;
 	pr_debug("PCI Power Management Control and Status = %x", data);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -281,12 +281,12 @@ int msi_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msi_offset, u16 *sts)
 	else 
 	{
 	    pr_debug("Invalid offset = 0x%x", pci_cfg_msi_offset);
-		return FAIL;
+		return -1;
 	}
 
 	*sts = data;
 	pr_debug("PCI MSI Cap Message Control = %x", data);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -313,12 +313,12 @@ int msix_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msix_offset, u16 *sts)
 	else 
 	{
 	    pr_debug("Invalid offset = 0x%x", pci_cfg_msix_offset);
-		return FAIL;
+		return -1;
 	}
 
 	*sts = data;
 	pr_debug("PCI MSI-X Cap Message Control= %x", data);
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -329,7 +329,7 @@ int msix_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msix_offset, u16 *sts)
  */
 int pxcap_status_chk(struct pci_dev *pdev, u8 base_offset, u16 *sts)
 {
-    int status = SUCCESS;
+    int status = 0;
     u16 pxcap_sts_reg;
 
     base_offset += NVME_PXCAP_PXDS_OFF;			 	/* Compute the PXDS offset from the PXCAP */
@@ -346,25 +346,25 @@ int pxcap_status_chk(struct pci_dev *pdev, u8 base_offset, u16 *sts)
         
     if(pxcap_sts_reg & NVME_PXDS_CED) 					/* Check if Correctable error is detected */
 	{
-        status = FAIL;
+        status = -1;
         pr_err("Correctable Error Detected (CED) in PXDS");
     }
         
     if(pxcap_sts_reg & NVME_PXDS_NFED) 			/* Check if Non fatal error is detected */
 	{
-        status = FAIL;
+        status = -1;
         pr_err("Non-Fatal Error Detected (NFED) in PXDS");
     }
        
     if(pxcap_sts_reg & NVME_PXDS_FED) 			/* Check if fatal error is detected */
 	{
-        status = FAIL;
+        status = -1;
         pr_err("Fatal Error Detected (FED) in PXDS");
     }
         
     if(pxcap_sts_reg & NVME_PXDS_URD) 			/* Check if Unsupported Request detected */
 	{	
-        status = FAIL;
+        status = -1;
         pr_err("Unsupported Request Detected (URD) in PXDS");
     }
        
@@ -387,7 +387,7 @@ int pxcap_status_chk(struct pci_dev *pdev, u8 base_offset, u16 *sts)
  */
 int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
 {
-    int status = SUCCESS;
+    int status = 0;
     u16 offset; /* Offset 16 bit for PCIE space */
     u32 u32aer_sts = 0; /* AER Cap Status data */
     u32 u32aer_msk = 0; /* AER Mask bits data */
@@ -425,7 +425,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     if (u32aer_sts & ~u32aer_msk) {
         /* Data Link Protocol Error check */
         if ((u32aer_sts & NVME_AERUCES_DLPES) >> 4) {
-            status = FAIL;
+            status = -1;
             pr_err("Data Link Protocol Error Status is Set (DLPES)");
         }
         /* Pointed TLP status, not an error. */
@@ -434,22 +434,22 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
         }
         /* Check if Flow control Protocol error is set */
         if ((u32aer_sts & NVME_AERUCES_FCPES) >> 13) {
-            status = FAIL;
+            status = -1;
             pr_err("Flow Control Protocol Error Status (FCPES)");
         }
         /* check if completion time out status is set */
         if ((u32aer_sts & NVME_AERUCES_CTS) >> 14) {
-            status = FAIL;
+            status = -1;
             pr_err("Completion Time Out Status (CTS)");
         }
         /* check if completer Abort Status is set */
         if ((u32aer_sts & NVME_AERUCES_CAS) >> 15) {
-            status = FAIL;
+            status = -1;
             pr_err("Completer Abort Status (CAS)");
         }
         /* Check if Unexpected completion status is set */
         if ((u32aer_sts & NVME_AERUCES_UCS) >> 16) {
-            status = FAIL;
+            status = -1;
             pr_err("Unexpected Completion Status (UCS)");
         }
         /* Check if Receiver Over Flow status is set, status not error */
@@ -462,22 +462,22 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
         }
         /* ECRC error status check */
         if ((u32aer_sts & NVME_AERUCES_ECRCES) >> 19) {
-            status = FAIL;
+            status = -1;
             pr_err("ECRC Error Status (ECRCES)");
         }
         /* Unsupported Request Error Status*/
         if ((u32aer_sts & NVME_AERUCES_URES) >> 20) {
-            status = FAIL;
+            status = -1;
             pr_err("Unsupported Request Error Status (URES)");
         }
         /* Acs violation status check */
         if ((u32aer_sts & NVME_AERUCES_ACSVS) >> 21) {
-            status = FAIL;
+            status = -1;
             pr_err("ACS Violation Status (ACSVS)");
         }
         /* uncorrectable error status check */
         if ((u32aer_sts & NVME_AERUCES_UIES) >> 22) {
-            status = FAIL;
+            status = -1;
             pr_err("Uncorrectable Internal Error Status (UIES)");
         }
         /* MC blocked TLP status check, not an error*/
@@ -490,7 +490,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
         }
         /* TLP prefix blocked error status. */
         if ((u32aer_sts & NVME_AERUCES_TPBES) >> 25) {
-            status = FAIL;
+            status = -1;
             pr_err("TLP Prefix Blocked Error Status (TPBES)");
         }
     }
@@ -528,18 +528,18 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     if (u32aer_sts & ~u32aer_msk) {
             /* Checked if receiver error status is set */
             if (u32aer_sts & NVME_AERCS_RES) {
-                status = FAIL;
+                status = -1;
                 pr_err("Receiver Error Status (RES)");
             }
 
         /* check if Bad TLP status is set */
         if ((u32aer_sts & NVME_AERCS_BTS) >> 6) {
-            status = FAIL;
+            status = -1;
             pr_err("BAD TLP Status (BTS)");
         }
         /* check if BAD DLP is set */
         if ((u32aer_sts & NVME_AERCS_BDS) >> 7) {
-            status = FAIL;
+            status = -1;
             pr_err("BAD DLLP Status (BDS)");
         }
         /* Check if RRS is set, status not an error */
@@ -548,17 +548,17 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
         }
         /* Check if RTS is set */
         if ((u32aer_sts & NVME_AERCS_RTS) >> 12) {
-            status = FAIL;
+            status = -1;
             pr_err("Replay Timer Timeout Status (RTS)");
         }
         /* Check if non fatal error is set */
         if ((u32aer_sts & NVME_AERCS_ANFES) >> 13) {
-            status = FAIL;
+            status = -1;
             pr_err("Advisory Non Fatal Error Status (ANFES)");
         }
         /* Check if CIES is set */
         if ((u32aer_sts & NVME_AERCS_CIES) >> 14) {
-            status = FAIL;
+            status = -1;
             pr_err("Corrected Internal Error Status (CIES)");
         }
         /* check if HLOS is set, Status not an error */

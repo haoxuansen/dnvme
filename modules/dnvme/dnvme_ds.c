@@ -28,7 +28,7 @@
 #include <linux/version.h>
 
 #include "definitions.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_interface.h"
 #include "sysfuncproto.h"
 #include "dnvme_queue.h"
@@ -52,7 +52,7 @@ static loff_t irq_nodes_log(struct file *file, loff_t pos,
     int driver_logstr(struct nvme_logstr *logStr)
 {
     u8 *fmtText = NULL;
-    int err = SUCCESS;
+    int err = 0;
     struct nvme_logstr *user_data = NULL;
 
 
@@ -114,7 +114,7 @@ int driver_log(struct nvme_file *n_file)
     struct  metrics_device_list *pmetrics_device; /* Metrics device list */
     struct  cmd_track  *pcmd_track_list;          /* cmd track linked list */
     u8 *filename = NULL;
-    int err = SUCCESS;
+    int err = 0;
     struct nvme_file *user_data = NULL;
 
 

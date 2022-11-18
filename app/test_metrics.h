@@ -91,34 +91,34 @@ struct fwdma_parameter
 
 struct nvme_ctrl
 {
-    dword_t max_sq_num; // 1'base
-    dword_t max_cq_num; // 1'base
-    dword_t link_speed; //
-    dword_t link_width; //
-    dword_t irq_type;   //
-    uint8_t pmcap_ofst;
-    uint8_t msicap_ofst;
-    uint8_t pxcap_ofst;
+	dword_t max_sq_num; // 1'base
+	dword_t max_cq_num; // 1'base
+	dword_t link_speed; //
+	dword_t link_width; //
+	dword_t irq_type;   //
+	uint8_t pmcap_ofst;
+	uint8_t msicap_ofst;
+	uint8_t pxcap_ofst;
 
-    struct nvme_id_ctrl id_ctrl;
-    struct reg_nvme_ctrl ctrl_reg;
+	struct nvme_id_ctrl id_ctrl;
+	struct reg_nvme_ctrl ctrl_reg;
 };
 
 struct nvme_ns
 {
-    uint32_t lbads;
-    uint64_t nsze;
-    struct nvme_id_ns id_ns;
+	uint32_t lbads;
+	uint64_t nsze;
+	struct nvme_id_ns id_ns;
 };
 
 struct nvme_sq_info
 {
-    uint16_t sq_id;
-    uint16_t cq_id;
-    uint16_t cq_int_vct;
-    uint16_t cmd_cnt;
-    uint32_t cq_size;
-    uint32_t sq_size;
+	uint16_t sq_id;
+	uint16_t cq_id;
+	uint16_t cq_int_vct;
+	uint16_t cmd_cnt;
+	uint32_t cq_size;
+	uint32_t sq_size;
 };
 
 struct nvme_cq_info

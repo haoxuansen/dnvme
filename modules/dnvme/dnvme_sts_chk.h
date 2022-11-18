@@ -233,7 +233,7 @@ enum {
  * the PCI Device status register set in STS register. The offset for this
  * register is 0x06h as specified in NVME Express 1.0b spec.
  * @param device_data
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int pci_status_chk(u16 device_data);
 
@@ -241,7 +241,7 @@ int pci_status_chk(u16 device_data);
  * pcie_cap_chk function checks if the next capability of the NVME
  * Express device exits and if it exists then gets its status.
  * @param pdev
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc, u16 *msix_mc, 
 					 u16 *pcie_dev_st);
@@ -249,7 +249,7 @@ int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc
 /**
  * nvme_controller_status - This function checks the controller status
  * @param ctrlr_regs
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts);
 
@@ -257,7 +257,7 @@ int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts);
  * device_status_pci function returns the device status of
  * the PCI Power Management status register set in PMCS register.
  * @param device_data
-  * @return SUCCESS or FAIL
+  * @return 0 or -1
   */
 int pmcs_status_chk(struct pci_dev *pdev, u8 pci_cfg_pmcs_offset, u16 *sts);
 
@@ -266,7 +266,7 @@ int pmcs_status_chk(struct pci_dev *pdev, u8 pci_cfg_pmcs_offset, u16 *sts);
  * Message signaled Interrupt status register in MC and MPEND
  * @param pdev
  * @param device_data
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int msi_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msi_offset, u16 *sts);
 
@@ -275,7 +275,7 @@ int msi_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msi_offset, u16 *sts);
  * Message signaled Interrupt-X status register in MXC
  * @param pdev
  * @param device_data
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int msix_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msix_offset, u16 *sts);
 
@@ -284,7 +284,7 @@ int msix_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msix_offset, u16 *sts);
  * PCI express capability device status register in PXDS.
  * @param pdev
  * @param base_offset
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int pxcap_status_chk(struct pci_dev *pdev, u8 base_offset, u16 *sts);
 
@@ -294,7 +294,7 @@ int pxcap_status_chk(struct pci_dev *pdev, u8 base_offset, u16 *sts);
  * The register checked are AERUCES, AERCS and AERCC
  * @param pdev
  * @param base_offset
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int device_status_aercap(struct pci_dev *pdev, u16 base_offset);
 

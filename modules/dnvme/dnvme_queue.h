@@ -113,7 +113,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * flag and this function which call the timer handler and check for the timer
  * expiration. It returns success if the ctrl in rdy before timeout.
  * @param  pmetrics_device
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 //int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device);
 
@@ -125,7 +125,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * Modified from nvme_ctrl_enable to call different wait function to conform
  * to test plan.
  * @param  pmetrics_device
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 //int iol_nvme_ctrl_enable(struct metrics_device_list *pmetrics_device);
 
@@ -134,7 +134,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * CAP.EN flag and this function which call the timer handler and check for
  * the timer expiration. It returns success if the ctrl in rdy before timeout.
  * @param pmetrics_device
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 //int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device);
 
@@ -144,7 +144,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * an NVM Subsystem reset. Checks for timer expiration and returns success if
  * the ctrl is rdy before timeout.
  * @param pmetrics_device
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int nvme_nvm_subsystem_reset(struct metrics_device_list *pmetrics_device);
 
@@ -161,7 +161,7 @@ void device_cleanup(struct  metrics_device_list *pmetrics_device,
  * @param q_id
  * @param type
  * @param pmetrics_device
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int identify_unique(u16 q_id, enum metrics_type type,
         struct  metrics_device_list *pmetrics_device);
@@ -171,7 +171,7 @@ int identify_unique(u16 q_id, enum metrics_type type,
  * if q is allocated and then create a memory for the IO SQ.
  * @param pmetrics_sq_list
  * @param pnvme_dev
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
             struct nvme_device *pnvme_dev);
@@ -181,7 +181,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
  * if q is allocated and then create a memory for the IO SQ.
  * @param pmetrics_cq_list
  * @param pnvme_dev
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
             struct nvme_device *pnvme_dev);
@@ -191,7 +191,7 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
  * SQ doorbell.
  * @param ring_sqx
  * @param pmetrics_device
- * @return SUCCESS or FAIL
+ * @return 0 or -1
  */
 int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
         *pmetrics_device);

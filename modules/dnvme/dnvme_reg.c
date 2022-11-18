@@ -24,29 +24,29 @@
 #include "dnvme_interface.h"
 #include "dnvme_reg.h"
 #include "definitions.h"
-#include "sysdnvme.h"
+#include "core.h"
 
 #ifdef QEMU
 /* QEMU doesn't suppport writeq() or readq(), thus make our own */
 inline u64 READQ(const volatile void __iomem *addr)
 {
-    return (((u64)readl(addr + 4) << 32) | (u64)readl(addr));
+	return (((u64)readl(addr + 4) << 32) | (u64)readl(addr));
 }
 inline void WRITEQ(u64 val, volatile void __iomem *addr)
 {
-    writel(val, addr);
-    writel(val >> 32, addr + 4);
+	writel(val, addr);
+	writel(val >> 32, addr + 4);
 }
 
 #else
 
 inline void WRITEQ(u64 val, volatile void __iomem *addr)
 {
-    writeq(val, addr);
+	writeq(val, addr);
 }
 inline u64 READQ(const volatile void __iomem *addr)
 {
-    return readq(addr);
+	return readq(addr);
 }
 #endif
 

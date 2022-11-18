@@ -23,30 +23,14 @@
 #include "nvme.h"
 
 /**
- * API version coordinates the tnvme binary to the dnvme binary. If the dnvme
- * interface changes at all, then this file will be modified and thus this
- * revision will be bumped up. Only when this file changes does this version
- * change. The dnvme driver version is registered by the contents of file
- * version.h. Although version.h will change whenever API_VERSION changes, the
- * API_VERSION won't necessarily change each time version.h changes. Rather
- * version.h changes whenever a new release of the driver logic has changed.
- *
- * Thus when this API changes, then tnvme will have to be recompiled against
- * this file to adhere to the new modification and requirements of the API.
- * tnvme refuses to execute when it detects a API version mismatch to dnvme.
- */
-#define    API_VERSION          0xfff10403          /* IOL - 1.4.3 */
-
-
-/**
  * These are the enum types used for branching to
  * required offset as specified by either PCI space
  * or a NVME space enum value defined here.
  */
 enum nvme_io_space {
-    NVMEIO_PCI_HDR,
-    NVMEIO_BAR01,
-    NVMEIO_FENCE    /* always must be the last element */
+	NVMEIO_PCI_HDR,
+	NVMEIO_BAR01,
+	NVMEIO_FENCE    /* always must be the last element */
 };
 
 /**
@@ -54,11 +38,11 @@ enum nvme_io_space {
  * required access width of registers or memory space.
  */
 enum nvme_acc_type {
-    BYTE_LEN,
-    WORD_LEN,
-    DWORD_LEN,
-    QUAD_LEN,
-    ACC_FENCE
+	BYTE_LEN,
+	WORD_LEN,
+	DWORD_LEN,
+	QUAD_LEN,
+	ACC_FENCE
 };
 
 /**
@@ -66,20 +50,20 @@ enum nvme_acc_type {
  * system uses.
  */
 enum nvme_irq_type {
-    INT_MSI_SINGLE,
-    INT_MSI_MULTI,
-    INT_MSIX,
-    INT_PIN,
-    INT_NONE,
-    INT_FENCE    /* Last item to guard from loop run-overs */
+	INT_MSI_SINGLE,
+	INT_MSI_MULTI,
+	INT_MSIX,
+	INT_PIN,
+	INT_NONE,
+	INT_FENCE    /* Last item to guard from loop run-overs */
 };
 
 /**
  * enums to define the q types.
  */
 enum nvme_q_type {
-    ADMIN_SQ,
-    ADMIN_CQ,
+	ADMIN_SQ,
+	ADMIN_CQ,
 };
 
 /**
@@ -88,11 +72,11 @@ enum nvme_q_type {
  * offset and length while reading or writing to nvme card.
  */
 struct rw_generic {
-    enum nvme_io_space type;
-    uint32_t  offset;
-    uint32_t  nBytes;
-    enum nvme_acc_type acc_type;
-    uint8_t *buffer;
+	enum nvme_io_space	type;
+	uint32_t		offset;
+	uint32_t		nBytes;
+	enum nvme_acc_type	acc_type;
+	uint8_t			*buffer;
 };
 
 /**
@@ -100,21 +84,21 @@ struct rw_generic {
  * controller.
  */
 enum nvme_state {
-    ST_ENABLE,              /* Set the NVME Controller to enable state */
-    ST_ENABLE_IOL_TO,       /* Set NVME Controller to enable, wait IOL TO */
-    ST_DISABLE_IOL_TO,      /* Set NVME Controller to disable, wait IOL TO */
-    ST_DISABLE,             /* Controller reset without affecting Admin Q */
-    ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's */
-    ST_NVM_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
+	ST_ENABLE,              /* Set the NVME Controller to enable state */
+	ST_ENABLE_IOL_TO,       /* Set NVME Controller to enable, wait IOL TO */
+	ST_DISABLE_IOL_TO,      /* Set NVME Controller to disable, wait IOL TO */
+	ST_DISABLE,             /* Controller reset without affecting Admin Q */
+	ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's */
+	ST_NVM_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
 };
 
 /* Enum specifying bitmask passed on to IOCTL_SEND_64B */
 enum send_64b_bitmask {
-    MASK_PRP1_PAGE = 1, /* PRP1 can point to a physical page */
-    MASK_PRP1_LIST = 2, /* PRP1 can point to a PRP list */
-    MASK_PRP2_PAGE = 4, /* PRP2 can point to a physical page */
-    MASK_PRP2_LIST = 8, /* PRP2 can point to a PRP list */
-    MASK_MPTR = 16,     /* MPTR may be modified */
+	MASK_PRP1_PAGE = 1, /* PRP1 can point to a physical page */
+	MASK_PRP1_LIST = 2, /* PRP1 can point to a PRP list */
+	MASK_PRP2_PAGE = 4, /* PRP2 can point to a physical page */
+	MASK_PRP2_LIST = 8, /* PRP2 can point to a PRP list */
+	MASK_MPTR = 16,     /* MPTR may be modified */
 	MASK_PRP_ADDR_OFFSET_ERR = 32, /* To inject PRP address offset (used for err cases) */
 };
 
@@ -123,18 +107,18 @@ enum send_64b_bitmask {
  * sending 64 Bytes command to both admin  and IO SQ's and CQ's
  */
 struct nvme_64b_send {
-    /* BIT MASK for PRP1,PRP2 and metadata pointer */
-    enum send_64b_bitmask bit_mask;
-    /* Data buffer or discontiguous CQ/SQ's user space address */
-    uint8_t const *data_buf_ptr;
-    /* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
-    uint8_t data_dir;
+	/* BIT MASK for PRP1,PRP2 and metadata pointer */
+	enum send_64b_bitmask bit_mask;
+	/* Data buffer or discontiguous CQ/SQ's user space address */
+	uint8_t const *data_buf_ptr;
+	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
+	uint8_t data_dir;
 
-    uint8_t *cmd_buf_ptr;   /* Virtual Address pointer to 64B command */
-    uint32_t meta_buf_id;   /* Meta buffer ID when MASK_MPTR is set */
-    uint32_t data_buf_size; /* Size of Data Buffer */
-    uint16_t unique_id;     /* Value returned back to user space */
-    uint16_t q_id;          /* Queue ID where the cmd_buf command should go */
+	uint8_t *cmd_buf_ptr;   /* Virtual Address pointer to 64B command */
+	uint32_t meta_buf_id;   /* Meta buffer ID when MASK_MPTR is set */
+	uint32_t data_buf_size; /* Size of Data Buffer */
+	uint16_t unique_id;     /* Value returned back to user space */
+	uint16_t q_id;          /* Queue ID where the cmd_buf command should go */
 };
 
 /**
@@ -144,8 +128,8 @@ struct nvme_64b_send {
  * check if these versions match.
  */
 struct metrics_driver {
-    uint32_t driver_version;  /* dnvme driver version */
-    uint32_t api_version;     /* tnvme test application version */
+	uint32_t driver_version;  /* dnvme driver version */
+	uint32_t api_version;     /* tnvme test application version */
 };
 
 /**
@@ -153,13 +137,13 @@ struct metrics_driver {
  * It supports both Admin CQ and IO CQ.
  */
 struct nvme_gen_cq {
-    uint16_t q_id;            /* even admin q's are supported here q_id = 0 */
-    uint16_t tail_ptr;        /* The value calculated for respective tail_ptr */
-    uint16_t head_ptr;        /* Actual value in CQxTDBL for this q_id */
-    uint32_t elements;        /* pass the actual elements in this q */
-    uint8_t  irq_enabled;     /* sets when the irq scheme is active */
-    uint16_t irq_no;          /* idx in list; always 0 based */
-    uint8_t  pbit_new_entry;  /* Indicates if a new entry is in CQ */
+	uint16_t	q_id; /* even admin q's are supported here q_id = 0 */
+	uint16_t	tail_ptr; /* The value calculated for respective tail_ptr */
+	uint16_t	head_ptr; /* Actual value in CQxTDBL for this q_id */
+	uint32_t	elements; /* pass the actual elements in this q */
+	uint8_t		irq_enabled; /* sets when the irq scheme is active */
+	uint16_t	irq_no; /* idx in list; always 0 based */
+	uint8_t		pbit_new_entry; /* Indicates if a new entry is in CQ */
 };
 
 /**
@@ -167,13 +151,13 @@ struct nvme_gen_cq {
  * It supports both Admin SQ and IO SQ.
  */
 struct nvme_gen_sq {
-    uint16_t sq_id;         /* Admin SQ are supported with q_id = 0 */
-    uint16_t cq_id;         /* The CQ ID to which this SQ is associated */
-    uint16_t tail_ptr;      /* Actual value in SQxTDBL for this SQ id */
-    uint16_t tail_ptr_virt; /* future SQxTDBL write value based on no.
-        of new cmds copied to SQ */
-    uint16_t head_ptr;      /* Calculate this value based on cmds reaped */
-    uint32_t elements;      /* total number of elements in this Q */
+	uint16_t	sq_id; /* Admin SQ are supported with q_id = 0 */
+	uint16_t	cq_id; /* The CQ ID to which this SQ is associated */
+	uint16_t	tail_ptr; /* Actual value in SQxTDBL for this SQ id */
+	/* future SQxTDBL write value based on no. of new cmds copied to SQ */
+	uint16_t	tail_ptr_virt; 
+	uint16_t	head_ptr; /* Calculate this value based on cmds reaped */
+	uint32_t	elements; /* total number of elements in this Q */
 };
 
 /**
@@ -181,9 +165,9 @@ struct nvme_gen_sq {
  * metrics.
  */
 enum metrics_type {
-    METRICS_CQ,     /* Completion Q Metrics */
-    METRICS_SQ,     /* Submission Q Metrics */
-    MTERICS_FENCE,  /* Always last item */
+	METRICS_CQ,     /* Completion Q Metrics */
+	METRICS_SQ,     /* Submission Q Metrics */
+	MTERICS_FENCE,  /* Always last item */
 };
 
 /**
@@ -202,8 +186,8 @@ struct nvme_get_q_metrics {
  * Interface structure for creating Admin Q's. The elements is a 1 based value.
  */
 struct nvme_create_admn_q {
-    enum nvme_q_type type;      /* Admin q type, ASQ or ACQ */
-    uint32_t         elements;  /* No. of elements of size 64 B */
+	enum nvme_q_type	type;      /* Admin q type, ASQ or ACQ */
+	uint32_t		elements;  /* No. of elements of size 64 B */
 };
 
 enum sq_prio_type
@@ -265,29 +249,29 @@ struct nvme_reap_inquiry {
  * Interface structure for reap ioctl. Admin Q and all IO Q's are supported.
  */
 struct nvme_reap {
-    uint16_t q_id;          /* CQ ID to reap commands for */
-    uint32_t elements;      /* Get the no. of elements to be reaped */
-    uint32_t num_remaining; /* return no. of cmds waiting for this cq */
-    uint32_t num_reaped;    /* Return no. of elements reaped */
-    uint8_t  *buffer;       /* Buffer to copy reaped data */
-    /* no of times isr was fired which is associated with cq reaped on */
-    uint32_t isr_count;
-    uint32_t size;          /* Size of buffer to fill data to */
+	uint16_t q_id;          /* CQ ID to reap commands for */
+	uint32_t elements;      /* Get the no. of elements to be reaped */
+	uint32_t num_remaining; /* return no. of cmds waiting for this cq */
+	uint32_t num_reaped;    /* Return no. of elements reaped */
+	uint8_t  *buffer;       /* Buffer to copy reaped data */
+	/* no of times isr was fired which is associated with cq reaped on */
+	uint32_t isr_count;
+	uint32_t size;          /* Size of buffer to fill data to */
 };
 
 /**
  * Format of general purpose nvme command DW0-DW9
  */
 struct nvme_gen_cmd {
-    uint8_t  opcode;
-    uint8_t  flags;
-    uint16_t command_id;
-    uint32_t nsid;
-    uint64_t rsvd2;
-    uint64_t metadata;
-    // uint64_t prp1;
-    // uint64_t prp2;
-    union nvme_data_ptr dptr;
+	uint8_t  opcode;
+	uint8_t  flags;
+	uint16_t command_id;
+	uint32_t nsid;
+	uint64_t rsvd2;
+	uint64_t metadata;
+	// uint64_t prp1;
+	// uint64_t prp2;
+	union nvme_data_ptr dptr;
 };
 
 // /**
@@ -342,8 +326,8 @@ struct nvme_del_q {
  * works for all type of interrupt scheme expect PIN based.
  */
 struct interrupts {
-    uint16_t           num_irqs;        /* total no. of irqs req by tnvme */
-    enum nvme_irq_type irq_type;        /* Active IRQ scheme for this dev */
+	uint16_t		num_irqs; /* total no. of irqs req by tnvme */
+	enum nvme_irq_type	irq_type; /* Active IRQ scheme for this dev */
 };
 
 /**
@@ -351,7 +335,7 @@ struct interrupts {
  * copied to user on request through an IOCTL interface GET_DEVICE_METRICS.
  */
 struct public_metrics_dev {
-    struct interrupts irq_active;  /* Active IRQ state of the nvme device */
+	struct interrupts irq_active; /* Active IRQ state of the nvme device */
 };
 
 /**

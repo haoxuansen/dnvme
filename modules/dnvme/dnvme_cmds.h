@@ -43,17 +43,17 @@ enum {
 
 /* Enum specifying PRP1,PRP2 or List */
 enum prp_type {
-    NO_PRP = 0,
-    PRP1 = (1 << 0),
-    PRP2 = (1 << 1),
-    PRP_List = (1 << 2),
+	NO_PRP = 0,
+	PRP1 = (1 << 0),
+	PRP2 = (1 << 1),
+	PRP_List = (1 << 2),
 };
 
 /* Enum specifying type of data buffer */
 enum data_buf_type {
-    DATA_BUF,
-    CONTG_IO_Q,
-    DISCONTG_IO_Q
+	DATA_BUF,
+	CONTG_IO_Q,
+	DISCONTG_IO_Q
 };
 
 /**

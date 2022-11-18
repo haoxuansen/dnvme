@@ -21,7 +21,7 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 
-#include "sysdnvme.h"
+#include "core.h"
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_ds.h"

@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef __KCONFIG_H
-#define __KCONFIG_H
+#ifndef _UAPI_KCONFIG_H_
+#define _UAPI_KCONFIG_H_
 
 // #include "generated/autoconf.h"
 
@@ -80,4 +80,4 @@
  */
 #define IS_ENABLED(option) __or(IS_BUILTIN(option), IS_MODULE(option))
 
-#endif /* !__KCONFIG_H */
+#endif /* !_UAPI_KCONFIG_H_ */

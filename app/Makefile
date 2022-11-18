@@ -1,4 +1,5 @@
-TOP_DIR ?= $(shell pwd)/..
+CUR_DIR := $(shell pwd)
+TOP_DIR ?= $(CUR_DIR)/..
 OUTPUT_DIR := $(TOP_DIR)/output
 
 srcs := $(wildcard *.c)
@@ -14,10 +15,13 @@ CFLAGS += -I$(TOP_DIR)/include/uapi
 %.o: %.c
 	$(Q)$(CC) $(CFLAGS) -c $^
 
+pre:
+	$(Q)bash $(CUR_DIR)/prepare.sh
+
 $(target): $(objs)
 	$(Q)$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-build: $(target)
+build: pre $(target)
 	$(Q)cp $(target) $(OUTPUT_DIR)/
 
 clean:

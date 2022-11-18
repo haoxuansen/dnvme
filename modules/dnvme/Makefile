@@ -17,7 +17,7 @@ dnvme-y					+= dnvme_irq.o
 dnvme-y					+= dnvme_queue.o
 dnvme-y					+= dnvme_reg.o
 dnvme-y					+= dnvme_sts_chk.o
-dnvme-y					+= sysdnvme.o
+dnvme-y					+= core.o
 
 build:
 	$(Q)make -C $(KERNEL_DIR) M=$(CUR_DIR) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" modules

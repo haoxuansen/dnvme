@@ -20,7 +20,7 @@
 #define _DNVME_IRQ_H_
 
 #include "dnvme_ds.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_queue.h"
 #include "dnvme_interface.h"
 #include "dnvme_sts_chk.h"
@@ -29,9 +29,9 @@
  * MSI-X specific info
  */
 struct msix_info {
-    u16 ts;
-    u8 __iomem *pba_tbl;
-    u8 __iomem *msix_tbl;
+	u16		ts;
+	u8 __iomem	*pba_tbl;
+	u8 __iomem	*msix_tbl;
 };
 
 /* Max IRQ vectors for MSI SINGLE IRQ scheme */

@@ -157,6 +157,9 @@ void test_init(int file_desc)
 	g_nvme_dev.max_sq_num = (iosq_num + 1);
 	g_nvme_dev.max_cq_num = (iocq_num + 1);
 	pr_info("\tWe use %d iosq, %d iocq\n", iosq_num + 1, iocq_num + 1);
+
+	// !TODO: It's better to check IOSQs ==IOCQs ?
+
 	/**********************************************************************/
 	ctrl_sq_info = (struct nvme_sq_info *)(malloc(g_nvme_dev.max_sq_num * sizeof(struct nvme_sq_info)));
 	if (ctrl_sq_info == NULL)

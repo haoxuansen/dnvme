@@ -21,7 +21,7 @@
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_ds.h"
-#include "sysdnvme.h"
+#include "core.h"
 
 static bool use_cmb_sqes = true;
 
@@ -45,7 +45,7 @@ void nvme_map_cmb(struct nvme_device *dev)
 	int bar;
 	if (dev->cmb_size)
 		return;
-    dev->cmbsz = readl(&dev->private_dev.ctrlr_regs->cmbsz);
+	dev->cmbsz = readl(&dev->private_dev.ctrlr_regs->cmbsz);
 	pr_info("cmbsz:%x",dev->cmbsz);        
 	if (!dev->cmbsz)
 		return;

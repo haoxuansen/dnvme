@@ -18,7 +18,10 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/cpumask.h>
+#include <linux/ioport.h>
 #include <linux/pci.h>
+#include <linux/pci_ids.h>
 #include <linux/init.h>
 #include <linux/cdev.h>
 #include <linux/unistd.h>
@@ -33,17 +36,21 @@
 #include "definitions.h"
 #include "sysfuncproto.h"
 #include "dnvme_reg.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_ioctls.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
-#include "version.h"
 #include "dnvme_cmds.h"
 #include "dnvme_irq.h"
 #include "dnvme_cmb.h"
 
-#define DRV_NAME                "dnvme"
-#define NVME_DEVICE_NAME        "nvme"
+#define DEVICE_NAME			"nvme"
+#define DRIVER_NAME			"dnvme"
+
+#define API_VERSION                     0xfff10403 /* IOL - 1.4.3 */
+#define DRIVER_VERSION			0x00000001
+#define DRIVER_VERSION_STR(VER)		#VER
+
 #define BAR0_BAR1               0x0
 #define BAR2_BAR3               0x2
 #define BAR4_BAR5               0x4
@@ -53,9 +60,9 @@
 #endif
 
 /* Module globals */
-static int nvme_major;
+static int dnvme_major;
 LIST_HEAD(metrics_dev_ll);
-static struct class *class_nvme;
+static struct class *dnvme_class;
 struct metrics_driver g_metrics_drv;
 
 /*
@@ -64,27 +71,27 @@ struct metrics_driver g_metrics_drv;
  */
 static struct metrics_device_list *find_device(struct inode *inode)
 {
-    int dev_found = 1;
-    struct metrics_device_list *pmetrics_device;
+	int dev_found = 1;
+	struct metrics_device_list *pmetrics_device;
 
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
+	/* Loop through the devices available in the metrics list */
+	list_for_each_entry(pmetrics_device, &metrics_dev_ll, metrics_device_hd) {
 
-        if (iminor(inode) == pmetrics_device->metrics_device->
-                private_dev.minor_no) {
+		if (iminor(inode) == pmetrics_device->metrics_device->
+			private_dev.minor_no) {
 
-            return pmetrics_device;
-        } else {
-            dev_found = 0;
-        }
-    }
+			return pmetrics_device;
+		} else {
+			dev_found = 0;
+		}
+	}
 
-    /* The specified device could not be found in the list */
-    if (dev_found == 0) {
-        pr_err("Cannot find the device with minor no. %d", iminor(inode));
-        return NULL;
-    }
-    return NULL;
+	/* The specified device could not be found in the list */
+	if (dev_found == 0) {
+		pr_err("Cannot find the device with minor no. %d", iminor(inode));
+		return NULL;
+	}
+	return NULL;
 }
 
 
@@ -95,7 +102,7 @@ static struct metrics_device_list *find_device(struct inode *inode)
  */
 static struct metrics_device_list *lock_device(struct inode *inode)
 {
-    struct  metrics_device_list *pmetrics_device;
+    struct metrics_device_list *pmetrics_device;
     pmetrics_device = find_device(inode);
     if (pmetrics_device == NULL) {
         pr_err("Cannot find the device with minor no. %d", iminor(inode));
@@ -132,7 +139,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
     u32 id;
     u32 mmap_range;
     int npages;
-    int err = SUCCESS;
+    int err = 0;
 
     pr_debug("Device Calling mmap function...");
 
@@ -155,7 +162,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
     /* If type is 1 implies SQ, 0 implies CQ and 2 implies meta data */
     if (type == 0x1) {
         /* Process for SQ */
-        if (id > USHRT_MAX) { /* 16 bits */
+        if (id > U16_MAX) { /* 16 bits */
             pr_err("SQ Id is greater than 16 bits..");
             err = -EINVAL;
             goto mmap_exit;
@@ -179,7 +186,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
         mmap_range = pmetrics_sq_list->private_sq.size;
     } else if (type == 0x0) {
         /* Process for CQ */
-        if (id > USHRT_MAX) { /* 16 bits */
+        if (id > U16_MAX) { /* 16 bits */
             pr_err("CQ Id is greater than 16 bits..");
             err = -EINVAL;
             goto mmap_exit;
@@ -339,14 +346,14 @@ static long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
             break;
         case ST_DISABLE_IOL_TO:
             pr_debug("Disabling the DUT");
-            if ((err = iol_nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
+            if ((err = iol_nvme_ctrl_set_state(pmetrics_device, 0)) == 0) {
                 device_cleanup(pmetrics_device, ST_DISABLE);
             }
             break;
         case ST_DISABLE:
         case ST_DISABLE_COMPLETELY:
             pr_debug("Disabling the DUT");
-            if ((err = nvme_ctrl_set_state(pmetrics_device, 0)) == SUCCESS) {
+            if ((err = nvme_ctrl_set_state(pmetrics_device, 0)) == 0) {
                 device_cleanup(pmetrics_device, (enum nvme_state)ioctl_param);
             }
             break;
@@ -420,7 +427,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
             pr_err("Unable to copy to user space");
             err = -EFAULT;
         } else {
-            err = SUCCESS;
+            err = 0;
         }
         break;
 
@@ -469,7 +476,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int ioctl_num,
             pr_err("Unable to copy to user space");
             err = -EFAULT;
         } else {
-            err = SUCCESS;
+            err = 0;
         }
         break;
 
@@ -504,7 +511,7 @@ ioctl_exit:
 static int dnvme_open(struct inode *inode, struct file *filp)
 {
     struct metrics_device_list *pmetrics_device;
-    int err = SUCCESS;
+    int err = 0;
 
     pr_err("Opening NVMe device");
     pmetrics_device = lock_device(inode);
@@ -536,9 +543,9 @@ op_exit:
  */
 static int dnvme_release(struct inode *inode, struct file *filp)
 {
-    /* Metrics device */
-    struct  metrics_device_list *pmetrics_device;
-    int err = SUCCESS;
+	/* Metrics device */
+	struct  metrics_device_list *pmetrics_device;
+	int err = 0;
 
     pr_debug("Call to Release the device");
     pmetrics_device = lock_device(inode);
@@ -559,52 +566,52 @@ rel_exit:
 }
 
 static const struct file_operations dnvme_fops = {
-    .owner          = THIS_MODULE,
-    .unlocked_ioctl = dnvme_ioctl,
-    .open           = dnvme_open,
-    .release        = dnvme_release,
-    .mmap           = dnvme_mmap,
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl	= dnvme_ioctl,
+	.open		= dnvme_open,
+	.release	= dnvme_release,
+	.mmap		= dnvme_mmap,
 };
 
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-    int err = -EINVAL;
-    void __iomem *bar0 = NULL;
-    void __iomem *bar1 = NULL;
-    void __iomem *bar2 = NULL;
-    static int nvme_minor = 0;
-    dev_t devno = MKDEV(nvme_major, nvme_minor);
-    struct metrics_device_list *pmetrics_device = NULL;
-    int bars = 0;
+	int err = -EINVAL;
+	void __iomem *bar0 = NULL;
+	void __iomem *bar1 = NULL;
+	void __iomem *bar2 = NULL;
+	static int nvme_minor = 0;
+	dev_t devno = MKDEV(dnvme_major, nvme_minor);
+	struct metrics_device_list *pmetrics_device = NULL;
+	int bars = 0;
 
-    pr_err("dnvme_probe...");
-    // pr_info("YM %d %d %d", num_possible_cpus(), num_present_cpus(), num_active_cpus());
-    /* Allocate kernel memory for our own internal tracking of this device */
-    pmetrics_device = kmalloc(
-        sizeof(struct metrics_device_list), (GFP_KERNEL | __GFP_ZERO));
-    if (pmetrics_device == NULL) {
-        pr_err("Failed alloc mem for internal device metric storage");
-        err = -ENOMEM;
-        goto fail_out;
-    }
+	pr_info("probe pdev...(cpu:%d %d %d)\n", num_possible_cpus(), 
+		num_present_cpus(), num_active_cpus());
 
-    /* Get the bitmask value of the BAR's supported by device */
-    bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	/* Allocate kernel memory for our own internal tracking of this device */
+	pmetrics_device = kzalloc(sizeof(struct metrics_device_list), GFP_KERNEL);
+	if (!pmetrics_device) {
+		pr_err("failed to alloc metrics_device_list!\n");
+		return -ENOMEM;
+	}
 
-    /* Map BAR0 & BAR1 (BAR0 for 64-bit); ctrlr register memory mapped  */
-    if (request_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-        pci_resource_len(pdev, BAR0_BAR1), DRV_NAME) == NULL) {
-        pr_err("BAR0 memory already in use");
-        goto fail_out;
-    }
-    #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0) //2021.1.22 meng_yu
-    bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
-        pci_resource_len(pdev, BAR4_BAR5));
-    
-    #else
-    bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
-        pci_resource_len(pdev, BAR4_BAR5));
-    #endif
+	/* !TODO: Replace by @pci_request_mem_regions */
+
+	/* Get the bitmask value of the BAR's supported by device */
+	bars = pci_select_bars(pdev, IORESOURCE_MEM);
+
+	/* Map BAR0 & BAR1 (BAR0 for 64-bit); ctrlr register memory mapped */
+	if (request_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+		pci_resource_len(pdev, BAR0_BAR1), DRIVER_NAME) == NULL) {
+		pr_err("BAR0 memory already in use");
+		goto fail_out;
+	}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0) //2021.1.22 meng_yu
+	bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
+		pci_resource_len(pdev, BAR4_BAR5));
+#else
+	bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
+		pci_resource_len(pdev, BAR4_BAR5));
+#endif
 
     bar0 = ioremap(pci_resource_start(pdev, BAR0_BAR1),
         pci_resource_len(pdev, BAR0_BAR1));
@@ -616,7 +623,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     /* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
     if (bars & (1 << BAR2_BAR3)) {
         if (request_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-            pci_resource_len(pdev, BAR2_BAR3), DRV_NAME) == NULL) {
+            pci_resource_len(pdev, BAR2_BAR3), DRIVER_NAME) == NULL) {
             pr_err("BAR1 (64 bit) memory already in use");
             goto remap_fail_out;
         }
@@ -634,7 +641,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     /* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
     if (bars & (1 << BAR4_BAR5)) {
         if (request_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-            pci_resource_len(pdev, BAR4_BAR5), DRV_NAME) == NULL) {
+            pci_resource_len(pdev, BAR4_BAR5), DRIVER_NAME) == NULL) {
             pr_err("BAR2 (64 bit) memory already in use");
             goto remap_fail_out;
         }
@@ -685,7 +692,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
     /* Create an NVMe special device */
     pmetrics_device->metrics_device->private_dev.spcl_dev = device_create(
-        class_nvme, NULL, devno, NULL, NVME_DEVICE_NAME"%d", nvme_minor);
+        dnvme_class, NULL, devno, NULL, DEVICE_NAME"%d", nvme_minor);
     if (IS_ERR(pmetrics_device->metrics_device->private_dev.spcl_dev)) {
         err = PTR_ERR(pmetrics_device->metrics_device->private_dev.spcl_dev);
         pr_err("Creation of special device file failed: %d", err);
@@ -706,23 +713,6 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     // {
     //     pr_err("pcie is disable");
     // }
-    // pr_debug("cmbsz ofst:%#lx",offsetof(struct nvme_ctrl_reg,cmbsz));
-    // pr_debug("cmbloc ofst:%#lx",offsetof(struct nvme_ctrl_reg,cmbloc));
-    // pr_debug("bpinfo ofst:%#lx",offsetof(struct nvme_ctrl_reg,bpinfo));
-    // pr_debug("bprsel ofst:%#lx",offsetof(struct nvme_ctrl_reg,bprsel));
-    // pr_debug("bpmbl ofst:%#lx",offsetof(struct nvme_ctrl_reg,bpmbl));
-    // pr_debug("cmbmsc ofst:%#lx",offsetof(struct nvme_ctrl_reg,cmbmsc));
-    // pr_debug("cmbsts ofst:%#lx",offsetof(struct nvme_ctrl_reg,cmbsts));
-
-    // pr_debug("pmrcap ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrcap));
-    // pr_debug("pmrctl ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrctl));
-    // pr_debug("pmrsts ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrsts));
-    // pr_debug("pmrebs ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrebs));
-    // pr_debug("pmrswtp ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrswtp));
-    // pr_debug("pmrmscl ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrmscl));
-    // pr_debug("pmrmscu ofst:%#lx",offsetof(struct nvme_ctrl_reg,pmrmscu));
-    // pr_debug("sqtdbl ofst:%#lx",offsetof(struct nvme_ctrl_reg,sqtdbl));
-    // pr_debug("sqhdbl ofst:%#lx",offsetof(struct nvme_ctrl_reg,sqhdbl));
 
     nvme_map_cmb(pmetrics_device->metrics_device);
 
@@ -826,69 +816,69 @@ static void dnvme_remove(struct pci_dev *dev)
     }
 }
 
-static struct pci_device_id dnvme_ids[] = {
-    { PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
-    { 0, }
+static struct pci_device_id dnvme_id_table[] = {
+	{ PCI_DEVICE_CLASS(PCI_CLASS_STORAGE_EXPRESS, 0xffffff) },
+	{ 0, }
 };
-MODULE_DEVICE_TABLE(pci, dnvme_ids);
+MODULE_DEVICE_TABLE(pci, dnvme_id_table);
 
 static struct pci_driver dnvme_driver = {
-    .name     = DRV_NAME,
-    .id_table = dnvme_ids,
-    .probe    = dnvme_probe,
-    .remove   = dnvme_remove,
+	.name		= DRIVER_NAME,
+	.id_table	= dnvme_id_table,
+	.probe		= dnvme_probe,
+	.remove		= dnvme_remove,
 };
 
 static int __init dnvme_init(void)
 {
-    int err = SUCCESS;
+	int ret;
 
-    pr_info("dnvme INIT; version: %d.%d", VER_MAJOR, VER_MINOR);
-    g_metrics_drv.api_version = API_VERSION;
-    g_metrics_drv.driver_version = DRIVER_VERSION;
+	g_metrics_drv.api_version = API_VERSION;
+	g_metrics_drv.driver_version = DRIVER_VERSION;
 
-    /* Get a dynamically alloc'd major number for this driver */
-    nvme_major = register_chrdev(0, NVME_DEVICE_NAME, &dnvme_fops);
-    if (nvme_major < 0) {
-        pr_err("dnvme char device driver registration fail");
-        return -ENODEV;
-    }
+	dnvme_major = register_chrdev(0, DEVICE_NAME, &dnvme_fops);
+	if (dnvme_major < 0) {
+		pr_err("failed to register chrdev!(%d)\n", dnvme_major);
+		return dnvme_major;
+	}
 
-    /* Check if class_nvme creation has any issues */
-    class_nvme = class_create(THIS_MODULE, NVME_DEVICE_NAME);
-    if (IS_ERR(class_nvme)) {
-        pr_err("NVMe class creation failed");
-        err = PTR_ERR(class_nvme);
-        goto unreg_chrdrv_fail_out;
-    }
+	dnvme_class = class_create(THIS_MODULE, DEVICE_NAME);
+	if (IS_ERR(dnvme_class)) {
+		ret = PTR_ERR(dnvme_class);
+		pr_err("failed to create %s class!(%d)\n", DEVICE_NAME, ret);
+		goto out;
+	}
 
-    /* Register this driver */
-    err = pci_register_driver(&dnvme_driver);
-    if (err) {
-        pr_err("PCIe driver registration failed");
-        goto class_create_fail_out;
-    }
-    return err;
+	ret = pci_register_driver(&dnvme_driver);
+	if (ret < 0) {
+		pr_err("failed to register pci driver!(%d)\n", ret);
+		goto out2;
+	}
 
-class_create_fail_out:
-    class_destroy(class_nvme);
-unreg_chrdrv_fail_out:
-    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
-    return err;
+	pr_info("init ok!(api_ver:%x, drv_ver:%x)\n", g_metrics_drv.api_version, 
+		g_metrics_drv.driver_version);
+	return 0;
+
+out2:
+	class_destroy(dnvme_class);
+out:
+	unregister_chrdev(dnvme_major, DEVICE_NAME);
+	return ret;
 }
 module_init(dnvme_init);
 
 static void __exit dnvme_exit(void)
 {
-    pci_unregister_driver(&dnvme_driver);
-    class_destroy(class_nvme);
-    unregister_chrdev(nvme_major, NVME_DEVICE_NAME);
-    pr_info("dnvme EXIT; version: %d.%d", VER_MAJOR, VER_MINOR);
+	pci_unregister_driver(&dnvme_driver);
+	class_destroy(dnvme_class);
+	unregister_chrdev(dnvme_major, DEVICE_NAME);
+	pr_info("exit ok!(api_ver:%x, drv_ver:%x)\n", g_metrics_drv.api_version, 
+		g_metrics_drv.driver_version);
 }
 module_exit(dnvme_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:"DRV_NAME);
+MODULE_ALIAS("platform:"DRIVER_NAME);
 MODULE_AUTHOR("nvmecompliance@intel.com");
 MODULE_DESCRIPTION("NVMe compliance suite kernel driver");
 MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));

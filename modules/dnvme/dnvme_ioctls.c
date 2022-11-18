@@ -31,7 +31,7 @@
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "sysfuncproto.h"
-#include "sysdnvme.h"
+#include "core.h"
 #include "dnvme_sts_chk.h"
 #include "dnvme_queue.h"
 #include "dnvme_cmds.h"
@@ -100,7 +100,7 @@ int device_status_chk(struct metrics_device_list *pmetrics_device, struct device
 		err = -EFAULT;
 		goto fail_out;
     }
-    return SUCCESS;
+    return 0;
 
 fail_out:
 
@@ -402,11 +402,11 @@ fail_out:
 
 
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-    struct  metrics_device_list *pmetrics_device)
+    struct metrics_device_list *pmetrics_device)
 {
     int err = -EINVAL;
     u8 admn_id = 0;         /* Always admin ID is 0 */
-    struct  metrics_sq *pmetrics_sq_list = NULL; /* SQ linked list     */
+    struct metrics_sq *pmetrics_sq_list = NULL; /* SQ linked list     */
     struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
 
 
@@ -417,7 +417,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
 
     pr_debug("Searching for node in the sq_list_hd");
     err = identify_unique(admn_id, METRICS_SQ, pmetrics_device);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("ASQ already exists");
         goto fail_out; /* use invalid return code */
     }
@@ -443,7 +443,7 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     /* Call dma allocation, creation of contiguous memory for ASQ */
     err = create_admn_sq(pnvme_dev, pmetrics_sq_list->public_sq.elements,
         pmetrics_sq_list);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("Failed Admin Q creation!!");
         goto fail_out;
     }
@@ -462,11 +462,11 @@ fail_out:
 
 
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-    struct  metrics_device_list *pmetrics_device)
+    struct metrics_device_list *pmetrics_device)
 {
     int err = -EINVAL;
     u8 admn_id = 0;         /* Always Admin ID is zero. */
-    struct  metrics_cq *pmetrics_cq_list = NULL; /* CQ linked list */
+    struct metrics_cq *pmetrics_cq_list = NULL; /* CQ linked list */
     struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
 
 
@@ -477,7 +477,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
 
     pr_debug("Searching for node in the cq_list_hd");
     err = identify_unique(admn_id, METRICS_CQ, pmetrics_device);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("ACQ already exists");
         goto fail_out; /* use invalid return code */
     }
@@ -500,7 +500,7 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     /* Call dma allocation, creation of contiguous memory for ACQ */
     err = create_admn_cq(pnvme_dev, pmetrics_cq_list->public_cq.elements,
         pmetrics_cq_list);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("Admin CQ creation failed!!");
         goto fail_out;
     }
@@ -574,7 +574,7 @@ int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
         pr_err("IRQ track initialization failed...");
         goto fail_out;
     }
-    return SUCCESS;
+    return 0;
 
 fail_out:
     if (pmetrics_device_list->metrics_device != NULL) {
@@ -600,7 +600,7 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
     /* First Check if the meta pool already exists */
     if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
         if (alloc_size == pmetrics_device_elem->metrics_meta.meta_buf_size) {
-            return SUCCESS;
+            return 0;
         }
         pr_err("Meta Pool already exists, of a different size");
         return -EINVAL;
@@ -616,7 +616,7 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
     }
 
     pmetrics_device_elem->metrics_meta.meta_buf_size = alloc_size;
-    return SUCCESS;
+    return 0;
 }
 
 
@@ -629,7 +629,7 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     u32 meta_id)
 {
     struct metrics_meta *pmeta_data = NULL;
-    int err = SUCCESS;
+    int err = 0;
 
 
     /* Check if parameters passed to this function are valid */
@@ -696,7 +696,7 @@ int metabuff_del(struct metrics_device_list *pmetrics_device,
     pmeta_data = find_meta_node(pmetrics_device, meta_id);
     if (pmeta_data == NULL) {
         pr_debug("Meta ID does not exists, it is already deleted");
-        return SUCCESS;
+        return 0;
     }
 
     /* Free the DMA memory if exists */
@@ -708,14 +708,14 @@ int metabuff_del(struct metrics_device_list *pmetrics_device,
     /* Remove from the linked list and free the node */
     list_del(&pmeta_data->meta_list_hd);
     kfree(pmeta_data);
-    return SUCCESS;
+    return 0;
 }
 
 /*
  * deallocate_mb - This function will start freeing up the memory and
  * nodes for the meta buffers allocated during the alloc and create meta.
  */
-void deallocate_mb(struct  metrics_device_list *pmetrics_device)
+void deallocate_mb(struct metrics_device_list *pmetrics_device)
 {
     struct metrics_meta *pmeta_data = NULL;
     struct metrics_meta *pmeta_data_next = NULL;
@@ -881,7 +881,7 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
         }
 #endif
     }
-    return SUCCESS;
+    return 0;
 
 
 fail_out:
@@ -1266,7 +1266,7 @@ free_out:
 int get_public_qmetrics(struct metrics_device_list *pmetrics_device,
     struct nvme_get_q_metrics *get_q_metrics)
 {
-    int err = SUCCESS;
+    int err = 0;
     struct metrics_sq *pmetrics_sq_node;
     struct metrics_cq *pmetrics_cq_node;
     struct nvme_get_q_metrics *user_data = NULL;
@@ -1346,10 +1346,10 @@ fail_out:
  * the list this returns success.
  */
 int identify_unique(u16 q_id, enum metrics_type type,
-    struct  metrics_device_list *pmetrics_device)
+    struct metrics_device_list *pmetrics_device)
 {
-    struct  metrics_sq  *pmetrics_sq_list;
-    struct  metrics_cq  *pmetrics_cq_list;
+    struct metrics_sq *pmetrics_sq_list;
+    struct metrics_cq *pmetrics_cq_list;
 
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
@@ -1366,7 +1366,7 @@ int identify_unique(u16 q_id, enum metrics_type type,
             return -EINVAL;
         }
     }
-    return SUCCESS;
+    return 0;
 }
 
 /*
@@ -1398,7 +1398,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     }
 
     err = identify_unique(user_data->sq_id, METRICS_SQ, pmetrics_device);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("SQ ID is not unique.");
         goto fail_out;
     }
@@ -1442,7 +1442,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         &pmetrics_device->metrics_sq_list);
 
     kfree(user_data);
-    return SUCCESS;
+    return 0;
 
 fail_out:
     if (pmetrics_sq_node != NULL) {
@@ -1484,7 +1484,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     }
 
     err = identify_unique(user_data->cq_id, METRICS_CQ, pmetrics_device);
-    if (err != SUCCESS) {
+    if (err != 0) {
         pr_err("CQ ID is not unique");
         goto fail_out;
     }
@@ -1539,7 +1539,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
 	}
 
     kfree(user_data);
-    return SUCCESS;
+    return 0;
 
 fail_out:
     if (pmetrics_cq_node != NULL) {

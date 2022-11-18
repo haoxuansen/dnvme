@@ -22,8 +22,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define _TNVME_H_
-
 #include "dnvme_interface.h"
 #include "dnvme_ioctls.h"
 #include "reg_nvme_ctrl.h"
@@ -245,7 +243,7 @@ int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter)
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
     struct nvme_common_command maxio_fwdma_rd = {
-        .opcode = nvme_admin_fwdma_read_test, //nvme_admin_vendor_read,
+        .opcode = nvme_admin_vendor_fwdma_read, //nvme_admin_vendor_read,
         .nsid = 1,
         .cdw10 = fwdma_parameter->cdw10,
         .cdw11 = fwdma_parameter->cdw11,
@@ -289,7 +287,7 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
     struct nvme_common_command maxio_fwdma_wr = {
-        .opcode = nvme_admin_fwdma_write_test, //nvme_admin_vendor_write,
+        .opcode = nvme_admin_vendor_fwdma_write, //nvme_admin_vendor_write,
         .nsid = 1,
         .cdw10 = fwdma_parameter->cdw10,
         .cdw11 = fwdma_parameter->cdw11,

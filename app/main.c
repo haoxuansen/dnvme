@@ -19,7 +19,6 @@
 #include <stdint.h>
 #include <sys/mman.h>
 #include <sys/time.h>
-#define _TNVME_H_
 
 #include "dnvme_interface.h"
 #include "dnvme_ioctls.h"

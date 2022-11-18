@@ -29,33 +29,33 @@
  * following enum.
  */
 enum {
-    NVME_READ_GENERIC = 0xB0,   /** <enum to invoke read generic func call. */
-    NVME_WRITE_GENERIC,         /** <enum to invoke write generic func call. */
-    NVME_ERR_CHK,               /** <enum Generic device status check func */
-    NVME_CREATE_ADMN_SQ,        /** <enum to invoke admin sq creation */
-    NVME_CREATE_ADMN_CQ,        /** <enum to invoke admin cq creation */
-    NVME_DEVICE_STATE,          /** <enum to enable and disable ctlr */
-    NVME_SEND_64B_CMD,          /** <enum Send 64B command */
-    NVME_TOXIC_64B_DWORD,       /** <enum Injects toxic values into cmds */
-    NVME_GET_Q_METRICS,         /** <enum to get the q metrics */
-    NVME_CREATE_ADMN_Q,         /** <enum to invoke creation of admin q's */
-    NVME_PREPARE_SQ_CREATION,   /** <enum Allocate SQ contig memory */
-    NVME_PREPARE_CQ_CREATION,   /** <enum Allocate CQ contig memory */
-    NVME_RING_SQ_DOORBELL,      /** <enum Ring SQ Tail doorbell */
-    NVME_DUMP_METRICS,          /** <enum Log data from Metrics structure */
-    NVME_REAP_INQUIRY,          /** <enum Invoke Reap inquiry */
-    NVME_REAP,                  /** <enum Invoke actual reap algo */
-    NVME_GET_DRIVER_METRICS,    /** <enum return driver version */
-    NVME_METABUF_ALLOC,         /** <enym Alloc meta buffers */
-    NVME_METABUF_CREAT,         /** <enum meta buffer create */
-    NVME_METABUF_DEL,           /** <enum meta buffer delete */
-    NVME_SET_IRQ,               /** <enum Set desired IRQ scheme */
-    NVME_MASK_IRQ,              /** <enum MASK IRQ scheme */
-    NVME_UNMASK_IRQ,            /** <enum UNMASK IRQ scheme */
-    NVME_GET_DEVICE_METRICS,    /** <enum Return device metrics to user */
-    NVME_MARK_SYSLOG,           /** <enum Inject a marker in the system log */
-    // NVME_GET_BP_MEM,           /** <enum boot part kernel memory alloc */
-    // NVME_GET_BP_MEM_ADDR,      /** <enum boot part kernel memory address get */
+	NVME_READ_GENERIC = 0xB0,   /** <enum to invoke read generic func call. */
+	NVME_WRITE_GENERIC,         /** <enum to invoke write generic func call. */
+	NVME_ERR_CHK,               /** <enum Generic device status check func */
+	NVME_CREATE_ADMN_SQ,        /** <enum to invoke admin sq creation */
+	NVME_CREATE_ADMN_CQ,        /** <enum to invoke admin cq creation */
+	NVME_DEVICE_STATE,          /** <enum to enable and disable ctlr */
+	NVME_SEND_64B_CMD,          /** <enum Send 64B command */
+	NVME_TOXIC_64B_DWORD,       /** <enum Injects toxic values into cmds */
+	NVME_GET_Q_METRICS,         /** <enum to get the q metrics */
+	NVME_CREATE_ADMN_Q,         /** <enum to invoke creation of admin q's */
+	NVME_PREPARE_SQ_CREATION,   /** <enum Allocate SQ contig memory */
+	NVME_PREPARE_CQ_CREATION,   /** <enum Allocate CQ contig memory */
+	NVME_RING_SQ_DOORBELL,      /** <enum Ring SQ Tail doorbell */
+	NVME_DUMP_METRICS,          /** <enum Log data from Metrics structure */
+	NVME_REAP_INQUIRY,          /** <enum Invoke Reap inquiry */
+	NVME_REAP,                  /** <enum Invoke actual reap algo */
+	NVME_GET_DRIVER_METRICS,    /** <enum return driver version */
+	NVME_METABUF_ALLOC,         /** <enym Alloc meta buffers */
+	NVME_METABUF_CREAT,         /** <enum meta buffer create */
+	NVME_METABUF_DEL,           /** <enum meta buffer delete */
+	NVME_SET_IRQ,               /** <enum Set desired IRQ scheme */
+	NVME_MASK_IRQ,              /** <enum MASK IRQ scheme */
+	NVME_UNMASK_IRQ,            /** <enum UNMASK IRQ scheme */
+	NVME_GET_DEVICE_METRICS,    /** <enum Return device metrics to user */
+	NVME_MARK_SYSLOG,           /** <enum Inject a marker in the system log */
+	// NVME_GET_BP_MEM,           /** <enum boot part kernel memory alloc */
+	// NVME_GET_BP_MEM_ADDR,      /** <enum boot part kernel memory address get */
 };
 
 /**
