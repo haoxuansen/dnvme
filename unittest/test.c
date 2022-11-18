@@ -58,24 +58,24 @@ struct nvme_sq_info *ctrl_sq_info;
 struct nvme_ns *g_nvme_ns_info;
 
 static TestCase_t TestCaseList[] = {
-    TCD(case_register_test),
-    TCD(case_queue_admin),
-    TCD(case_queue_delete_q),
-    TCD(test_0_full_disk_wr),
-    TCD(test_2_mix_case),
-    TCD(test_3_adm_wr_cache_fua),
-    TCD(test_5_fua_wr_rd_cmp),
-    TCD(case_queue_create_q_size),
-    TCD(case_iocmd_write_read),
-    TCD(case_queue_abort),
-    TCD(case_resets_random_all),
-    TCD(case_queue_sq_cq_match),
-    TCD(case_command_arbitration),
-    TCD(case_queue_cq_int_all),
-    TCD(case_queue_cq_int_all_mask),
-    TCD(case_queue_cq_int_coalescing),
-    TCD(case_nvme_boot_partition),
-    TCD(test_6_all_ns_lbads_test),
+    TCD(case_register_test),//case_54
+    TCD(case_queue_admin),//case_52
+    TCD(case_queue_delete_q),//case_31
+    TCD(test_0_full_disk_wr),//case_55
+    TCD(test_2_mix_case),//case_57
+    TCD(test_3_adm_wr_cache_fua),//case_58
+    TCD(test_5_fua_wr_rd_cmp),//case_59
+    TCD(case_queue_create_q_size),//case_30
+    TCD(case_iocmd_write_read),//case_33
+    TCD(case_queue_abort),//case_36
+    TCD(case_resets_random_all),//case_50
+    TCD(case_queue_sq_cq_match),//case_32
+    TCD(case_command_arbitration),//case_48
+    TCD(case_queue_cq_int_all),//case_40
+    TCD(case_queue_cq_int_all_mask),//case_41
+    TCD(case_queue_cq_int_coalescing),//case_47
+    TCD(case_nvme_boot_partition),//case_53
+    TCD(test_6_all_ns_lbads_test),//case_60
 };
 
 void test_mem_alloc(void);
