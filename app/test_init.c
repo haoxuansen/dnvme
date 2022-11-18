@@ -16,7 +16,7 @@
 #include <malloc.h>
 
 #include "dnvme_interface.h"
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -142,7 +142,7 @@ void test_init(int file_desc)
 	uint8_t cqes = 0;
 	pr_info("--->[%s]\n", __FUNCTION__);
 	int ret = FAILED;
-	ret = ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+	ret = ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
 	assert(ret == SUCCEED);
 	ioctl_create_acq(file_desc, MAX_ADMIN_QUEUE_SIZE);
 	ioctl_create_asq(file_desc, MAX_ADMIN_QUEUE_SIZE);
@@ -191,7 +191,7 @@ void test_init(int file_desc)
 	pr_info("SGL support (SGLS): %#x\n", g_nvme_dev.id_ctrl.sgls);
 
 	//step1: disable control
-	ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+	ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
 	//step 2.1: configure Admin queue
 	pr_info("Init Admin cq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
 	ioctl_create_acq(file_desc, MAX_ADMIN_QUEUE_SIZE);
@@ -292,7 +292,7 @@ void test_change_init(int file_desc, uint32_t asqsz, uint32_t acqsz, enum nvme_i
 {
 	uint32_t u32_tmp_data = 0;
 	int ret = FAILED;
-	ret = ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+	ret = ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
 	assert(ret == SUCCEED);
 	ioctl_create_asq(file_desc, asqsz);
 	ioctl_create_acq(file_desc, acqsz);
@@ -305,14 +305,14 @@ void test_change_init(int file_desc, uint32_t asqsz, uint32_t acqsz, enum nvme_i
 
 void test_change_irqs(int file_desc, enum nvme_irq_type irq_type, uint16_t num_irqs)
 {
-	ioctl_disable_ctrl(file_desc, ST_DISABLE);
+	ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE);
 	set_irqs(file_desc, irq_type, num_irqs);
 	ioctl_enable_ctrl(file_desc);
 }
 
 void test_set_admn(int file_desc, uint32_t asqsz, uint32_t acqsz)
 {
-	ioctl_disable_ctrl(file_desc, ST_DISABLE);
+	ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE);
 	ioctl_create_acq(file_desc, acqsz);
 	ioctl_create_asq(file_desc, asqsz);
 	ioctl_enable_ctrl(file_desc);

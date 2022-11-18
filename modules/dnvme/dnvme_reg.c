@@ -56,7 +56,7 @@ inline u64 READQ(const volatile void __iomem *addr)
  * supports in-order access.
  */
 int read_nvme_reg_generic(u8 __iomem *bar0,
-    u8 *udata, u32 nbytes, u32 offset, enum nvme_acc_type acc_type)
+    u8 *udata, u32 nbytes, u32 offset, enum nvme_access_type acc_type)
 {
     u32 index = 0;
     u32 u32data;
@@ -70,7 +70,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
     for (index = 0; index < nbytes; ) {
 
         /* Read data from NVME space */
-        if (acc_type == BYTE_LEN) {
+        if (acc_type == NVME_ACCESS_BYTE) {
             u8data = readb(bar0);
 
             /* Copy data to user buffer. */
@@ -80,7 +80,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
             bar0 += 1;
             index += 1;
 
-        } else if (acc_type == WORD_LEN) {
+        } else if (acc_type == NVME_ACCESS_WORD) {
             u16data = readw(bar0);
 
             /* Copy data to user buffer. */
@@ -90,7 +90,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
             bar0 += 2;
             index += 2;
 
-        } else if (acc_type == DWORD_LEN) {
+        } else if (acc_type == NVME_ACCESS_DWORD) {
             u32data = readl(bar0);
 
             /* Copy data to user buffer. */
@@ -100,7 +100,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
             bar0 += 4;
             index += 4;
 
-        } else if (acc_type == QUAD_LEN) {
+        } else if (acc_type == NVME_ACCESS_QWORD) {
             u64data = READQ(bar0);
 
             /* Copy data to user buffer. */
@@ -126,7 +126,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
  * memory area which supports in-order access.
  */
 int write_nvme_reg_generic(u8 __iomem *bar0,
-    u8 *udata, u32 nbytes, u32 offset, enum nvme_acc_type acc_type)
+    u8 *udata, u32 nbytes, u32 offset, enum nvme_access_type acc_type)
 {
     u32 index = 0;
     u32 u32data;
@@ -140,7 +140,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
     for (index = 0; index < nbytes;) {
 
         /* Check the acc_type and do write as per the access type  */
-        if (acc_type == BYTE_LEN) {
+        if (acc_type == NVME_ACCESS_BYTE) {
             memcpy((u8 *)&u8data, &udata[index], sizeof(u8));
             writeb(u8data, bar0);
             pr_debug("NVME Writing BYTE at Addr:Val::0x%llX:0x%X",
@@ -149,7 +149,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
             bar0 += 1;
             index += 1;
 
-        } else if (acc_type == WORD_LEN) {
+        } else if (acc_type == NVME_ACCESS_WORD) {
             memcpy((u8 *)&u16data, &udata[index], sizeof(u16));
             writew(u16data, bar0);
             pr_debug("NVME Writing WORD at Addr:Val::0x%llX:0x%X",
@@ -158,7 +158,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
             bar0 += 2;
             index += 2;
 
-        } else if (acc_type == DWORD_LEN) {
+        } else if (acc_type == NVME_ACCESS_DWORD) {
             memcpy((u8 *)&u32data, &udata[index], sizeof(u32));
             writel(u32data, bar0);
             pr_debug("NVME Writing DWORD at Addr:Val::0x%llX:0x%X",
@@ -167,7 +167,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
             bar0 += 4;
             index += 4;
 
-        } else if (acc_type == QUAD_LEN) {
+        } else if (acc_type == NVME_ACCESS_QWORD) {
             memcpy((u8 *)&u64data, &udata[index], sizeof(u64));
             WRITEQ(u64data, bar0);
             pr_debug("NVME Writing QUAD at Addr:Val::0x%llX:0x%llX",

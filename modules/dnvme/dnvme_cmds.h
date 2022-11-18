@@ -71,7 +71,7 @@ enum data_buf_type {
  * @param gen_prp
  * @return Error Codes
  */
-int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
+int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
     *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
     struct nvme_gen_cmd *nvme_gen_cmd, u16 persist_q_id,
     enum data_buf_type data_buf_type, u8 gen_prp);
@@ -87,18 +87,11 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct metrics_sq
  * @param cmd_id
  * @return Error codes
  */
-int add_cmd_track_node(struct  metrics_sq  *pmetrics_sq,
+int add_cmd_track_node(struct  nvme_sq  *pmetrics_sq,
     u16 persist_q_id, struct nvme_prps *prps, u8 opcode, u16 cmd_id);
 
-/**
- * empty_cmd_track_list:
- * Delete command track list completley per SQ
- * @param nvme_device
- * @param pmetrics_sq
- * @return void
- */
-void empty_cmd_track_list(struct  nvme_device *nvme_device,
-    struct  metrics_sq *pmetrics_sq);
+
+void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
 
 /**
  * destroy_dma_pool:
@@ -109,13 +102,13 @@ void empty_cmd_track_list(struct  nvme_device *nvme_device,
 void destroy_dma_pool(struct nvme_device *nvme_dev);
 
 /**
- * del_prps:
+ * dnvme_delete_prps:
  * Deletes the PRP structures of SQ/CQ or command track node
  * @param nvme_device
  * @param prps
  * @return void
  */
-void del_prps(struct nvme_device *nvme_device, struct nvme_prps *prps);
+void dnvme_delete_prps(struct nvme_device *nvme_device, struct nvme_prps *prps);
 
 
 #endif

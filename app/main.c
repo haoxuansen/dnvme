@@ -21,7 +21,7 @@
 #include <sys/time.h>
 
 #include "dnvme_interface.h"
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
             break;
         case 1:
             pr_info("\nTest: Disabling the controller completely\n");
-            ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+            ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
             break;
         case 2:
             test_init(file_desc);
@@ -751,7 +751,7 @@ int main(int argc, char *argv[])
 
     /* Exit gracefully */
     pr_info("\nNow Exiting gracefully....\n");
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
     set_irqs(file_desc, INT_NONE, 0);
     test_mem_free();
     pr_info("\n\n****** END OF TEST ******\n\n");

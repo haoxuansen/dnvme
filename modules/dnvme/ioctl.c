@@ -19,18 +19,18 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/init.h>
+#include <linux/pci_regs.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
-#include <linux/unistd.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 #include "dnvme_interface.h"
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "sysfuncproto.h"
+#include "io.h"
 #include "core.h"
 #include "dnvme_sts_chk.h"
 #include "dnvme_queue.h"
@@ -39,10 +39,10 @@
 #include "dnvme_irq.h"
 
 
-int device_status_chk(struct metrics_device_list *pmetrics_device, struct device_status *dev_sts)
+int device_status_chk(struct nvme_context *pmetrics_device, struct device_status *dev_sts)
 {
-    int err;
-    u16 data;
+	int err;
+	u16 data;
 	struct device_status * user_data;
 
 	/* Allocating memory for user struct in kernel space */
@@ -55,367 +55,251 @@ int device_status_chk(struct metrics_device_list *pmetrics_device, struct device
 	}
 	memset(user_data, 0, sizeof(struct device_status));
 
-	/*---------------------------------------------------------------------------------------*/
-    /*  Read a word (16bit value) from the configuration register and pass it to user. */
-    err = pci_read_config_word( pmetrics_device->metrics_device->private_dev.pdev,
-                                PCI_DEVICE_STATUS, &data);
-    if(err<0) 
+
+	/*  Read a word (16bit value) from the configuration register and pass it to user. */
+	err = pci_read_config_word(pmetrics_device->dev->priv.pdev,
+				PCI_DEVICE_STATUS, &data);
+	if(err<0) 
 	{
-        pr_err("pci_read_config failed in driver error check");
-        goto fail_out;
-    }
+		pr_err("pci_read_config failed in driver error check");
+		goto fail_out;
+	}
 	user_data->pci_device_status = data;
 
-    /* Get the Device Status from the PCI Header. */
-    err = pci_status_chk(data);
-    if(err) 
+	/* Get the Device Status from the PCI Header. */
+	err = pci_status_chk(data);
+	if(err) 
 	{
-        pr_err("PCI Device Status FAIL (STS)");
+		pr_err("PCI Device Status FAIL (STS)");
 		goto fail_out;
-    }  
+	}  
 	
-	/*---------------------------------------------------------------------------------------*/
-    err = pcie_cap_chk(pmetrics_device->metrics_device->private_dev.pdev, &user_data->pci_cap_support,
-				       &user_data->cap_pm_ctr_st, &user_data->cap_msi_mc, &user_data->cap_msix_mc,
-					   &user_data->cap_pcie_dev_st);
-    if(err) 
+	err = pcie_cap_chk(pmetrics_device->dev->priv.pdev, &user_data->pci_cap_support,
+		&user_data->cap_pm_ctr_st, &user_data->cap_msi_mc, 
+		&user_data->cap_msix_mc, &user_data->cap_pcie_dev_st);
+	if (err) 
 	{
-        pr_err("NEXT Capability status FAIL");
+		pr_err("NEXT Capability status FAIL");
 		goto fail_out;
-    } 
+	} 
 	
-	/*---------------------------------------------------------------------------------------*/
-    err = nvme_controller_status(pmetrics_device->metrics_device->private_dev.ctrlr_regs,
-                                 &user_data->nvme_control_st);
-    if(err) 
+	err = nvme_controller_status(pmetrics_device->dev->priv.ctrlr_regs,
+		&user_data->nvme_control_st);
+	if (err) 
 	{
-        pr_err("NVME Controller Status FAIL (CSTS)");
+		pr_err("NVME Controller Status FAIL (CSTS)");
 		goto fail_out;
-    }  
-	/*---------------------------------------------------------------------------------------*/
+	}  
 	
-    if(copy_to_user(dev_sts, user_data, sizeof(struct device_status))) 
+	if(copy_to_user(dev_sts, user_data, sizeof(struct device_status))) 
 	{
-        pr_err("Unable to copy to user space");
+		pr_err("Unable to copy to user space");
 		err = -EFAULT;
 		goto fail_out;
-    }
-    return 0;
+	}
+	return 0;
 
 fail_out:
-
-    if(user_data != NULL) 
+	if(user_data != NULL) 
 	{
-        kfree(user_data);
-    }
-    return err;
+		kfree(user_data);
+	}
+	return err;
 }
 
-
-int driver_generic_read(struct rw_generic *nvme_data,
-    struct  metrics_device_list *pmetrics_device)
+/**
+ * @brief Check access offset and size is align with access type.
+ * 
+ * @return 0 if check success, otherwise a negative errno.
+ */
+int dnvme_check_access_align(struct nvme_access *access)
 {
-    u16 index;
-    int err = -EINVAL;
-    void *datap = NULL;
-    struct pci_dev *pdev;
-    struct nvme_device *nvme_dev;
-    struct rw_generic *user_data = NULL;
+	switch (access->type) {
+	case NVME_ACCESS_QWORD:
+		if ((access->bytes % 8) != 0 || (access->offset % 4) != 0) {
+			pr_err("offset(%u) shall dword-align, "
+				"bytes(%u) shall qword-align!\n", 
+				access->offset, access->bytes);
+			return -EINVAL;
+		}
+		break;
 
+	case NVME_ACCESS_DWORD:
+		if ((access->bytes % 4) != 0 || (access->offset % 4) != 0) {
+			pr_err("offset(%u) or bytes(%u) shall dword-align!\n",
+				access->offset, access->bytes);
+			return -EINVAL;
+		}
+		break;
+	
+	case NVME_ACCESS_WORD:
+		if ((access->bytes % 2) != 0 || (access->offset % 2) != 0) {
+			pr_err("offset(%u) or bytes(%u) shall word-align!\n",
+				access->offset, access->bytes);
+			return -EINVAL;
+		}
+		break;
+	
+	case NVME_ACCESS_BYTE:
+	default:
+		break;
+	}
 
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct rw_generic), GFP_KERNEL);
-    if (user_data == NULL) {
-        pr_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, nvme_data, sizeof(struct rw_generic))) {
-        pr_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
-
-    /* Allocating memory for the read in kernel space */
-    datap = kmalloc(user_data->nBytes, GFP_KERNEL | __GFP_ZERO);
-    if (datap == NULL) {
-        pr_err("Unable to allocate kernel memory");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-
-    /* get the device from the list */
-    pdev = pmetrics_device->metrics_device->private_dev.pdev;
-    nvme_dev = pmetrics_device->metrics_device;
-
-    switch (user_data->type) {
-
-    case NVMEIO_PCI_HDR:
-        pr_debug("User App request to read  the PCI Header Space");
-        pr_debug("Read request for bytes = 0x%x", user_data->nBytes);
-        pr_debug("off:acc= 0x%x:0x%2x", user_data->offset, user_data->acc_type);
-
-        for (index = 0; index < user_data->nBytes; ) {
-            pr_debug("Reading for index = 0x%x", index);
-            pr_debug("PCI Offset = 0x%x", user_data->offset + index);
-
-            if ((user_data->offset + index) > MAX_PCI_EXPRESS_CFG) {
-                pr_err("Offset is > the PCIe extended cfg space");
-                err = -EINVAL;
-                goto fail_out;
-            }
-
-            /*
-            * Check the access width and access the PCI space as per
-            * the requested width.
-            */
-            if ((user_data->acc_type == DWORD_LEN)
-                && (user_data->nBytes % 4 == 0)) {
-
-                err = pci_read_config_dword(pdev,
-                    (user_data->offset + index), (datap + index));
-                pr_debug("Reading PCI offset, data = 0x%x, 0x%x",
-                    (user_data->offset + index), *(u32 *)(datap + index));
-                index += 4;
-
-            } else if ((user_data->acc_type == WORD_LEN)
-                && (user_data->nBytes % 2 == 0)) {
-
-                err = pci_read_config_word(pdev,
-                    (user_data->offset + index), (datap + index));
-                pr_debug("Reading PCI offset, data = 0x%x, 0x%x",
-                    (user_data->offset + index), *(u16 *)(datap + index));
-                index += 2;
-
-            } else if (user_data->acc_type == BYTE_LEN) {
-                err = pci_read_config_byte(pdev,
-                    (user_data->offset + index), (datap + index));
-                pr_debug("Reading PCI offset, data = 0x%x, 0x%x",
-                    (user_data->offset + index), *(u8 *)(datap + index));
-                index++;
-
-            } else {
-                pr_err("PCI space accessed by DWORD, WORD or BYTE");
-                err = -EINVAL;
-                goto fail_out;
-            }
-
-            if (err < 0) {
-                pr_err("pci_read_config failed");
-                goto fail_out;
-            }
-        }
-        break;
-
-    case NVMEIO_BAR01:
-        if ((user_data->acc_type == DWORD_LEN) &&
-            (((user_data->nBytes % 4) != 0) ||
-            ((user_data->offset % 4) != 0))) {
-
-            pr_err("Offset must be DWORD align, nBytes must be DWORD align");
-            err = -EINVAL;
-            goto fail_out;
-        } else if ((user_data->acc_type == QUAD_LEN) &&
-            (((user_data->nBytes % 8) != 0) ||
-            ((user_data->offset % 4) != 0))) {
-
-            pr_err("Offset must be DWORD align, nBytes must be QWORD align");
-            err = -EINVAL;
-            goto fail_out;
-        } else if ((user_data->acc_type == WORD_LEN) &&
-            (((user_data->nBytes % 2) != 0) ||
-            ((user_data->offset % 2) != 0))) {
-
-            pr_err("Offset must be WORD align, nBytes must be WORD align");
-            err = -EINVAL;
-            goto fail_out;
-        }
-
-        err = read_nvme_reg_generic(nvme_dev->private_dev.bar0,
-            datap, user_data->nBytes, user_data->offset, user_data->acc_type);
-        if (err < 0) {
-            pr_err("Read NVME Space failed");
-            goto fail_out;
-        }
-        break;
-
-    default:
-        pr_debug("Could not find switch case using default");
-        err = -EINVAL;
-        goto fail_out;
-    }
-
-    if (copy_to_user(user_data->buffer, datap, user_data->nBytes)) {
-        pr_err("Unable to copy to user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
-    /* Fall through upon success is meant to be */
-
-fail_out:
-    if (datap != NULL) {
-        kfree(datap);
-    }
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    return err;
+	return 0;
 }
 
-
-int driver_generic_write(struct rw_generic *nvme_data,
-    struct  metrics_device_list *pmetrics_device)
+/**
+ * @brief Read data from NVMe device
+ * 
+ * @param ctx NVMe device context
+ * @return 0 on success, otherwise a negative errno.
+ */
+int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess)
 {
-    u16 index;
-    int err = -EINVAL;
-    void *datap = NULL;
-    struct pci_dev *pdev;
-    struct nvme_device *nvme_dev;
-    struct rw_generic *user_data = NULL;
+	int ret = 0;
+	void *buf;
+	struct nvme_access access;
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
 
+	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
+		pr_err("Failed to copy from user space!\n");
+		return -EFAULT;
+	}
 
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct rw_generic), GFP_KERNEL);
-    if (user_data == NULL) {
-        pr_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, nvme_data, sizeof(struct rw_generic))) {
-        pr_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
+	if (!access.bytes) {
+		pr_debug("Access size is zero!\n");
+		return 0;
+	}
 
-    /* Allocating memory for the data in kernel space */
-    datap = kmalloc(user_data->nBytes, GFP_KERNEL | __GFP_ZERO);
-    if (!datap) {
-        pr_err("Unable to allocate kernel memory");
-        return -ENOMEM;
-    }
+	ret = dnvme_check_access_align(&access);
+	if (ret < 0)
+		return ret;
 
-    pdev = pmetrics_device->metrics_device->private_dev.pdev;
-    nvme_dev = pmetrics_device->metrics_device;
+	buf = kzalloc(access.bytes, GFP_KERNEL);
+	if (!buf) {
+		pr_err("Failed to alloc %ubytes!\n", access.bytes);
+		return -ENOMEM;
+	}
 
-    /* Copying user space buffer to kernel memory */
-    if (copy_from_user(datap, user_data->buffer, user_data->nBytes)) {
-        pr_err("Invalid copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
+	switch (access.region) {
+	case NVME_PCI_HEADER:
+		pr_debug("READ PCI Header Space: 0x%x+0x%x\n", 
+			access.offset, access.bytes);
+		ret = dnvme_read_from_config(pdev, &access, buf);
+		if (ret < 0)
+			goto out;
+		break;
 
-    switch (user_data->type) {
+	case NVME_BAR0_BAR1:
+		pr_debug("READ NVMe BAR0~1: 0x%x+0x%x\n", 
+			access.offset, access.bytes);
+		ret = dnvme_read_from_bar(ndev->priv.bar0, &access, buf);
+		if (ret < 0)
+			goto out;
+		break;
 
-    case NVMEIO_PCI_HDR:
-        for (index = 0; index < user_data->nBytes; index++) {
+	default:
+		pr_err("Access region(%d) is unkonwn!\n", access.region);
+		ret = -EINVAL;
+		goto out;
+	}
 
-            /*
-            * write user data to pci config space at location
-            * indicated by (offset + index) as per access width.
-            */
-            if ((user_data->acc_type == DWORD_LEN)
-                && (user_data->nBytes % 4 == 0)) {
+	if (copy_to_user(access.buffer, buf, access.bytes)) {
+		pr_err("Failed to copy to user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
 
-                err = pci_write_config_dword(pdev,
-                    (user_data->offset + index), *(u32 *)(datap + index));
-                pr_debug("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (user_data->offset + index), *(u32 *)(datap + index));
-                index += 4;
+out:
+	kfree(buf);
+	return ret;
+}
 
-            } else if ((user_data->acc_type == WORD_LEN)
-                && (user_data->nBytes % 2 == 0)) {
+/**
+ * @brief Write data to NVMe device
+ * 
+ * @param ctx NVMe device context
+ * @return 0 on success, otherwise a negative errno.
+ */
+int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess)
+{
+	int ret = 0;
+	void *buf;
+	struct nvme_access access;
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
 
-                err = pci_write_config_word(pdev,
-                    (user_data->offset + index), *(u16 *)(datap + index));
-                pr_debug("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (user_data->offset + index), *(u16 *)(datap + index));
-                index += 2;
+	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
+		pr_err("Failed to copy from user space!\n");
+		return -EFAULT;
+	}
 
-            } else if (user_data->acc_type == BYTE_LEN) {
-                err = pci_write_config_byte(pdev,
-                    (user_data->offset + index), *(u8 *)(datap + index));
-                pr_debug("Writing to PCI offset, data = 0x%x, 0x%x",
-                    (user_data->offset + index), *(u8 *)(datap + index));
-                index++;
+	if (!access.bytes) {
+		pr_debug("Access size is zero!\n");
+		return 0;
+	}
 
-            } else {
-                pr_err("PCI space accessed by DWORD, WORD or BYTE");
-                err = -EINVAL;
-                goto fail_out;
-            }
+	ret = dnvme_check_access_align(&access);
+	if (ret < 0)
+		return ret;
 
-            if (err < 0) {
-                pr_err("pci_write_config failed");
-                goto fail_out;
-            }
-        }
-        break;
+	buf = kzalloc(access.bytes, GFP_KERNEL);
+	if (!buf) {
+		pr_err("Failed to alloc %ubytes!\n", access.bytes);
+		return -ENOMEM;
+	}
 
-    case NVMEIO_BAR01:
-        if ((user_data->acc_type == DWORD_LEN) &&
-            (((user_data->nBytes % 4) != 0) ||
-            ((user_data->offset % 4) != 0))) {
+	if (copy_from_user(buf, access.buffer, access.bytes)) {
+		pr_err("Failed to copy from user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
 
-            pr_err("Offset must be DWORD align, nBytes must be DWORD align");
-            err = -EINVAL;
-            goto fail_out;
-        } else if ((user_data->acc_type == QUAD_LEN) &&
-            (((user_data->nBytes % 8) != 0) ||
-            ((user_data->offset % 4) != 0))) {
+	switch (access.region) {
+	case NVME_PCI_HEADER:
+		pr_debug("WRITE PCI Header Space: 0x%x+0x%x\n",
+			access.offset, access.bytes);
+		ret = dnvme_write_to_config(pdev, &access, buf);
+		if (ret < 0)
+			goto out;
+		break;
+	
+	case NVME_BAR0_BAR1:
+		pr_debug("WRITE NVMe BAR0~1: 0x%x+0x%x\n",
+			access.offset, access.bytes);
+		ret = dnvme_write_to_bar(ndev->priv.bar0, &access, buf);
+		if (ret < 0)
+			goto out;
+		break;
 
-            pr_err("Offset must be DWORD align, nBytes must be QWORD align");
-            err = -EINVAL;
-            goto fail_out;
-        } else if ((user_data->acc_type == WORD_LEN) &&
-            (((user_data->nBytes % 2) != 0) ||
-            ((user_data->offset % 2) != 0))) {
+	default:
+		pr_err("Access region(%d) is unkonwn!\n", access.region);
+		ret = -EINVAL;
+		goto out;
+	}
 
-            pr_err("Offset must be WORD align, nBytes must be WORD align");
-            err = -EINVAL;
-            goto fail_out;
-        }
-
-        err = write_nvme_reg_generic(nvme_dev->private_dev.bar0,
-            datap, user_data->nBytes, user_data->offset, user_data->acc_type);
-        if (err < 0) {
-            pr_err("Write NVME Space failed");
-            goto fail_out;
-        }
-        break;
-
-    default:
-        pr_debug("Could not find switch case using default");
-        err = -EINVAL;
-        break;
-    }
-    /* Fall through upon success is meant to be */
-
-fail_out:
-    if (datap != NULL) {
-        kfree(datap);
-    }
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    return err;
+out:
+	kfree(buf);
+	return ret;
 }
 
 
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-    struct metrics_device_list *pmetrics_device)
+    struct nvme_context *pmetrics_device)
 {
     int err = -EINVAL;
     u8 admn_id = 0;         /* Always admin ID is 0 */
-    struct metrics_sq *pmetrics_sq_list = NULL; /* SQ linked list     */
-    struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
+    struct nvme_sq *pmetrics_sq_list = NULL; /* SQ linked list     */
+    struct nvme_device *pnvme_dev = pmetrics_device->dev;
 
 
-    if (readl(&pnvme_dev->private_dev.ctrlr_regs->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->priv.ctrlr_regs->cc) & NVME_CC_ENABLE) {
         pr_err("Device enable bit is set already");
         goto fail_out;  /* use invalid return code */
     }
 
-    pr_debug("Searching for node in the sq_list_hd");
+    pr_debug("Searching for node in the sq_entry");
     err = identify_unique(admn_id, METRICS_SQ, pmetrics_device);
     if (err != 0) {
         pr_err("ASQ already exists");
@@ -423,25 +307,25 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     }
 
     pr_debug("Alloc mem for a ASQ node");
-    pmetrics_sq_list = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
+    pmetrics_sq_list = kmalloc(sizeof(struct nvme_sq), GFP_KERNEL);
     if (pmetrics_sq_list == NULL) {
         pr_err("failed mem alloc in ASQ creation.");
         err = -ENOMEM;
         goto fail_out;
     }
-    memset(pmetrics_sq_list, 0, sizeof(struct metrics_sq));
+    memset(pmetrics_sq_list, 0, sizeof(struct nvme_sq));
 
     /* Set Admin Q Id. */
-    pmetrics_sq_list->public_sq.sq_id = admn_id;
-    pmetrics_sq_list->public_sq.elements = create_admn_q->elements;
+    pmetrics_sq_list->pub.sq_id = admn_id;
+    pmetrics_sq_list->pub.elements = create_admn_q->elements;
     /* Admin SQ is always associated with Admin CQ. */
-    pmetrics_sq_list->public_sq.cq_id = admn_id;
+    pmetrics_sq_list->pub.cq_id = admn_id;
 
     /* Adding Command Tracking list */
-    INIT_LIST_HEAD(&(pmetrics_sq_list->private_sq.cmd_track_list));
+    INIT_LIST_HEAD(&(pmetrics_sq_list->priv.cmd_list));
 
     /* Call dma allocation, creation of contiguous memory for ASQ */
-    err = create_admn_sq(pnvme_dev, pmetrics_sq_list->public_sq.elements,
+    err = create_admn_sq(pnvme_dev, pmetrics_sq_list->pub.elements,
         pmetrics_sq_list);
     if (err != 0) {
         pr_err("Failed Admin Q creation!!");
@@ -449,8 +333,8 @@ int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     }
 
     pr_debug("Adding node for ASQ to the list.");
-    list_add_tail(&pmetrics_sq_list->sq_list_hd,
-        &pmetrics_device->metrics_sq_list);
+    list_add_tail(&pmetrics_sq_list->sq_entry,
+        &pmetrics_device->sq_list);
     return err;
 
 fail_out:
@@ -462,20 +346,20 @@ fail_out:
 
 
 int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-    struct metrics_device_list *pmetrics_device)
+    struct nvme_context *pmetrics_device)
 {
     int err = -EINVAL;
     u8 admn_id = 0;         /* Always Admin ID is zero. */
-    struct metrics_cq *pmetrics_cq_list = NULL; /* CQ linked list */
-    struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
+    struct nvme_cq *pmetrics_cq_list = NULL; /* CQ linked list */
+    struct nvme_device *pnvme_dev = pmetrics_device->dev;
 
 
-    if (readl(&pnvme_dev->private_dev.ctrlr_regs->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->priv.ctrlr_regs->cc) & NVME_CC_ENABLE) {
         pr_err("Device enable bit is set already");
         goto fail_out;  /* use invalid return code */
     }
 
-    pr_debug("Searching for node in the cq_list_hd");
+    pr_debug("Searching for node in the cq_entry");
     err = identify_unique(admn_id, METRICS_CQ, pmetrics_device);
     if (err != 0) {
         pr_err("ACQ already exists");
@@ -483,22 +367,22 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     }
 
     pr_debug("Alloc mem for a ACQ node");
-    pmetrics_cq_list = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
+    pmetrics_cq_list = kmalloc(sizeof(struct nvme_cq), GFP_KERNEL);
     if (pmetrics_cq_list == NULL) {
         pr_err("failed mem alloc in ACQ creation.");
         err = -ENOMEM;
         goto fail_out;
     }
-    memset(pmetrics_cq_list, 0, sizeof(struct metrics_cq));
+    memset(pmetrics_cq_list, 0, sizeof(struct nvme_cq));
 
     /* Set Admin CQ Id. */
-    pmetrics_cq_list->public_cq.q_id = admn_id;
-    pmetrics_cq_list->public_cq.elements = create_admn_q->elements;
-    pmetrics_cq_list->public_cq.irq_no = 0;
-    pmetrics_cq_list->public_cq.irq_enabled = 1;
+    pmetrics_cq_list->pub.q_id = admn_id;
+    pmetrics_cq_list->pub.elements = create_admn_q->elements;
+    pmetrics_cq_list->pub.irq_no = 0;
+    pmetrics_cq_list->pub.irq_enabled = 1;
 
     /* Call dma allocation, creation of contiguous memory for ACQ */
-    err = create_admn_cq(pnvme_dev, pmetrics_cq_list->public_cq.elements,
+    err = create_admn_cq(pnvme_dev, pmetrics_cq_list->pub.elements,
         pmetrics_cq_list);
     if (err != 0) {
         pr_err("Admin CQ creation failed!!");
@@ -506,11 +390,11 @@ int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
     }
 
     /* Set the pbit_new_entry value */
-    pmetrics_cq_list->public_cq.pbit_new_entry = 1;
+    pmetrics_cq_list->pub.pbit_new_entry = 1;
 
     pr_debug("Adding node for ACQ to the list.");
-    list_add_tail(&pmetrics_cq_list->cq_list_hd,
-        &pmetrics_device->metrics_cq_list);
+    list_add_tail(&pmetrics_cq_list->cq_entry,
+        &pmetrics_device->cq_list);
     return err;
 
 fail_out:
@@ -523,41 +407,41 @@ fail_out:
 
 int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
     void __iomem *bar1, void __iomem *bar2,
-    struct metrics_device_list *pmetrics_device_list)
+    struct nvme_context *pmetrics_device_list)
 {
     int err;
 
-    pmetrics_device_list->metrics_device =
+    pmetrics_device_list->dev =
         kmalloc(sizeof(struct nvme_device), GFP_KERNEL);
-    if (pmetrics_device_list->metrics_device == NULL) {
+    if (pmetrics_device_list->dev == NULL) {
         pr_err("Failed alloc of devel level metric storage area");
         err = -ENOMEM;
         goto fail_out;
     }
 
     /* Init linked lists for this device. */
-    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_sq_list));
-    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_cq_list));
-    INIT_LIST_HEAD(&(pmetrics_device_list->metrics_meta.meta_trk_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->sq_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->cq_list));
+    INIT_LIST_HEAD(&(pmetrics_device_list->meta_set.meta_list));
     INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
     INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.wrk_item_list));
 
     mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
-    pmetrics_device_list->metrics_device->private_dev.pdev = pdev;
-    pmetrics_device_list->metrics_device->private_dev.bar0 = bar0;
-    pmetrics_device_list->metrics_device->private_dev.bar1 = bar1;
-    pmetrics_device_list->metrics_device->private_dev.bar2 = bar2;
-    pmetrics_device_list->metrics_device->private_dev.ctrlr_regs = bar0;
-    pmetrics_device_list->metrics_device->private_dev.dmadev =
-        &pmetrics_device_list->metrics_device->private_dev.pdev->dev;
+    pmetrics_device_list->dev->priv.pdev = pdev;
+    pmetrics_device_list->dev->priv.bar0 = bar0;
+    pmetrics_device_list->dev->priv.bar1 = bar1;
+    pmetrics_device_list->dev->priv.bar2 = bar2;
+    pmetrics_device_list->dev->priv.ctrlr_regs = bar0;
+    pmetrics_device_list->dev->priv.dmadev =
+        &pmetrics_device_list->dev->priv.pdev->dev;
 
     /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->metrics_meta.meta_dmapool_ptr = NULL;
-    pmetrics_device_list->metrics_device->private_dev.prp_page_pool =
+    pmetrics_device_list->meta_set.pool = NULL;
+    pmetrics_device_list->dev->priv.prp_page_pool =
         dma_pool_create("prp page",
-        &pmetrics_device_list->metrics_device->private_dev.pdev->dev,
+        &pmetrics_device_list->dev->priv.pdev->dev,
         PAGE_SIZE, PAGE_SIZE, 0);
-    if (pmetrics_device_list->metrics_device->private_dev.prp_page_pool ==
+    if (pmetrics_device_list->dev->priv.prp_page_pool ==
         NULL) {
 
         pr_err("Creating DMA Pool failed");
@@ -577,14 +461,14 @@ int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
     return 0;
 
 fail_out:
-    if (pmetrics_device_list->metrics_device != NULL) {
-        kfree(pmetrics_device_list->metrics_device);
+    if (pmetrics_device_list->dev != NULL) {
+        kfree(pmetrics_device_list->dev);
     }
-    if (pmetrics_device_list->metrics_device->private_dev.prp_page_pool !=
+    if (pmetrics_device_list->dev->priv.prp_page_pool !=
         NULL) {
 
         dma_pool_destroy(
-            pmetrics_device_list->metrics_device->private_dev.prp_page_pool);
+            pmetrics_device_list->dev->priv.prp_page_pool);
     }
     return err;
 }
@@ -594,12 +478,12 @@ fail_out:
  * Allocate a dma pool for the requested size. Initialize the DMA pool pointer
  * with DWORD alignment and associate it with the active device.
  */
-int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
+int metabuff_create(struct nvme_context *pmetrics_device_elem,
     u32 alloc_size)
 {
     /* First Check if the meta pool already exists */
-    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr != NULL) {
-        if (alloc_size == pmetrics_device_elem->metrics_meta.meta_buf_size) {
+    if (pmetrics_device_elem->meta_set.pool != NULL) {
+        if (alloc_size == pmetrics_device_elem->meta_set.buf_size) {
             return 0;
         }
         pr_err("Meta Pool already exists, of a different size");
@@ -607,15 +491,15 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
     }
 
     /* Create coherent DMA mapping for meta data buffer creation */
-    pmetrics_device_elem->metrics_meta.meta_dmapool_ptr = dma_pool_create
-        ("meta_buff", &pmetrics_device_elem->metrics_device->
-        private_dev.pdev->dev, alloc_size, sizeof(u32), 0);
-    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
+    pmetrics_device_elem->meta_set.pool = dma_pool_create
+        ("meta_buff", &pmetrics_device_elem->dev->
+        priv.pdev->dev, alloc_size, sizeof(u32), 0);
+    if (pmetrics_device_elem->meta_set.pool == NULL) {
         pr_err("Creation of DMA Pool failed size = 0x%08X", alloc_size);
         return -ENOMEM;
     }
 
-    pmetrics_device_elem->metrics_meta.meta_buf_size = alloc_size;
+    pmetrics_device_elem->meta_set.buf_size = alloc_size;
     return 0;
 }
 
@@ -625,28 +509,28 @@ int metabuff_create(struct metrics_device_list *pmetrics_device_elem,
  * dma memory from the meta dma pool. Add this node into the meta data
  * linked list.
  */
-int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
-    u32 meta_id)
+int metabuff_alloc(struct nvme_context *pmetrics_device_elem,
+    u32 id)
 {
-    struct metrics_meta *pmeta_data = NULL;
+    struct nvme_meta *pmeta_data = NULL;
     int err = 0;
 
 
     /* Check if parameters passed to this function are valid */
-    if (pmetrics_device_elem->metrics_meta.meta_dmapool_ptr == NULL) {
+    if (pmetrics_device_elem->meta_set.pool == NULL) {
         pr_info("Call to Create the meta data pool first...");
         pr_err("Meta data pool is not created");
         return -EINVAL;
     }
 
-    pmeta_data = find_meta_node(pmetrics_device_elem, meta_id);
+    pmeta_data = dnvme_find_meta(pmetrics_device_elem, id);
     if (pmeta_data != NULL) {
-        pr_err("Meta ID = %d already exists", pmeta_data->meta_id);
+        pr_err("Meta ID = %d already exists", pmeta_data->id);
         return -EINVAL;
     }
 
-    /* Allocate memory to metrics_meta for each node */
-    pmeta_data = kmalloc(sizeof(struct metrics_meta), GFP_KERNEL);
+    /* Allocate memory to meta_set for each node */
+    pmeta_data = kmalloc(sizeof(struct nvme_meta), GFP_KERNEL);
     if (pmeta_data == NULL) {
         pr_err("Allocation to contain meta data node failed");
         err = -ENOMEM;
@@ -654,18 +538,18 @@ int metabuff_alloc(struct metrics_device_list *pmetrics_device_elem,
     }
 
     /* Allocate DMA memory for the meta data buffer */
-    pmeta_data->meta_id = meta_id;
-    pmeta_data->vir_kern_addr = dma_pool_alloc(pmetrics_device_elem->
-        metrics_meta.meta_dmapool_ptr, GFP_ATOMIC, &pmeta_data->meta_dma_addr);
-    if (pmeta_data->vir_kern_addr == NULL) {
+    pmeta_data->id = id;
+    pmeta_data->buf = dma_pool_alloc(pmetrics_device_elem->
+        meta_set.pool, GFP_ATOMIC, &pmeta_data->dma);
+    if (pmeta_data->buf == NULL) {
         pr_err("Allocation for meta data buffer failed");
         err = -ENOMEM;
         goto fail_out;
     }
 
     /* Add the meta data node into the linked list */
-    list_add_tail(&pmeta_data->meta_list_hd, &pmetrics_device_elem->
-        metrics_meta.meta_trk_list);
+    list_add_tail(&pmeta_data->entry, &pmetrics_device_elem->
+        meta_set.meta_list);
     return err;
 
 fail_out:
@@ -681,32 +565,32 @@ fail_out:
  * First Free the dma pool allocated memory then delete the entry from the
  * linked list and finally free the node memory from the kernel.
  */
-int metabuff_del(struct metrics_device_list *pmetrics_device,
-    u32 meta_id)
+int metabuff_del(struct nvme_context *pmetrics_device,
+    u32 id)
 {
-    struct metrics_meta *pmeta_data;
+    struct nvme_meta *pmeta_data;
 
     /* Check if invalid parameters are passed */
-    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
+    if (pmetrics_device->meta_set.pool == NULL) {
         pr_err("Meta data pool is not created, nothing to delete");
         return -EINVAL;
     }
 
     /* Check if meta node id exists */
-    pmeta_data = find_meta_node(pmetrics_device, meta_id);
+    pmeta_data = dnvme_find_meta(pmetrics_device, id);
     if (pmeta_data == NULL) {
         pr_debug("Meta ID does not exists, it is already deleted");
         return 0;
     }
 
     /* Free the DMA memory if exists */
-    if (pmeta_data->vir_kern_addr != NULL) {
-        dma_pool_free(pmetrics_device->metrics_meta.meta_dmapool_ptr,
-            pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
+    if (pmeta_data->buf != NULL) {
+        dma_pool_free(pmetrics_device->meta_set.pool,
+            pmeta_data->buf, pmeta_data->dma);
     }
 
     /* Remove from the linked list and free the node */
-    list_del(&pmeta_data->meta_list_hd);
+    list_del(&pmeta_data->entry);
     kfree(pmeta_data);
     return 0;
 }
@@ -715,49 +599,49 @@ int metabuff_del(struct metrics_device_list *pmetrics_device,
  * deallocate_mb - This function will start freeing up the memory and
  * nodes for the meta buffers allocated during the alloc and create meta.
  */
-void deallocate_mb(struct metrics_device_list *pmetrics_device)
+void deallocate_mb(struct nvme_context *pmetrics_device)
 {
-    struct metrics_meta *pmeta_data = NULL;
-    struct metrics_meta *pmeta_data_next = NULL;
+    struct nvme_meta *pmeta_data = NULL;
+    struct nvme_meta *pmeta_data_next = NULL;
 
     /* do not assume the node exists always */
-    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
+    if (pmetrics_device->meta_set.pool == NULL) {
         pr_debug("Meta node is not allocated..");
         return;
     }
     /* Loop for each meta data node */
     list_for_each_entry_safe(pmeta_data, pmeta_data_next,
-        &(pmetrics_device->metrics_meta.meta_trk_list), meta_list_hd) {
+        &(pmetrics_device->meta_set.meta_list), entry) {
 
         /* free the dma memory if exists */
-        if (pmeta_data->vir_kern_addr != NULL) {
-            dma_pool_free(pmetrics_device->metrics_meta.meta_dmapool_ptr,
-                pmeta_data->vir_kern_addr, pmeta_data->meta_dma_addr);
+        if (pmeta_data->buf != NULL) {
+            dma_pool_free(pmetrics_device->meta_set.pool,
+                pmeta_data->buf, pmeta_data->dma);
         }
         /* Remove from the linked list and free the node */
-        list_del(&pmeta_data->meta_list_hd);
+        list_del(&pmeta_data->entry);
         kfree(pmeta_data);
     }
 
     /* check if it has dma pool created then destroy */
-    if (pmetrics_device->metrics_meta.meta_dmapool_ptr != NULL) {
-        dma_pool_destroy(pmetrics_device->metrics_meta.meta_dmapool_ptr);
-        pmetrics_device->metrics_meta.meta_dmapool_ptr = NULL;
+    if (pmetrics_device->meta_set.pool != NULL) {
+        dma_pool_destroy(pmetrics_device->meta_set.pool);
+        pmetrics_device->meta_set.pool = NULL;
     }
-    pmetrics_device->metrics_meta.meta_buf_size = 0;
+    pmetrics_device->meta_set.buf_size = 0;
 
     /* Prepare a clean list, empty, ready for next use */
-    INIT_LIST_HEAD(&pmetrics_device->metrics_meta.meta_trk_list);
+    INIT_LIST_HEAD(&pmetrics_device->meta_set.meta_list);
 }
 
 
-int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
+int driver_toxic_dword(struct nvme_context *pmetrics_device,
     struct backdoor_inject *err_inject)
 {
     int err = -EINVAL;
     u32 *tgt_dword;                     /* DWORD which needs updating */
     u32 entry_size = 64;                /* Assumption is for ASQ */
-    struct metrics_sq *pmetrics_sq;     /* Ptr to specific SQ of interest */
+    struct nvme_sq *pmetrics_sq;     /* Ptr to specific SQ of interest */
     struct backdoor_inject *user_data = NULL;
 #ifdef DEBUG
     int i;
@@ -777,7 +661,7 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
     }
 
     /* Get the required SQ for which command should be modified */
-    pmetrics_sq = find_sq(pmetrics_device, user_data->q_id);
+    pmetrics_sq = dnvme_find_sq(pmetrics_device, user_data->q_id);
     if (pmetrics_sq == NULL) {
         pr_err("SQ ID = %d does not exist", user_data->q_id);
         err = -EPERM;
@@ -785,18 +669,18 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
     }
 
     /* If this SQ is an IOSQ, not ASQ, then lookup the element size */
-    if (pmetrics_sq->public_sq.sq_id != 0) {
-        entry_size = (pmetrics_sq->private_sq.size /
-            pmetrics_sq->public_sq.elements);
+    if (pmetrics_sq->pub.sq_id != 0) {
+        entry_size = (pmetrics_sq->priv.size /
+            pmetrics_sq->pub.elements);
     }
 
     /* The cmd for which is being updated, better not have rung its doorbell */
-    if (pmetrics_sq->public_sq.tail_ptr_virt <
-        pmetrics_sq->public_sq.tail_ptr) {
+    if (pmetrics_sq->pub.tail_ptr_virt <
+        pmetrics_sq->pub.tail_ptr) {
 
         // Handle wrapping state of the SQ
-        if ((user_data->cmd_ptr < pmetrics_sq->public_sq.tail_ptr) &&
-            (user_data->cmd_ptr >= pmetrics_sq->public_sq.tail_ptr_virt)) {
+        if ((user_data->cmd_ptr < pmetrics_sq->pub.tail_ptr) &&
+            (user_data->cmd_ptr >= pmetrics_sq->pub.tail_ptr_virt)) {
 
             pr_err("Already rung doorbell for cmd idx = %d",
                 user_data->cmd_ptr);
@@ -805,7 +689,7 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
             }
 
     } else { // no wrap condition
-        if (user_data->cmd_ptr < pmetrics_sq->public_sq.tail_ptr) {
+        if (user_data->cmd_ptr < pmetrics_sq->pub.tail_ptr) {
             pr_err("Already rung doorbell for cmd idx = %d",
                 user_data->cmd_ptr);
             err = -EINVAL;
@@ -814,9 +698,9 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
     }
 
     /* Validate requirement: [0 -> (CreateIOSQ.DW10.SIZE-1)] */
-    if (user_data->cmd_ptr >= pmetrics_sq->public_sq.elements) {
+    if (user_data->cmd_ptr >= pmetrics_sq->pub.elements) {
         pr_err("SQ ID %d contains only %d elements",
-            pmetrics_sq->public_sq.sq_id, pmetrics_sq->public_sq.elements);
+            pmetrics_sq->pub.sq_id, pmetrics_sq->pub.elements);
         err = -EPERM;
         goto fail_out;
     }
@@ -824,21 +708,21 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
     /* Validate requirement: [0 -> (CC.IOSQES-1)] */
     if (user_data->dword >= entry_size) {
         pr_err("SQ ID %d elements are only of size %d bytes",
-            pmetrics_sq->public_sq.sq_id, entry_size);
+            pmetrics_sq->pub.sq_id, entry_size);
         err = -EPERM;
         goto fail_out;
     }
 
     /* Inject the requested bit values into the appropriate place */
-    if (pmetrics_sq->private_sq.contig) {
+    if (pmetrics_sq->priv.contig) {
 #ifdef DEBUG
         for (i = 0; i < entry_size; i += sizeof(u32)) {
             pr_debug("B4 cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
-                *((u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
+                *((u32 *)(pmetrics_sq->priv.buf +
                 (user_data->cmd_ptr * entry_size) + i)));
         }
 #endif
-        tgt_dword = (u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
+        tgt_dword = (u32 *)(pmetrics_sq->priv.buf +
             (user_data->cmd_ptr * entry_size) +
             (user_data->dword * sizeof(u32)));
         pr_debug("B4 tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
@@ -848,7 +732,7 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
 #ifdef DEBUG
         for (i = 0; i < entry_size; i += sizeof(u32)) {
             pr_debug("After cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
-                *((u32 *)(pmetrics_sq->private_sq.vir_kern_addr +
+                *((u32 *)(pmetrics_sq->priv.buf +
                 (user_data->cmd_ptr * entry_size) + i)));
         }
 #endif
@@ -856,11 +740,11 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
 #ifdef DEBUG
         for (i = 0; i < entry_size; i += sizeof(u32)) {
             pr_debug("B4 cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
-                *((u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
+                *((u32 *)(pmetrics_sq->priv.prp_persist.buf +
                 (user_data->cmd_ptr * entry_size) + i)));
         }
 #endif
-        tgt_dword = (u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
+        tgt_dword = (u32 *)(pmetrics_sq->priv.prp_persist.buf +
             (user_data->cmd_ptr * entry_size) +
             (user_data->dword * sizeof(u32)));
         pr_debug("B4 tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
@@ -868,15 +752,15 @@ int driver_toxic_dword(struct metrics_device_list *pmetrics_device,
         *tgt_dword |= (user_data->value & user_data->value_mask);
         pr_debug("After tgt_DW%d = 0x%08X", user_data->dword, *tgt_dword);
 
-        dma_sync_sg_for_device(pmetrics_device->metrics_device->
-            private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg,
-            pmetrics_sq->private_sq.prp_persist.num_map_pgs,
-            pmetrics_sq->private_sq.prp_persist.data_dir);
+        dma_sync_sg_for_device(pmetrics_device->dev->
+            priv.dmadev, pmetrics_sq->priv.prp_persist.sg,
+            pmetrics_sq->priv.prp_persist.num_map_pgs,
+            pmetrics_sq->priv.prp_persist.data_dir);
 
 #ifdef DEBUG
         for (i = 0; i < entry_size; i += sizeof(u32)) {
             pr_debug("After cmd DW%d = 0x%08X", (int)(i / sizeof(u32)),
-                *((u32 *)(pmetrics_sq->private_sq.prp_persist.vir_kern_addr +
+                *((u32 *)(pmetrics_sq->priv.prp_persist.buf +
                 (user_data->cmd_ptr * entry_size) + i)));
         }
 #endif
@@ -893,19 +777,19 @@ fail_out:
 }
 
 
-int driver_send_64b(struct metrics_device_list *pmetrics_device,
+int driver_send_64b(struct nvme_context *pmetrics_device,
     struct nvme_64b_send *cmd_request)
 {
     int err = -EINVAL;
     u32 cmd_buf_size = 0;
     /* Particular SQ from linked list of SQ's for device */
-    struct metrics_sq *pmetrics_sq;
+    struct nvme_sq *pmetrics_sq;
     /* SQ represented by the CMD.QID */
-    struct metrics_sq *p_cmd_sq;
+    struct nvme_sq *p_cmd_sq;
     /* Particular CQ (within CMD) from linked list of Q's for device */
-    struct metrics_cq *p_cmd_cq;
+    struct nvme_cq *p_cmd_cq;
     /* struct describing the meta buf */
-    struct metrics_meta *meta_buf;
+    struct nvme_meta *meta_buf;
     /* Kernel space memory for passed in command */
     void *nvme_cmd_ker = NULL;
     /* Pointer to passed in command DW0-DW9 */
@@ -948,7 +832,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     }
 
     /* Get the required SQ through which command should be sent */
-    pmetrics_sq = find_sq(pmetrics_device, user_data->q_id);
+    pmetrics_sq = dnvme_find_sq(pmetrics_device, user_data->q_id);
     if (pmetrics_sq == NULL) {
         pr_err("SQ ID = %d does not exist", user_data->q_id);
         err = -EPERM;
@@ -956,12 +840,12 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     }
     /* Learn the command size */
     cmd_buf_size =
-        (pmetrics_sq->private_sq.size / pmetrics_sq->public_sq.elements);
+        (pmetrics_sq->priv.size / pmetrics_sq->pub.elements);
 
     /* Check for SQ is full */
-    if ((((u32)pmetrics_sq->public_sq.tail_ptr_virt + 1UL) %
-        pmetrics_sq->public_sq.elements) ==
-        (u32)pmetrics_sq->public_sq.head_ptr) {
+    if ((((u32)pmetrics_sq->pub.tail_ptr_virt + 1UL) %
+        pmetrics_sq->pub.elements) ==
+        (u32)pmetrics_sq->pub.head_ptr) {
 
         pr_err("SQ is full");
         err = -EPERM;
@@ -985,7 +869,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     memset(&prps, 0, sizeof(prps));
 
     /* Copy and Increment the CMD ID, copy back to user space so can see ID */
-    user_data->unique_id = pmetrics_sq->private_sq.unique_cmd_id++;
+    user_data->unique_id = pmetrics_sq->priv.unique_cmd_id++;
     //2021/05/15 meng_yu https://github.com/nvmecompliance/dnvme/issues/7
     nvme_gen_cmd->command_id = user_data->unique_id; 
     if (copy_to_user(cmd_request, user_data, sizeof(struct nvme_64b_send))) {
@@ -996,14 +880,14 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
 
     /* Handling meta buffer */
     if (user_data->bit_mask & MASK_MPTR) {
-        meta_buf = find_meta_node(pmetrics_device, user_data->meta_buf_id);
+        meta_buf = dnvme_find_meta(pmetrics_device, user_data->meta_buf_id);
         if (NULL == meta_buf) {
             pr_err("Meta Buff ID not found");
             err = -EINVAL;
             goto fail_out;
         }
         /* Add the required information to the command */
-        nvme_gen_cmd->metadata = cpu_to_le64(meta_buf->meta_dma_addr);
+        nvme_gen_cmd->metadata = cpu_to_le64(meta_buf->dma);
         pr_debug("Metadata address: 0x%llx", nvme_gen_cmd->metadata);
     }
 
@@ -1013,10 +897,10 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
 
         /* Get the required SQ from the global linked list from CMD.DW10.QID */
-        list_for_each_entry(p_cmd_sq, &pmetrics_device->metrics_sq_list,
-            sq_list_hd) {
-            if (nvme_create_sq->sqid == p_cmd_sq->public_sq.sq_id) {
-                q_ptr = (struct  metrics_sq  *)p_cmd_sq;
+        list_for_each_entry(p_cmd_sq, &pmetrics_device->sq_list,
+            sq_entry) {
+            if (nvme_create_sq->sqid == p_cmd_sq->pub.sq_id) {
+                q_ptr = (struct  nvme_sq  *)p_cmd_sq;
                 break;
             }
         }
@@ -1027,31 +911,31 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         }
 
         /* Sanity Checks */
-        if( ((nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->private_sq.contig == 0)) ||
-            (!(nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->private_sq.contig != 0)) ) 
+        if( ((nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->priv.contig == 0)) ||
+            (!(nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->priv.contig != 0)) ) 
         {
             pr_err("Sanity Checks:sq_flags Contig flag out of sync with what cmd states for SQ");
             goto fail_out;
         } 
-		else if( (p_cmd_sq->private_sq.contig == 0 && user_data->data_buf_ptr == NULL) ||
-                 (p_cmd_sq->private_sq.contig != 0 && p_cmd_sq->private_sq.vir_kern_addr == NULL) ) 
+		else if( (p_cmd_sq->priv.contig == 0 && user_data->data_buf_ptr == NULL) ||
+                 (p_cmd_sq->priv.contig != 0 && p_cmd_sq->priv.buf == NULL) ) 
         {
             pr_err("Sanity Checks:buf_ptr Contig flag out of sync with what cmd states for SQ");
             goto fail_out;
-        } else if ((p_cmd_sq->private_sq.bit_mask & UNIQUE_QID_FLAG) == 0) {
+        } else if ((p_cmd_sq->priv.bit_mask & UNIQUE_QID_FLAG) == 0) {
             /* Avoid duplicate Queue creation */
             pr_err("Required Queue already created!");
             err = -EINVAL;
             goto fail_out;
         }
 
-        if (p_cmd_sq->private_sq.contig == 0) {
+        if (p_cmd_sq->priv.contig == 0) {
             /* Creation of Discontiguous IO SQ */
-            if (p_cmd_sq->private_sq.size != user_data->data_buf_size) {
+            if (p_cmd_sq->priv.size != user_data->data_buf_size) {
                 pr_err("Contig flag out of sync with what cmd states for SQ");
                 goto fail_out;
             }
-            err = prep_send64b_cmd(pmetrics_device->metrics_device,
+            err = prep_send64b_cmd(pmetrics_device->dev,
                 pmetrics_sq, user_data, &prps, nvme_gen_cmd,
                 nvme_create_sq->sqid, DISCONTG_IO_Q, PRP_PRESENT);
             if (err < 0) {
@@ -1060,22 +944,22 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             }
         } else {
             /* Contig IOSQ creation */
-            err = prep_send64b_cmd(pmetrics_device->metrics_device,
+            err = prep_send64b_cmd(pmetrics_device->dev,
                 pmetrics_sq, user_data, &prps, nvme_gen_cmd,
                 nvme_create_sq->sqid, CONTG_IO_Q, PRP_ABSENT);
             if (err < 0) {
                 pr_err("Failure to prepare 64 byte command");
                 goto fail_out;
             }
-            nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_sq->private_sq.sq_dma_addr);
+            nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_sq->priv.sq_dma_addr);
         }
 		
         /* Fill the persistent entry structure */
-        memcpy(&p_cmd_sq->private_sq.prp_persist, &prps, sizeof(prps));
+        memcpy(&p_cmd_sq->priv.prp_persist, &prps, sizeof(prps));
 
         /* Resetting the unique QID bitmask flag */
-        p_cmd_sq->private_sq.bit_mask =
-            (p_cmd_sq->private_sq.bit_mask & ~UNIQUE_QID_FLAG);
+        p_cmd_sq->priv.bit_mask =
+            (p_cmd_sq->priv.bit_mask & ~UNIQUE_QID_FLAG);
 
     } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x05)) {
         /* Create IOCQ command */
@@ -1083,11 +967,11 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
 
         /* Get the required CQ from the global linked list
          * represented by CMD.DW10.QID */
-        list_for_each_entry(p_cmd_cq, &pmetrics_device->metrics_cq_list,
-            cq_list_hd) {
+        list_for_each_entry(p_cmd_cq, &pmetrics_device->cq_list,
+            cq_entry) {
 
-            if (nvme_create_cq->cqid == p_cmd_cq->public_cq.q_id) {
-                q_ptr = (struct  metrics_cq  *)p_cmd_cq;
+            if (nvme_create_cq->cqid == p_cmd_cq->pub.q_id) {
+                q_ptr = (struct  nvme_cq  *)p_cmd_cq;
                 break;
             }
         }
@@ -1098,18 +982,18 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         }
 
         /* Sanity Checks */
-        if( ((nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->private_cq.contig == 0)) || 
-			(!(nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->private_cq.contig != 0)) ) 
+        if( ((nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->priv.contig == 0)) || 
+			(!(nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->priv.contig != 0)) ) 
 		{
             pr_err("Sanity Checks:cq_flags Contig flag out of sync with what cmd states for CQ");
             goto fail_out;
         } 
-		else if( (p_cmd_cq->private_cq.contig==0 && user_data->data_buf_ptr==NULL) ||
-                 (p_cmd_cq->private_cq.contig != 0 && p_cmd_cq->private_cq.vir_kern_addr==NULL) ) 
+		else if( (p_cmd_cq->priv.contig==0 && user_data->data_buf_ptr==NULL) ||
+                 (p_cmd_cq->priv.contig != 0 && p_cmd_cq->priv.buf==NULL) ) 
         {
             pr_err("Sanity Checks:buf_ptr Contig flag out of sync with what cmd states for CQ");
             goto fail_out;
-        } else if ((p_cmd_cq->private_cq.bit_mask & UNIQUE_QID_FLAG) == 0) {
+        } else if ((p_cmd_cq->priv.bit_mask & UNIQUE_QID_FLAG) == 0) {
             /* Avoid duplicate Queue creation */
             pr_err("Required Queue already created!");
             err = -EINVAL;
@@ -1119,7 +1003,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
         /* Check if interrupts should be enabled for IO CQ */
         if (nvme_create_cq->cq_flags & CDW11_IEN) {
             /* Check the Interrupt scheme set up */
-            if (pmetrics_device->metrics_device->public_dev.irq_active.irq_type
+            if (pmetrics_device->dev->pub.irq_active.irq_type
                 == INT_NONE) {
                 pr_err("Interrupt scheme and Create IOCQ cmd out of sync");
                 err = -EINVAL;
@@ -1127,17 +1011,17 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             }
         }
 
-        if(p_cmd_cq->private_cq.contig == 0)  				// Discontig IOCQ creation 
+        if(p_cmd_cq->priv.contig == 0)  				// Discontig IOCQ creation 
 		{
-            if(p_cmd_cq->private_cq.size != user_data->data_buf_size) 
+            if(p_cmd_cq->priv.size != user_data->data_buf_size) 
 			{
-                pr_err("p_cmd_cq->private_cq.size:%x != user_data->data_buf_size:%x",p_cmd_cq->private_cq.size,user_data->data_buf_size);
+                pr_err("p_cmd_cq->priv.size:%x != user_data->data_buf_size:%x",p_cmd_cq->priv.size,user_data->data_buf_size);
                 pr_err("Contig flag out of sync with what cmd states for CQ");
                 goto fail_out;
             }
-            err = prep_send64b_cmd( pmetrics_device->metrics_device, pmetrics_sq, user_data, &prps,
+            err = prep_send64b_cmd( pmetrics_device->dev, pmetrics_sq, user_data, &prps,
                 				    nvme_gen_cmd, nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT );
-            pr_err("Discontig IOCQ creation: p_cmd_cq->public_cq.head_ptr:%x",p_cmd_cq->public_cq.head_ptr);
+            pr_err("Discontig IOCQ creation: p_cmd_cq->pub.head_ptr:%x",p_cmd_cq->pub.head_ptr);
             if(err<0) 
 			{
                 pr_err("Failure to prepare 64 byte command");
@@ -1145,22 +1029,22 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             }
         } else {
             /* Contig IOCQ creation */
-            err = prep_send64b_cmd(pmetrics_device->metrics_device,
+            err = prep_send64b_cmd(pmetrics_device->dev,
                 pmetrics_sq, user_data, &prps, nvme_gen_cmd,
                 nvme_create_cq->cqid, CONTG_IO_Q, PRP_ABSENT);
             if (err < 0) {
                 pr_err("Failure to prepare 64 byte command");
                 goto fail_out;
             }
-            nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_cq->private_cq.cq_dma_addr);
+            nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_cq->priv.cq_dma_addr);
         }
 
         /* Fill the persistent entry structure */
-        memcpy(&p_cmd_cq->private_cq.prp_persist, &prps, sizeof(prps));
+        memcpy(&p_cmd_cq->priv.prp_persist, &prps, sizeof(prps));
 
         /* Resetting the unique QID bitmask flag */
-        p_cmd_cq->private_cq.bit_mask =
-            (p_cmd_cq->private_cq.bit_mask & ~UNIQUE_QID_FLAG);
+        p_cmd_cq->priv.bit_mask =
+            (p_cmd_cq->priv.bit_mask & ~UNIQUE_QID_FLAG);
 
     } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x00)) {
         /* Delete IOSQ case */
@@ -1171,7 +1055,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             goto fail_out;
         }
 
-        err = prep_send64b_cmd(pmetrics_device->metrics_device,
+        err = prep_send64b_cmd(pmetrics_device->dev,
             pmetrics_sq, user_data, &prps, nvme_gen_cmd, nvme_del_q->qid,
              0, PRP_ABSENT);
 
@@ -1189,7 +1073,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
             goto fail_out;
         }
 
-        err = prep_send64b_cmd(pmetrics_device->metrics_device,
+        err = prep_send64b_cmd(pmetrics_device->dev,
             pmetrics_sq, user_data, &prps, nvme_gen_cmd, nvme_del_q->qid,
             0, PRP_ABSENT);
 
@@ -1201,7 +1085,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     } else {
         /* For rest of the commands */
         if (user_data->data_buf_ptr != NULL) {
-            err = prep_send64b_cmd(pmetrics_device->metrics_device,
+            err = prep_send64b_cmd(pmetrics_device->dev,
                 pmetrics_sq, user_data, &prps, nvme_gen_cmd,
                 PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
             if (err < 0) {
@@ -1212,30 +1096,30 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     }
 
     /* Copying the command in to appropriate SQ and handling sync issues */
-    if(pmetrics_sq->private_sq.contig) 
+    if(pmetrics_sq->priv.contig) 
 	{
-        memcpy((pmetrics_sq->private_sq.vir_kern_addr + ((u32)pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
+        memcpy((pmetrics_sq->priv.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size)),
                 nvme_cmd_ker, cmd_buf_size);
 
-        //pr_err("@@@@@@@ test: 0x%x", *(uint8_t *)(pmetrics_sq->private_sq.vir_kern_addr + ((u32)pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size) + 44));        
+        //pr_err("@@@@@@@ test: 0x%x", *(uint8_t *)(pmetrics_sq->priv.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size) + 44));        
     } 
 	else 
 	{
-        memcpy((pmetrics_sq->private_sq.prp_persist.vir_kern_addr + ((u32)pmetrics_sq->public_sq.tail_ptr_virt * cmd_buf_size)),
+        memcpy((pmetrics_sq->priv.prp_persist.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size)),
                 nvme_cmd_ker, cmd_buf_size);
 		
-        dma_sync_sg_for_device(pmetrics_device->metrics_device->private_dev.dmadev, pmetrics_sq->private_sq.prp_persist.sg, 
-            				   pmetrics_sq->private_sq.prp_persist.num_map_pgs, pmetrics_sq->private_sq.prp_persist.data_dir);
+        dma_sync_sg_for_device(pmetrics_device->dev->priv.dmadev, pmetrics_sq->priv.prp_persist.sg, 
+            				   pmetrics_sq->priv.prp_persist.num_map_pgs, pmetrics_sq->priv.prp_persist.data_dir);
     }
 
     /* Increment the Tail pointer and handle roll over conditions */
-    pmetrics_sq->public_sq.tail_ptr_virt = (u16)(((u32)pmetrics_sq->public_sq.tail_ptr_virt + 1UL) % 
-                                                  pmetrics_sq->public_sq.elements);
+    pmetrics_sq->pub.tail_ptr_virt = (u16)(((u32)pmetrics_sq->pub.tail_ptr_virt + 1UL) % 
+                                                  pmetrics_sq->pub.elements);
     // pr_err("@@@@@@@ sqid:%x..cqid:%x,tail_ptr_virt:%#x,elements:%#x,",
-    //         pmetrics_sq->public_sq.sq_id,
-    //         pmetrics_sq->public_sq.cq_id,
-    //         pmetrics_sq->public_sq.tail_ptr_virt, 
-    //         pmetrics_sq->public_sq.elements);        
+    //         pmetrics_sq->pub.sq_id,
+    //         pmetrics_sq->pub.cq_id,
+    //         pmetrics_sq->pub.tail_ptr_virt, 
+    //         pmetrics_sq->pub.elements);        
 
     kfree(nvme_cmd_ker);
     kfree(user_data);
@@ -1243,7 +1127,7 @@ int driver_send_64b(struct metrics_device_list *pmetrics_device,
     return 0;
 
 fail_out:
-    pmetrics_sq->private_sq.unique_cmd_id--;
+    pmetrics_sq->priv.unique_cmd_id--;
 free_out:
     if (nvme_cmd_ker != NULL) {
         kfree(nvme_cmd_ker);
@@ -1261,14 +1145,14 @@ free_out:
  * structures if the q_id send down matches any q_id for this device.
  * If the Q id does not exist in the list then it returns error.
  * This function also returns error when kernel cannot allocate for
- * at-least one element memory of public_sq or public_cq.
+ * at-least one element memory of pub or pub.
  */
-int get_public_qmetrics(struct metrics_device_list *pmetrics_device,
+int get_public_qmetrics(struct nvme_context *pmetrics_device,
     struct nvme_get_q_metrics *get_q_metrics)
 {
     int err = 0;
-    struct metrics_sq *pmetrics_sq_node;
-    struct metrics_cq *pmetrics_cq_node;
+    struct nvme_sq *pmetrics_sq_node;
+    struct nvme_cq *pmetrics_cq_node;
     struct nvme_get_q_metrics *user_data = NULL;
 
 
@@ -1289,30 +1173,30 @@ int get_public_qmetrics(struct metrics_device_list *pmetrics_device,
 
     /* Determine the type of Q for which the metrics was needed */
     if (user_data->type == METRICS_SQ) {
-        if (user_data->nBytes < sizeof(struct nvme_gen_sq)) {
+        if (user_data->bytes < sizeof(struct nvme_sq_public)) {
             pr_err("Not sufficient buffer size to copy SQ metrics");
             return -EINVAL;
         }
-        pmetrics_sq_node = find_sq(pmetrics_device, user_data->q_id);
+        pmetrics_sq_node = dnvme_find_sq(pmetrics_device, user_data->q_id);
         if (pmetrics_sq_node == NULL) {
             pr_err("SQ ID = %d does not exist", user_data->q_id);
             return -EBADSLT; /* Invalid slot */
         }
         /* Copy sq public metrics to user space */
         if (copy_to_user(user_data->buffer,
-            &pmetrics_sq_node->public_sq, user_data->nBytes)) {
+            &pmetrics_sq_node->pub, user_data->bytes)) {
 
             pr_err("Invalid copy to user space");
             return -EFAULT;
         }
 
     } else if (user_data->type == METRICS_CQ) {
-        if (user_data->nBytes < sizeof(struct nvme_gen_cq)) {
+        if (user_data->bytes < sizeof(struct nvme_cq_public)) {
             pr_err("Not sufficient buffer size to copy CQ metrics");
             return -EINVAL;
         }
         /* Find given CQ in list */
-        pmetrics_cq_node = find_cq(pmetrics_device, user_data->q_id);
+        pmetrics_cq_node = dnvme_find_cq(pmetrics_device, user_data->q_id);
         if (pmetrics_cq_node == NULL) {
             /* if the control comes here it implies q id not in list */
             pr_err("CQ ID = %d is not in list", user_data->q_id);
@@ -1320,7 +1204,7 @@ int get_public_qmetrics(struct metrics_device_list *pmetrics_device,
         }
         /* Copy public cq metrics to user space */
         if (copy_to_user(user_data->buffer,
-            &pmetrics_cq_node->public_cq, user_data->nBytes)) {
+            &pmetrics_cq_node->pub, user_data->bytes)) {
 
             pr_err("Invalid copy to user space");
             return -EFAULT;
@@ -1346,23 +1230,23 @@ fail_out:
  * the list this returns success.
  */
 int identify_unique(u16 q_id, enum metrics_type type,
-    struct metrics_device_list *pmetrics_device)
+    struct nvme_context *pmetrics_device)
 {
-    struct metrics_sq *pmetrics_sq_list;
-    struct metrics_cq *pmetrics_cq_list;
+    struct nvme_sq *pmetrics_sq_list;
+    struct nvme_cq *pmetrics_cq_list;
 
     /* Determine the type of Q for which the metrics was needed */
     if (type == METRICS_SQ) {
-        pr_debug("Searching for Node in the sq_list_hd...");
-        pmetrics_sq_list = find_sq(pmetrics_device, q_id);
+        pr_debug("Searching for Node in the sq_entry...");
+        pmetrics_sq_list = dnvme_find_sq(pmetrics_device, q_id);
         if (pmetrics_sq_list != NULL) {
-            pr_err("SQ ID %d isn't unique", pmetrics_sq_list->public_sq.sq_id);
+            pr_err("SQ ID %d isn't unique", pmetrics_sq_list->pub.sq_id);
             return -EINVAL;
         }
     } else if (type == METRICS_CQ) {
-        pmetrics_cq_list = find_cq(pmetrics_device, q_id);
+        pmetrics_cq_list = dnvme_find_cq(pmetrics_device, q_id);
         if (pmetrics_cq_list != NULL) {
-            pr_err("CQ ID %d isn't unique", pmetrics_cq_list->public_cq.q_id);
+            pr_err("CQ ID %d isn't unique", pmetrics_cq_list->pub.q_id);
             return -EINVAL;
         }
     }
@@ -1376,12 +1260,12 @@ int identify_unique(u16 q_id, enum metrics_type type,
  * available then fail and return NOMEM error code.
  */
 int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-    struct  metrics_device_list *pmetrics_device)
+    struct  nvme_context *pmetrics_device)
 {
     int err;
     struct nvme_prep_sq *user_data = NULL;
-    struct metrics_sq *pmetrics_sq_node = NULL;
-    struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
+    struct nvme_sq *pmetrics_sq_node = NULL;
+    struct nvme_device *pnvme_dev = pmetrics_device->dev;
 
 
     /* Allocating memory for user struct in kernel space */
@@ -1403,7 +1287,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
         goto fail_out;
     }
 
-    if (READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
+    if (READQ(&pnvme_dev->priv.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
         if (user_data->contig == 0) {
             pr_err("Device doesn't support discontig Q memory");
             err = -ENOMEM;
@@ -1412,7 +1296,7 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     }
 
     pr_debug("Allocating SQ node in linked list.");
-    pmetrics_sq_node = kmalloc(sizeof(struct metrics_sq), GFP_KERNEL);
+    pmetrics_sq_node = kmalloc(sizeof(struct nvme_sq), GFP_KERNEL);
     if (pmetrics_sq_node == NULL) {
         pr_err("Failed kernel alloc for SQ metrics node");
         err = -ENOMEM;
@@ -1420,26 +1304,26 @@ int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
     }
 
     /* Filling the data elements of sq metrics. */
-    memset(pmetrics_sq_node, 0, sizeof(struct metrics_sq));
-    pmetrics_sq_node->public_sq.sq_id = user_data->sq_id;
-    pmetrics_sq_node->public_sq.cq_id = user_data->cq_id;
-    pmetrics_sq_node->public_sq.elements = user_data->elements;
-    pmetrics_sq_node->private_sq.contig = user_data->contig;
+    memset(pmetrics_sq_node, 0, sizeof(struct nvme_sq));
+    pmetrics_sq_node->pub.sq_id = user_data->sq_id;
+    pmetrics_sq_node->pub.cq_id = user_data->cq_id;
+    pmetrics_sq_node->pub.elements = user_data->elements;
+    pmetrics_sq_node->priv.contig = user_data->contig;
 
     err = nvme_prepare_sq(pmetrics_sq_node, pnvme_dev);
     if (err < 0) {
         pr_err("nvme_prepare_sq fail");
         goto fail_out;
     }
-    // pr_err("pre_sq:%d,cqid%d", pmetrics_sq_node->public_sq.sq_id, pmetrics_sq_node->public_sq.cq_id);
+    // pr_err("pre_sq:%d,cqid%d", pmetrics_sq_node->pub.sq_id, pmetrics_sq_node->pub.cq_id);
 
-    INIT_LIST_HEAD(&(pmetrics_sq_node->private_sq.cmd_track_list));
-    pmetrics_sq_node->private_sq.bit_mask =
-        (pmetrics_sq_node->private_sq.bit_mask | UNIQUE_QID_FLAG);
+    INIT_LIST_HEAD(&(pmetrics_sq_node->priv.cmd_list));
+    pmetrics_sq_node->priv.bit_mask =
+        (pmetrics_sq_node->priv.bit_mask | UNIQUE_QID_FLAG);
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_sq_node->sq_list_hd,
-        &pmetrics_device->metrics_sq_list);
+    list_add_tail(&pmetrics_sq_node->sq_entry,
+        &pmetrics_device->sq_list);
 
     kfree(user_data);
     return 0;
@@ -1462,12 +1346,12 @@ fail_out:
  * available then fail and return NOMEM error code.
  */
 int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
-    struct  metrics_device_list *pmetrics_device)
+    struct  nvme_context *pmetrics_device)
 {
     int err;
     struct nvme_prep_cq *user_data = NULL;
-    struct  metrics_cq *pmetrics_cq_node = NULL;
-    struct nvme_device *pnvme_dev = pmetrics_device->metrics_device;
+    struct  nvme_cq *pmetrics_cq_node = NULL;
+    struct nvme_device *pnvme_dev = pmetrics_device->dev;
 
 
     /* Allocating memory for user struct in kernel space */
@@ -1489,7 +1373,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
         goto fail_out;
     }
 
-    if (READQ(&pnvme_dev->private_dev.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
+    if (READQ(&pnvme_dev->priv.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
         if (user_data->contig == 0) {
             pr_err("Device doesn't support discontig Q memory");
             err = -ENOMEM;
@@ -1498,7 +1382,7 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     }
 
     pr_debug("Allocating CQ node in linked list.");
-    pmetrics_cq_node = kmalloc(sizeof(struct metrics_cq), GFP_KERNEL);
+    pmetrics_cq_node = kmalloc(sizeof(struct nvme_cq), GFP_KERNEL);
     if (pmetrics_cq_node == NULL) {
         pr_err("Failed kernel alloc for CQ metrics node");
         err = -ENOMEM;
@@ -1506,31 +1390,31 @@ int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
     }
 
     /* Filling the data elements of sq metrics. */
-    memset(pmetrics_cq_node, 0, sizeof(struct metrics_cq));
-    pmetrics_cq_node->public_cq.q_id = user_data->cq_id;
-    pmetrics_cq_node->public_cq.elements = user_data->elements;
-    pmetrics_cq_node->public_cq.irq_enabled = user_data->cq_irq_en;
-	pmetrics_cq_node->public_cq.irq_no = user_data->cq_irq_no;
-    pmetrics_cq_node->private_cq.contig = user_data->contig;
+    memset(pmetrics_cq_node, 0, sizeof(struct nvme_cq));
+    pmetrics_cq_node->pub.q_id = user_data->cq_id;
+    pmetrics_cq_node->pub.elements = user_data->elements;
+    pmetrics_cq_node->pub.irq_enabled = user_data->cq_irq_en;
+	pmetrics_cq_node->pub.irq_no = user_data->cq_irq_no;
+    pmetrics_cq_node->priv.contig = user_data->contig;
 
     err = nvme_prepare_cq(pmetrics_cq_node, pnvme_dev);
     if (err < 0) {
         pr_err("nvme_prepare_cq fail");
         goto fail_out;
     }
-    // pr_err("pre_cq:%d",pmetrics_cq_node->public_cq.q_id);
+    // pr_err("pre_cq:%d",pmetrics_cq_node->pub.q_id);
 
-    pmetrics_cq_node->public_cq.pbit_new_entry = 1;
-    pmetrics_cq_node->private_cq.bit_mask =
-        (pmetrics_cq_node->private_cq.bit_mask | UNIQUE_QID_FLAG);
+    pmetrics_cq_node->pub.pbit_new_entry = 1;
+    pmetrics_cq_node->priv.bit_mask =
+        (pmetrics_cq_node->priv.bit_mask | UNIQUE_QID_FLAG);
 
     /* Add this element to the end of the list */
-    list_add_tail(&pmetrics_cq_node->cq_list_hd, &pmetrics_device->metrics_cq_list);
+    list_add_tail(&pmetrics_cq_node->cq_entry, &pmetrics_device->cq_list);
 
-	if(pmetrics_cq_node->public_cq.irq_enabled)
+	if(pmetrics_cq_node->pub.irq_enabled)
 	{
-		err = update_cq_irqtrack( pmetrics_device, pmetrics_cq_node->public_cq.q_id,
-			              		  pmetrics_cq_node->public_cq.irq_no );
+		err = update_cq_irqtrack( pmetrics_device, pmetrics_cq_node->pub.q_id,
+			              		  pmetrics_cq_node->pub.irq_no );
 		if(err<0) 
 		{
             pr_err("update_cq_irqtrack fail");
@@ -1558,7 +1442,7 @@ address for the Boot Partition Memory Buffer. This address shall be 4KB aligned.
 that this field contains the 52 most significant bits of the 64 bit address.
 add by yumeng 2019.4.22
  */
-int driver_nvme_write_bp_buf(struct nvme_write_bp_buf *nvme_data, struct metrics_device_list *pmetrics_device)
+int driver_nvme_write_bp_buf(struct nvme_write_bp_buf *nvme_data, struct nvme_context *pmetrics_device)
 {
     u16 index;
     int err = -EINVAL;
@@ -1604,7 +1488,7 @@ int driver_nvme_write_bp_buf(struct nvme_write_bp_buf *nvme_data, struct metrics
 
     pr_err("Boot Partition Memory Buffer Base Address:0x%lx",BMBBA);
 
-    nvme_dev = pmetrics_device->metrics_device;
+    nvme_dev = pmetrics_device->dev;
 
     /* Copying user space buffer to kernel memory */
     if (copy_from_user(datap, (uint8_t *)&BMBBA, sizeof(uint64_t))) {
@@ -1614,9 +1498,9 @@ int driver_nvme_write_bp_buf(struct nvme_write_bp_buf *nvme_data, struct metrics
     }
 
     switch (user_data->type) {
-    case NVMEIO_BAR01:
-        err = write_nvme_reg_generic(nvme_dev->private_dev.bar0,
-            datap, user_data->nBytes, user_data->offset, user_data->acc_type);
+    case NVME_BAR0_BAR1:
+        err = write_nvme_reg_generic(nvme_dev->priv.bar0,
+            datap, user_data->bytes, user_data->offset, user_data->acc_type);
         if (err < 0) {
             pr_err("Write NVME Space failed");
             goto fail_out;

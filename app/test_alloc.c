@@ -23,7 +23,7 @@
 #include <sys/mman.h>
 
 #include "dnvme_interface.h"
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -188,41 +188,41 @@ int ioctl_meta_buf_create(int file_desc, int size)
     return ret_val;
 }
 
-int ioctl_meta_buf_alloc(int file_desc, uint32_t meta_id)
+int ioctl_meta_buf_alloc(int file_desc, uint32_t id)
 {
     int ret_val;
-    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_ALLOC, meta_id);
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_ALLOC, id);
     if (ret_val < 0)
     {
-        pr_err("\nMeta Id = %d allocation failed!\n", meta_id);
+        pr_err("\nMeta Id = %d allocation failed!\n", id);
     }
     else
     {
-        pr_debug("Meta Id = %d allocation success!!\n", meta_id);
+        pr_debug("Meta Id = %d allocation success!!\n", id);
     }
     return ret_val;
 }
 
-int ioctl_meta_buf_delete(int file_desc, uint32_t meta_id)
+int ioctl_meta_buf_delete(int file_desc, uint32_t id)
 {
     int ret_val;
-    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, meta_id);
+    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, id);
     if (ret_val < 0)
     {
-        pr_err("\nMeta Id = %d allocation failed!\n", meta_id);
+        pr_err("\nMeta Id = %d allocation failed!\n", id);
     }
     else
     {
-        pr_debug("Meta Id = %d allocation success!!\n", meta_id);
+        pr_debug("Meta Id = %d allocation success!!\n", id);
     }
     return ret_val;
 }
 
-uint32_t create_meta_buf(int file_desc, uint32_t meta_id)
+uint32_t create_meta_buf(int file_desc, uint32_t id)
 {
     int ret_val;
     ret_val = ioctl_meta_buf_create(file_desc, 4096);
-    ret_val = ioctl_meta_buf_alloc(file_desc, meta_id);
+    ret_val = ioctl_meta_buf_alloc(file_desc, id);
     return ret_val;
 }
 
@@ -230,31 +230,31 @@ void test_meta(int file_desc)
 {
     int size;
     int ret_val;
-    int meta_id;
+    int id;
     uint64_t *kadr;
 
     size = 4096;
     ret_val = ioctl_meta_buf_create(file_desc, size);
 
-    for (meta_id = 0; meta_id < 20; meta_id++)
+    for (id = 0; id < 20; id++)
     {
-        ret_val = ioctl_meta_buf_alloc(file_desc, meta_id);
+        ret_val = ioctl_meta_buf_alloc(file_desc, id);
     }
 
-    meta_id = 5;
-    ret_val = ioctl_meta_buf_delete(file_desc, meta_id);
-    meta_id = 6;
-    ret_val = ioctl_meta_buf_delete(file_desc, meta_id);
-    meta_id = 6;
-    ret_val = ioctl_meta_buf_delete(file_desc, meta_id);
-    meta_id = 5;
-    ret_val = ioctl_meta_buf_delete(file_desc, meta_id);
-    meta_id = 6;
-    ret_val = ioctl_meta_buf_alloc(file_desc, meta_id);
+    id = 5;
+    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    id = 6;
+    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    id = 6;
+    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    id = 5;
+    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    id = 6;
+    ret_val = ioctl_meta_buf_alloc(file_desc, id);
 
-    meta_id = 0x80004;
-    pr_info("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", meta_id);
-    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * meta_id);
+    id = 0x80004;
+    pr_info("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", id);
+    kadr = mmap(0, 4096, PROT_READ, MAP_SHARED, file_desc, 4096 * id);
     if (!kadr)
     {
         pr_err("mapping failed\n");

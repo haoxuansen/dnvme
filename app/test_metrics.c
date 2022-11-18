@@ -22,7 +22,7 @@
 #include <stdint.h>
 
 #include "dnvme_interface.h"
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 
 #include "common.h"
 #include "test_send_cmd.h"
@@ -44,17 +44,17 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
 
     get_q_metrics.q_id = q_id;
     get_q_metrics.type = q_type;
-    get_q_metrics.nBytes = size;
+    get_q_metrics.bytes = size;
 
     if (q_type == 1)
     {
         get_q_metrics.buffer = malloc(sizeof(uint8_t) *
-                                      sizeof(struct nvme_gen_sq));
+                                      sizeof(struct nvme_sq_public));
     }
     else
     {
         get_q_metrics.buffer = malloc(sizeof(uint8_t) *
-                                      sizeof(struct nvme_gen_cq));
+                                      sizeof(struct nvme_cq_public));
     }
     if (get_q_metrics.buffer == NULL)
     {
@@ -109,7 +109,7 @@ void admin_queue_config(int file_desc)
 
 void test_drv_metrics(int file_desc)
 {
-    struct metrics_driver get_drv_metrics = {0};
+    struct nvme_driver get_drv_metrics = {0};
     int ret_val = -1;
 
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_DRIVER_METRICS, &get_drv_metrics);
@@ -123,7 +123,7 @@ void test_drv_metrics(int file_desc)
 
 void test_dev_metrics(int file_desc)
 {
-    struct public_metrics_dev get_dev_metrics = {0};
+    struct nvme_dev_public get_dev_metrics = {0};
     int ret_val = -1;
 
     ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEVICE_METRICS, &get_dev_metrics);
@@ -140,21 +140,21 @@ void test_dev_metrics(int file_desc)
  * 
  * @param file_desc 
  * @param offset 
- * @param nBytes 
+ * @param bytes 
  * @return uint32_t 
  */
-uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t nBytes)
+uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t bytes)
 {
     int ret_val = 0;
     uint32_t u32_data = 0;
-    struct rw_generic test_data = {0};
+    struct nvme_access test_data = {0};
 
-    test_data.type = NVMEIO_BAR01;
+    test_data.region = NVME_BAR0_BAR1;
     test_data.offset = offset;
-    test_data.nBytes = nBytes;
-    test_data.acc_type = BYTE_LEN;
+    test_data.bytes = bytes;
+    test_data.type = NVME_ACCESS_BYTE;
 
-    test_data.buffer = malloc(sizeof(char) * test_data.nBytes);
+    test_data.buffer = malloc(sizeof(char) * test_data.bytes);
     if (test_data.buffer == NULL)
     {
         pr_err("Malloc Failed");
@@ -168,18 +168,18 @@ uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t nBytes)
     }
     u32_data = *(uint32_t *)test_data.buffer;
 #if 0
-    if (nBytes / 4 == 0)
+    if (bytes / 4 == 0)
         pr_info("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
-    else if (nBytes % 4 != 0)
+    else if (bytes % 4 != 0)
     {
-        for (uint32_t i = 0; i < (nBytes / 4 + 1); i++)
+        for (uint32_t i = 0; i < (bytes / 4 + 1); i++)
         {
             pr_info("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset + i * 4, *(uint32_t *)(test_data.buffer + i * 4));
         }
     }
     else
     {
-        for (uint32_t i = 0; i < (nBytes / 4); i++)
+        for (uint32_t i = 0; i < (bytes / 4); i++)
         {
             pr_info("NVME Reading DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset + i * 4, *(uint32_t *)(test_data.buffer + i * 4));
         }
@@ -192,19 +192,19 @@ uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t nBytes)
  * @brief read_nvme_register nvme layer
  * @param[in] file_desc  
  * @param[in] offset 
- * @param[in] nBytes 
+ * @param[in] bytes 
  * @param[out] buffer output register data
  * @return depends on REQUEST. Usually -1 indicates error.
 */
-int read_nvme_register(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *byte_buffer)
+int read_nvme_register(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
 {
     int ret_val = 0;
-    struct rw_generic test_data = {0};
+    struct nvme_access test_data = {0};
 
-    test_data.type = NVMEIO_BAR01; //nvme register
+    test_data.region = NVME_BAR0_BAR1; //nvme register
     test_data.offset = offset;
-    test_data.nBytes = nBytes;
-    test_data.acc_type = BYTE_LEN;
+    test_data.bytes = bytes;
+    test_data.type = NVME_ACCESS_BYTE;
     test_data.buffer = byte_buffer;
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
@@ -220,30 +220,30 @@ int read_nvme_register(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t 
  * 
  * @param file_desc 
  * @param offset 
- * @param nBytes 
+ * @param bytes 
  * @param byte_buffer 
  * @return int 
  */
-int ioctl_write_data(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *byte_buffer)
+int ioctl_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
 {
     int ret_val = 0;
     //int message;
-    struct rw_generic test_data = {0};
+    struct nvme_access test_data = {0};
 
-    test_data.type = NVMEIO_BAR01;
+    test_data.region = NVME_BAR0_BAR1;
     test_data.offset = offset;
-    test_data.nBytes = nBytes;
-    test_data.acc_type = DWORD_LEN;
+    test_data.bytes = bytes;
+    test_data.type = NVME_ACCESS_DWORD;
     test_data.buffer = NULL;
 
-    test_data.buffer = malloc(test_data.nBytes);
+    test_data.buffer = malloc(test_data.bytes);
     if (test_data.buffer == NULL)
     {
         pr_err("malloc failed!");
         goto err;
     }
 
-    memcpy(test_data.buffer, byte_buffer, nBytes);
+    memcpy(test_data.buffer, byte_buffer, bytes);
 #if 0
     pr_info("NVME Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
 #endif
@@ -332,7 +332,7 @@ void ioctl_create_asq(int file_desc, uint32_t queue_size)
 void ioctl_enable_ctrl(int file_desc)
 {
     int ret_val = -1;
-    enum nvme_state new_state = ST_ENABLE;
+    enum nvme_state new_state = NVME_ST_ENABLE;
 
     ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, new_state);
     if (ret_val < 0)
@@ -438,13 +438,13 @@ uint32_t pci_read_dword(int file_desc, uint32_t offset)
 {
     int ret_val = FAILED;
     uint32_t data = 0;
-    struct rw_generic test_data;
+    struct nvme_access test_data;
     if(offset%4 != 0)
         assert(0);
-    test_data.type = NVMEIO_PCI_HDR;
+    test_data.region = NVME_PCI_HEADER;
     test_data.offset = offset;
-    test_data.nBytes = sizeof(data);
-    test_data.acc_type = DWORD_LEN;
+    test_data.bytes = sizeof(data);
+    test_data.type = NVME_ACCESS_DWORD;
     test_data.buffer = (uint8_t *)&data;
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
@@ -466,13 +466,13 @@ uint16_t pci_read_word(int file_desc, uint32_t offset)
 {
     int ret_val = FAILED;
     uint16_t data = 0;
-    struct rw_generic test_data;
+    struct nvme_access test_data;
     if(offset%2 != 0)
         assert(0);
-    test_data.type = NVMEIO_PCI_HDR;
+    test_data.region = NVME_PCI_HEADER;
     test_data.offset = offset;
-    test_data.nBytes = sizeof(data);
-    test_data.acc_type = WORD_LEN;
+    test_data.bytes = sizeof(data);
+    test_data.type = NVME_ACCESS_WORD;
     test_data.buffer = (uint8_t *)&data;
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
@@ -494,11 +494,11 @@ uint8_t pci_read_byte(int file_desc, uint32_t offset)
 {
     int ret_val = FAILED;
     uint8_t data = 0;
-    struct rw_generic test_data;
-    test_data.type = NVMEIO_PCI_HDR;
+    struct nvme_access test_data;
+    test_data.region = NVME_PCI_HEADER;
     test_data.offset = offset;
-    test_data.nBytes = sizeof(data);
-    test_data.acc_type = BYTE_LEN;
+    test_data.bytes = sizeof(data);
+    test_data.type = NVME_ACCESS_BYTE;
     test_data.buffer = (uint8_t *)&data;
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
@@ -513,20 +513,20 @@ uint8_t pci_read_byte(int file_desc, uint32_t offset)
  * @brief read_pcie_register layer
  * @param[in] file_desc  
  * @param[in] offset 
- * @param[in] nBytes 
+ * @param[in] bytes 
  * @param[in] acc_type
  * @param[out] buffer output register data
  * @return depends on REQUEST. Usually -1 indicates error.
 */
-int read_pcie_register(int file_desc, uint32_t offset, uint32_t nBytes, enum nvme_acc_type acc_type, uint8_t *byte_buffer)
+int read_pcie_register(int file_desc, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer)
 {
     int ret_val = FAILED;
-    struct rw_generic test_data = {0};
+    struct nvme_access test_data = {0};
 
-    test_data.type = NVMEIO_PCI_HDR;
+    test_data.region = NVME_PCI_HEADER;
     test_data.offset = offset;
-    test_data.nBytes = nBytes;
-    test_data.acc_type = acc_type;
+    test_data.bytes = bytes;
+    test_data.type = acc_type;
     test_data.buffer = byte_buffer;
     ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
@@ -542,28 +542,28 @@ int read_pcie_register(int file_desc, uint32_t offset, uint32_t nBytes, enum nvm
  * 
  * @param file_desc 
  * @param offset 
- * @param nBytes 
+ * @param bytes 
  * @param byte_buffer 
  * @return uint32_t 
  */
-int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *byte_buffer)
+int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
 {
     int ret_val = FAILED;
-    struct rw_generic test_data = {0};
+    struct nvme_access test_data = {0};
 
-    test_data.type = NVMEIO_PCI_HDR;
+    test_data.region = NVME_PCI_HEADER;
     test_data.offset = offset;
-    test_data.nBytes = nBytes;
-    test_data.acc_type = DWORD_LEN;
+    test_data.bytes = bytes;
+    test_data.type = NVME_ACCESS_DWORD;
     test_data.buffer = NULL;
 
-    test_data.buffer = malloc(test_data.nBytes);
+    test_data.buffer = malloc(test_data.bytes);
     if (test_data.buffer == NULL)
     {
         pr_err("malloc failed!");
         return FAILED;
     }
-    memcpy(test_data.buffer, byte_buffer, nBytes);
+    memcpy(test_data.buffer, byte_buffer, bytes);
 #if 0
     pr_info("PCIe Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
 #endif

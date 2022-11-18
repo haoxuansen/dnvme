@@ -106,7 +106,7 @@ int msi_cap_access(void)
 {
     int ret_val = FAILED;
     struct pcie_msi_cap msi_cap;
-	ret_val = read_pcie_register(file_desc, g_nvme_dev.msicap_ofst, sizeof(struct pcie_msi_cap), BYTE_LEN, (uint8_t *)&msi_cap);
+	ret_val = read_pcie_register(file_desc, g_nvme_dev.msicap_ofst, sizeof(struct pcie_msi_cap), NVME_ACCESS_BYTE, (uint8_t *)&msi_cap);
 
     pr_info("\nmsi_cap_id: %#x\n",msi_cap.cap_id);
     pr_info("msg_ctrl: %#x\n",msi_cap.msg_ctrl);

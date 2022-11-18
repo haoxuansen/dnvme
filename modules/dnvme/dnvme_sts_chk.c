@@ -83,28 +83,28 @@ int pci_status_chk(u16 device_data)
  */
 int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts)
 {
-    int status = 0;
-    u32 u32data;
+	int status = 0;
+	u32 u32data;
 
-    pr_debug("Checking the NVME Controller Status (CSTS)...");
+	pr_debug("Checking the NVME Controller Status (CSTS)...");
 	
-    u32data = readl(&ctrlr_regs->csts);
+	u32data = readl(&ctrlr_regs->csts);
 	*sts = u32data;
 	pr_debug("NVME Controller Status CSTS = 0x%X", u32data);
 
 	if(u32data & NVME_CSTS_CFS_BIT_MASK) 
 	{
-        status = -1;
-        pr_err("NVME Controller Fatal Status (CFS) is set...");
-    }
+		status = -1;
+		pr_err("NVME Controller Fatal Status (CFS) is set...");
+	}
 
 	if((u32data & NVME_CSTS_RDY_BIT_MASK) == 0x0)
 	{
-        pr_debug("NVME Controller is not ready (RDY)...");
-    }
+		pr_debug("NVME Controller is not ready (RDY)...");
+	}
 
 	pr_debug("The Shutdown Status of the NVME Controller (SHST):");
-    switch((u32data & NVME_CSTS_SHUTDOWN_BIT_MASK) >> 2)
+	switch((u32data & NVME_CSTS_SHUTDOWN_BIT_MASK) >> 2)
 	{
 	    case NVME_CSTS_NRML_OPER:
 	        pr_debug("No Shutdown requested");
@@ -118,9 +118,9 @@ int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts)
 	    case NVME_CSTS_SHT_RSVD:
 	        pr_debug("Reserved Bits set");
 	        break;
-    }
+	}
 
-    return status;
+	return status;
 }
 
 
@@ -131,98 +131,97 @@ int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts)
  * device current state. It reports back to the caller wither 0 or -1.
  * Print out to the kernel message details of the status.
  */
-int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc, u16 *msix_mc, 
-					 u16 *pcie_dev_st)
+int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc, 
+	u16 *msix_mc, u16 *pcie_dev_st)
 {
-    int status     = 0;
-    int ret_val   = 0;
-    u16 reg_cap_id    = 0;
-    u8 next_item;
-    u8 power_management_feature = 0;
+	int status     = 0;
+	int ret_val   = 0;
+	u16 reg_cap_id    = 0;
+	u8 next_item;
+	u8 power_management_feature = 0;
 
-    pr_debug("Checking NEXT Capabilities of the NVME Controller");
-    pr_debug("Checks if PMCS is supported as a minimum");
+	pr_debug("Checking NEXT Capabilities of the NVME Controller");
+	pr_debug("Checks if PMCS is supported as a minimum");
 
-    /* Check if CAP pointer points to next available linked list registers in the PCI Header. */
-    ret_val = pci_read_config_byte(pdev, CAP_REG, &next_item);
-    if(ret_val<0) 
+	/* Check if CAP pointer points to next available linked list registers in the PCI Header. */
+	ret_val = pci_read_config_byte(pdev, CAP_REG, &next_item);
+	if(ret_val<0) 
 	{
-        pr_err("pci_read_config failed in driver error check");
-    }
-    pr_debug("CAP_REG Contents = 0x%X", next_item);
+		pr_err("pci_read_config failed in driver error check");
+	}
+	pr_debug("CAP_REG Contents = 0x%X", next_item);
 
-    /* Read 16 bits of data from the Next pointer as PMS bit which is must */
-    ret_val = pci_read_config_word(pdev, next_item, &reg_cap_id);
-    if(ret_val<0) 
+	/* Read 16 bits of data from the Next pointer as PMS bit which is must */
+	ret_val = pci_read_config_word(pdev, next_item, &reg_cap_id);
+	if(ret_val<0) 
 	{
-        pr_err("pci_read_config failed in driver error check");
-    }
+		pr_err("pci_read_config failed in driver error check");
+	}
 
-    /* Enter into loop if not zero value, next_item is set to 1 for entering this loop for first time.*/
-    while(reg_cap_id || next_item) 
+	/* Enter into loop if not zero value, next_item is set to 1 for entering this loop for first time.*/
+	while(reg_cap_id || next_item) 
 	{
-        pr_debug("CAP Value 16 Bits = 0x%X", reg_cap_id);
+		pr_debug("CAP Value 16 Bits = 0x%X", reg_cap_id);
 
-        switch(reg_cap_id & CAP_ID_MASK) 
-		{
+		switch(reg_cap_id & CAP_ID_MASK) {
 	    	case PMCAP_ID:
-	        	pr_debug("PCI Pwr Mgmt is Supported (PMCS Exists)");
-	            pr_debug("Checking PCI Pwr Mgmt Capabilities Status");
+			pr_debug("PCI Pwr Mgmt is Supported (PMCS Exists)");
+			pr_debug("Checking PCI Pwr Mgmt Capabilities Status");
 
-	            power_management_feature = 1; 		/* Set power management is supported */
-				*cap_support |= PCI_CAP_SUPPORT_PM;
-				status = pmcs_status_chk(pdev, next_item, pm_cs);
-	            break;
+			power_management_feature = 1;/* Set power management is supported */
+			*cap_support |= PCI_CAP_SUPPORT_PM;
+			status = pmcs_status_chk(pdev, next_item, pm_cs);
+			break;
 					
-	        case MSICAP_ID:
-	            pr_debug("Checking MSI Capabilities");
-				*cap_support |= PCI_CAP_SUPPORT_MSI;
-	            status = msi_cap_status_chk(pdev, next_item, msi_mc);
-	            break;
+		case MSICAP_ID:
+			pr_debug("Checking MSI Capabilities");
+			*cap_support |= PCI_CAP_SUPPORT_MSI;
+			status = msi_cap_status_chk(pdev, next_item, msi_mc);
+			break;
 					
-	        case MSIXCAP_ID:
-	            pr_debug("Checking MSI-X Capabilities");
-				*cap_support |= PCI_CAP_SUPPORT_MSIX;
-	            status = msix_cap_status_chk(pdev, next_item, msix_mc);
-	            break;
+		case MSIXCAP_ID:
+			pr_debug("Checking MSI-X Capabilities");
+			*cap_support |= PCI_CAP_SUPPORT_MSIX;
+			status = msix_cap_status_chk(pdev, next_item, msix_mc);
+			break;
 					
-	        case PXCAP_ID:
-	            pr_debug("Checking PCI Express Capabilities");
-				*cap_support |= PCI_CAP_SUPPORT_PCIE;
-	            status = pxcap_status_chk(pdev, next_item, pcie_dev_st);
-	            break;
+		case PXCAP_ID:
+			pr_debug("Checking PCI Express Capabilities");
+			*cap_support |= PCI_CAP_SUPPORT_PCIE;
+			status = pxcap_status_chk(pdev, next_item, pcie_dev_st);
+			break;
 					
-	        default:
-	            pr_err("Next Device Status check in default case!!!");
-	            break;
-        } 
+		default:
+			pr_err("Next Device Status check in default case!!!");
+			break;
+        	} 
 
 		next_item = (reg_cap_id & NEXT_CAP_MASK) >> 8;
-		
-        if(next_item) 		/* Get the next item in the linked lint */
+
+		if(next_item) 		/* Get the next item in the linked lint */
 		{
-            ret_val = pci_read_config_word(pdev, next_item, &reg_cap_id);
-            if(ret_val<0) 
+			ret_val = pci_read_config_word(pdev, next_item, &reg_cap_id);
+			if(ret_val<0) 
 			{
-                pr_err("pci_read_config failed in driver error check");
-            }
-        } 
+				pr_err("pci_read_config failed in driver error check");
+			}
+		} 
 		else 
 		{
-            pr_debug("No NEXT item in the list exiting...2");
-            break;
-        }
-    }
+			pr_debug("No NEXT item in the list exiting...2");
+			break;
+       		}
+	}
 
-    /* Check if PCI Power Management cap is supported as a min */
-    if(power_management_feature == 0) 
+	/* Check if PCI Power Management cap is supported as a min */
+	if(power_management_feature == 0) 
 	{
-        pr_err("The controller should support PCI Pwr management as a min");
-        pr_err("PCI Power Management Capability is not Supported.");
-        status = -1;
-    }
+		pr_err("The controller should support PCI Pwr management as a min");
+		pr_err("PCI Power Management Capability is not Supported.");
+		status = -1;
+	}
 
-    return status;
+	return status;
 }
 
 

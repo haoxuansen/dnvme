@@ -38,7 +38,7 @@ struct nvme_prps {
 	u32	type; /* refers to types of PRP Possible */
 	/* List of virtual pointers to PRP List pages */
 	__le64	**vir_prp_list;
-	u8	*vir_kern_addr; /* K.V.A for pinned down pages */
+	u8	*buf; /* K.V.A for pinned down pages */
 	__le64	prp1; /* Physical address in PRP1 of command */
 	__le64	prp2; /* Physical address in PRP2 of command */
 	dma_addr_t	first_dma; /* First entry in PRP List */
@@ -56,8 +56,8 @@ struct nvme_prps {
 /*
  * structure for the CQ tracking params with virtual address and size.
  */
-struct nvme_trk_cq {
-	u8		*vir_kern_addr; /* phy addr ptr to the q's alloc to kern mem */
+struct nvme_cq_private {
+	u8		*buf; /* phy addr ptr to the q's alloc to kern mem */
 	dma_addr_t	cq_dma_addr; /* dma mapped address using dma_alloc */
 	u32		size; /* length in bytes of the alloc Q in kernel */
 	u32 __iomem	*dbs; /* Door Bell stride  */
@@ -69,47 +69,45 @@ struct nvme_trk_cq {
 /*
  *    Structure definition for tracking the commands.
  */
-struct cmd_track {
-    u16 unique_id;      /* driver assigned unique id for a particular cmd */
-    u16 persist_q_id;   /* target Q ID used for Create/Delete Q's, never == 0 */
-    u8  opcode;         /* command opcode as per spec */
-    struct list_head cmd_list_hd; /* link-list using the kernel list */
-    struct nvme_prps prp_nonpersist; /* Non persistent PRP entries */
+struct nvme_cmd {
+	u16	unique_id;      /* driver assigned unique id for a particular cmd */
+	u16	persist_q_id;   /* target Q ID used for Create/Delete Q's, never == 0 */
+	u8	opcode;         /* command opcode as per spec */
+	struct list_head	entry; /* link-list using the kernel list */
+	struct nvme_prps	prp_nonpersist; /* Non persistent PRP entries */
 };
 
 /*
  * structure definition for SQ tracking parameters.
  */
-struct nvme_trk_sq {
-    void        *vir_kern_addr;     /* virtual kernal address using kmalloc */
-    dma_addr_t   sq_dma_addr;       /* dma mapped address using dma_alloc */
-    u32          size;              /* len in bytes of allocated Q in kernel */
-    u32 __iomem *dbs;               /* Door Bell stride */
-    u16          unique_cmd_id;     /* unique counter for each comand in SQ */
-    u8           contig;            /* Indicates if prp list is contig or not */
-    u8           bit_mask;          /* bitmask added for unique ID creation */
-    struct nvme_prps prp_persist;   /* PRP element in CQ */
-    struct list_head cmd_track_list;/* link-list head for cmd_track list */
+struct nvme_sq_private {
+	void		*buf; /* virtual kernal address using kmalloc */
+	dma_addr_t	sq_dma_addr; /* dma mapped address using dma_alloc */
+	u32		size; /* len in bytes of allocated Q in kernel */
+	u32 __iomem	*dbs; /* Door Bell stride */
+	u16		unique_cmd_id; /* unique counter for each comand in SQ */
+	u8		contig; /* Indicates if prp list is contig or not */
+	u8		bit_mask; /* bitmask added for unique ID creation */
+	struct nvme_prps	prp_persist; /* PRP element in CQ */
+	struct list_head	cmd_list; /* link-list head for nvme_cmd list */
 };
 
 /*
- * Structure with Metrics of CQ. Has a node which makes it work with
- * kernel linked lists.
+ * struct nvme_cq - representation of a completion queue.
  */
-struct metrics_cq {
-    struct list_head    cq_list_hd; /* link-list using the kernel list  */
-    struct nvme_gen_cq  public_cq;  /* parameters in nvme_gen_cq */
-    struct nvme_trk_cq  private_cq; /* parameters in nvme_trk_cq */
+struct nvme_cq {
+	struct list_head	cq_entry;
+	struct nvme_cq_public	pub;
+	struct nvme_cq_private	priv;
 };
 
 /*
- * Structure with Metrics of SQ. Has a node which makes it work with
- * kernel linked lists.
+ * struct nvme_sq - representation of a submisssion queue.
  */
-struct metrics_sq {
-	struct list_head	sq_list_hd;  /* link-list using the kernel list */
-	struct nvme_gen_sq	public_sq;   /* parameters in nvme_gen_sq */
-	struct nvme_trk_sq	private_sq;  /* parameters in nvme_trk_sq */
+struct nvme_sq {
+	struct list_head	sq_entry;
+	struct nvme_sq_public	pub;
+	struct nvme_sq_private	priv;
 };
 
 /*
@@ -136,20 +134,20 @@ struct irq_track {
 /*
  * structure for meta data per device parameters.
  */
-struct metrics_meta_data {
-	struct list_head	meta_trk_list;
-	struct dma_pool		*meta_dmapool_ptr;
-	u32			meta_buf_size;
+struct nvme_meta_set {
+	struct list_head	meta_list;
+	struct dma_pool		*pool;
+	u32			buf_size;
 };
 
 /*
  * Structure for meta data buffer allocations.
  */
-struct metrics_meta {
-	struct list_head	meta_list_hd;
-	u32			meta_id;
-	void			*vir_kern_addr;
-	dma_addr_t		meta_dma_addr;
+struct nvme_meta {
+	struct list_head	entry;
+	u32			id;
+	void			*buf;
+	dma_addr_t		dma;
 };
 
 /*
@@ -157,29 +155,29 @@ struct metrics_meta {
  * device specific and populated while the nvme device is being opened
  * or during probe.
  */
-struct private_metrics_dev {
-	struct pci_dev *pdev;           /* Pointer to the PCIe device */
-	struct device *spcl_dev;        /* Special device file */
-	struct nvme_ctrl_reg __iomem *ctrlr_regs;  /* Pointer to reg space */
-	u8 __iomem *bar0;               /* 64 bit BAR0 memory mapped ctrlr regs */
-	u8 __iomem *bar1;               /* 64 bit BAR1 I/O mapped registers */
-	u8 __iomem *bar2;               /* 64 bit BAR2 memory mapped MSIX table */
-	struct dma_pool *prp_page_pool; /* Mem for PRP List */
-	struct device *dmadev;          /* Pointer to the dma device from pdev */
-	int minor_no;                   /* Minor no. of the device being used */
-	u8 open_flag;                   /* Allows device opening only once */
+struct nvme_dev_private {
+	struct pci_dev	*pdev; /* Pointer to the PCIe device */
+	struct device	*spcl_dev; /* Special device file */
+	struct nvme_ctrl_reg __iomem	*ctrlr_regs;  /* Pointer to reg space */
+	u8 __iomem	*bar0; /* 64 bit BAR0 memory mapped ctrlr regs */
+	u8 __iomem	*bar1; /* 64 bit BAR1 I/O mapped registers */
+	u8 __iomem	*bar2; /* 64 bit BAR2 memory mapped MSIX table */
+	struct dma_pool	*prp_page_pool; /* Mem for PRP List */
+	struct device	*dmadev; /* Pointer to the dma device from pdev */
+	int	minor; /* Minor no. of the device being used */
+	u8	opened; /* Allows device opening only once */
 };
 
 /*
  * Structure with nvme device related public and private parameters.
  */
 struct nvme_device {
-	struct private_metrics_dev private_dev;
-	struct public_metrics_dev  public_dev;
-	u64 cmb_size;
-	bool cmb_use_sqes;
-	u32 cmbsz;
-	u32 cmbloc;
+	struct nvme_dev_private	priv;
+	struct nvme_dev_public	pub;
+	u64	cmb_size;
+	bool	cmb_use_sqes;
+	u32	cmbsz;
+	u32	cmbloc;
 };
 
 /*
@@ -226,17 +224,17 @@ struct irq_processing {
  * Structure which defines the device list for all the data structures
  * that are defined.
  */
-struct metrics_device_list {
-	struct  list_head    metrics_device_hd; /* metrics linked list head */
-	struct  list_head    metrics_cq_list;   /* CQ linked list */
-	struct  list_head    metrics_sq_list;   /* SQ linked list */
-	struct  nvme_device *metrics_device;    /* Pointer to this nvme device */
-	struct  mutex        metrics_mtx;       /* Mutex for locking per device */
-	struct  metrics_meta_data metrics_meta; /* Pointer to meta data buff */
-	struct  irq_processing irq_process;     /* IRQ processing structure */
+struct nvme_context {
+	struct list_head	entry; /* metrics linked list head */
+	struct list_head	cq_list; /* CQ linked list */
+	struct list_head	sq_list; /* SQ linked list */
+	struct nvme_device	*dev; /* Pointer to this nvme device */
+	struct mutex		lock; /* Mutex for locking per device */
+	struct nvme_meta_set	meta_set; /* Pointer to meta data buff */
+	struct irq_processing	irq_process; /* IRQ processing structure */
 };
 
 /* Global linked list for the entire data structure for all devices. */
-extern struct list_head metrics_dev_ll;
+extern struct list_head nvme_ctx_list;
 
 #endif

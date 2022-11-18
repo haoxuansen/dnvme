@@ -44,9 +44,9 @@
 
 /* local static functions */
 static loff_t meta_nodes_log(struct file *file, loff_t pos,
-    struct  metrics_device_list *pmetrics_device);
+    struct  nvme_context *pmetrics_device);
 static loff_t irq_nodes_log(struct file *file, loff_t pos,
-    struct  metrics_device_list *pmetrics_device_elem);
+    struct  nvme_context *pmetrics_device_elem);
 
 
     int driver_logstr(struct nvme_logstr *logStr)
@@ -108,11 +108,11 @@ int driver_log(struct nvme_file *n_file)
     int i = 0;          /* local var to track no. of SQ's and CQ's */
     int cmd = 0;        /* Local variable to track no. of cmds */
     mm_segment_t oldfs; /* Old file segment to map between Kernel and usp */
-    struct  metrics_sq  *pmetrics_sq_list;        /* SQ linked list */
+    struct  nvme_sq  *pmetrics_sq_list;        /* SQ linked list */
     u8 work[SIZE_OF_WORK];
-    struct  metrics_cq  *pmetrics_cq_list;        /* CQ linked list */
-    struct  metrics_device_list *pmetrics_device; /* Metrics device list */
-    struct  cmd_track  *pcmd_track_list;          /* cmd track linked list */
+    struct  nvme_cq  *pmetrics_cq_list;        /* CQ linked list */
+    struct  nvme_context *pmetrics_device; /* Metrics device list */
+    struct  nvme_cmd  *pcmd_track_list;          /* cmd track linked list */
     u8 *filename = NULL;
     int err = 0;
     struct nvme_file *user_data = NULL;
@@ -160,139 +160,139 @@ int driver_log(struct nvme_file *n_file)
     if (file) {
 
         /* Loop through the devices */
-        list_for_each_entry(pmetrics_device, &metrics_dev_ll,
-            metrics_device_hd) {
+        list_for_each_entry(pmetrics_device, &nvme_ctx_list,
+            entry) {
 
             /* Get the variable from metrics structure and write to file */
-            snprintf(work, SIZE_OF_WORK, "metrics_device_list[%d]\n", dev++);
+            snprintf(work, SIZE_OF_WORK, "nvme_context[%d]\n", dev++);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "Minor Number = %d\n",
-                pmetrics_device->metrics_device->private_dev.minor_no);
+                pmetrics_device->dev->priv.minor);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "open_flag = %d\n",
-                pmetrics_device->metrics_device->private_dev.open_flag);
+                pmetrics_device->dev->priv.opened);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "pdev = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.pdev);
+                (u64)pmetrics_device->dev->priv.pdev);
             __kernel_write(file, work, strlen(work), &pos);
 
             snprintf(work, SIZE_OF_WORK, "bar0 = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.bar0);
+                (u64)pmetrics_device->dev->priv.bar0);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "bar1 = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.bar1);
+                (u64)pmetrics_device->dev->priv.bar1);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "bar2 = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.bar2);
+                (u64)pmetrics_device->dev->priv.bar2);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "ctrlr_regs = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.ctrlr_regs);
+                (u64)pmetrics_device->dev->priv.ctrlr_regs);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "dmadev = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.dmadev);
+                (u64)pmetrics_device->dev->priv.dmadev);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "prp_page_pool = 0X%llX\n", (u64)
-                pmetrics_device->metrics_device->private_dev.prp_page_pool);
+                pmetrics_device->dev->priv.prp_page_pool);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "spcl_dev = 0X%llX\n",
-                (u64)pmetrics_device->metrics_device->private_dev.spcl_dev);
+                (u64)pmetrics_device->dev->priv.spcl_dev);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK,
                 "Interrupts:Active Scheme (S=0/M=1/X=2/N=3) = %d\n",
-                pmetrics_device->metrics_device->public_dev.irq_active.
+                pmetrics_device->dev->pub.irq_active.
                 irq_type);
             __kernel_write(file, work, strlen(work), &pos);
             snprintf(work, SIZE_OF_WORK, "Interrupts:num_irqs = %d\n",
-                pmetrics_device->metrics_device->public_dev.irq_active.
+                pmetrics_device->dev->pub.irq_active.
                 num_irqs);
             __kernel_write(file, work, strlen(work), &pos);
             /* Looping through the available CQ list */
             list_for_each_entry(pmetrics_cq_list, &pmetrics_device->
-                metrics_cq_list, cq_list_hd) {
+                cq_list, cq_entry) {
 
                 /* Get the variable from CQ strucute and write to file */
                 snprintf(work, SIZE_OF_WORK,
-                    IDNT_L1"pmetrics_cq_list->public_cq[%d]", i);
+                    IDNT_L1"pmetrics_cq_list->pub[%d]", i);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"q_id = %d",
-                    pmetrics_cq_list->public_cq.q_id);
+                    pmetrics_cq_list->pub.q_id);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"tail_ptr = %d",
-                    pmetrics_cq_list->public_cq.tail_ptr);
+                    pmetrics_cq_list->pub.tail_ptr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"head pointer = %d",
-                    pmetrics_cq_list->public_cq.head_ptr);
+                    pmetrics_cq_list->pub.head_ptr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"elements = %d",
-                    pmetrics_cq_list->public_cq.elements);
+                    pmetrics_cq_list->pub.elements);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"irq enabled = %d",
-                    pmetrics_cq_list->public_cq.irq_enabled);
+                    pmetrics_cq_list->pub.irq_enabled);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"irq_no = %d",
-                    pmetrics_cq_list->public_cq.irq_no);
+                    pmetrics_cq_list->pub.irq_no);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"pbit_new_entry = %d",
-                    pmetrics_cq_list->public_cq.pbit_new_entry);
+                    pmetrics_cq_list->pub.pbit_new_entry);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK,
-                    IDNT_L1"pmetrics_cq_list->private_cq[%d]", i++);
+                    IDNT_L1"pmetrics_cq_list->priv[%d]", i++);
                 __kernel_write(file, work, strlen(work), &pos);
-                snprintf(work, SIZE_OF_WORK, IDNT_L2"vir_kern_addr = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.vir_kern_addr);
+                snprintf(work, SIZE_OF_WORK, IDNT_L2"buf = 0X%llX",
+                    (u64)pmetrics_cq_list->priv.buf);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"dma_addr_t = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.cq_dma_addr);
+                    (u64)pmetrics_cq_list->priv.cq_dma_addr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK,
                     IDNT_L2"contig (1 = Y/(0 = N) = %d",
-                    pmetrics_cq_list->private_cq.contig);
+                    pmetrics_cq_list->priv.contig);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"size = %d",
-                    pmetrics_cq_list->private_cq.size);
+                    pmetrics_cq_list->priv.size);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"dbs = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.dbs);
+                    (u64)pmetrics_cq_list->priv.dbs);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L3"prp_persist:");
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"npages = %d",
-                    pmetrics_cq_list->private_cq.prp_persist.npages);
+                    pmetrics_cq_list->priv.prp_persist.npages);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"type = %d",
-                    pmetrics_cq_list->private_cq.prp_persist.type);
+                    pmetrics_cq_list->priv.prp_persist.type);
                 __kernel_write(file, work, strlen(work), &pos);
-                snprintf(work, SIZE_OF_WORK, IDNT_L4"vir_kern_addr = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.
-                    vir_kern_addr);
+                snprintf(work, SIZE_OF_WORK, IDNT_L4"buf = 0X%llX",
+                    (u64)pmetrics_cq_list->priv.prp_persist.
+                    buf);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"vir_prp_list = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.vir_prp_list);
+                    (u64)pmetrics_cq_list->priv.prp_persist.vir_prp_list);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"prp1 = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.prp1);
+                    (u64)pmetrics_cq_list->priv.prp_persist.prp1);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"prp2 = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.prp2);
+                    (u64)pmetrics_cq_list->priv.prp_persist.prp2);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"first dma = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.first_dma);
+                    (u64)pmetrics_cq_list->priv.prp_persist.first_dma);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"data_dir = %d",
-                    pmetrics_cq_list->private_cq.prp_persist.data_dir);
+                    pmetrics_cq_list->priv.prp_persist.data_dir);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"data_buf_addr = 0X%llX",
                     (u64)pmetrics_cq_list->
-                    private_cq.prp_persist.data_buf_addr);
+                    priv.prp_persist.data_buf_addr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"data_buf_size = %d",
-                    pmetrics_cq_list->private_cq.prp_persist.data_buf_size);
+                    pmetrics_cq_list->priv.prp_persist.data_buf_size);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"sq = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.sg);
+                    (u64)pmetrics_cq_list->priv.prp_persist.sg);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"num_map_pgs = 0X%llX",
-                    (u64)pmetrics_cq_list->private_cq.prp_persist.num_map_pgs);
+                    (u64)pmetrics_cq_list->priv.prp_persist.num_map_pgs);
                 __kernel_write(file, work, strlen(work), &pos);
             } /* End of CQ list */
 
@@ -300,96 +300,96 @@ int driver_log(struct nvme_file *n_file)
 
             /* looping through available sq list */
             list_for_each_entry(pmetrics_sq_list, &pmetrics_device->
-                metrics_sq_list, sq_list_hd) {
+                sq_list, sq_entry) {
 
                 /* Get each member of SQ structure and write to file */
                 snprintf(work, SIZE_OF_WORK,
-                    IDNT_L1"pmetrics_sq_list->public_sq[%d]", i);
+                    IDNT_L1"pmetrics_sq_list->pub[%d]", i);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"sq_id = %d",
-                    pmetrics_sq_list->public_sq.sq_id);
+                    pmetrics_sq_list->pub.sq_id);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"Assoc cq_id = %d",
-                    pmetrics_sq_list->public_sq.cq_id);
+                    pmetrics_sq_list->pub.cq_id);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"elements = %d",
-                    pmetrics_sq_list->public_sq.elements);
+                    pmetrics_sq_list->pub.elements);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"head_ptr = %d",
-                    pmetrics_sq_list->public_sq.head_ptr);
+                    pmetrics_sq_list->pub.head_ptr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"tail_ptr_virt = %d",
-                    pmetrics_sq_list->public_sq.tail_ptr_virt);
+                    pmetrics_sq_list->pub.tail_ptr_virt);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"tail_ptr = %d",
-                    pmetrics_sq_list->public_sq.tail_ptr);
+                    pmetrics_sq_list->pub.tail_ptr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK,
-                    IDNT_L1"pmetrics_sq_list->private_sq[%d]", i++);
+                    IDNT_L1"pmetrics_sq_list->priv[%d]", i++);
                 __kernel_write(file, work, strlen(work), &pos);
-                snprintf(work, SIZE_OF_WORK, IDNT_L2"vir_kern_addr = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.vir_kern_addr);
+                snprintf(work, SIZE_OF_WORK, IDNT_L2"buf = 0X%llX",
+                    (u64)pmetrics_sq_list->priv.buf);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK,
                     IDNT_L2"contig (1 = Y/ 0 = N) = %d",
-                    pmetrics_sq_list->private_sq.contig);
+                    pmetrics_sq_list->priv.contig);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"size = %d",
-                    pmetrics_sq_list->private_sq.size);
+                    pmetrics_sq_list->priv.size);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"unique_cmd_id(Cnt) = %d",
-                    pmetrics_sq_list->private_sq.unique_cmd_id);
+                    pmetrics_sq_list->priv.unique_cmd_id);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"dbs = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.dbs);
+                    (u64)pmetrics_sq_list->priv.dbs);
                 __kernel_write(file, work, strlen(work), &pos);
 
                 snprintf(work, SIZE_OF_WORK, IDNT_L3"prp_persist:");
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"npages = %d",
-                    pmetrics_sq_list->private_sq.prp_persist.npages);
+                    pmetrics_sq_list->priv.prp_persist.npages);
                 __kernel_write(file, work, strlen(work), &pos);
-                snprintf(work, SIZE_OF_WORK, IDNT_L4"vir_kern_addr = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.
-                    vir_kern_addr);
+                snprintf(work, SIZE_OF_WORK, IDNT_L4"buf = 0X%llX",
+                    (u64)pmetrics_sq_list->priv.prp_persist.
+                    buf);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"type = %d",
-                    pmetrics_sq_list->private_sq.prp_persist.type);
+                    pmetrics_sq_list->priv.prp_persist.type);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"vir_prp_list = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.vir_prp_list);
+                    (u64)pmetrics_sq_list->priv.prp_persist.vir_prp_list);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"prp1 = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.prp1);
+                    (u64)pmetrics_sq_list->priv.prp_persist.prp1);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"prp2 = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.prp2);
+                    (u64)pmetrics_sq_list->priv.prp_persist.prp2);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"first dma = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.first_dma);
+                    (u64)pmetrics_sq_list->priv.prp_persist.first_dma);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"data_dir = %d",
-                    pmetrics_sq_list->private_sq.prp_persist.data_dir);
+                    pmetrics_sq_list->priv.prp_persist.data_dir);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"data_buf_addr = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.
+                    (u64)pmetrics_sq_list->priv.prp_persist.
                     data_buf_addr);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"data_buf_size = %d",
-                    pmetrics_sq_list->private_sq.prp_persist.data_buf_size);
+                    pmetrics_sq_list->priv.prp_persist.data_buf_size);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"sg = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.sg);
+                    (u64)pmetrics_sq_list->priv.prp_persist.sg);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L4"num_map_pgs = 0X%llX",
-                    (u64)pmetrics_sq_list->private_sq.prp_persist.num_map_pgs);
+                    (u64)pmetrics_sq_list->priv.prp_persist.num_map_pgs);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L3"cmd track list = ");
                 __kernel_write(file, work, strlen(work), &pos);
                 /* Looping through the cmds if any */
                 list_for_each_entry(pcmd_track_list,
-                    &(pmetrics_sq_list->private_sq.cmd_track_list),
-                    cmd_list_hd) {
+                    &(pmetrics_sq_list->priv.cmd_list),
+                    entry) {
 
                     /* write to file if any cmds exist */
                     snprintf(work, SIZE_OF_WORK, IDNT_L4"cmd track no = %d",
@@ -408,8 +408,8 @@ int driver_log(struct nvme_file *n_file)
                     __kernel_write(file, work, strlen(work), &pos);
                     /* Printing prp_nonpersist memeber variables */
                     snprintf(work, SIZE_OF_WORK,
-                        IDNT_L6"vir_kern_addr = 0X%llX", (u64)
-                        pcmd_track_list->prp_nonpersist.vir_kern_addr);
+                        IDNT_L6"buf = 0X%llX", (u64)
+                        pcmd_track_list->prp_nonpersist.buf);
                     __kernel_write(file, work, strlen(work), &pos);
                     snprintf(work, SIZE_OF_WORK, IDNT_L6"npages = %d",
                         pcmd_track_list->prp_nonpersist.npages);
@@ -476,37 +476,37 @@ fail_out:
  * Logging Meta data nodes into user space file.
  */
 static loff_t meta_nodes_log(struct file *file, loff_t pos,
-     struct metrics_device_list *pmetrics_device)
+     struct nvme_context *pmetrics_device)
 {
-    struct metrics_meta *pmetrics_meta;
+    struct nvme_meta *pmetrics_meta;
     u8 work[SIZE_OF_WORK];
     int i = 0;
 
 
-    if (pmetrics_device->metrics_meta.meta_dmapool_ptr == NULL) {
+    if (pmetrics_device->meta_set.pool == NULL) {
         return pos;
     }
     snprintf(work, SIZE_OF_WORK,
-        IDNT_L1"pmetrics_device->metrics_meta.meta_dmapool_ptr = 0x%llx",
-        (u64)pmetrics_device->metrics_meta.meta_dmapool_ptr);
+        IDNT_L1"pmetrics_device->meta_set.pool = 0x%llx",
+        (u64)pmetrics_device->meta_set.pool);
     __kernel_write(file, work, strlen(work), &pos);
 
-    list_for_each_entry(pmetrics_meta, &pmetrics_device->metrics_meta.
-            meta_trk_list, meta_list_hd) {
+    list_for_each_entry(pmetrics_meta, &pmetrics_device->meta_set.
+            meta_list, entry) {
         /* Get each Meta buffer node and write to file */
         snprintf(work, SIZE_OF_WORK,
             IDNT_L2"pmetrics_device->pmetrics_meta[%d]", i++);
         __kernel_write(file, work, strlen(work), &pos);
-        snprintf(work, SIZE_OF_WORK, IDNT_L3"pmetrics_meta->meta_id = %d",
-            pmetrics_meta->meta_id);
+        snprintf(work, SIZE_OF_WORK, IDNT_L3"pmetrics_meta->id = %d",
+            pmetrics_meta->id);
         __kernel_write(file, work, strlen(work), &pos);
         snprintf(work, SIZE_OF_WORK,
-            IDNT_L3"pmetrics_meta->meta_dma_addr = 0x%llx",
-            (u64)pmetrics_meta->meta_dma_addr);
+            IDNT_L3"pmetrics_meta->dma = 0x%llx",
+            (u64)pmetrics_meta->dma);
         __kernel_write(file, work, strlen(work), &pos);
         snprintf(work, SIZE_OF_WORK,
-            IDNT_L3"pmetrics_meta->vir_kern_addr = 0x%llx",
-            (u64)pmetrics_meta->vir_kern_addr);
+            IDNT_L3"pmetrics_meta->buf = 0x%llx",
+            (u64)pmetrics_meta->buf);
         __kernel_write(file, work, strlen(work), &pos);
     }
     return pos;
@@ -517,7 +517,7 @@ static loff_t meta_nodes_log(struct file *file, loff_t pos,
  * logging irq nodes into user space file.
  */
 static loff_t irq_nodes_log(struct file *file, loff_t pos,
-    struct metrics_device_list *pmetrics_device_elem)
+    struct nvme_context *pmetrics_device_elem)
 {
     u8 work[SIZE_OF_WORK];
     int i = 0;

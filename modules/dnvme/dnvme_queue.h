@@ -91,7 +91,7 @@ struct cq_completion {
  * @return whether ACQ creation successful or not.
  */
 int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
-        struct  metrics_cq  *pmetrics_cq_list);
+        struct  nvme_cq  *pmetrics_cq_list);
 
 /**
  * The user selection of IOCTL for creating admin sq eventually calls
@@ -103,10 +103,10 @@ int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
  * @return whether ASQ creation successful or not.
  */
 int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
-    struct  metrics_sq  *pmetrics_sq_list);
+    struct  nvme_sq  *pmetrics_sq_list);
 
-int nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 state);
-int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 state);
+int nvme_ctrl_set_state(struct  nvme_context *pmetrics_device, u8 state);
+int iol_nvme_ctrl_set_state(struct  nvme_context *pmetrics_device, u8 state);
 
 /**
  * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
@@ -115,7 +115,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * @param  pmetrics_device
  * @return 0 or -1
  */
-//int nvme_ctrl_enable(struct  metrics_device_list *pmetrics_device);
+//int nvme_ctrl_enable(struct  nvme_context *pmetrics_device);
 
 /*
  * iol_nvme_ctrl_enable - NVME controller enable function. This will set the
@@ -127,7 +127,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * @param  pmetrics_device
  * @return 0 or -1
  */
-//int iol_nvme_ctrl_enable(struct metrics_device_list *pmetrics_device);
+//int iol_nvme_ctrl_enable(struct nvme_context *pmetrics_device);
 
 /**
  * nvme_ctrl_disable - NVME controller disable function.This will reset the
@@ -136,7 +136,7 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * @param pmetrics_device
  * @return 0 or -1
  */
-//int nvme_ctrl_disable(struct  metrics_device_list *pmetrics_device);
+//int nvme_ctrl_disable(struct  nvme_context *pmetrics_device);
 
 /*
  * nvme_nvm_subsystem_reset - NVME NVM subsystem reset function. This will
@@ -146,14 +146,14 @@ int iol_nvme_ctrl_set_state(struct  metrics_device_list *pmetrics_device, u8 sta
  * @param pmetrics_device
  * @return 0 or -1
  */
-int nvme_nvm_subsystem_reset(struct metrics_device_list *pmetrics_device);
+int nvme_nvm_subsystem_reset(struct nvme_context *pmetrics_device);
 
 /**
  * device_cleanup - Will clean up all the existing data structs used by driver
  * @param pmetrics_device
  * @param new_state
  */
-void device_cleanup(struct  metrics_device_list *pmetrics_device,
+void device_cleanup(struct  nvme_context *pmetrics_device,
     enum nvme_state new_state);
 /**
  * identify_unique - verify if the q_id specified is unique. If not unique then
@@ -164,7 +164,7 @@ void device_cleanup(struct  metrics_device_list *pmetrics_device,
  * @return 0 or -1
  */
 int identify_unique(u16 q_id, enum metrics_type type,
-        struct  metrics_device_list *pmetrics_device);
+        struct  nvme_context *pmetrics_device);
 
 /**
  * nvme_prepare_sq - NVME controller prepare sq function. This will check
@@ -173,7 +173,7 @@ int identify_unique(u16 q_id, enum metrics_type type,
  * @param pnvme_dev
  * @return 0 or -1
  */
-int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
+int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
             struct nvme_device *pnvme_dev);
 
 /**
@@ -183,7 +183,7 @@ int nvme_prepare_sq(struct  metrics_sq  *pmetrics_sq_list,
  * @param pnvme_dev
  * @return 0 or -1
  */
-int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
+int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
             struct nvme_device *pnvme_dev);
 
 /**
@@ -193,43 +193,14 @@ int nvme_prepare_cq(struct  metrics_cq  *pmetrics_cq_list,
  * @param pmetrics_device
  * @return 0 or -1
  */
-int nvme_ring_sqx_dbl(u16 ring_sqx, struct  metrics_device_list
+int nvme_ring_sqx_dbl(u16 ring_sqx, struct  nvme_context
         *pmetrics_device);
 
-/**
- * finds the sq node in the given sq list for the given sq id
- * @param pmetrics_device
- * @param sq_id
- * @return pointer to the sq node for given sq id
- */
-struct metrics_sq *find_sq(struct  metrics_device_list
-        *pmetrics_device, u16 sq_id);
 
-/**
- * finds the cq node in the given cq list for the given cq id
- * @param pmetrics_device
- * @param cq_id
- * @return pointer to the cq node for given cq id
- */
-struct metrics_cq *find_cq(struct  metrics_device_list
-        *pmetrics_device, u16 cq_id);
-
-/**
- * Find the command node for the given sq node and cmd id.
- * @param pmetrics_sq_node
- * @param cmd_id
- * @return pointer to cmd node for given cmd id.
- */
-struct cmd_track *find_cmd(struct metrics_sq *pmetrics_sq_node, u16 cmd_id);
-
-/**
- * Find meta data node for the given meda id and device.
- * @param pmetrics_device
- * @param meta_id
- * @return pointer to metrics_meta node.
- */
-struct metrics_meta *find_meta_node(struct metrics_device_list
-        *pmetrics_device, u32 meta_id);
+struct nvme_sq *dnvme_find_sq(struct nvme_context *ctx, u16 id);
+struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id);
+struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
+struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
 
 /**
  * This function gives the device metrics when the user requests. This
@@ -239,7 +210,7 @@ struct metrics_meta *find_meta_node(struct metrics_device_list
  * @param pmetrics_device
  * @return success or failure.
  */
-int get_public_qmetrics(struct  metrics_device_list *pmetrics_device,
+int get_public_qmetrics(struct  nvme_context *pmetrics_device,
         struct nvme_get_q_metrics *get_q_metrics);
 
 /**
@@ -250,6 +221,6 @@ int get_public_qmetrics(struct  metrics_device_list *pmetrics_device,
  *  @param dev
  *  @return number of CE's remaining
   */
-u32 reap_inquiry(struct metrics_cq  *pmetrics_cq_node, struct device *dev);
+u32 reap_inquiry(struct nvme_cq  *pmetrics_cq_node, struct device *dev);
 
 #endif

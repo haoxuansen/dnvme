@@ -11,6 +11,12 @@
 #ifndef _DNVME_CORE_H_
 #define _DNVME_CORE_H_
 
+#include <linux/limits.h>
+
+#define NVME_SQ_ID_MAX			U16_MAX
+#define NVME_CQ_ID_MAX			U16_MAX
+#define NVME_META_ID_MAX		((0x1 << 18) - 1)
+
 /* Debug flag for IOCT_SEND_64B module */
 #define TEST_PRP_DEBUG
 

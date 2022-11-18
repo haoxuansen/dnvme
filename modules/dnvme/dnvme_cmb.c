@@ -41,15 +41,15 @@ void nvme_map_cmb(struct nvme_device *dev)
 {
 	u64 size, offset;
 	resource_size_t bar_size;
-	struct pci_dev *pdev = dev->private_dev.pdev;
+	struct pci_dev *pdev = dev->priv.pdev;
 	int bar;
 	if (dev->cmb_size)
 		return;
-	dev->cmbsz = readl(&dev->private_dev.ctrlr_regs->cmbsz);
+	dev->cmbsz = readl(&dev->priv.ctrlr_regs->cmbsz);
 	pr_info("cmbsz:%x",dev->cmbsz);        
 	if (!dev->cmbsz)
 		return;
-	dev->cmbloc = readl(&dev->private_dev.ctrlr_regs->cmbloc);
+	dev->cmbloc = readl(&dev->priv.ctrlr_regs->cmbloc);
 	pr_info("cmbloc:%x",dev->cmbloc);        
 	size = nvme_cmb_size_unit(dev) * nvme_cmb_size(dev);
 	offset = nvme_cmb_size_unit(dev) * NVME_CMB_OFST(dev->cmbloc);
@@ -81,7 +81,7 @@ void nvme_map_cmb(struct nvme_device *dev)
 			(NVME_CMBSZ_WDS | NVME_CMBSZ_RDS))
 		pci_p2pmem_publish(pdev, true);
 
-	// if (sysfs_add_file_to_group(&dev->private_dev.spcl_dev->kobj,
+	// if (sysfs_add_file_to_group(&dev->priv.spcl_dev->kobj,
 	// 			    &dev_attr_cmb.attr, NULL))
 	// 	pr_err("failed to add sysfs attribute for CMB\n");
 }
@@ -90,7 +90,7 @@ void nvme_map_cmb(struct nvme_device *dev)
 inline void nvme_release_cmb(struct nvme_device *dev)
 {
 	if (dev->cmb_size) {
-		// sysfs_remove_file_from_group(&dev->private_dev.spcl_dev->kobj,
+		// sysfs_remove_file_from_group(&dev->priv.spcl_dev->kobj,
 		// 			     &dev_attr_cmb.attr, NULL);
 		dev->cmb_size = 0;
 	}

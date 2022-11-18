@@ -179,8 +179,8 @@ int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state);
 void ioctl_create_acq(int file_desc, uint32_t queue_size);
 void ioctl_create_asq(int file_desc, uint32_t queue_size);
 void test_meta(int file_desc);
-uint32_t create_meta_buf(int file_desc, uint32_t meta_id);
-int ioctl_meta_buf_delete(int file_desc, uint32_t meta_id);
+uint32_t create_meta_buf(int file_desc, uint32_t id);
+int ioctl_meta_buf_delete(int file_desc, uint32_t id);
 
 void ioctl_dump(int file_desc, char *tmpfile);
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
@@ -188,9 +188,9 @@ void admin_queue_config(int file_desc);
 void test_irq_review568(int fd);
 void test_dev_metrics(int file_desc);
 
-uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t nBytes);
-int read_nvme_register(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *byte_buffer);
-int ioctl_write_data(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *byte_buffer);
+uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t bytes);
+int read_nvme_register(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
+int ioctl_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
 
 uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length);
 
@@ -219,8 +219,8 @@ uint32_t pci_read_dword(int file_desc, uint32_t offset);
 uint16_t pci_read_word(int file_desc, uint32_t offset);
 uint8_t pci_read_byte(int file_desc, uint32_t offset);
 
-int read_pcie_register(int file_desc, uint32_t offset, uint32_t nBytes, enum nvme_acc_type acc_type, uint8_t *byte_buffer);
-int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t nBytes, uint8_t *byte_buffer);
+int read_pcie_register(int file_desc, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer);
+int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
 
 uint8_t pci_find_cap_ofst(int file_desc, uint8_t cap_id);
 

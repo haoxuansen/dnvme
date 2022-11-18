@@ -23,7 +23,7 @@
 #include <stdlib.h>
 
 #include "dnvme_interface.h"
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 #include "reg_nvme_ctrl.h"
 
 #include "common.h"
@@ -861,7 +861,7 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
 int subsys_reset(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, ST_NVM_SUBSYSTEM);
+    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, NVME_ST_NVM_SUBSYSTEM);
     if (ret_val < 0)
     {
         pr_err("User Call to subsys_reset: Failed!\n");
@@ -884,7 +884,7 @@ int subsys_reset(void)
 int ctrl_disable(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, ST_DISABLE_COMPLETELY);
+    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, NVME_ST_DISABLE_COMPLETE);
     if (ret_val < 0)
     {
         pr_err("User Call to Disable Ctrlr: Failed!\n");
@@ -1152,7 +1152,7 @@ int nvme_io_compare_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t n
 
 /* CMD to send NVME IO write command using metabuff*/
 int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                                   uint16_t control, uint32_t meta_id, void *data_addr)
+                                   uint16_t control, uint32_t id, void *data_addr)
 {
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
@@ -1171,7 +1171,7 @@ int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id,
         .cmd_buf_ptr = (u_int8_t *)&io_cmd,
         .data_buf_size = data_size,
         .data_buf_ptr = data_addr,
-        .meta_buf_id = meta_id,
+        .meta_buf_id = id,
         .data_dir = DMA_FROM_DEVICE,
     };
     return nvme_64b_cmd(file_desc, &user_cmd);
@@ -1179,7 +1179,7 @@ int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id,
 
 /* CMD to send NVME IO read command using metabuff through contig Queue */
 int send_nvme_read_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                                  uint16_t control, uint32_t meta_id, void *data_addr)
+                                  uint16_t control, uint32_t id, void *data_addr)
 {
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
@@ -1198,7 +1198,7 @@ int send_nvme_read_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, 
         .cmd_buf_ptr = (u_int8_t *)&io_cmd,
         .data_buf_size = data_size,
         .data_buf_ptr = data_addr,
-        .meta_buf_id = meta_id,
+        .meta_buf_id = id,
         .data_dir = DMA_BIDIRECTIONAL,
     };
     return nvme_64b_cmd(file_desc, &user_cmd);

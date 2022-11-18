@@ -25,7 +25,7 @@ static void int_mask_bit(uint32_t msi_mask_flag)
     uint32_t index_max = 9;
     uint32_t mask_bit = 0;
     uint32_t u32_tmp_data = 0;
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
     admin_queue_config(file_desc);
 
     set_irqs(file_desc, INT_MSIX, 9);

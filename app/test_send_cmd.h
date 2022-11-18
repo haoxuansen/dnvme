@@ -70,9 +70,9 @@ int nvme_io_compare_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t n
                      uint16_t control, void *data_addr);
 
 int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                     uint16_t control, uint32_t meta_id, void *data_addr);
+                     uint16_t control, uint32_t id, void *data_addr);
 int send_nvme_read_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                     uint16_t control, uint32_t meta_id, void *data_addr);
+                     uint16_t control, uint32_t id, void *data_addr);
 
 int nvme_ring_dbl_and_reap_cq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num);
 

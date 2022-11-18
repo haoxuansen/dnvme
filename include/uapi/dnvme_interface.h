@@ -22,27 +22,19 @@
 #include <stdbool.h>
 #include "nvme.h"
 
-/**
- * These are the enum types used for branching to
- * required offset as specified by either PCI space
- * or a NVME space enum value defined here.
- */
-enum nvme_io_space {
-	NVMEIO_PCI_HDR,
-	NVMEIO_BAR01,
-	NVMEIO_FENCE    /* always must be the last element */
+enum nvme_region {
+	NVME_PCI_HEADER,
+	NVME_BAR0_BAR1,
 };
 
 /**
- * These are the enum types used for specifying the
- * required access width of registers or memory space.
+ * @brief The required access width of register or memory space.
  */
-enum nvme_acc_type {
-	BYTE_LEN,
-	WORD_LEN,
-	DWORD_LEN,
-	QUAD_LEN,
-	ACC_FENCE
+enum nvme_access_type {
+	NVME_ACCESS_BYTE,
+	NVME_ACCESS_WORD,
+	NVME_ACCESS_DWORD,
+	NVME_ACCESS_QWORD,
 };
 
 /**
@@ -67,16 +59,14 @@ enum nvme_q_type {
 };
 
 /**
- * This struct is the basic structure which has important
- * parameter for the generic read  and write function to seek the correct
- * offset and length while reading or writing to nvme card.
+ * @brief Parameters for the generic read or write.
  */
-struct rw_generic {
-	enum nvme_io_space	type;
-	uint32_t		offset;
-	uint32_t		nBytes;
-	enum nvme_acc_type	acc_type;
+struct nvme_access {
+	enum nvme_region	region;
+	enum nvme_access_type	type;
 	uint8_t			*buffer;
+	uint32_t		bytes;
+	uint32_t		offset;
 };
 
 /**
@@ -84,12 +74,12 @@ struct rw_generic {
  * controller.
  */
 enum nvme_state {
-	ST_ENABLE,              /* Set the NVME Controller to enable state */
-	ST_ENABLE_IOL_TO,       /* Set NVME Controller to enable, wait IOL TO */
-	ST_DISABLE_IOL_TO,      /* Set NVME Controller to disable, wait IOL TO */
-	ST_DISABLE,             /* Controller reset without affecting Admin Q */
-	ST_DISABLE_COMPLETELY,  /* Completely destroy even Admin Q's */
-	ST_NVM_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
+	NVME_ST_ENABLE,              /* Set the NVME Controller to enable state */
+	NVME_ST_ENABLE_IOL_TO,       /* Set NVME Controller to enable, wait IOL TO */
+	NVME_ST_DISABLE_IOL_TO,      /* Set NVME Controller to disable, wait IOL TO */
+	NVME_ST_DISABLE,             /* Controller reset without affecting Admin Q */
+	NVME_ST_DISABLE_COMPLETE,  /* Completely destroy even Admin Q's */
+	NVME_ST_NVM_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
 };
 
 /* Enum specifying bitmask passed on to IOCTL_SEND_64B */
@@ -127,7 +117,7 @@ struct nvme_64b_send {
  * version. A verification is performed by driver and application to
  * check if these versions match.
  */
-struct metrics_driver {
+struct nvme_driver {
 	uint32_t driver_version;  /* dnvme driver version */
 	uint32_t api_version;     /* tnvme test application version */
 };
@@ -136,7 +126,7 @@ struct metrics_driver {
  * This structure defines the parameters required for creating any CQ.
  * It supports both Admin CQ and IO CQ.
  */
-struct nvme_gen_cq {
+struct nvme_cq_public {
 	uint16_t	q_id; /* even admin q's are supported here q_id = 0 */
 	uint16_t	tail_ptr; /* The value calculated for respective tail_ptr */
 	uint16_t	head_ptr; /* Actual value in CQxTDBL for this q_id */
@@ -150,7 +140,7 @@ struct nvme_gen_cq {
  * This structure defines the parameters required for creating any SQ.
  * It supports both Admin SQ and IO SQ.
  */
-struct nvme_gen_sq {
+struct nvme_sq_public {
 	uint16_t	sq_id; /* Admin SQ are supported with q_id = 0 */
 	uint16_t	cq_id; /* The CQ ID to which this SQ is associated */
 	uint16_t	tail_ptr; /* Actual value in SQxTDBL for this SQ id */
@@ -178,7 +168,7 @@ enum metrics_type {
 struct nvme_get_q_metrics {
     uint16_t          q_id;     /* Pass the Q id for which metrics is desired */
     enum metrics_type type;     /* SQ or CQ metrics desired */
-    uint32_t          nBytes;   /* Number of bytes to copy into buffer */
+    uint32_t          bytes;   /* Number of bytes to copy into buffer */
     uint8_t *         buffer;   /* to store the required data */
 };
 
@@ -334,8 +324,8 @@ struct interrupts {
  * Public interface for the nvme device parameters. These parameters are
  * copied to user on request through an IOCTL interface GET_DEVICE_METRICS.
  */
-struct public_metrics_dev {
-	struct interrupts irq_active; /* Active IRQ state of the nvme device */
+struct nvme_dev_public {
+	struct interrupts	irq_active; /* Active IRQ state of the nvme device */
 };
 
 /**
@@ -359,29 +349,34 @@ struct nvme_logstr {
     const char *log_str;    /* NULl terminated ASCII logging statement */
 };
 
-#define PCI_CAP_SUPPORT_PM 0x0001
-#define PCI_CAP_SUPPORT_MSI 0x0002
-#define PCI_CAP_SUPPORT_MSIX 0x0004
-#define PCI_CAP_SUPPORT_PCIE 0x0008
+/**
+ * @pci_device_status: Status Register(Offset 06h) of PCI Config Space
+ * 
+ */
+struct device_status {
+	uint16_t	pci_device_status;
+	uint16_t	pci_cap_support;
+/* PCI Power Management Capability */
+#define PCI_CAP_SUPPORT_PM		(1 << 0)
+/* Message Signaaled Interrupts */
+#define PCI_CAP_SUPPORT_MSI		(1 << 1)
+#define PCI_CAP_SUPPORT_MSIX		(1 << 2)
+#define PCI_CAP_SUPPORT_PCIE		(1 << 3)
 
-struct device_status
-{
-    uint16_t pci_device_status;
-    uint16_t pci_cap_support; // bit0--PM,  bit1--MSI,  bit2--MSIX,  bit3--PX
-    uint16_t cap_pm_ctr_st;   // PM capability control and staus reg
-    uint16_t cap_msi_mc;      // MSI capability message control reg
-    uint16_t cap_msix_mc;     // MSIX capability message control reg
-    uint16_t cap_pcie_dev_st; // PCIE capability device status reg
-    uint32_t nvme_control_st; // nvme control status
+	uint16_t	cap_pm_ctr_st;   // PM capability control and staus reg
+	uint16_t	cap_msi_mc;      // MSI capability message control reg
+	uint16_t	cap_msix_mc;     // MSIX capability message control reg
+	uint16_t	cap_pcie_dev_st; // PCIE capability device status reg
+	uint32_t	nvme_control_st; // nvme control status
 };
 
 
 // struct nvme_write_bp_buf
 // {
-//     enum nvme_io_space type;
+//     enum nvme_region type;
 //     uint32_t offset;
-//     uint32_t nBytes;
-//     enum nvme_acc_type acc_type;
+//     uint32_t bytes;
+//     enum nvme_access_type acc_type;
 
 //     /* Data buffer user space address */
 //     uint8_t *bp_buf;

@@ -19,6 +19,8 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
+#include "dnvme_interface.h"
+
 /**
  * Enumeration types which provide common interface between kernel driver and
  * user app layer ioctl functions. dnvme is using letter 'N' to designate the
@@ -29,8 +31,8 @@
  * following enum.
  */
 enum {
-	NVME_READ_GENERIC = 0xB0,   /** <enum to invoke read generic func call. */
-	NVME_WRITE_GENERIC,         /** <enum to invoke write generic func call. */
+	NVME_READ_GENERIC = 0xB0,
+	NVME_WRITE_GENERIC,
 	NVME_ERR_CHK,               /** <enum Generic device status check func */
 	NVME_CREATE_ADMN_SQ,        /** <enum to invoke admin sq creation */
 	NVME_CREATE_ADMN_CQ,        /** <enum to invoke admin cq creation */
@@ -58,24 +60,12 @@ enum {
 	// NVME_GET_BP_MEM_ADDR,      /** <enum boot part kernel memory address get */
 };
 
-/**
- * @def NVME_IOCTL_READ_GENERIC
- * define a unique value using _IOWR call for Generic read capability.
- */
-#define NVME_IOCTL_READ_GENERIC _IOWR('N', NVME_READ_GENERIC, \
-    struct rw_generic)
 
 
-/**
- * @def NVME_IOCTL_WRITE_GENERIC
- * define a unique value for Generic write capability the first parameter
- * is the group to which this IOCTL type belongs to, generally from (0-255)
- * the second parameter is type within the group.The third parameter give
- * the size of data and type of data that is passed to this ioctl from user
- * level to kernel level.
- */
-#define NVME_IOCTL_WRITE_GENERIC _IOWR('N', NVME_WRITE_GENERIC, \
-    struct rw_generic)
+#define NVME_IOCTL_READ_GENERIC \
+	_IOWR('N', NVME_READ_GENERIC, struct nvme_access)
+#define NVME_IOCTL_WRITE_GENERIC \
+	_IOWR('N', NVME_WRITE_GENERIC, struct nvme_access)
 
 /**
  * @def NVME_IOCTL_ERR_CHK
@@ -187,7 +177,7 @@ enum {
  * define a unique value to return driver metrics ioctl.
  */
 #define NVME_IOCTL_GET_DRIVER_METRICS _IOWR('N', NVME_GET_DRIVER_METRICS, \
-    struct metrics_driver)
+    struct nvme_driver)
 
 /**
  * @def NVME_IOCTL_METABUF_ALLOC
@@ -223,7 +213,7 @@ enum {
  * define a unique value for returning the device metrics.
  */
 #define NVME_IOCTL_GET_DEVICE_METRICS _IOWR('N', NVME_GET_DEVICE_METRICS, \
-    struct public_metrics_dev)
+    struct nvme_dev_public)
 
 /**
  * @def NVME_IOCTL_MARK_SYSLOG

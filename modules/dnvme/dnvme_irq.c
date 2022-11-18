@@ -31,31 +31,31 @@
 
 
 /* Static function declarations used for setting interrupt schemes. */
-static int validate_irq_inputs(struct metrics_device_list
+static int validate_irq_inputs(struct nvme_context
     *pmetrics_device_elem, struct interrupts *irq_new,
         struct msix_info *pmsix_tbl_info);
-static int set_pin_int(struct metrics_device_list *pmetrics_device_elem);
-static int set_msix(struct metrics_device_list *pmetrics_device_elem,
+static int set_pin_int(struct nvme_context *pmetrics_device_elem);
+static int set_msix(struct nvme_context *pmetrics_device_elem,
     u16 num_irqs, struct msix_info *pmsix_tbl_info);
-static int set_msi_single(struct metrics_device_list *pmetrics_device_elem);
-static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
+static int set_msi_single(struct nvme_context *pmetrics_device_elem);
+static int set_msi_multi(struct nvme_context *pmetrics_device_elem,
     u16 num_irqs);
-static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
+static int add_irq_node(struct  nvme_context *pmetrics_device_elem,
     u32 int_vec, u16 irq_no);
 static void bh_callback(struct work_struct *work);
 static void dealloc_all_icqs(struct  irq_track *pirq_trk_list);
-static int disable_active_irq(struct metrics_device_list
+static int disable_active_irq(struct nvme_context
     *pmetrics_device_elem, enum nvme_irq_type  irq_active);
 static void inc_isr_count(struct irq_processing *pirq_process,
     u16 irq_no);
 static struct irq_track *find_irq_node(
-    struct  metrics_device_list *pmetrics_device_elem, u16 irq_no);
+    struct  nvme_context *pmetrics_device_elem, u16 irq_no);
 static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
     u16 cq_id);
 static struct work_container *get_work_item(struct  irq_processing
     *pirq_process, u32 int_vec);
 static void nvme_disable_pin(struct pci_dev *dev);
-static int update_msixptr(struct  metrics_device_list
+static int update_msixptr(struct  nvme_context
     *pmetrics_device_elem, u16 offset, struct msix_info *pmsix_tbl_info);
 static void set_msix_mask_bit(u8 __iomem *irq_msixptr, u16 irq_no, u32 flag);
 static int work_queue_init(struct irq_processing *pirq_process);
@@ -80,12 +80,12 @@ static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec);
  * if the inputs given for setting up new scheme are within bounds.
  * NOTE: The controller should be disabled before setting up new scheme.
  */
-int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
+int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
     struct interrupts *irq_new)
 {
     int err = 0;
     struct msix_info msix_tbl_info; /* Info for MSI-X tables */
-    struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
+    struct nvme_device *pnvme_dev = pmetrics_device_elem->dev;
     struct interrupts *user_data = NULL;
 
     memset(&msix_tbl_info, 0, sizeof(struct msix_info));
@@ -117,7 +117,7 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
 
     /* disable the current IRQ scheme */
     err = disable_active_irq(pmetrics_device_elem, pnvme_dev->
-        public_dev.irq_active.irq_type);
+        pub.irq_active.irq_type);
     if (err < 0) {
         pr_err("Reset of IRQ to INT_NONE failed...");
         goto mutex_unlck;
@@ -156,8 +156,8 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
     /* Return value can be +ve, 0(SUCCESS) or -ve */
     if (err == 0) {
         /* Set to the new irq scheme */
-        pnvme_dev->public_dev.irq_active.irq_type = user_data->irq_type;
-        pnvme_dev->public_dev.irq_active.num_irqs = user_data->num_irqs;
+        pnvme_dev->pub.irq_active.irq_type = user_data->irq_type;
+        pnvme_dev->pub.irq_active.num_irqs = user_data->num_irqs;
         /* Following will only be read by ISR */
         pmetrics_device_elem->irq_process.irq_type = user_data->irq_type;
         pr_debug(">>irq_type:%d enable",user_data->irq_type);
@@ -185,7 +185,7 @@ fail_out:
  * NOTE: This will grab the irq mutex and releases.
  */
 /* !TODO: input arg "irq_active" not used! */
-int init_irq_lists(struct metrics_device_list
+int init_irq_lists(struct nvme_context
     *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
     int err;
@@ -193,7 +193,7 @@ int init_irq_lists(struct metrics_device_list
     mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
     /* Initialize active irq to INT_NONE */
     err = disable_active_irq(pmetrics_device_elem, 
-    	pmetrics_device_elem->metrics_device->public_dev.irq_active.irq_type);
+    	pmetrics_device_elem->dev->pub.irq_active.irq_type);
     /* Unlock IRQ MUTEX as we are done with updated irq track list */
     mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
 
@@ -205,7 +205,7 @@ int init_irq_lists(struct metrics_device_list
  * Also removes all the enqueued wk items
  * set the current active scheme to INT_NONE.
  */
-void release_irq(struct metrics_device_list *pmetrics_device_elem)
+void release_irq(struct nvme_context *pmetrics_device_elem)
 {
     /* Disable the IRQ */
     irq_disable(pmetrics_device_elem);
@@ -229,9 +229,9 @@ void release_irq(struct metrics_device_list *pmetrics_device_elem)
     dealloc_wk_list(&pmetrics_device_elem->irq_process);
 
     /* Now we can Set IRQ type to INT_NONE */
-    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+    pmetrics_device_elem->dev->pub.irq_active.
       irq_type = INT_NONE;
-    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+    pmetrics_device_elem->dev->pub.irq_active.
       num_irqs = 0;
     /* Will only be read by ISR */
     pmetrics_device_elem->irq_process.irq_type = INT_NONE;
@@ -242,7 +242,7 @@ void release_irq(struct metrics_device_list *pmetrics_device_elem)
  * Also re-initializes the irq track linked list.
  * NOTE: Always call this function with IRQ MUTEX locked, otherwise it fails.
  */
-static int disable_active_irq(struct metrics_device_list
+static int disable_active_irq(struct nvme_context
     *pmetrics_device_elem, enum nvme_irq_type  irq_active)
 {
 
@@ -265,9 +265,9 @@ static int disable_active_irq(struct metrics_device_list
     dealloc_wk_list(&pmetrics_device_elem->irq_process);
 
     /* Now we can Set IRQ type to INT_NONE */
-    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+    pmetrics_device_elem->dev->pub.irq_active.
         irq_type = INT_NONE;
-    pmetrics_device_elem->metrics_device->public_dev.irq_active.
+    pmetrics_device_elem->dev->pub.irq_active.
         num_irqs = 0;
     /* Will only be read by ISR */
     pmetrics_device_elem->irq_process.irq_type = INT_NONE;
@@ -382,19 +382,19 @@ int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
  * If the CC.EN bit is set or the number of irqs are invalid then
  * return failure otherwise success.
  */
-static int validate_irq_inputs(struct metrics_device_list
+static int validate_irq_inputs(struct nvme_context
     *pmetrics_device_elem, struct interrupts *irq_new,
     struct msix_info *pmsix_tbl_info)
 {
     int ret_val = 0;
-    struct nvme_device *pnvme_dev = pmetrics_device_elem->metrics_device;
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
-        private_dev.pdev;
+    struct nvme_device *pnvme_dev = pmetrics_device_elem->dev;
+    struct pci_dev *pdev = pmetrics_device_elem->dev->
+        priv.pdev;
     u16 msi_offset;
     u16 mc_val;
 
     /* Check if the EN bit is set and return failure if set */
-    if (readl(&pnvme_dev->private_dev.ctrlr_regs->cc) & NVME_CC_ENABLE) {
+    if (readl(&pnvme_dev->priv.ctrlr_regs->cc) & NVME_CC_ENABLE) {
         pr_err("IRQ Scheme cannot change when CC.EN bit is set!!");
         pr_err("Call Disable or Disable completely first...");
         return -EINVAL;
@@ -416,7 +416,7 @@ static int validate_irq_inputs(struct metrics_device_list
         }
         /* Update interrupt vector Mask Set and Mask Clear offsets */
         pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
-            metrics_device->private_dev.bar0 + INTMS_OFFSET;
+            dev->priv.bar0 + INTMS_OFFSET;
         break;
 
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
@@ -443,12 +443,12 @@ static int validate_irq_inputs(struct metrics_device_list
         }
         /* Update interrupt vector Mask Set and Mask Clear offsets */
         pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->
-            metrics_device->private_dev.bar0 + INTMS_OFFSET;
+            dev->priv.bar0 + INTMS_OFFSET;
         break;
 
     case INT_PIN: 							/* INT_PIN  */
 	        /* Update interrupt vector Mask Set and Mask Clear offsets */
-	        pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->metrics_device->private_dev.bar0 + 
+	        pmetrics_device_elem->irq_process.mask_ptr = pmetrics_device_elem->dev->priv.bar0 + 
 	       												 INTMS_OFFSET;
 	        break;
 
@@ -506,14 +506,14 @@ static int validate_irq_inputs(struct metrics_device_list
  * code.
  * Return 0 on sucess and -ve or +ve values on error
  */
-static int set_msix(struct metrics_device_list *pmetrics_device_elem,
+static int set_msix(struct nvme_context *pmetrics_device_elem,
     u16 num_irqs, struct msix_info *pmsix_tbl_info)
 {
     int ret_val, i, j, tmp_irq;
     u32 regVal;
     static struct msix_entry msix_entries[MAX_IRQ_VEC_MSI_X];
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
-        private_dev.pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->dev->
+        priv.pdev;
     struct irq_track *pirq_node;
 
     memset(msix_entries, 0, sizeof(struct msix_entry) * MAX_IRQ_VEC_MSI_X);
@@ -597,14 +597,14 @@ static int set_msix(struct metrics_device_list *pmetrics_device_elem,
     return ret_val;
 
 free_msix:
-    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->metrics_device->public_dev.irq_active.irq_type);
+    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->dev->pub.irq_active.irq_type);
     return ret_val;
 }
 
 
-static int set_pin_int(struct metrics_device_list *pmetrics_device_elem)
+static int set_pin_int(struct nvme_context *pmetrics_device_elem)
 {
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->private_dev.pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->dev->priv.pdev;
     int ret_val;
     struct irq_track *pirq_node;
 
@@ -657,7 +657,7 @@ static int set_pin_int(struct metrics_device_list *pmetrics_device_elem)
 
     return ret_val;
 free_msis:
-    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->metrics_device->public_dev.irq_active.irq_type);
+    disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->dev->pub.irq_active.irq_type);
     return ret_val;
 }
 
@@ -671,10 +671,10 @@ free_msis:
  * register by writing all 1's to this register.
  * Return 0 on sucess and -ve or +ve values on error
  */
-static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
+static int set_msi_single(struct nvme_context *pmetrics_device_elem)
 {
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
-            private_dev.pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->dev->
+            priv.pdev;
     int ret_val;
     struct irq_track *pirq_node;
 
@@ -729,7 +729,7 @@ static int set_msi_single(struct metrics_device_list *pmetrics_device_elem)
     return ret_val;
 free_msis:
     disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
-        metrics_device->public_dev.irq_active.irq_type);
+        dev->pub.irq_active.irq_type);
     return ret_val;
 }
 // 2021/05/15 meng_yu https://github.com/nvmecompliance/dnvme/pull/11
@@ -775,12 +775,12 @@ static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec)
  * the interrupts using INTMC register by writing all 1's to this register.
  * Return 0 on sucess and -ve or +ve values on error
  */
-static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
+static int set_msi_multi(struct nvme_context *pmetrics_device_elem,
         u16 num_irqs)
 {
     int ret_val, i;
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
-        private_dev.pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->dev->
+        priv.pdev;
     struct irq_track *pirq_node;
 
     /* Clear all the interrupts for MSI Single by writing to INTMC */
@@ -840,7 +840,7 @@ static int set_msi_multi(struct metrics_device_list *pmetrics_device_elem,
     return ret_val;
 free_msim:
     disable_active_irq(pmetrics_device_elem, pmetrics_device_elem->
-        metrics_device->public_dev.irq_active.irq_type);
+        dev->pub.irq_active.irq_type);
     return ret_val;
 }
 
@@ -848,7 +848,7 @@ free_msim:
 /*
  * Update MSIX pointer in the irq process structure.
  */
-static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
+static int update_msixptr(struct  nvme_context *pmetrics_device_elem,
     u16 offset, struct msix_info *pmsix_tbl_info)
 {
     u8 __iomem *msix_ptr = NULL;
@@ -859,8 +859,8 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
     u32 msix_mpba;          /* MSIXCAP.MPBA register */
     u32 msix_pbir;          /* MSIXCAP.MPBA.PBIR field */
     u32 msix_pbao;          /* MSIXCAP.MPBA.PBAO field */
-    struct nvme_device *metrics_device = pmetrics_device_elem->metrics_device;
-    struct pci_dev *pdev = metrics_device->private_dev.pdev;
+    struct nvme_device *dev = pmetrics_device_elem->dev;
+    struct pci_dev *pdev = dev->priv.pdev;
 
 
     /* Compute & read offset for MSIXCAP.MTAB register */
@@ -877,14 +877,14 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
 
     switch (msix_tbir) {
     case 0x00:  /* BAR0 (64-bit) */
-        msix_ptr = (metrics_device->private_dev.bar0 + msix_to);
+        msix_ptr = (dev->priv.bar0 + msix_to);
         break;
     case 0x04:  /* BAR2 (64-bit) */
-        if (metrics_device->private_dev.bar2 == NULL) {
+        if (dev->priv.bar2 == NULL) {
             pr_err("BAR2 not implemented by DUT");
             return -EINVAL;
         }
-        msix_ptr = (metrics_device->private_dev.bar2 + msix_to);
+        msix_ptr = (dev->priv.bar2 + msix_to);
         break;
     case 0x05:
         pr_err("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
@@ -896,14 +896,14 @@ static int update_msixptr(struct  metrics_device_list *pmetrics_device_elem,
 
     switch (msix_pbir) {
     case 0x00:  /* BAR0 (64-bit) */
-        pba_ptr = (metrics_device->private_dev.bar0 + msix_pbao);
+        pba_ptr = (dev->priv.bar0 + msix_pbao);
         break;
     case 0x04:  /* BAR2 (64-bit) */
-        if (metrics_device->private_dev.bar2 == NULL) {
+        if (dev->priv.bar2 == NULL) {
             pr_err("BAR2 not implemented by DUT");
             return -EINVAL;
         }
-        pba_ptr = (metrics_device->private_dev.bar2 + msix_pbao);
+        pba_ptr = (dev->priv.bar2 + msix_pbao);
         break;
     case 0x05:
         pr_err("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
@@ -1001,13 +1001,13 @@ void unmask_interrupts(u16 irq_no, struct irq_processing
 }
 
 // for IO_CTRL use
-int nvme_mask_irq(struct metrics_device_list *pmetrics_device_elem, u16 irq_no)
+int nvme_mask_irq(struct nvme_context *pmetrics_device_elem, u16 irq_no)
 {
     mask_interrupts(irq_no, &pmetrics_device_elem->irq_process);
     return 0;
 }
 
-int nvme_unmask_irq(struct metrics_device_list *pmetrics_device_elem, u16 irq_no)
+int nvme_unmask_irq(struct nvme_context *pmetrics_device_elem, u16 irq_no)
 {
     unmask_interrupts(irq_no, &pmetrics_device_elem->irq_process);
     return 0;
@@ -1119,7 +1119,7 @@ int work_queue_init(struct  irq_processing *pirq_process)
  * irq_track node, sets up the values for this node. Initialize the CQ_track
  * node for this irq_node then add the irq_node to the itq_track linked list.
  */
-static int add_irq_node(struct  metrics_device_list *pmetrics_device_elem,
+static int add_irq_node(struct  nvme_context *pmetrics_device_elem,
         u32 int_vec, u16 irq_no)
 {
     struct irq_track *irq_trk_node;
@@ -1209,7 +1209,7 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
  * NOTE:
  * This function will set irq_enabled flag if SUCCESS.
  */
-int update_cq_irqtrack(struct metrics_device_list *pmetrics_device_elem, u16 cq_id, u16 irq_no)   						
+int update_cq_irqtrack(struct nvme_context *pmetrics_device_elem, u16 cq_id, u16 irq_no)   						
 {
     int ret_val;
     struct irq_track *pirq_node;
@@ -1245,11 +1245,11 @@ exit:
  * NOTE: This function should be called with irq mutex locked otherwise it
  * will error out.
  */
-int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
-    struct  metrics_device_list *pmetrics_device_elem,
+int reap_inquiry_isr(struct nvme_cq  *pmetrics_cq_node,
+    struct  nvme_context *pmetrics_device_elem,
     u32 *num_remaining, u32 *isr_count)
 {
-    u16 irq_no = pmetrics_cq_node->public_cq.irq_no; /* irq_no for CQ   */
+    u16 irq_no = pmetrics_cq_node->pub.irq_no; /* irq_no for CQ   */
     struct irq_track *pirq_node;
 
 #ifdef DEBUG
@@ -1272,7 +1272,7 @@ int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
     if (pirq_node->isr_fired != 0) {
         /* process reap inquiry for isr fired case */
         *num_remaining = reap_inquiry(pmetrics_cq_node,
-            &pmetrics_device_elem->metrics_device->private_dev.pdev->dev);
+            &pmetrics_device_elem->dev->priv.pdev->dev);
     } else {
         /* To deal with ISR's aggregation, not supposed to notify CE's yet */
         *num_remaining = 0;
@@ -1306,7 +1306,7 @@ static struct work_container *get_work_item(struct  irq_processing
  * for the irq_no if found otherwise return NULL.
  */
 static struct irq_track *find_irq_node(
-        struct  metrics_device_list *pmetrics_device_elem, u16 irq_no)
+        struct  nvme_context *pmetrics_device_elem, u16 irq_no)
 {
     struct  irq_track     *pirq_node;     /* Pointer to irq node */
 
@@ -1348,7 +1348,7 @@ static struct irq_cq_track *find_icq_node(struct  irq_track *pirq_node,
  * CQ node. using this pointer to CQ node, delete this CQ node and
  * free up the memory.
  */
-int remove_icq_node(struct  metrics_device_list
+int remove_icq_node(struct  nvme_context
         *pmetrics_device, u16 cq_id, u16 irq_no)
 {
     struct irq_track *pirq_node;
@@ -1419,7 +1419,7 @@ static void dealloc_all_icqs(struct  irq_track *pirq_trk_list)
  * the interrupt vector that was reserved using request_irq.
  * Also reinitializes the irq_track list
  */
-void deallocate_irq_trk(struct metrics_device_list *pmetrics_device_elem)
+void deallocate_irq_trk(struct nvme_context *pmetrics_device_elem)
 {
     struct  irq_track   *pirq_trk_list; /* Type to use as loop cursor       */
     struct  irq_track   *pirq_trk_next; /* Same type to use as temp storage */
@@ -1440,14 +1440,14 @@ void deallocate_irq_trk(struct metrics_device_list *pmetrics_device_elem)
 /*
  * Disable and free IRQ's which were requested earlier
  */
-void irq_disable(struct metrics_device_list *pmetrics_device_elem)
+void irq_disable(struct nvme_context *pmetrics_device_elem)
 {
     struct irq_track *pirq_trk_node; /* Node iside IRQ track list */
     /* pointer to the pci device */
-    struct pci_dev *pdev = pmetrics_device_elem->metrics_device->
-            private_dev.pdev;
+    struct pci_dev *pdev = pmetrics_device_elem->dev->
+            priv.pdev;
     enum nvme_irq_type irq_active = pmetrics_device_elem->
-        metrics_device->public_dev.irq_active.irq_type;
+        dev->pub.irq_active.irq_type;
 
     /* disable the PIN interrupts*/
     nvme_disable_pin(pdev);
@@ -1482,12 +1482,12 @@ void irq_disable(struct metrics_device_list *pmetrics_device_elem)
  * they are empty and if empty reset the isr_flag for that particular
  * irq_no
  */
-int reset_isr_flag(struct metrics_device_list *pmetrics_device,
+int reset_isr_flag(struct nvme_context *pmetrics_device,
     u16 irq_no)
 {
     struct irq_track *pirq_node; /* IRQ node inside irq track list */
     struct irq_cq_track *picq_node; /* CQ node inside irq node */
-    struct metrics_cq *pmetrics_cq_node; /* CQ node in metrics_cq_list */
+    struct nvme_cq *pmetrics_cq_node; /* CQ node in cq_list */
     u32 num_rem = 0;
 
     /* Get the Irq node for given irq vector */
@@ -1501,14 +1501,14 @@ int reset_isr_flag(struct metrics_device_list *pmetrics_device,
     list_for_each_entry(picq_node, &pirq_node->irq_cq_track,
         irq_cq_head) {
         /* Find CQ metrics */
-        pmetrics_cq_node = find_cq(pmetrics_device, picq_node->cq_id);
+        pmetrics_cq_node = dnvme_find_cq(pmetrics_device, picq_node->cq_id);
         if (pmetrics_cq_node == NULL) {
             pr_err("CQ ID = %d not found", picq_node->cq_id);
             return -EBADSLT;
         }
         /* Reap on all CQ's */
         num_rem = reap_inquiry(pmetrics_cq_node, &pmetrics_device
-            ->metrics_device->private_dev.pdev->dev);
+            ->dev->priv.pdev->dev);
         if (num_rem != 0) {
             break;
         }

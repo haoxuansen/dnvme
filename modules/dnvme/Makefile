@@ -12,12 +12,13 @@ obj-m					:= dnvme.o
 dnvme-y					:= dnvme_cmb.o
 dnvme-y					+= dnvme_cmds.o
 dnvme-y					+= dnvme_ds.o
-dnvme-y					+= dnvme_ioctls.o
 dnvme-y					+= dnvme_irq.o
 dnvme-y					+= dnvme_queue.o
 dnvme-y					+= dnvme_reg.o
 dnvme-y					+= dnvme_sts_chk.o
 dnvme-y					+= core.o
+dnvme-y					+= io.o
+dnvme-y					+= ioctl.o
 
 build:
 	$(Q)make -C $(KERNEL_DIR) M=$(CUR_DIR) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" modules

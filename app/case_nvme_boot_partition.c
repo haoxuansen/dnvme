@@ -223,7 +223,7 @@ static dword_t rd_wr_boot_part_ccen_0(void)
     uint32_t u32_tmp_data = 0;
     // if(test_flag == FAILED)
     //     return test_flag;
-    ioctl_disable_ctrl(file_desc, ST_DISABLE_COMPLETELY);
+    ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
     ret_val = read_nvme_register(file_desc, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {

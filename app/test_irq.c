@@ -15,7 +15,7 @@
 #include <stdlib.h>
 
 #include "dnvme_interface.h"
-#include "dnvme_ioctls.h"
+#include "dnvme_ioctl.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -247,7 +247,7 @@ void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
     }
 }
 
-void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t meta_id)
+void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t id)
 {
     int ret_val = -1;
     struct nvme_64b_send user_cmd = {0};
@@ -268,7 +268,7 @@ void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t meta_id)
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
     user_cmd.data_buf_size = RW_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_id = meta_id;
+    user_cmd.meta_buf_id = id;
     user_cmd.data_dir = 0;
 
     pr_info("User Call to send command\n");

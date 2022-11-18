@@ -79,7 +79,7 @@ struct msix_info {
  * nvme_set_irq will set the new interrupt scheme for this device regardless
  * of the current irq scheme that is present.
  */
-int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
+int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
         struct interrupts *irq_new);
 
 /*
@@ -87,7 +87,7 @@ int nvme_set_irq(struct metrics_device_list *pmetrics_device_elem,
  * (the irq ,cq and work item track nodes)
  * set the current active scheme to INT_NONE.
  */
-int init_irq_lists(struct metrics_device_list
+int init_irq_lists(struct nvme_context
         *pmetrics_device_elem, enum nvme_irq_type  irq_active);
 
 /*
@@ -109,18 +109,18 @@ void unmask_interrupts(u16 irq_no, struct irq_processing
  * Also removes all the enqueued wk items
  * set the current active scheme to INT_NONE.
  */
-void release_irq(struct metrics_device_list *pmetrics_device_elem);
+void release_irq(struct nvme_context *pmetrics_device_elem);
 /*
  * Disable and free IRQ's which were requested earlier
  */
-void irq_disable(struct  metrics_device_list
+void irq_disable(struct  nvme_context
     *pmetrics_device_elem);
 /*
  * deallocate irq trak, will delete the cq nodes of each irq node, deallocates
  * memory allocated to each of this node. Reinitalize the linked list to
  * contain no elements.
  */
-void deallocate_irq_trk(struct  metrics_device_list
+void deallocate_irq_trk(struct  nvme_context
     *pmetrics_device_elem);
 /*
  * Deallocate all the work item nodes within the work items list
@@ -143,14 +143,14 @@ irqreturn_t tophalf_isr(int int_vec, void *dev_id);
  * Deletes the given cq node for the corresponding irq_no. If either the
  * irq no is not found or the cq id is not in the list it returns invalid.
  */
-int remove_icq_node(struct  metrics_device_list
+int remove_icq_node(struct  nvme_context
         *pmetrics_device, u16 cq_id, u16 irq_no);
 
 /*
  * Set the IO CQ interrupt vector for the given cq_id. Add a node in the
  * IRQ tracklist with this CQ entry.
  */
-int update_cq_irqtrack(struct metrics_device_list *pmetrics_device_elem, u16 cq_id, u16 irq_no);
+int update_cq_irqtrack(struct nvme_context *pmetrics_device_elem, u16 cq_id, u16 irq_no);
 
 /*
  * reap_inquiry_isr will process reap inquiry for the given cq using irq_vec
@@ -159,18 +159,18 @@ int update_cq_irqtrack(struct metrics_device_list *pmetrics_device_elem, u16 cq_
  * CE entries. If the IRQ aggregation is enabled it returns 0 if aggregation
  * limit is not reached.
  */
-int reap_inquiry_isr(struct metrics_cq  *pmetrics_cq_node,
-    struct  metrics_device_list *pmetrics_device_elem,
+int reap_inquiry_isr(struct nvme_cq  *pmetrics_cq_node,
+    struct  nvme_context *pmetrics_device_elem,
     u32 *num_remaining, u32 *isr_count);
 
 /* Loop through all CQ's associated with irq_no and check whehter
  * they are empty and if empty reset the isr_flag for that particular
  * irq_no
  */
-int reset_isr_flag(struct metrics_device_list *pmetrics_device,
+int reset_isr_flag(struct nvme_context *pmetrics_device,
     u16 irq_no);
 
-int nvme_mask_irq(struct metrics_device_list *pmetrics_device_elem, u16 irq_no);
-int nvme_unmask_irq(struct metrics_device_list *pmetrics_device_elem, u16 irq_no);
+int nvme_mask_irq(struct nvme_context *pmetrics_device_elem, u16 irq_no);
+int nvme_unmask_irq(struct nvme_context *pmetrics_device_elem, u16 irq_no);
 
 #endif
