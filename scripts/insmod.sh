@@ -20,6 +20,7 @@ nvme_install_module()
 			sudo insmod $mod.ko
 			if [[ "$?" -ne 0 ]]; then
 				ERR "\tfailed to insmod $mod"
+				exit 1
 			else
 				INFO "\tinsmod $mod ok"
 			fi
@@ -36,15 +37,16 @@ nvme_remove_module()
 	do
 		find=`lsmod | grep "$mod" | awk '{print $1}'`
 		if [ ! "$find" == "" ]; then
-			sudo rmmod $find
+			sudo rmmod $mod
 			if [[ "$?" -ne 0 ]]; then
-				ERR "\tfailed to rmmod $find"
+				ERR "\tfailed to rmmod $mod"
+				exit 1
 			else
-				INFO "\trmmod $find ok"
+				INFO "\trmmod $mod ok"
 			fi
 		fi
 	done
 }
 
-nvme_remove_module $NVME_CORE $NVME $DNVME
+nvme_remove_module $NVME $NVME_CORE $DNVME
 nvme_install_module $DNVME
