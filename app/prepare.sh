@@ -40,11 +40,16 @@ app_acquire_devinfo()
 
 app_generate_autoheader()
 {
+	local cpu=`sudo dmidecode -t 4 | grep "Advanced Micro Devices, Inc."`
+
 	NOTICE "Auto generate header file...$"
 	rm -f $AUTO_HEADER
 	echo "#ifndef __AUTO_HEADER_H__">>${AUTO_HEADER}
 	echo "#define __AUTO_HEADER_H__">>${AUTO_HEADER}
 	echo "">>${AUTO_HEADER}
+	if [ -n "$cpu" ] ; then
+		echo "#define AMD_MB_EN">>${AUTO_HEADER}
+	fi
 	echo "#define RC_BDF_PATCH \"${RC_BDF_PATCH}\"">>${AUTO_HEADER}
 	echo "#define DEV_BDF_PATCH \"${DEV_BDF_PATCH}\"">>${AUTO_HEADER}
 	echo "#define RC_PCIE_CAP_OFST 0x${RC_PCIE_CAP_OFST}">>${AUTO_HEADER}
