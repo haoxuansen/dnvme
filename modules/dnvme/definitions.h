@@ -23,8 +23,6 @@
 #define CONFIG_PCI           1
 #define NVME_DEV_INIT        0x3
 
-#define NVME_MINORS            16
-
 /**
  * @def MAX_PCI_EXPRESS_CFG
  * Maximum pcie config space.

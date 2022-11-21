@@ -21,7 +21,7 @@
 #include <malloc.h>
 #include <stdint.h>
 
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 #include "dnvme_ioctl.h"
 
 #include "common.h"
@@ -334,7 +334,7 @@ void ioctl_enable_ctrl(int file_desc)
     int ret_val = -1;
     enum nvme_state new_state = NVME_ST_ENABLE;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, new_state);
+    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, new_state);
     if (ret_val < 0)
     {
         pr_err("Enable Ctrlr: Failed!\n");
@@ -354,7 +354,7 @@ int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
 {
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, new_state);
+    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, new_state);
     if (ret_val < 0)
     {
         pr_err("User Call to Disable Ctrlr: Failed!\n");

@@ -25,7 +25,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 
 /* To store the max vector locations */
 #define    MAX_VEC_SLT              2048
@@ -168,16 +168,32 @@ struct nvme_dev_private {
 	u8	opened; /* Allows device opening only once */
 };
 
-/*
- * Structure with nvme device related public and private parameters.
+/**
+ * @brief NVMe device controller properties
+ * 
+ * @cap: Controller Capabilities Register
+ * @cmbloc: Controller Memory Buffer Location Register
+ * @cmbsz: Controller Memory Buffer Size Register
+ */
+struct nvme_ctrl_property {
+	u64	cap;
+	u32	cmbloc;
+	u32	cmbsz;
+};
+
+/**
+ * @brief Representation of a NVMe device
+ * 
+ * @cmb_size: Actually mapped CMB size, may less than CMBSZ which is indicated
+ *  in Controller Properities. 
+ * @cmb_use_sqes: If true, use controller's memory buffer for I/O SQes.
  */
 struct nvme_device {
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
+	struct nvme_ctrl_property	prop;
 	u64	cmb_size;
 	bool	cmb_use_sqes;
-	u32	cmbsz;
-	u32	cmbloc;
 };
 
 /*

@@ -21,8 +21,8 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 
-#include "dnvme_interface.h"
 #include "dnvme_reg.h"
+#include "dnvme_ioctl.h"
 #include "definitions.h"
 #include "core.h"
 

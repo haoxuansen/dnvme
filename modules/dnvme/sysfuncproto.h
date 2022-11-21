@@ -31,21 +31,13 @@
 #include "dnvme_ds.h"
 #include "dnvme_reg.h"
 #include "core.h"
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 
 
 int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 
-/**
- * device_status_chk  - Generic error checking function
- * which checks error registers and set kernel
- * alert if a error is detected.
- * @param pmetrics_device
- * @param status
- * @return device status fail or success.
- */
-int device_status_chk(struct nvme_context *pmetrics_device, struct device_status *dev_sts);
+int dnvme_get_capability(struct nvme_context *ctx, struct nvme_capability __user *ucap);
 
 /**
  * driver_create_asq - Driver Admin Submission Queue creation routine
@@ -55,17 +47,6 @@ int device_status_chk(struct nvme_context *pmetrics_device, struct device_status
  */
 int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
     struct nvme_context *pmetrics_device);
-
-/*
- * driver_iotcl_init - Driver Initialization routine before starting to
- * issue  ioctls.
- * @param pdev
- * @param pmetrics_device_list
- * @return init 0 or -1
- */
-int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
-    void __iomem *bar1, void __iomem *bar2,
-    struct nvme_context *pmetrics_device_list);
 
 /**
  * driver_create_acq - Driver Admin completion  Queue creation routine

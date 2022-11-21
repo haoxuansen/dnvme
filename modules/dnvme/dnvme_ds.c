@@ -29,7 +29,7 @@
 
 #include "definitions.h"
 #include "core.h"
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 #include "sysfuncproto.h"
 #include "dnvme_queue.h"
 

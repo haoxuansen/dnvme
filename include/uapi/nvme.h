@@ -7,7 +7,9 @@
 #ifndef _LINUX_NVME_H
 #define _LINUX_NVME_H
 
+#include <stdbool.h>
 #include <linux/types.h>
+
 #include "uuid.h"
 #include "compiler.h"
 

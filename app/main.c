@@ -20,7 +20,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 #include "dnvme_ioctl.h"
 
 #include "common.h"
@@ -327,7 +327,6 @@ int main(int argc, char *argv[])
             mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
             break;
         case 10:
-            //ioctl_device_status(file_desc);
             dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DAT_SIZE);
             break;
         case 11:

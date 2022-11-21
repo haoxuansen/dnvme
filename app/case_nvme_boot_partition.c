@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 
 #include "common.h"
 #include "unittest.h"

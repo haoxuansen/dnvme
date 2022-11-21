@@ -30,17 +30,17 @@
 #include <linux/dma-mapping.h>
 #include <linux/version.h>
 
-#include "dnvme_interface.h"
+#include "core.h"
+#include "cmb.h"
+
 #include "definitions.h"
 #include "sysfuncproto.h"
 #include "dnvme_reg.h"
-#include "core.h"
 #include "dnvme_ioctl.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
 #include "dnvme_cmds.h"
 #include "dnvme_irq.h"
-#include "dnvme_cmb.h"
 
 #define DEVICE_NAME			"nvme"
 #define DRIVER_NAME			"dnvme"
@@ -71,14 +71,14 @@
 LIST_HEAD(nvme_ctx_list);
 
 static int nvme_major;
+static int nvme_minor = 0;
 static struct class *nvme_class;
 static struct nvme_driver nvme_drv;
-
 
 /**
  * @brief Find nvme_context from linked list. 
  *  
- * @return pointer to the nvme_context if found, otherwise errno. 
+ * @return &struct nvme_context on success, or ERR_PTR() on error. 
  */
 static struct nvme_context *find_context(struct inode *inode)
 {
@@ -95,7 +95,7 @@ static struct nvme_context *find_context(struct inode *inode)
 /**
  * @brief Lock the mutex if find nvme_context.
  * 
- * @return pointer to the nvme_context if locked, otherwise errno. 
+ * @return &struct nvme_context on success, or ERR_PTR() on error. 
  */
 static struct nvme_context *lock_context(struct inode *inode)
 {
@@ -270,16 +270,16 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return PTR_ERR(ctx);
 
 	switch (cmd) {
-	case NVME_IOCTL_ERR_CHK:
-		err = device_status_chk(ctx, (struct device_status *)arg);
-		break;
-
 	case NVME_IOCTL_READ_GENERIC:
 		err = dnvme_generic_read(ctx, argp);
 		break;
 
 	case NVME_IOCTL_WRITE_GENERIC:
 		err = dnvme_generic_write(ctx, argp);
+		break;
+
+	case NVME_IOCTL_GET_CAPABILITY:
+		err = dnvme_get_capability(ctx, argp);
 		break;
 
 	case NVME_IOCTL_CREATE_ADMN_Q:
@@ -313,8 +313,8 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		kfree(create_admn_q);
 		break;
 
-	case NVME_IOCTL_DEVICE_STATE:
-		pr_debug("NVME_IOCTL_DEVICE_STATE");
+	case NVME_IOCTL_SET_DEV_STATE:
+		pr_debug("NVME_IOCTL_SET_DEV_STATE");
 		switch ((enum nvme_state)arg) {
 		case NVME_ST_ENABLE:
 		pr_debug("Enabling the DUT");
@@ -489,11 +489,8 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 	int ret = 0;
 
 	ctx = lock_context(inode);
-	if (IS_ERR(ctx)) {
-		pr_err("Cannot lock on this device with minor no. %d\n", iminor(inode));
-		ret = PTR_ERR(ctx);
-		goto out;
-	}
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	if (ctx->dev->priv.opened) {
 		pr_err("It's not allowed to open device more than once!\n");
@@ -512,21 +509,17 @@ out:
 static int dnvme_release(struct inode *inode, struct file *filp)
 {
 	struct nvme_context *ctx;
-	int ret = 0;
 
 	ctx = lock_context(inode);
-	if (IS_ERR(ctx)) {
-		pr_err("Cannot lock on this device with minor no. %d\n", iminor(inode));
-		ret = PTR_ERR(ctx);
-		goto out;
-	}
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
+
+	pr_info("Close NVMe device ...\n");
 
 	ctx->dev->priv.opened = 0;
 	device_cleanup(ctx, NVME_ST_DISABLE_COMPLETE);
-	pr_info("NVMe device is closed!\n");
-out:
 	unlock_context(ctx);
-	return ret;
+	return 0;
 }
 
 static const struct file_operations dnvme_fops = {
@@ -537,247 +530,342 @@ static const struct file_operations dnvme_fops = {
 	.mmap		= dnvme_mmap,
 };
 
-static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int dnvme_map_resource(struct nvme_context *ctx)
 {
-	int err = -EINVAL;
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
+	unsigned long bars = 0;
 	void __iomem *bar0 = NULL;
 	void __iomem *bar1 = NULL;
 	void __iomem *bar2 = NULL;
-	static int nvme_minor = 0;
+	int ret;
+
+	/* Get the bitmask value of the BAR's supported by device */
+	bars = (unsigned long)pci_select_bars(pdev, IORESOURCE_MEM);
+
+	if (!test_bit(BAR0_BAR1, &bars)) {
+		pr_err("BAR0 (64-bit) is not support!\n");
+		return -ENODEV;
+	}
+
+	/* !TODO: Replace by @pci_request_mem_regions */
+	if (request_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+		pci_resource_len(pdev, BAR0_BAR1), DRIVER_NAME) == NULL) {
+		pr_err("BAR0 (64-bit) memory already in use!\n");
+		return -EBUSY;
+	}
+
+	bar0 = ioremap(pci_resource_start(pdev, BAR0_BAR1),
+		pci_resource_len(pdev, BAR0_BAR1));
+	if (!bar0) {
+		pr_err("Failed to map BAR0 (64-bit)!\n");
+		ret = -EIO;
+		goto out;
+	}
+	pr_info("BAR0 (64-bit) mapped to 0x%p ok!\n", bar0);
+
+	/* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
+	if (test_bit(BAR2_BAR3, &bars)) {
+		if (request_mem_region(pci_resource_start(pdev, BAR2_BAR3),
+            		pci_resource_len(pdev, BAR2_BAR3), DRIVER_NAME) == NULL) {
+			pr_err("BAR1 (64-bit) memory already in use!\n");
+			ret = -EBUSY;
+			goto out2;
+		}
+
+		bar1 = pci_iomap(pdev, BAR2_BAR3, pci_resource_len(pdev, BAR2_BAR3));
+		if (!bar1) {
+			pr_err("Failed to map BAR1 (64-bit)!\n");
+			ret = -EIO;
+			goto out3;
+		}
+		pr_info("BAR1 (64-bit) mapped to 0x%p ok!\n", bar1);
+	} else {
+		pr_warn("BAR1 (64-bit) is not support!\n");
+	}
+
+	/* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
+	if (test_bit(BAR4_BAR5, &bars)) {
+		if (request_mem_region(pci_resource_start(pdev, BAR4_BAR5),
+			pci_resource_len(pdev, BAR4_BAR5), DRIVER_NAME) == NULL) {
+			pr_err("BAR2 (64-bit) memory already in use!\n");
+			ret = -EBUSY;
+			goto out4;
+		}
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)
+		bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
+			pci_resource_len(pdev, BAR4_BAR5));
+#else
+		bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
+			pci_resource_len(pdev, BAR4_BAR5));
+#endif
+		if (!bar2) {
+			pr_err("Failed to map BAR2 (64-bit)!\n");
+			ret = -EIO;
+			goto out5;
+		}
+		pr_info("BAR2 (64-bit) mapped to 0x%p ok!\n", bar2);
+	} else {
+		pr_warn("BAR2 (64-bit) is not support!\n");
+	}
+
+	ndev->priv.bar0 = bar0;
+	ndev->priv.bar1 = bar1;
+	ndev->priv.bar2 = bar2;
+	ndev->priv.ctrlr_regs = bar0;
+	return 0;
+out5:
+	if (test_bit(BAR4_BAR5, &bars))
+		release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
+			pci_resource_len(pdev, BAR4_BAR5));
+out4:
+	if (bar1)
+		iounmap(bar1);
+out3:
+	if (test_bit(BAR2_BAR3, &bars))
+		release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
+			pci_resource_len(pdev, BAR2_BAR3));
+out2:
+	iounmap(bar0);
+out:
+	release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+		pci_resource_len(pdev, BAR0_BAR1));
+	return ret;
+}
+
+static void dnvme_unmap_resource(struct nvme_context *ctx)
+{
+	struct nvme_dev_private *priv = &ctx->dev->priv;
+	struct pci_dev *pdev = priv->pdev;
+
+	if (priv->bar2) {
+		iounmap(priv->bar2);
+		release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
+			pci_resource_len(pdev, BAR4_BAR5));
+		priv->bar2 = NULL;
+	}
+
+	if (priv->bar1) {
+		iounmap(priv->bar1);
+		release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
+			pci_resource_len(pdev, BAR2_BAR3));
+		priv->bar1 = NULL;
+	}
+
+	if (priv->bar0) {
+		iounmap(priv->bar0);
+		release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
+			pci_resource_len(pdev, BAR0_BAR1));
+		priv->bar0 = NULL;
+	}
+}
+
+static int dnvme_init_irq(struct nvme_context *ctx)
+{
+	ctx->dev->pub.irq_active.irq_type = INT_NONE;
+	ctx->dev->pub.irq_active.num_irqs = 0;
+	/* Will only be read by ISR */
+	ctx->irq_process.irq_type = INT_NONE;
+	return 0;
+}
+
+/**
+ * @brief Alloc nvme context and initialize it. 
+ *  
+ * @return &struct nvme_context on success, or ERR_PTR() on error. 
+ */
+static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
+{
+	int ret = -ENOMEM;
+	struct device *dev;
+	struct nvme_context *ctx;
+	struct nvme_device *ndev;
+	struct dma_pool *pool;
 	dev_t devno = MKDEV(nvme_major, nvme_minor);
-	struct nvme_context *pmetrics_device = NULL;
-	int bars = 0;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx) {
+		pr_err("failed to alloc nvme_context!\n");
+		return ERR_PTR(ret);
+	}
+
+	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
+	if (!ndev) {
+		pr_err("failed to alloc nvme_device!\n");
+		goto out;
+	}
+
+	/* 1. Initialize nvme device first. */
+	ndev->priv.pdev = pdev;
+	ndev->priv.dmadev = &pdev->dev;
+
+	/* Used to create Coherent DMA mapping for PRP List */
+	pool = dma_pool_create("prp page", &pdev->dev, PAGE_SIZE, PAGE_SIZE, 0);
+	if (!pool) {
+		pr_err("failed to create dma pool!\n");
+		goto out2;
+	}
+	ndev->priv.prp_page_pool = pool;
+
+	dev = device_create(nvme_class, NULL, devno, NULL, DEVICE_NAME"%d", nvme_minor);
+	if (IS_ERR(dev)) {
+		pr_err("failed to create device(%s%d)!\n", DEVICE_NAME, nvme_minor);
+		ret = PTR_ERR(dev);
+		goto out3;
+	}
+	pr_debug("Create device(%s%d) success!\n", DEVICE_NAME, nvme_minor);
+	ndev->priv.spcl_dev = dev;
+	ndev->priv.minor = nvme_minor;
+	nvme_minor++;
+
+	/* 2. Then initialize nvme context. */
+	INIT_LIST_HEAD(&ctx->sq_list);
+	INIT_LIST_HEAD(&ctx->cq_list);
+	INIT_LIST_HEAD(&ctx->meta_set.meta_list);
+	INIT_LIST_HEAD(&ctx->irq_process.irq_track_list);
+	INIT_LIST_HEAD(&ctx->irq_process.wrk_item_list);
+
+	mutex_init(&ctx->lock);
+	mutex_init(&ctx->irq_process.irq_track_mtx);
+	/* Spinlock to protect from kernel preemption in ISR handler */
+	spin_lock_init(&ctx->irq_process.isr_spin_lock);
+
+	ctx->dev = ndev;
+	dnvme_init_irq(ctx);
+
+	return ctx;
+out3:
+	dma_pool_destroy(pool);
+out2:
+	kfree(ndev);
+out:
+	kfree(ctx);
+	return ERR_PTR(ret);
+}
+
+static void dnvme_release_context(struct nvme_context *ctx)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct dma_pool *pool = ndev->priv.prp_page_pool;
+
+	device_destroy(nvme_class, MKDEV(nvme_major, ndev->priv.minor));
+	/* !FIXME: Shall recycle minor at here! */
+	dma_pool_destroy(pool);
+	kfree(ndev);
+	kfree(ctx);
+}
+
+static int dnvme_set_dma_mask(struct pci_dev *pdev)
+{
+	int ret;
+
+	if (dma_supported(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
+		pr_err("The device unable to address 64 bits of DMA\n");
+		return -EPERM;
+	}
+
+	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
+	if (ret < 0) {
+		pr_err("Request 64-bit DMA has been rejected!\n");
+		return ret;
+	}
+
+	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+	if (ret < 0) {
+		pr_err("Request 64-bit coherent memory has been rejected!\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	int ret;
+	struct nvme_context *ctx;
 
 	pr_info("probe pdev...(cpu:%d %d %d)\n", num_possible_cpus(), 
 		num_present_cpus(), num_active_cpus());
 
-	/* Allocate kernel memory for our own internal tracking of this device */
-	pmetrics_device = kzalloc(sizeof(struct nvme_context), GFP_KERNEL);
-	if (!pmetrics_device) {
-		pr_err("failed to alloc nvme_context!\n");
-		return -ENOMEM;
+	ret = dnvme_set_dma_mask(pdev);
+	if (ret < 0)
+		return ret;
+
+	ctx = dnvme_alloc_context(pdev);
+	if (IS_ERR(ctx)) {
+		ret = PTR_ERR(ctx);
+		pr_err("failed to alloc context!(%d)\n", ret);
+		return ret;
 	}
 
-	/* !TODO: Replace by @pci_request_mem_regions */
+	ret = dnvme_map_resource(ctx);
+	if (ret < 0)
+		goto out;
 
-	/* Get the bitmask value of the BAR's supported by device */
-	bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	pci_set_master(pdev);
 
-	/* Map BAR0 & BAR1 (BAR0 for 64-bit); ctrlr register memory mapped */
-	if (request_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-		pci_resource_len(pdev, BAR0_BAR1), DRIVER_NAME) == NULL) {
-		pr_err("BAR0 memory already in use");
-		goto fail_out;
+	ret = pci_enable_device(pdev);
+	if (ret < 0) {
+		pr_err("Failed to enable pci device!(%d)\n", ret);
+		goto out2;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0) //2021.1.22 meng_yu
-	bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
-		pci_resource_len(pdev, BAR4_BAR5));
-#else
-	bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
-		pci_resource_len(pdev, BAR4_BAR5));
-#endif
 
-    bar0 = ioremap(pci_resource_start(pdev, BAR0_BAR1),
-        pci_resource_len(pdev, BAR0_BAR1));
-    if (bar0 == NULL) {
-        pr_err("Mapping BAR0 mem map'd registers failed");
-        goto remap_fail_out;
-    }
+	ret = dnvme_map_cmb(ctx->dev);
+	if (ret < 0)
+		goto out3;
 
-    /* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
-    if (bars & (1 << BAR2_BAR3)) {
-        if (request_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-            pci_resource_len(pdev, BAR2_BAR3), DRIVER_NAME) == NULL) {
-            pr_err("BAR1 (64 bit) memory already in use");
-            goto remap_fail_out;
-        }
-
-        bar1 = pci_iomap(pdev, BAR2_BAR3, pci_resource_len(pdev, BAR2_BAR3));
-        if (bar1 == NULL) {
-            pr_err("Mapping BAR1 (64 bit) mem map'd registers failed");
-            goto remap_fail_out;
-        }
-    } else {
-        pr_info("BAR1 (64 bit) not supported by DUT");
-    }
-
-
-    /* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
-    if (bars & (1 << BAR4_BAR5)) {
-        if (request_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-            pci_resource_len(pdev, BAR4_BAR5), DRIVER_NAME) == NULL) {
-            pr_err("BAR2 (64 bit) memory already in use");
-            goto remap_fail_out;
-        }
-
-        #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0) //2021.1.22 meng_yu
-        bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
-            pci_resource_len(pdev, BAR4_BAR5));
-        
-        #else
-        bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
-            pci_resource_len(pdev, BAR4_BAR5));
-        #endif
-
-        bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
-            pci_resource_len(pdev, BAR4_BAR5));
-        if (bar2 == NULL) {
-            pr_err("Mapping BAR2 (64 bit) mem map'd registers failed");
-            goto remap_fail_out;
-        }
-    } else {
-        pr_info("BAR2 (64 bit) not supported by DUT");
-    }
-
-
-    pci_set_master(pdev);
-    if (dma_supported(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
-        pr_err("The device unable to address 64 bits of DMA");
-        goto remap_fail_out;
-    }
-    else if ((err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
-        pr_err("Requesting 64 bit DMA has been rejected");
-        goto remap_fail_out;
-    }
-    else if ((err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64)))) {
-        pr_err("Requesting 64 bit coherent memory has been rejected");
-        goto remap_fail_out;
-    }
-
-    err = driver_ioctl_init(pdev, bar0, bar1, bar2, pmetrics_device);
-    if (err < 0) {
-        pr_err("Failed to init dnvme's internal state metrics");
-        goto remap_fail_out;
-    }
-
-    mutex_init(&pmetrics_device->lock);
-    pmetrics_device->dev->priv.opened = 0;
-    pmetrics_device->dev->priv.minor = nvme_minor;
-
-    /* Create an NVMe special device */
-    pmetrics_device->dev->priv.spcl_dev = device_create(
-        nvme_class, NULL, devno, NULL, DEVICE_NAME"%d", nvme_minor);
-    if (IS_ERR(pmetrics_device->dev->priv.spcl_dev)) {
-        err = PTR_ERR(pmetrics_device->dev->priv.spcl_dev);
-        pr_err("Creation of special device file failed: %d", err);
-        goto remap_fail_out;
-    }
-
-    err = pci_enable_device(pdev);
-    if (err < 0) {
-        pr_err("Enabling the PCIe device has failed: 0x%04X", err);
-        goto spcp_fail_out;
-    }
-    // if(pci_is_enabled(pdev))
-    // {
-    //     __u32 csts = readl(&pmetrics_device->dev->priv.ctrlr_regs->csts);
-    //     pr_err("csts: 0x%x", csts);
-    // }
-    // else
-    // {
-    //     pr_err("pcie is disable");
-    // }
-
-    nvme_map_cmb(pmetrics_device->dev);
-
-    /* Finalize this device and prepare for next one */
-    pr_debug("NVMe dev: 0x%x, vendor: 0x%x", pdev->device, pdev->vendor);
-    pr_debug("NVMe bus #%d, dev slot: %d", pdev->bus->number,
-        PCI_SLOT(pdev->devfn));
-    pr_debug("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
-        pdev->class);
-    list_add_tail(&pmetrics_device->entry, &nvme_ctx_list);
-    nvme_minor++;
-    return 0;
-
-
-spcp_fail_out:
-    device_del(pmetrics_device->dev->priv.spcl_dev);
-remap_fail_out:
-    if (bar0 != NULL) {
-        iounmap(bar0);
-        release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-            pci_resource_len(pdev, BAR0_BAR1));
-    }
-    if (bar1 != NULL) {
-        iounmap(bar1);
-        release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-            pci_resource_len(pdev, BAR2_BAR3));
-    }
-    if (bar2 != NULL) {
-        iounmap(bar2);
-        release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-            pci_resource_len(pdev, BAR4_BAR5));
-    }
-fail_out:
-    if (pmetrics_device != NULL) {
-        kfree(pmetrics_device);
-    }
-    return err;
+	/* Finalize this device and prepare for next one */
+	pr_info("NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
+	pr_debug("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
+		PCI_SLOT(pdev->devfn));
+	pr_debug("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+		pdev->class);
+	list_add_tail(&ctx->entry, &nvme_ctx_list);
+	return 0;
+out3:
+	pci_disable_device(pdev);
+out2:
+	dnvme_unmap_resource(ctx);
+out:
+	dnvme_release_context(ctx);
+	return ret;
 }
 
-
-static void dnvme_remove(struct pci_dev *dev)
+static void dnvme_remove(struct pci_dev *pdev)
 {
-    struct pci_dev *pdev;
-    struct nvme_context *pmetrics_device;
+	bool found = false;
+	struct nvme_context *ctx;
 
+	pr_info("Remove NVMe device(0x%x:0x%x) ...\n", pdev->vendor, pdev->device);
+	pr_debug("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
+		PCI_SLOT(pdev->devfn));
+	pr_debug("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+		pdev->class);
 
-    /* Loop through the devices available in the metrics list */
-    list_for_each_entry(pmetrics_device, &nvme_ctx_list, entry) {
+	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
+		if (pdev == ctx->dev->priv.pdev) {
+			found = true;
+			break;
+		}
+	}
 
-        pdev = pmetrics_device->dev->priv.pdev;
-        if (pdev == dev) {
+	if (!found) {
+		pr_warn("Cannot found dev in list!\n");
+		return;
+	}
 
-            pr_debug("Removing device: 0x%x, vendor: 0x%x",
-                pdev->device, pdev->vendor);
-            pr_debug("PCIe bus #%d, slot: %d", pdev->bus->number,
-                PCI_SLOT(pdev->devfn));
-            pr_debug("PCIe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
-                pdev->class);
+	/* Wait for any other dnvme access to finish */
+	mutex_lock(&ctx->lock);
+	list_del(&ctx->entry);
+	mutex_unlock(&ctx->lock);
 
-            nvme_release_cmb(pmetrics_device->dev);
-            /* Wait for any other dnvme access to finish, then stop further
-             * before we free resources to prevent circular issues */
-            mutex_lock(&pmetrics_device->lock);
-            device_cleanup(pmetrics_device, NVME_ST_DISABLE_COMPLETE);
-            pci_disable_device(pdev);
+	device_cleanup(ctx, NVME_ST_DISABLE_COMPLETE);
+	dnvme_unmap_cmb(ctx->dev);
+	pci_disable_device(pdev);
 
-            /* Release the selected memory regions that were reserved */
-            if (pmetrics_device->dev->priv.bar0 != NULL) {
-                destroy_dma_pool(pmetrics_device->dev);
-                iounmap(pmetrics_device->dev->priv.bar0);
-                release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-                    pci_resource_len(pdev, BAR0_BAR1));
-            }
-            if (pmetrics_device->dev->priv.bar1 != NULL) {
-                iounmap(pmetrics_device->dev->priv.bar1);
-                release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-                    pci_resource_len(pdev, BAR2_BAR3));
-            }
-            if (pmetrics_device->dev->priv.bar2 != NULL) {
-                iounmap(pmetrics_device->dev->priv.bar2);
-                release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-                    pci_resource_len(pdev, BAR4_BAR5));
-            }
-
-            /* Free up the linked list */
-            list_del(&pmetrics_device->cq_list);
-            list_del(&pmetrics_device->sq_list);
-
-            /* Unlock, then destroy all mutexes */
-            mutex_unlock(&pmetrics_device->lock);
-            mutex_destroy(&pmetrics_device->lock);
-            mutex_destroy(&pmetrics_device->irq_process.irq_track_mtx);
-
-            device_del(pmetrics_device->dev->priv.spcl_dev);
-        }
-    }
-
-    /* Free up the device linked list if there are not items left */
-    if (list_empty(&nvme_ctx_list)) {
-        list_del(&nvme_ctx_list);
-    }
+	dnvme_unmap_resource(ctx);
+	dnvme_release_context(ctx);
 }
 
 static struct pci_device_id dnvme_id_table[] = {

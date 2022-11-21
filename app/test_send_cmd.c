@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 #include "dnvme_ioctl.h"
 #include "reg_nvme_ctrl.h"
 
@@ -637,48 +637,7 @@ int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode)
     }
     return SUCCEED;
 }
-/**
- * @brief  
- * @note   
- * @param  file_desc: 
- * @retval None
- */
-void ioctl_device_status(int file_desc)
-{
-    int ret_val = FAILED;
-    struct device_status dev_sts = {0};
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_ERR_CHK, &dev_sts);
-    if (ret_val < 0)
-    {
-        pr_err("Device Status Failed!\n");
-    }
-
-    pr_info("\n************************ device status check ************************\n");
-    pr_info("PCI Device Status (STS) = 0x%04x\n", dev_sts.pci_device_status);
-
-    if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_PM)
-        pr_info("PCI Power Managment CAP is supported, Control and Status = 0x%04x\n", dev_sts.cap_pm_ctr_st);
-    else
-        pr_info("PCI Power Managment CAP is not supported\n");
-
-    if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_MSI)
-        pr_info("PCI MSI CAP is supported, Message Control = 0x%04x\n", dev_sts.cap_msi_mc);
-    else
-        pr_info("PCI MSI CAP is not supported\n");
-
-    if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_MSIX)
-        pr_info("PCI MSIX CAP is supported, Message Control = 0x%04x\n", dev_sts.cap_msix_mc);
-    else
-        pr_info("PCI MSIX CAP is not supported\n");
-
-    if (dev_sts.pci_cap_support & PCI_CAP_SUPPORT_PCIE)
-        pr_info("PCI PCIE CAP is supported, PCIe device status = 0x%04x\n", dev_sts.cap_pcie_dev_st);
-    else
-        pr_info("PCI PCIE CAP is not supported\n");
-
-    pr_info("NVME Controller Status CSTS = 0x%08x\n", dev_sts.nvme_control_st);
-}
 /**
  * @brief  
  * @note   
@@ -861,7 +820,7 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
 int subsys_reset(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, NVME_ST_NVM_SUBSYSTEM);
+    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, NVME_ST_NVM_SUBSYSTEM);
     if (ret_val < 0)
     {
         pr_err("User Call to subsys_reset: Failed!\n");
@@ -884,7 +843,7 @@ int subsys_reset(void)
 int ctrl_disable(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_DEVICE_STATE, NVME_ST_DISABLE_COMPLETE);
+    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, NVME_ST_DISABLE_COMPLETE);
     if (ret_val < 0)
     {
         pr_err("User Call to Disable Ctrlr: Failed!\n");

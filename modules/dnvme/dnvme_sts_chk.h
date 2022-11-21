@@ -229,66 +229,6 @@ enum {
 };
 
 /**
- * pci_status_chk function returns the device status of
- * the PCI Device status register set in STS register. The offset for this
- * register is 0x06h as specified in NVME Express 1.0b spec.
- * @param device_data
- * @return 0 or -1
- */
-int pci_status_chk(u16 device_data);
-
-/**
- * pcie_cap_chk function checks if the next capability of the NVME
- * Express device exits and if it exists then gets its status.
- * @param pdev
- * @return 0 or -1
- */
-int pcie_cap_chk(struct pci_dev *pdev, u16 *cap_support, u16 *pm_cs, u16 *msi_mc, u16 *msix_mc, 
-					 u16 *pcie_dev_st);
-
-/**
- * nvme_controller_status - This function checks the controller status
- * @param ctrlr_regs
- * @return 0 or -1
- */
-int nvme_controller_status(struct nvme_ctrl_reg __iomem *ctrlr_regs, u32 *sts);
-
-/**
- * device_status_pci function returns the device status of
- * the PCI Power Management status register set in PMCS register.
- * @param device_data
-  * @return 0 or -1
-  */
-int pmcs_status_chk(struct pci_dev *pdev, u8 pci_cfg_pmcs_offset, u16 *sts);
-
-/**
- * device_status_msicap function returns the device status of
- * Message signaled Interrupt status register in MC and MPEND
- * @param pdev
- * @param device_data
- * @return 0 or -1
- */
-int msi_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msi_offset, u16 *sts);
-
-/**
- * device_status_msixcap function returns the device status of
- * Message signaled Interrupt-X status register in MXC
- * @param pdev
- * @param device_data
- * @return 0 or -1
- */
-int msix_cap_status_chk(struct pci_dev *pdev, u8 pci_cfg_msix_offset, u16 *sts);
-
-/**
- * device_status_pxcap function returns the device status of
- * PCI express capability device status register in PXDS.
- * @param pdev
- * @param base_offset
- * @return 0 or -1
- */
-int pxcap_status_chk(struct pci_dev *pdev, u8 base_offset, u16 *sts);
-
-/**
  * device_status_aercap function returns the device status of
  * Advanced Error Reporting AER capability device status registers
  * The register checked are AERUCES, AERCS and AERCC

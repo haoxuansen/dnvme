@@ -13,6 +13,7 @@
 
 #include "auto_header.h"
 #include "reg_nvme_ctrl.h"
+#include "dnvme_ioctl.h"
 
 // #define AMD_MB_EN //Warning: AMD MB may not support msi-multi, create by shell script in auto_heater.h
 // #define FWDMA_RST_OPEN
@@ -204,7 +205,6 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter);
 int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter);
 int keep_alive_cmd(int file_desc);
 int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode);
-void ioctl_device_status(int file_desc);
 
 int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter);
 int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter);

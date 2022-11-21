@@ -9,16 +9,17 @@ EXTRA_CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
 
 TARGET					:= dnvme.ko
 obj-m					:= dnvme.o
-dnvme-y					:= dnvme_cmb.o
+dnvme-y					:= core.o
+dnvme-y					+= io.o
+dnvme-y					+= ioctl.o
+dnvme-y					+= config.o
+dnvme-(CONFIG_DNVME_CMB)		+= cmb.o
 dnvme-y					+= dnvme_cmds.o
 dnvme-y					+= dnvme_ds.o
 dnvme-y					+= dnvme_irq.o
 dnvme-y					+= dnvme_queue.o
 dnvme-y					+= dnvme_reg.o
 dnvme-y					+= dnvme_sts_chk.o
-dnvme-y					+= core.o
-dnvme-y					+= io.o
-dnvme-y					+= ioctl.o
 
 build:
 	$(Q)make -C $(KERNEL_DIR) M=$(CUR_DIR) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" modules

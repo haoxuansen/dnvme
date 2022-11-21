@@ -178,29 +178,6 @@ fail_out:
 }
 
 /*
- * Used for Initializing the IRQ lists before any scheme is run
- * Lock on to the mutex and remove all the irq and cq track nodes.
- * Also removes all the enqueued wk items
- * set the current active scheme to INT_NONE.
- * NOTE: This will grab the irq mutex and releases.
- */
-/* !TODO: input arg "irq_active" not used! */
-int init_irq_lists(struct nvme_context
-    *pmetrics_device_elem, enum nvme_irq_type  irq_active)
-{
-    int err;
-    /* locking on IRQ MUTEX here for irq track ll access */
-    mutex_lock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-    /* Initialize active irq to INT_NONE */
-    err = disable_active_irq(pmetrics_device_elem, 
-    	pmetrics_device_elem->dev->pub.irq_active.irq_type);
-    /* Unlock IRQ MUTEX as we are done with updated irq track list */
-    mutex_unlock(&pmetrics_device_elem->irq_process.irq_track_mtx);
-
-    return err;
-}
-
-/*
  * Used for releasing the IRQ lists after any scheme is run
  * Also removes all the enqueued wk items
  * set the current active scheme to INT_NONE.

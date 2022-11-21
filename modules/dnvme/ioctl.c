@@ -25,86 +25,45 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 
+#include "io.h"
+#include "core.h"
+#include "config.h"
+
 #include "dnvme_ioctl.h"
-#include "dnvme_interface.h"
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "sysfuncproto.h"
-#include "io.h"
-#include "core.h"
 #include "dnvme_sts_chk.h"
 #include "dnvme_queue.h"
 #include "dnvme_cmds.h"
 #include "dnvme_ds.h"
 #include "dnvme_irq.h"
 
-
-int device_status_chk(struct nvme_context *pmetrics_device, struct device_status *dev_sts)
+int dnvme_get_capability(struct nvme_context *ctx, struct nvme_capability __user *ucap)
 {
-	int err;
-	u16 data;
-	struct device_status * user_data;
+	struct nvme_capability *cap; /* we may extend this struct later */
+	struct pci_dev *pdev = ctx->dev->priv.pdev;
+	int ret = 0;
 
-	/* Allocating memory for user struct in kernel space */
-	user_data = kmalloc(sizeof(struct device_status), GFP_KERNEL);
-	if(user_data == NULL) 
-	{
-		pr_err("Unable to alloc kernel memory to copy user data");
-		err = -ENOMEM;
-		goto fail_out;
+	cap = kzalloc(sizeof(*cap), GFP_KERNEL);
+	if (!cap) {
+		pr_err("failed to alloc nvme_capability!\n");
+		return -ENOMEM;
 	}
-	memset(user_data, 0, sizeof(struct device_status));
 
-
-	/*  Read a word (16bit value) from the configuration register and pass it to user. */
-	err = pci_read_config_word(pmetrics_device->dev->priv.pdev,
-				PCI_DEVICE_STATUS, &data);
-	if(err<0) 
-	{
-		pr_err("pci_read_config failed in driver error check");
-		goto fail_out;
-	}
-	user_data->pci_device_status = data;
-
-	/* Get the Device Status from the PCI Header. */
-	err = pci_status_chk(data);
-	if(err) 
-	{
-		pr_err("PCI Device Status FAIL (STS)");
-		goto fail_out;
-	}  
+	ret = pci_get_capability(pdev, cap);
+	if (ret < 0)
+		goto out;
 	
-	err = pcie_cap_chk(pmetrics_device->dev->priv.pdev, &user_data->pci_cap_support,
-		&user_data->cap_pm_ctr_st, &user_data->cap_msi_mc, 
-		&user_data->cap_msix_mc, &user_data->cap_pcie_dev_st);
-	if (err) 
-	{
-		pr_err("NEXT Capability status FAIL");
-		goto fail_out;
-	} 
-	
-	err = nvme_controller_status(pmetrics_device->dev->priv.ctrlr_regs,
-		&user_data->nvme_control_st);
-	if (err) 
-	{
-		pr_err("NVME Controller Status FAIL (CSTS)");
-		goto fail_out;
-	}  
-	
-	if(copy_to_user(dev_sts, user_data, sizeof(struct device_status))) 
-	{
-		pr_err("Unable to copy to user space");
-		err = -EFAULT;
-		goto fail_out;
+	if (copy_to_user(ucap, cap, sizeof(*ucap))) {
+		pr_err("failed to copy to user space!\n");
+		ret = -EFAULT;
+		goto out;
 	}
-	return 0;
 
-fail_out:
-	if(user_data != NULL) 
-	{
-		kfree(user_data);
-	}
-	return err;
+out:
+	kfree(cap);
+	return ret;
 }
 
 /**
@@ -403,76 +362,6 @@ fail_out:
     }
     return err;
 }
-
-
-int driver_ioctl_init(struct pci_dev *pdev, void __iomem *bar0,
-    void __iomem *bar1, void __iomem *bar2,
-    struct nvme_context *pmetrics_device_list)
-{
-    int err;
-
-    pmetrics_device_list->dev =
-        kmalloc(sizeof(struct nvme_device), GFP_KERNEL);
-    if (pmetrics_device_list->dev == NULL) {
-        pr_err("Failed alloc of devel level metric storage area");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-
-    /* Init linked lists for this device. */
-    INIT_LIST_HEAD(&(pmetrics_device_list->sq_list));
-    INIT_LIST_HEAD(&(pmetrics_device_list->cq_list));
-    INIT_LIST_HEAD(&(pmetrics_device_list->meta_set.meta_list));
-    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.irq_track_list));
-    INIT_LIST_HEAD(&(pmetrics_device_list->irq_process.wrk_item_list));
-
-    mutex_init(&pmetrics_device_list->irq_process.irq_track_mtx);
-    pmetrics_device_list->dev->priv.pdev = pdev;
-    pmetrics_device_list->dev->priv.bar0 = bar0;
-    pmetrics_device_list->dev->priv.bar1 = bar1;
-    pmetrics_device_list->dev->priv.bar2 = bar2;
-    pmetrics_device_list->dev->priv.ctrlr_regs = bar0;
-    pmetrics_device_list->dev->priv.dmadev =
-        &pmetrics_device_list->dev->priv.pdev->dev;
-
-    /* Used to create Coherent DMA mapping for PRP List */
-    pmetrics_device_list->meta_set.pool = NULL;
-    pmetrics_device_list->dev->priv.prp_page_pool =
-        dma_pool_create("prp page",
-        &pmetrics_device_list->dev->priv.pdev->dev,
-        PAGE_SIZE, PAGE_SIZE, 0);
-    if (pmetrics_device_list->dev->priv.prp_page_pool ==
-        NULL) {
-
-        pr_err("Creating DMA Pool failed");
-        err = -ENOMEM;
-        goto fail_out;
-     }
-
-    /* Spinlock to protect from kernel preemption in ISR handler */
-    spin_lock_init(&pmetrics_device_list->irq_process.isr_spin_lock);
-
-    /* Initialize irq scheme to INT_NONE and perform cleanup of all lists */
-    err = init_irq_lists(pmetrics_device_list, INT_NONE);
-    if (err < 0) {
-        pr_err("IRQ track initialization failed...");
-        goto fail_out;
-    }
-    return 0;
-
-fail_out:
-    if (pmetrics_device_list->dev != NULL) {
-        kfree(pmetrics_device_list->dev);
-    }
-    if (pmetrics_device_list->dev->priv.prp_page_pool !=
-        NULL) {
-
-        dma_pool_destroy(
-            pmetrics_device_list->dev->priv.prp_page_pool);
-    }
-    return err;
-}
-
 
 /*
  * Allocate a dma pool for the requested size. Initialize the DMA pool pointer

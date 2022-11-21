@@ -19,7 +19,7 @@
 #ifndef _DNVME_REG_H_
 #define _DNVME_REG_H_
 
-#include "dnvme_interface.h"
+enum nvme_access_type;
 
 #pragma pack(push)
 #pragma pack(4)

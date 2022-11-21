@@ -21,7 +21,7 @@
 #include <malloc.h>
 #include <stdint.h>
 
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 #include "dnvme_ioctl.h"
 
 #include "common.h"

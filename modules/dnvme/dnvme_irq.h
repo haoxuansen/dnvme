@@ -22,7 +22,7 @@
 #include "dnvme_ds.h"
 #include "core.h"
 #include "dnvme_queue.h"
-#include "dnvme_interface.h"
+#include "dnvme_ioctl.h"
 #include "dnvme_sts_chk.h"
 #include "definitions.h"
 /*
@@ -81,14 +81,6 @@ struct msix_info {
  */
 int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
         struct interrupts *irq_new);
-
-/*
- * Lock on to the mutex and remove all lists used by IRQ module
- * (the irq ,cq and work item track nodes)
- * set the current active scheme to INT_NONE.
- */
-int init_irq_lists(struct nvme_context
-        *pmetrics_device_elem, enum nvme_irq_type  irq_active);
 
 /*
  * Determine the type of masking required based

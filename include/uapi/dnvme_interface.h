@@ -19,23 +19,7 @@
 #ifndef _DNVME_INTERFACE_H_
 #define _DNVME_INTERFACE_H_
 
-#include <stdbool.h>
 #include "nvme.h"
-
-enum nvme_region {
-	NVME_PCI_HEADER,
-	NVME_BAR0_BAR1,
-};
-
-/**
- * @brief The required access width of register or memory space.
- */
-enum nvme_access_type {
-	NVME_ACCESS_BYTE,
-	NVME_ACCESS_WORD,
-	NVME_ACCESS_DWORD,
-	NVME_ACCESS_QWORD,
-};
 
 /**
  * These enums define the type of interrupt scheme that the overall
@@ -46,7 +30,7 @@ enum nvme_irq_type {
 	INT_MSI_MULTI,
 	INT_MSIX,
 	INT_PIN,
-	INT_NONE,
+	INT_NONE, /* !TODO: It's better to place header position */
 	INT_FENCE    /* Last item to guard from loop run-overs */
 };
 
@@ -56,17 +40,6 @@ enum nvme_irq_type {
 enum nvme_q_type {
 	ADMIN_SQ,
 	ADMIN_CQ,
-};
-
-/**
- * @brief Parameters for the generic read or write.
- */
-struct nvme_access {
-	enum nvme_region	region;
-	enum nvme_access_type	type;
-	uint8_t			*buffer;
-	uint32_t		bytes;
-	uint32_t		offset;
 };
 
 /**
@@ -347,27 +320,6 @@ struct backdoor_inject {
 struct nvme_logstr {
     uint16_t    slen;       /* sizeof(log_str) */
     const char *log_str;    /* NULl terminated ASCII logging statement */
-};
-
-/**
- * @pci_device_status: Status Register(Offset 06h) of PCI Config Space
- * 
- */
-struct device_status {
-	uint16_t	pci_device_status;
-	uint16_t	pci_cap_support;
-/* PCI Power Management Capability */
-#define PCI_CAP_SUPPORT_PM		(1 << 0)
-/* Message Signaaled Interrupts */
-#define PCI_CAP_SUPPORT_MSI		(1 << 1)
-#define PCI_CAP_SUPPORT_MSIX		(1 << 2)
-#define PCI_CAP_SUPPORT_PCIE		(1 << 3)
-
-	uint16_t	cap_pm_ctr_st;   // PM capability control and staus reg
-	uint16_t	cap_msi_mc;      // MSI capability message control reg
-	uint16_t	cap_msix_mc;     // MSIX capability message control reg
-	uint16_t	cap_pcie_dev_st; // PCIE capability device status reg
-	uint32_t	nvme_control_st; // nvme control status
 };
 
 

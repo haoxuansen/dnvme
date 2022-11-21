@@ -19,6 +19,7 @@
 #ifndef _DNVME_IOCTLS_H_
 #define _DNVME_IOCTLS_H_
 
+#include "bitops.h"
 #include "dnvme_interface.h"
 
 /**
@@ -33,45 +34,80 @@
 enum {
 	NVME_READ_GENERIC = 0xB0,
 	NVME_WRITE_GENERIC,
-	NVME_ERR_CHK,               /** <enum Generic device status check func */
-	NVME_CREATE_ADMN_SQ,        /** <enum to invoke admin sq creation */
-	NVME_CREATE_ADMN_CQ,        /** <enum to invoke admin cq creation */
-	NVME_DEVICE_STATE,          /** <enum to enable and disable ctlr */
-	NVME_SEND_64B_CMD,          /** <enum Send 64B command */
-	NVME_TOXIC_64B_DWORD,       /** <enum Injects toxic values into cmds */
-	NVME_GET_Q_METRICS,         /** <enum to get the q metrics */
-	NVME_CREATE_ADMN_Q,         /** <enum to invoke creation of admin q's */
-	NVME_PREPARE_SQ_CREATION,   /** <enum Allocate SQ contig memory */
-	NVME_PREPARE_CQ_CREATION,   /** <enum Allocate CQ contig memory */
-	NVME_RING_SQ_DOORBELL,      /** <enum Ring SQ Tail doorbell */
-	NVME_DUMP_METRICS,          /** <enum Log data from Metrics structure */
-	NVME_REAP_INQUIRY,          /** <enum Invoke Reap inquiry */
-	NVME_REAP,                  /** <enum Invoke actual reap algo */
-	NVME_GET_DRIVER_METRICS,    /** <enum return driver version */
-	NVME_METABUF_ALLOC,         /** <enym Alloc meta buffers */
-	NVME_METABUF_CREAT,         /** <enum meta buffer create */
-	NVME_METABUF_DEL,           /** <enum meta buffer delete */
-	NVME_SET_IRQ,               /** <enum Set desired IRQ scheme */
-	NVME_MASK_IRQ,              /** <enum MASK IRQ scheme */
-	NVME_UNMASK_IRQ,            /** <enum UNMASK IRQ scheme */
-	NVME_GET_DEVICE_METRICS,    /** <enum Return device metrics to user */
-	NVME_MARK_SYSLOG,           /** <enum Inject a marker in the system log */
-	// NVME_GET_BP_MEM,           /** <enum boot part kernel memory alloc */
-	// NVME_GET_BP_MEM_ADDR,      /** <enum boot part kernel memory address get */
+	NVME_GET_CAPABILITY,
+	NVME_CREATE_ADMN_SQ,
+	NVME_CREATE_ADMN_CQ,
+	NVME_SET_DEV_STATE,
+	NVME_SEND_64B_CMD,
+	NVME_TOXIC_64B_DWORD,
+	NVME_GET_Q_METRICS,
+	NVME_CREATE_ADMN_Q,
+	NVME_PREPARE_SQ_CREATION,
+	NVME_PREPARE_CQ_CREATION,
+	NVME_RING_SQ_DOORBELL,
+	NVME_DUMP_METRICS,
+	NVME_REAP_INQUIRY,
+	NVME_REAP,
+	NVME_GET_DRIVER_METRICS,
+	NVME_METABUF_ALLOC,
+	NVME_METABUF_CREAT,
+	NVME_METABUF_DEL,
+	NVME_SET_IRQ,
+	NVME_MASK_IRQ,
+	NVME_UNMASK_IRQ,
+	NVME_GET_DEVICE_METRICS,
+	NVME_MARK_SYSLOG,
+	// NVME_GET_BP_MEM,
+	// NVME_GET_BP_MEM_ADDR,
 };
 
+enum nvme_region {
+	NVME_PCI_HEADER,
+	NVME_BAR0_BAR1,
+};
 
+/**
+ * @brief The required access width of register or memory space.
+ */
+enum nvme_access_type {
+	NVME_ACCESS_BYTE,
+	NVME_ACCESS_WORD,
+	NVME_ACCESS_DWORD,
+	NVME_ACCESS_QWORD,
+};
+
+/**
+ * @brief Parameters for the generic read or write.
+ */
+struct nvme_access {
+	enum nvme_region	region;
+	enum nvme_access_type	type;
+	uint8_t			*buffer;
+	uint32_t		bytes;
+	uint32_t		offset;
+};
+
+struct nvme_capability {
+	unsigned long	pci_cap_support[BITS_TO_LONGS(32)];
+/* PCI Power Management Capability */
+#define PCI_CAP_SUPPORT_PM		0
+/* Message Signaled Interrupts Capability */
+#define PCI_CAP_SUPPORT_MSI		1
+#define PCI_CAP_SUPPORT_MSIX		2
+#define PCI_CAP_SUPPORT_PCIE		3
+	uint8_t		pci_cap_offset[32];
+};
 
 #define NVME_IOCTL_READ_GENERIC \
 	_IOWR('N', NVME_READ_GENERIC, struct nvme_access)
 #define NVME_IOCTL_WRITE_GENERIC \
 	_IOWR('N', NVME_WRITE_GENERIC, struct nvme_access)
 
-/**
- * @def NVME_IOCTL_ERR_CHK
- * define unique ioctl for checking device error status.
- */
-#define NVME_IOCTL_ERR_CHK _IOWR('N', NVME_ERR_CHK, int)
+#define NVME_IOCTL_GET_CAPABILITY \
+	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_capability)
+
+#define NVME_IOCTL_SET_DEV_STATE \
+	_IOW('N', NVME_SET_DEV_STATE, enum nvme_state)
 
 /**
  * @def NVME_IOCTL_CREATE_ADMN_SQ
@@ -86,12 +122,6 @@ enum {
  */
 #define NVME_IOCTL_CREATE_ADMN_CQ _IOWR('N', NVME_CREATE_ADMN_CQ, \
     struct nvme_acq_gen)
-
-/**
- * @def NVME_IOCTL_DEVICE_STATE
- * define a unique value for resetting or enabling controller.
- */
-#define NVME_IOCTL_DEVICE_STATE _IOW('N', NVME_DEVICE_STATE, enum nvme_state)
 
 /**
  * @def NVME_IOCTL_GET_Q_METRICS
