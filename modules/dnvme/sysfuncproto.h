@@ -33,29 +33,17 @@
 #include "core.h"
 #include "dnvme_ioctl.h"
 
+int dnvme_reset_subsystem(struct nvme_context *ctx);
+int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled);
 
 int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 
 int dnvme_get_capability(struct nvme_context *ctx, struct nvme_capability __user *ucap);
+int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq);
 
-/**
- * driver_create_asq - Driver Admin Submission Queue creation routine
- * @param create_admn_q
- * @param pmetrics_device
- * @return ASQ creation 0 or -1
- */
-int driver_create_asq(struct nvme_create_admn_q *create_admn_q,
-    struct nvme_context *pmetrics_device);
-
-/**
- * driver_create_acq - Driver Admin completion  Queue creation routine
- * @param create_admn_q
- * @param pmetrics_device_list
- * @return ACQ creation 0 or -1
- */
-int driver_create_acq(struct nvme_create_admn_q *create_admn_q,
-    struct nvme_context *pmetrics_device_list);
+int dnvme_create_admin_queue(struct nvme_context *ctx, 
+	struct nvme_admin_queue __user *uaq);
 
 /**
  * driver_nvme_prep_sq - Driver routine to set up user parameters into metrics

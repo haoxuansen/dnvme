@@ -38,7 +38,7 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
 {
     int ret_val = -1;
     uint16_t tmp;
-    struct nvme_get_q_metrics get_q_metrics = {0};
+    struct nvme_get_queue get_q_metrics = {0};
 
     pr_debug("User App Calling Get Q Metrics...\n");
 
@@ -48,20 +48,20 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
 
     if (q_type == 1)
     {
-        get_q_metrics.buffer = malloc(sizeof(uint8_t) *
+        get_q_metrics.buf = malloc(sizeof(uint8_t) *
                                       sizeof(struct nvme_sq_public));
     }
     else
     {
-        get_q_metrics.buffer = malloc(sizeof(uint8_t) *
+        get_q_metrics.buf = malloc(sizeof(uint8_t) *
                                       sizeof(struct nvme_cq_public));
     }
-    if (get_q_metrics.buffer == NULL)
+    if (get_q_metrics.buf == NULL)
     {
         pr_err("Malloc Failed");
         return;
     }
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_Q_METRICS, &get_q_metrics);
+    ret_val = ioctl(file_desc, NVME_IOCTL_GET_QUEUE, &get_q_metrics);
 
     if (ret_val < 0)
     {
@@ -71,34 +71,34 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
     {
         if (q_type == 1)
         {
-            memcpy(&tmp, &get_q_metrics.buffer[0], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[0], sizeof(uint16_t));
             pr_debug("\nMetrics for SQ Id = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[2], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[2], sizeof(uint16_t));
             pr_debug("\tCQ Id = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[4], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[4], sizeof(uint16_t));
             pr_debug("\tTail Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[6], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[6], sizeof(uint16_t));
             pr_debug("\tTail_Ptr_Virt = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[8], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[8], sizeof(uint16_t));
             pr_debug("\tHead Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[10], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[10], sizeof(uint16_t));
             pr_debug("\tElements = %d\n", tmp);
         }
         else
         {
-            memcpy(&tmp, &get_q_metrics.buffer[0], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[0], sizeof(uint16_t));
             pr_debug("\nMetrics for CQ Id = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[2], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[2], sizeof(uint16_t));
             pr_debug("\tTail_Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[4], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[4], sizeof(uint16_t));
             pr_debug("\tHead Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[6], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[6], sizeof(uint16_t));
             pr_debug("\tElements = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buffer[8], sizeof(uint16_t));
+            memcpy(&tmp, &get_q_metrics.buf[8], sizeof(uint16_t));
             pr_debug("\tIrq Enabled = %d\n", tmp);
         }
     }
-    free(get_q_metrics.buffer);
+    free(get_q_metrics.buf);
 }
 
 void admin_queue_config(int file_desc)
@@ -269,7 +269,7 @@ err:
 void ioctl_create_acq(int file_desc, uint32_t queue_size)
 {
     int ret_val = -1;
-    struct nvme_create_admn_q aq_data = {0};
+    struct nvme_admin_queue aq_data = {0};
 
     // check queue size
     if (queue_size > MAX_ADMIN_QUEUE_SIZE)
@@ -278,11 +278,11 @@ void ioctl_create_acq(int file_desc, uint32_t queue_size)
     }
 
     aq_data.elements = queue_size;
-    aq_data.type = ADMIN_CQ;
+    aq_data.type = NVME_ADMIN_CQ;
 
     pr_debug("\tAdmin CQ No. of Elements = %d\n", aq_data.elements);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
+    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
     if (ret_val < 0)
     {
         pr_err("\tCreation of ACQ Failed!  ret_val=%d\n", ret_val);
@@ -301,7 +301,7 @@ void ioctl_create_acq(int file_desc, uint32_t queue_size)
 void ioctl_create_asq(int file_desc, uint32_t queue_size)
 {
     int ret_val = -1;
-    struct nvme_create_admn_q aq_data = {0};
+    struct nvme_admin_queue aq_data = {0};
 
     // check queue size
     if (queue_size > MAX_ADMIN_QUEUE_SIZE)
@@ -310,11 +310,11 @@ void ioctl_create_asq(int file_desc, uint32_t queue_size)
     }
 
     aq_data.elements = queue_size;
-    aq_data.type = ADMIN_SQ;
+    aq_data.type = NVME_ADMIN_SQ;
 
     pr_debug("\tAdmin SQ No. of Elements = %d\n", aq_data.elements);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMN_Q, &aq_data);
+    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
     if (ret_val < 0)
     {
         pr_err("\tCreation of ASQ Failed! ret_val=%d\n", ret_val);

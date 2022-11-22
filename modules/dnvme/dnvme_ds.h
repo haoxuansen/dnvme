@@ -58,7 +58,7 @@ struct nvme_prps {
  */
 struct nvme_cq_private {
 	u8		*buf; /* phy addr ptr to the q's alloc to kern mem */
-	dma_addr_t	cq_dma_addr; /* dma mapped address using dma_alloc */
+	dma_addr_t	dma; /* dma mapped address using dma_alloc */
 	u32		size; /* length in bytes of the alloc Q in kernel */
 	u32 __iomem	*dbs; /* Door Bell stride  */
 	u8		contig; /* Indicates if prp list is contig or not */
@@ -82,7 +82,7 @@ struct nvme_cmd {
  */
 struct nvme_sq_private {
 	void		*buf; /* virtual kernal address using kmalloc */
-	dma_addr_t	sq_dma_addr; /* dma mapped address using dma_alloc */
+	dma_addr_t	dma; /* dma mapped address using dma_alloc */
 	u32		size; /* len in bytes of allocated Q in kernel */
 	u32 __iomem	*dbs; /* Door Bell stride */
 	u16		unique_cmd_id; /* unique counter for each comand in SQ */
@@ -159,9 +159,10 @@ struct nvme_dev_private {
 	struct pci_dev	*pdev; /* Pointer to the PCIe device */
 	struct device	*spcl_dev; /* Special device file */
 	struct nvme_ctrl_reg __iomem	*ctrlr_regs;  /* Pointer to reg space */
-	u8 __iomem	*bar0; /* 64 bit BAR0 memory mapped ctrlr regs */
-	u8 __iomem	*bar1; /* 64 bit BAR1 I/O mapped registers */
-	u8 __iomem	*bar2; /* 64 bit BAR2 memory mapped MSIX table */
+	void __iomem	*bar0; /* 64 bit BAR0 memory mapped ctrlr regs */
+	void __iomem	*bar1; /* 64 bit BAR1 I/O mapped registers */
+	void __iomem	*bar2; /* 64 bit BAR2 memory mapped MSIX table */
+	u32 __iomem	*dbs;
 	struct dma_pool	*prp_page_pool; /* Mem for PRP List */
 	struct device	*dmadev; /* Pointer to the dma device from pdev */
 	int	minor; /* Minor no. of the device being used */
@@ -192,6 +193,8 @@ struct nvme_device {
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
+	u32	q_depth;
+	u32	db_stride;
 	u64	cmb_size;
 	bool	cmb_use_sqes;
 };

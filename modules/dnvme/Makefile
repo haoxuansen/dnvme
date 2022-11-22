@@ -14,6 +14,7 @@ dnvme-y					+= io.o
 dnvme-y					+= ioctl.o
 dnvme-y					+= config.o
 dnvme-(CONFIG_DNVME_CMB)		+= cmb.o
+dnvme-y					+= debug.o
 dnvme-y					+= dnvme_cmds.o
 dnvme-y					+= dnvme_ds.o
 dnvme-y					+= dnvme_irq.o

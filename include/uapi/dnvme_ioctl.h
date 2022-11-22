@@ -35,13 +35,11 @@ enum {
 	NVME_READ_GENERIC = 0xB0,
 	NVME_WRITE_GENERIC,
 	NVME_GET_CAPABILITY,
-	NVME_CREATE_ADMN_SQ,
-	NVME_CREATE_ADMN_CQ,
 	NVME_SET_DEV_STATE,
 	NVME_SEND_64B_CMD,
 	NVME_TOXIC_64B_DWORD,
-	NVME_GET_Q_METRICS,
-	NVME_CREATE_ADMN_Q,
+	NVME_GET_QUEUE,
+	NVME_CREATE_ADMIN_QUEUE,
 	NVME_PREPARE_SQ_CREATION,
 	NVME_PREPARE_CQ_CREATION,
 	NVME_RING_SQ_DOORBELL,
@@ -76,6 +74,21 @@ enum nvme_access_type {
 	NVME_ACCESS_QWORD,
 };
 
+enum nvme_queue_type {
+	NVME_ADMIN_SQ,
+	NVME_ADMIN_CQ,
+	NVME_CQ,
+	NVME_SQ,
+};
+
+enum nvme_sq_prio
+{
+	URGENT_PRIO = 0x0,
+	HIGH_PRIO = 0x1,
+	MEDIUM_PRIO = 0x2,
+	LOW_PRIO = 0x3,
+};
+
 /**
  * @brief Parameters for the generic read or write.
  */
@@ -98,6 +111,53 @@ struct nvme_capability {
 	uint8_t		pci_cap_offset[32];
 };
 
+/**
+ * @elements: No. of elements of size 64 Bytes
+ */
+struct nvme_admin_queue {
+	enum nvme_queue_type	type;
+	uint32_t		elements;
+};
+
+/**
+ * @brief Get the public info of specified queue based on the qid and type.
+ * 
+ * @bytes: buffer size
+ * @buf: store queue public info
+ */
+struct nvme_get_queue {
+	uint16_t	q_id;
+	enum nvme_queue_type	type;
+	uint32_t	bytes;
+	uint8_t		*buf;
+};
+
+/**
+ * Interface structure for allocating SQ memory. The elements are 1 based
+ * values and the CC.IOSQES is 2^n based.
+ */
+struct nvme_prep_sq
+{
+	uint32_t	elements; /* Total number of entries that need kernel mem */
+	uint16_t	sq_id;	  /* The user specified unique SQ ID  */
+	uint16_t	cq_id;	  /* Existing or non-existing CQ ID */
+	uint8_t 	contig;    /* Indicates if SQ is contig or not, 1 = contig */
+	enum nvme_sq_prio	sq_prio;
+};
+
+/**
+ * Interface structure for allocating CQ memory. The elements are 1 based
+ * values and the CC.IOSQES is 2^n based.
+ */
+struct nvme_prep_cq
+{
+	uint32_t	elements; /* Total number of entries that need kernal mem */
+	uint16_t	cq_id;	  /* Existing or non-existing CQ ID. */
+	uint8_t 	contig;    /* Indicates if SQ is contig or not, 1 = contig */
+	uint8_t 	cq_irq_en;
+	uint16_t	cq_irq_no;
+};
+
 #define NVME_IOCTL_READ_GENERIC \
 	_IOWR('N', NVME_READ_GENERIC, struct nvme_access)
 #define NVME_IOCTL_WRITE_GENERIC \
@@ -109,34 +169,16 @@ struct nvme_capability {
 #define NVME_IOCTL_SET_DEV_STATE \
 	_IOW('N', NVME_SET_DEV_STATE, enum nvme_state)
 
-/**
- * @def NVME_IOCTL_CREATE_ADMN_SQ
- * define a unique value for creating admin submission queue.
- */
-#define NVME_IOCTL_CREATE_ADMN_SQ _IOWR('N', NVME_CREATE_ADMN_SQ, \
-    struct nvme_asq_gen)
+#define NVME_IOCTL_CREATE_ADMIN_QUEUE \
+	_IOWR('N', NVME_CREATE_ADMIN_QUEUE, struct nvme_admin_queue)
 
-/**
- * @def NVME_IOCTL_CREATE_ADMN_CQ
- * define a unique value for creating admin completion queue.
- */
-#define NVME_IOCTL_CREATE_ADMN_CQ _IOWR('N', NVME_CREATE_ADMN_CQ, \
-    struct nvme_acq_gen)
+#define NVME_IOCTL_PREPARE_SQ_CREATION \
+	_IOWR('N', NVME_PREPARE_SQ_CREATION, struct nvme_prep_sq)
+#define NVME_IOCTL_PREPARE_CQ_CREATION \
+	_IOWR('N', NVME_PREPARE_CQ_CREATION, struct nvme_prep_cq)
 
-/**
- * @def NVME_IOCTL_GET_Q_METRICS
- * define a unique value for getting the q metrics. The metrics is either for
- * Submission queue including Admin SQ or Completion Queue including Admin CQ.
- */
-#define NVME_IOCTL_GET_Q_METRICS _IOWR('N', NVME_GET_Q_METRICS, \
-    struct nvme_get_q_metrics)
-
-/**
- * @def NVME_IOCTL_CREATE_ADMN_Q
- * define a unique value for creating admin queues.
- */
-#define NVME_IOCTL_CREATE_ADMN_Q _IOWR('N', NVME_CREATE_ADMN_Q, \
-    struct nvme_create_admn_q)
+#define NVME_IOCTL_GET_QUEUE \
+	_IOWR('N', NVME_GET_QUEUE, struct nvme_get_queue)
 
 /**
  * @def NVME_IOCTL_SEND_64B_CMD
@@ -162,20 +204,6 @@ struct nvme_capability {
  */
 #define NVME_IOCTL_TOXIC_64B_DWORD _IOWR('N', NVME_TOXIC_64B_DWORD, \
     struct backdoor_inject)
-
-/**
- * @def NVME_IOCTL_PREPARE_SQ_CREATION
- * define a unique value for allocating contiguous memory for SQ.
- */
-#define NVME_IOCTL_PREPARE_SQ_CREATION _IOWR('N', NVME_PREPARE_SQ_CREATION, \
-    struct nvme_prep_sq)
-
-/**
- * @def NVME_IOCTL_PREPARE_CQ_CREATION
- * define a unique value for allocating contiguous memory for CQ.
- */
-#define NVME_IOCTL_PREPARE_CQ_CREATION _IOWR('N', NVME_PREPARE_CQ_CREATION, \
-    struct nvme_prep_sq)
 
 /**
  * @def NVME_IOCTL_RING_SQ_DOORBELL

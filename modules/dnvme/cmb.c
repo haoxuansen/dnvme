@@ -53,8 +53,6 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 		return 0;
 	}
 
-	dnvme_readq(priv->bar0, NVME_REG_CAP, &prop->cap);
-
 	if (NVME_CAP_CMBS(prop->cap)) {
 		/*
 		 * Enable the CMBLOC and CMBSZ properties, otherwise CMBSZ and
@@ -63,12 +61,12 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 		dnvme_writel(priv->bar0, NVME_REG_CMBMSC, NVME_CMBMSC_CRE);
 	}
 
-	dnvme_readl(priv->bar0, NVME_REG_CMBSZ, &prop->cmbsz);
+	prop->cmbsz = dnvme_readl(priv->bar0, NVME_REG_CMBSZ);
 	if (!prop->cmbsz) {
 		dnvme_warn("Not support to map CMB which size is zero!\n");
 		return 0;
 	}
-	dnvme_readl(priv->bar0, NVME_REG_CMBLOC, &prop->cmbloc);
+	prop->cmbloc = dnvme_readl(priv->bar0, NVME_REG_CMBLOC);
 
 	size = dnvme_cmb_size_unit(prop->cmbsz) * dnvme_cmb_size(prop->cmbsz);
 	offset = dnvme_cmb_size_unit(prop->cmbsz) * NVME_CMB_OFST(prop->cmbloc);
@@ -111,7 +109,7 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 			(NVME_CMBSZ_WDS | NVME_CMBSZ_RDS))
 		pci_p2pmem_publish(pdev, true);
 	
-	dnvme_debug("CMB is mapped ok!\n");
+	dnvme_dbg("CMB is mapped ok!\n");
 	return 0;
 }
 

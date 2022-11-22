@@ -40,8 +40,8 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     u32 u32aer_msk = 0; /* AER Mask bits data */
     int ret_code = 0; /* Return code for pci reads */
 
-    dnvme_debug("Offset in AER CAP= 0x%X", base_offset);
-    dnvme_debug("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");
+    dnvme_vdbg("Offset in AER CAP= 0x%X", base_offset);
+    dnvme_vdbg("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");
 
     /* Compute the offset of AER Uncorrectable error status */
     offset = base_offset + NVME_AERUCES_OFFSET;

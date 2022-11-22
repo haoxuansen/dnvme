@@ -111,7 +111,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
     u32 num_prps, num_pg, sgl_page = 0;
     struct dma_pool *sgl_page_pool;
     int i = 0;
-    dnvme_debug("-->[%s]",__FUNCTION__);
+    dnvme_vdbg("-->[%s]",__FUNCTION__);
 
     dma_addr = sg_dma_address(sg);
     dma_len = sg_dma_len(sg);
@@ -188,7 +188,7 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
     enum dma_data_direction kernel_dir;
     uint8_t opcode = nvme_gen_cmd->opcode; 
     uint16_t persist_q_id = nvme_gen_cmd->command_id;
-    dnvme_debug("-->[%s]",__FUNCTION__);
+    dnvme_vdbg("-->[%s]",__FUNCTION__);
 
     /* Catch common mistakes */
     addr = (unsigned long)nvme_64b_send->data_buf_ptr;
@@ -210,7 +210,7 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
     if (err < 0) {
         return err;
     }
-    dnvme_debug("sgl_num_map_pgs:%#x",prps->num_map_pgs);
+    dnvme_vdbg("sgl_num_map_pgs:%#x",prps->num_map_pgs);
     err = setup_sgls(nvme_dev, sg_list, nvme_64b_send->data_buf_size, prps,
                     nvme_gen_cmd, nvme_64b_send->bit_mask, prps->num_map_pgs);
     if (err < 0) {
@@ -225,7 +225,7 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
         goto err_unmap_prp_pool;
     }
 
-    dnvme_debug("<--[%s]",__FUNCTION__);
+    dnvme_vdbg("<--[%s]",__FUNCTION__);
     return 0;
 
 err_unmap_prp_pool:
@@ -272,7 +272,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
                 dnvme_err("Data buffer to SGL generation failed");
                 return ret_code;
             }
-            dnvme_debug("sgl_dbg:%d: adr:%#llx,len:%#x,typ:%#x",__LINE__,
+            dnvme_vdbg("sgl_dbg:%d: adr:%#llx,len:%#x,typ:%#x",__LINE__,
                 nvme_gen_cmd->dptr.sgl.addr,
                 nvme_gen_cmd->dptr.sgl.length,
                 nvme_gen_cmd->dptr.sgl.type);
@@ -341,7 +341,7 @@ int add_cmd_track_node(struct  nvme_sq  *pmetrics_sq,
     /* Add an element to the end of the list */
     list_add_tail(&pcmd_track_list->entry,
         &pmetrics_sq->priv.cmd_list);
-    dnvme_debug("Node created and added inside command track list");
+    dnvme_vdbg("Node created and added inside command track list");
     return 0;
 }
 
@@ -453,7 +453,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
         }
         prp_vlist = prps->vir_prp_list[0];
         if (prps->type == (PRP2 | PRP_List)) {
-            dnvme_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
+            dnvme_vdbg("P1 Entry: %llx", (unsigned long long) prps->prp1);
         }
         for (i = 0, j = 0; i < num_prps; i++) {
 
@@ -462,18 +462,18 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                 num_prps -= i;
                 i = 0 ;
                 prp_vlist = prps->vir_prp_list[j];
-                dnvme_debug("Physical address of next PRP Page: %llx",
+                dnvme_vdbg("Physical address of next PRP Page: %llx",
                     (__le64) prp_vlist);
             }
 
-            dnvme_debug("PRP List: %llx", (unsigned long long) prp_vlist[i]);
+            dnvme_vdbg("PRP List: %llx", (unsigned long long) prp_vlist[i]);
         }
 
     } else if (prps->type == PRP1) {
-        dnvme_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
+        dnvme_vdbg("P1 Entry: %llx", (unsigned long long) prps->prp1);
     } else {
-        dnvme_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
-        dnvme_debug("P2 Entry: %llx", (unsigned long long) prps->prp2);
+        dnvme_vdbg("P1 Entry: %llx", (unsigned long long) prps->prp1);
+        dnvme_vdbg("P2 Entry: %llx", (unsigned long long) prps->prp2);
     }
 #endif
 
@@ -484,7 +484,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
         goto err_unmap_prp_pool;
     }
 
-    dnvme_debug("PRP Built and added to command track node successfully");
+    dnvme_vdbg("PRP Built and added to command track node successfully");
     return 0;
 
 err_unmap_prp_pool:
@@ -505,10 +505,10 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 
     buf_pg_offset = offset_in_page(buf_addr);
     buf_pg_count = DIV_ROUND_UP(buf_pg_offset + total_buf_len, PAGE_SIZE);
-    dnvme_debug("User buf addr = 0x%016lx", buf_addr);
-    dnvme_debug("User buf pg offset = 0x%08x", buf_pg_offset);
-    dnvme_debug("User buf pg count = 0x%08x", buf_pg_count);
-    dnvme_debug("User buf total length = 0x%08x", total_buf_len);
+    dnvme_vdbg("User buf addr = 0x%016lx", buf_addr);
+    dnvme_vdbg("User buf pg offset = 0x%08x", buf_pg_offset);
+    dnvme_vdbg("User buf pg count = 0x%08x", buf_pg_count);
+    dnvme_vdbg("User buf total length = 0x%08x", total_buf_len);
 
     pages = kcalloc(buf_pg_count, sizeof(*pages), GFP_KERNEL);
     if (pages  == NULL) {
@@ -537,7 +537,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
         /* Note: Not suitable for pages with offsets, but since discontig back'd
          *       Q's are required to be page aligned this isn't an issue */
         buf = vmap(pages, buf_pg_count, VM_MAP, PAGE_KERNEL);
-        dnvme_debug("Map'd user space buf to vir Kernel Addr: %p", buf);
+        dnvme_vdbg("Map'd user space buf to vir Kernel Addr: %p", buf);
         if (buf == NULL) {
             err = -EFAULT;
             dnvme_err("Unable to map user space buffer to kernel space");
@@ -558,7 +558,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
      * mapped entries equate to the number given to the func is not warranted */
     num_sg_entries = dma_map_sg(&nvme_dev->priv.pdev->dev, *sg_list,
         buf_pg_count, kernel_dir);
-    dnvme_debug("%d elements mapped out of %d sglist elements",
+    dnvme_vdbg("%d elements mapped out of %d sglist elements",
         num_sg_entries, num_sg_entries);
     if (num_sg_entries == 0) {
         dnvme_err("Unable to map the sg list into dma addr space");
@@ -570,14 +570,14 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 #ifdef TEST_PRP_DEBUG
     {
         struct scatterlist *work;
-        dnvme_debug("Dump sg list after DMA mapping");
+        dnvme_vdbg("Dump sg list after DMA mapping");
         for (i = 0, work = *sg_list; i < num_sg_entries; i++,
             work = sg_next(work)) {
 
-            dnvme_debug("  sg list: page_link=0x%016lx", work->page_link);
-            dnvme_debug("  sg list: offset=0x%08x, length=0x%08x",
+            dnvme_vdbg("  sg list: page_link=0x%016lx", work->page_link);
+            dnvme_vdbg("  sg list: offset=0x%08x, length=0x%08x",
                 work->offset, work->length);
-            dnvme_debug("  sg list: dmaAddr=0x%016llx, dmaLen=0x%08x",
+            dnvme_vdbg("  sg list: dmaAddr=0x%016llx, dmaLen=0x%08x",
                 (u64)work->dma_address, work->dma_length);
         }
     }
@@ -665,9 +665,9 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
         goto prp_list;
     }
 
-    dnvme_debug("PRP1 Entry: Buf_len %d", buf_len);
-    dnvme_debug("PRP1 Entry: dma_len %u", dma_len);
-    dnvme_debug("PRP1 Entry: PRP entry %llx", (unsigned long long) dma_addr);
+    dnvme_vdbg("PRP1 Entry: Buf_len %d", buf_len);
+    dnvme_vdbg("PRP1 Entry: dma_len %u", dma_len);
+    dnvme_vdbg("PRP1 Entry: PRP entry %llx", (unsigned long long) dma_addr);
 
     /* Checking for PRP1 mask */
     if (!(prp_mask & MASK_PRP1_PAGE)) {
@@ -702,10 +702,10 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
         }
         prps->prp2 = cpu_to_le64(dma_addr);
         prps->type = (PRP1 | PRP2);
-        dnvme_debug("PRP2 Entry: Type %u", prps->type);
-        dnvme_debug("PRP2 Entry: Buf_len %d", buf_len);
-        dnvme_debug("PRP2 Entry: dma_len %u", dma_len);
-        dnvme_debug("PRP2 Entry: PRP entry %llx", (unsigned long long) dma_addr);
+        dnvme_vdbg("PRP2 Entry: Type %u", prps->type);
+        dnvme_vdbg("PRP2 Entry: Buf_len %d", buf_len);
+        dnvme_vdbg("PRP2 Entry: dma_len %u", dma_len);
+        dnvme_vdbg("PRP2 Entry: PRP entry %llx", (unsigned long long) dma_addr);
         return 0;
     }
 
@@ -729,7 +729,7 @@ prp_list:
         return -ENOMEM;
     }
 
-    dnvme_debug("No. of PRP Entries inside PRPList: %u", num_prps);
+    dnvme_vdbg("No. of PRP Entries inside PRPList: %u", num_prps);
 
     prp_page = 0;
     prp_page_pool = nvme_dev->priv.prp_page_pool;
@@ -745,11 +745,11 @@ prp_list:
     prps->first_dma = prp_dma;
     if (prps->type == (PRP2 | PRP_List)) {
         prps->prp2 = cpu_to_le64(prp_dma);
-        dnvme_debug("PRP2 Entry: %llx", (unsigned long long) prps->prp2);
+        dnvme_vdbg("PRP2 Entry: %llx", (unsigned long long) prps->prp2);
     } else if (prps->type == (PRP1 | PRP_List)) {
         prps->prp1 = cpu_to_le64(prp_dma);
         prps->prp2 = 0;
-        dnvme_debug("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
+        dnvme_vdbg("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
     } else {
         dnvme_err("PRP cmd options don't allow proper description of buffer");
         err = -EFAULT;
@@ -772,10 +772,10 @@ prp_list:
             index = 0;
         }
 
-        dnvme_debug("PRP List: dma_len %d", dma_len);
-        dnvme_debug("PRP List: Buf_len %d", buf_len);
-        dnvme_debug("PRP List: offset %d", offset);
-        dnvme_debug("PRP List: PRP entry %llx", (unsigned long long)dma_addr);
+        dnvme_vdbg("PRP List: dma_len %d", dma_len);
+        dnvme_vdbg("PRP List: Buf_len %d", buf_len);
+        dnvme_vdbg("PRP List: offset %d", offset);
+        dnvme_vdbg("PRP List: PRP entry %llx", (unsigned long long)dma_addr);
 		//iol_interact-12.0a srart
         // inject offset if flag is set and used for the 2nd entry
         //if ((prp_mask & MASK_PRP_ADDR_OFFSET_ERR) && (index == 1)){

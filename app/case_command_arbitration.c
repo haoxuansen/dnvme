@@ -38,7 +38,7 @@ uint32_t sq4_cmd_num = 500;
 // uint32_t sq8_cmd_num = 500;
 
 //获取sq的优先级类型
-enum sq_prio_type get_q_prio(uint16_t id)
+enum nvme_sq_prio get_q_prio(uint16_t id)
 {
     if ((id == LPW_QID))
     {
@@ -102,9 +102,9 @@ uint32_t get_q_cmd_num(uint8_t id)
 }
 
 //获取sq的优先级顺序
-enum sq_prio_type get_prio_order(uint8_t i)
+enum nvme_sq_prio get_prio_order(uint8_t i)
 {
-    enum sq_prio_type prio_order = LOW_PRIO;
+    enum nvme_sq_prio prio_order = LOW_PRIO;
     if (Arbit_HPW >= Arbit_MPW)
     {
         if (Arbit_HPW >= Arbit_LPW) //high is up!

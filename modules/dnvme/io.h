@@ -18,52 +18,44 @@
 struct pci_dev;
 struct nvme_access;
 
-static inline int dnvme_readb(void __iomem *base, u32 oft, u8 *val)
+static inline u8 dnvme_readb(void __iomem *base, u32 oft)
 {
-	*val = readb(base + oft);
-	return 0;
+	return readb(base + oft);
 }
 
-static inline int dnvme_writeb(void __iomem *base, u32 oft, u8 val)
+static inline void dnvme_writeb(void __iomem *base, u32 oft, u8 val)
 {
 	writeb(val, base + oft);
-	return 0;
 }
 
-static inline int dnvme_readw(void __iomem *base, u32 oft, u16 *val)
+static inline u16 dnvme_readw(void __iomem *base, u32 oft)
 {
-	*val = readw(base + oft);
-	return 0;
+	return readw(base + oft);
 }
 
-static inline int dnvme_writew(void __iomem *base, u32 oft, u16 val)
+static inline void dnvme_writew(void __iomem *base, u32 oft, u16 val)
 {
 	writew(val, base + oft);
-	return 0;
 }
 
-static inline int dnvme_readl(void __iomem *base, u32 oft, u32 *val)
+static inline u32 dnvme_readl(void __iomem *base, u32 oft)
 {
-	*val = readl(base + oft);
-	return 0;
+	return readl(base + oft);
 }
 
-static inline int dnvme_writel(void __iomem *base, u32 oft, u32 val)
+static inline void dnvme_writel(void __iomem *base, u32 oft, u32 val)
 {
 	writel(val, base + oft);
-	return 0;
 }
 
-static inline int dnvme_readq(void __iomem *base, u32 oft, u64 *val)
+static inline u64 dnvme_readq(void __iomem *base, u32 oft)
 {
-	*val = lo_hi_readq(base + oft);
-	return 0;
+	return lo_hi_readq(base + oft);
 }
 
-static inline int dnvme_writeq(void __iomem *base, u32 oft, u64 val)
+static inline void dnvme_writeq(void __iomem *base, u32 oft, u64 val)
 {
 	lo_hi_writeq(val, base + oft);
-	return 0;
 }
 
 int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access, 

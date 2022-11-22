@@ -146,6 +146,15 @@ enum {
 #define NVME_CMB_BIR(cmbloc)	((cmbloc) & 0x7)
 #define NVME_CMB_OFST(cmbloc)	(((cmbloc) >> 12) & 0xfffff)
 
+/* bit[27:16] Admin Completion Queue Size (in entries, zero based) */
+#define NVME_AQA_FOR_ACQS(aqa)	(((aqa) & 0xfff) << 16)
+#define NVME_AQA_TO_ACQS(aqa)	(((aqa) >> 16) & 0xfff)
+#define NVME_AQA_ACQS_MASK	NVME_AQA_FOR_ACQS(0xfff)
+/* bit[11:0] Admin Submission Queue Size (in entries, zero based) */
+#define NVME_AQA_FOR_ASQS(aqa)	(((aqa) & 0xfff) << 0)
+#define NVME_AQA_TO_ASQS(aqa)	(((aqa) >> 0) & 0xfff)
+#define NVME_AQA_ASQS_MASK	NVME_AQA_FOR_ASQS(0xfff)
+
 enum {
 	NVME_CMBSZ_SQS		= 1 << 0,
 	NVME_CMBSZ_CQS		= 1 << 1,
@@ -164,7 +173,8 @@ enum {
  * Submission and Completion Queue Entry Sizes for the NVM command set.
  * (In bytes and specified as a power of two (2^n)).
  */
-#define NVME_ADM_SQES       6
+#define NVME_ADM_SQES		6
+#define NVME_ADM_CQES		4
 #define NVME_NVM_IOSQES		6
 #define NVME_NVM_IOCQES		4
 

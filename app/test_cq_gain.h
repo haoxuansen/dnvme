@@ -28,9 +28,9 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 struct cq_completion *get_cq_entry(void);
 
 int arb_reap_all_cq(struct arbitration_parameter *arb_parameter); //for command_arbitration
-enum sq_prio_type get_q_prio(uint16_t x);                        //for command_arbitration in case_command_arbitration.c
+enum nvme_sq_prio get_q_prio(uint16_t x);                        //for command_arbitration in case_command_arbitration.c
 uint32_t get_higt_weight_q_min_num(void);
-enum sq_prio_type get_prio_order(uint8_t i);
+enum nvme_sq_prio get_prio_order(uint8_t i);
 int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter);
 
 int disp_cq_data(unsigned char *cq_buffer, int reap_num);

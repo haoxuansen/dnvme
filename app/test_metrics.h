@@ -70,7 +70,7 @@ struct create_sq_parameter
     uint16_t cq_id;
     uint16_t sq_size;
     uint8_t contig;
-    enum sq_prio_type sq_prio;
+    enum nvme_sq_prio sq_prio;
 };
 
 enum fua_sts

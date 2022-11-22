@@ -115,7 +115,7 @@ static void test_sub(void)
     /**********************************************************************/
     test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
 #ifdef FWDMA_RST_OPEN
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_SQ);
+    test_flag |= ioctl_tst_ring_dbl(file_desc, NVME_ADMIN_SQ);
 #endif
     /**********************************************************************/
     //reap cq
@@ -123,7 +123,7 @@ static void test_sub(void)
     // test_flag |= cq_gain(io_cq_id, (rand() % (cmd_cnt-10) + 10), &reap_num);
     // pr_info("send:%d reaped:%d\n", cmd_cnt, reap_num);
 #if 0 //def FWDMA_RST_OPEN
-    test_flag |= cq_gain(ADMIN_CQ, 2, &reap_num);
+    test_flag |= cq_gain(NVME_ADMIN_CQ, 2, &reap_num);
 #endif
     test_type = BYTE_RAND() % 6 + 1;
     if (test_type == 1)

@@ -13,6 +13,11 @@
 
 #include <linux/limits.h>
 
+#define NVME_ASQ_ENTRY_MAX		4096
+#define NVME_ACQ_ENTRY_MAX		4096
+
+#define NVME_ASQ_ENTRY_SIZE		64
+
 #define NVME_SQ_ID_MAX			U16_MAX
 #define NVME_CQ_ID_MAX			U16_MAX
 #define NVME_META_ID_MAX		((0x1 << 18) - 1)
@@ -28,8 +33,14 @@
 	pr_notice(LOG_COLOR_BLUE fmt, ##__VA_ARGS__)
 #define dnvme_info(fmt, ...) \
 	pr_info(LOG_COLOR_GREEN fmt, ##__VA_ARGS__)
-#define dnvme_debug(fmt, ...) \
+#define dnvme_dbg(fmt, ...) \
 	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+#ifdef VERBOSE_DEBUG
+#define dnvme_vdbg(fmt, ...) \
+	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+#else
+#define dnvme_vdbg(fmt, ...)
+#endif /* !VERBOSE_DEBUG */
 #endif
 
 #endif /* !_DNVME_CORE_H_ */

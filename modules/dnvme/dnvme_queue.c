@@ -26,8 +26,11 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 
-#include "definitions.h"
 #include "core.h"
+#include "io.h"
+#include "debug.h"
+
+#include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
@@ -68,6 +71,34 @@ struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id)
 			return cq;
 	}
 	return NULL;
+}
+
+
+/**
+ * @brief Check whether the Queue ID is unique.
+ * 
+ * @return 0 if qid is unique, otherwise a negative errno
+ */
+int dnvme_check_qid_unique(struct nvme_context *ctx, 
+	enum nvme_queue_type type, u16 id)
+{
+	struct nvme_sq *sq;
+	struct nvme_cq *cq;
+
+	if (type == NVME_SQ) {
+		sq = dnvme_find_sq(ctx, id);
+		if (sq) {
+			dnvme_err("SQ ID(%u) already exists!\n", id);
+			return -EEXIST;
+		}
+	} else if (type == NVME_CQ) {
+		cq = dnvme_find_cq(ctx, id);
+		if (cq) {
+			dnvme_err("SQ ID(%u) already exists!\n", id);
+			return -EEXIST;
+		}
+	}
+	return 0;
 }
 
 /**
@@ -129,173 +160,6 @@ static int dnvme_delete_cmd(struct nvme_sq *sq, u16 cmd_id)
 }
 
 /*
- * nvme_ctrlrdy_capto - This function is used for checking if the controller
- * has transitioned its state after CC.EN has been toggled. This will wait a
- * min of CAP.TO seconds before failing.
- */
-int nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev, u8 rdy_val)
-{
-    u64 timer_delay;    /* Timer delay read from CAP.TO register */
-    u64 ini, end;
-
-    /* Read in the value of CAP.TO */
-    timer_delay = ((readl(&pnvme_dev->priv.ctrlr_regs->cap)
-        >> NVME_TO_SHIFT_MASK) & 0xff);
-    timer_delay = (timer_delay * CAP_TO_UNIT);
-
-    dnvme_debug("Checking NVME Device Status (CSTS.RDY = %hhu)...", rdy_val);
-    dnvme_debug("Timer Expires in %lld ms", timer_delay);
-    ini = get_jiffies_64();
-
-    /* Check if the device status set to ready */
-    while ((readl(&pnvme_dev->priv.ctrlr_regs->csts) & NVME_CSTS_RDY)
-            != rdy_val) {
-        dnvme_debug("Waiting...");
-        msleep(250);
-        end = get_jiffies_64();
-        if (end < ini) {
-            /* Roll over */
-            ini = ULLONG_MAX - ini;
-            end = ini + end;
-        }
-        if ((jiffies_to_msecs(end - ini) % CAP_TO_UNIT) == 0)
-        {
-            dnvme_err("CSTS.RDY set to %hhu...", rdy_val);
-        }
-        /* Check if the time out occurred */
-        if (jiffies_to_msecs(end - ini) > timer_delay) {
-            dnvme_err("CSTS.RDY set to %hhu with TO",rdy_val);
-            return -EINVAL;
-        }
-    }
-    dnvme_debug("NVME Controller CSTS.RDY set to %hhu within CAP.TO", rdy_val);
-    return 0;
-}
-
-
-/*
- * iol_nvme_ctrlrdy_capto - This function is used for checking if the controller
- * has transitioned its state after CC.EN has been toggled. This will
- * wait a minimum of CAP.TO seconds. If the actual time for CSTS.RDY to
- * transition is greater than CAP.TO, then fails. Polls CSTS.RDY in increments
- * of 100 ms.
- */
-int iol_nvme_ctrlrdy_capto(struct nvme_device *pnvme_dev, u8 rdy_val)
-{
-    u64 timer_delay;    /* Timer delay read from CAP.TO register */
-    u64 ini, end;
-
-    /* Read in the value of CAP.TO */
-    timer_delay = ((readl(&pnvme_dev->priv.ctrlr_regs->cap)
-        >> NVME_TO_SHIFT_MASK) & 0xff);
-    timer_delay = (timer_delay * CAP_TO_UNIT);
-
-    dnvme_debug("Checking NVME Device Status (CSTS.RDY = %hhu)...", rdy_val);
-    dnvme_debug("Timer Expires in %lld ms", timer_delay);
-    ini = get_jiffies_64();
-
-    /* Check if the device status set to ready */
-    while ((readl(&pnvme_dev->priv.ctrlr_regs->csts) & NVME_CSTS_RDY)
-            != rdy_val) {
-        dnvme_debug("Waiting...");
-        msleep(100);
-        end = get_jiffies_64();
-        if (end < ini) {
-            /* Roll over */
-            ini = ULLONG_MAX - ini;
-            end = ini + end;
-        }
-        /* Check if the time out occurred */
-        if (jiffies_to_msecs(end - ini) > timer_delay) {
-            dnvme_err("CSTS.RDY set to %hhu with TO",rdy_val);
-            return -EINVAL;
-        }
-    }
-
-    dnvme_debug("NVME Controller CSTS.RDY set to %hhu within CAP.TO", rdy_val);
-    return 0;
-}
-
-
-int iol_nvme_ctrl_set_state(struct nvme_context *pmetrics_device, u8 state)
-{
-    struct nvme_device *pnvme_dev;
-    u32 regCC;
-
-    /* get the device from the list */
-    pnvme_dev = pmetrics_device->dev;
-
-    regCC = readl(&pnvme_dev->priv.ctrlr_regs->cc);
-    regCC = (regCC & ~NVME_CC_ENABLE) | (state & 0x1);  /* Set bit 0 (CC.EN) to state */
-    writel(regCC, &pnvme_dev->priv.ctrlr_regs->cc);
-
-    /* Check the Timeout flag */
-    if (iol_nvme_ctrlrdy_capto(pnvme_dev, state) != 0) {
-        dnvme_err("CSTS.RDY set to %hhu with TO",state);
-        return -EINVAL;
-    }
-    return 0;
-}
-
-
-int nvme_ctrl_set_state(struct nvme_context *pmetrics_device, u8 state)
-{
-    struct nvme_device *pnvme_dev;
-    u32 regCC;
-
-    /* get the device from the list */
-    pnvme_dev = pmetrics_device->dev;
-
-    regCC = readl(&pnvme_dev->priv.ctrlr_regs->cc);
-    regCC = (regCC & ~NVME_CC_ENABLE) | (state & 0x1);  /* Set bit 0 (CC.EN) to state */
-    writel(regCC, &pnvme_dev->priv.ctrlr_regs->cc);
-
-    /* Check the Timeout flag */
-    if (nvme_ctrlrdy_capto(pnvme_dev, state) != 0) {
-        dnvme_err("CSTS.RDY set to %hhu with TO",state);
-        return -EINVAL;
-    }
-    return 0;
-}
-
-
-/*
- * nvme_nvm_subsystem_reset - NVME NVM subsystem reset function. This will
- * write the value 4E564D65h ("NVMe") to the NSSR register in order to trigger
- * an NVM Subsystem reset. Checks for timer expiration and returns success if
- * the ctrl is rdy before timeout.
- */
-int nvme_nvm_subsystem_reset(struct nvme_context *pmetrics_device)
-{
-    struct nvme_device *pnvme_dev;
-    
-    u32 regVal = 0x4E564D65; //“NVMe”
-
-    /* get the device from the list */
-    pnvme_dev = pmetrics_device->dev;
-
-    /* write the value to the register */
-    writel(regVal, &pnvme_dev->priv.ctrlr_regs->nssr);
-
-    /* Check the Timeout flag */
-    if (nvme_ctrlrdy_capto(pnvme_dev, 0) != 0) {
-        u8 i;
-        /* poll until constant T/O since subsystem reset time is not defined */
-        for (i = 0; i < 200; i++) {
-            msleep(100);
-            if (!(readl(&pnvme_dev->priv.ctrlr_regs->csts)
-                & NVME_CSTS_RDY)) {
-                return 0;
-            }
-        }
-        dnvme_err("subsystem_reset ctrlr failed. CSTS.RDY=1 after T/O");
-        return -EINVAL;
-    }
-    return 0;
-}
-
-
-/*
  * Called to clean up the driver data structures
  */
 void device_cleanup(struct nvme_context *pmetrics_device,
@@ -309,212 +173,218 @@ void device_cleanup(struct nvme_context *pmetrics_device,
     deallocate_mb(pmetrics_device);
 }
 
-
-/*
- * create_admn_sq - This routine is called when the driver invokes the ioctl for
- * admn sq creation. It returns success if the submission q creation is success
- * after dma_coherent_alloc else returns failure at any step which fails.
- */
-int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
-    struct  nvme_sq  *pmetrics_sq_list)
+static struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, u16 sq_id, 
+	u16 cq_id, u32 elements, u8 sqes, u8 contig)
 {
-    u16 asq_id;         /* Admin Submission Q Id */
-    u32 aqa;            /* Admin Q attributes in 32 bits size */
-    u32 tmp_aqa;        /* Temp var to hold admin q attributes */
-    u32 asq_depth = 0;  /* the size of bytes to allocate */
-    int ret_code = 0;
+	struct nvme_sq *sq;
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
+	void *sq_buf;
+	u32 sq_size;
+	dma_addr_t dma;
 
-    dnvme_debug("Creating Admin Submission Queue...");
+	sq = kzalloc(sizeof(*sq), GFP_KERNEL);
+	if (!sq) {
+		dnvme_err("failed to alloc nvme_sq!\n");
+		return NULL;
+	}
 
-    /* As the Admin Q ID is always 0*/
-    asq_id = 0;
+	sq_size = elements << sqes;
+	sq_buf = dma_alloc_coherent(&pdev->dev, sq_size, &dma, GFP_KERNEL);
+	if (!sq_buf) {
+		dnvme_err("failed to alloc DMA addr for SQ!\n");
+		goto out;
+	}
+	memset(sq_buf, 0, sq_size);
 
-    /* Checking for overflow or underflow. */
-    if ((qsize > MAX_AQ_ENTRIES) || (qsize == 0)) {
-        dnvme_err("ASQ entries is more than MAX Q size or specified NULL");
-        ret_code = -EINVAL;
-        goto asq_out;
-    }
+	sq->pub.sq_id = sq_id;
+	sq->pub.cq_id = cq_id;
+	sq->pub.elements = elements;
+	sq->pub.sqes = sqes;
 
-    /*
-    * As the qsize send is in number of entries this computes the no. of bytes
-    * computed.
-    */
-    asq_depth = qsize * 64;
-    dnvme_debug("ASQ Depth: 0x%x", asq_depth);
+	INIT_LIST_HEAD(&sq->priv.cmd_list);
+	sq->priv.buf = sq_buf;
+	sq->priv.dma = dma;
+	sq->priv.size = sq_size;
+	sq->priv.unique_cmd_id = 0;
+	sq->priv.contig = contig;
+	sq->priv.dbs = &ndev->priv.dbs[sq_id * 2 * ndev->db_stride];
 
-    /*
-     * The function dma_alloc_coherent  maps the dma address for ASQ which gets
-     * the DMA mapped address from the kernel virtual address.
-     */
-    pmetrics_sq_list->priv.buf =
-        dma_alloc_coherent(&pnvme_dev->priv.pdev->dev, asq_depth,
-        &pmetrics_sq_list->priv.sq_dma_addr, GFP_KERNEL);
-    if (!pmetrics_sq_list->priv.buf) {
-        dnvme_err("Unable to allocate DMA Address for ASQ!!");
-        ret_code = -ENOMEM;
-        goto asq_out;
-    }
+	dnvme_print_sq(sq);
 
-    /* Zero out all ASQ memory before processing */
-    memset(pmetrics_sq_list->priv.buf, 0, asq_depth);
-
-    dnvme_debug("Virtual ASQ DMA Address: 0x%llx",
-        (u64)pmetrics_sq_list->priv.buf);
-
-    /* Read, Modify, Write  the aqa as per the q size requested */
-    aqa = (qsize - 1) & ASQS_MASK; /* asqs is zero based value */
-    tmp_aqa = readl(&pnvme_dev->priv.ctrlr_regs->aqa);
-    tmp_aqa &= ~ASQS_MASK;
-    aqa |= tmp_aqa;
-
-    dnvme_debug("Mod Attributes from AQA Reg = 0x%x", tmp_aqa);
-    dnvme_debug("AQA Attributes in ASQ:0x%x", aqa);
-
-    /* Write new ASQ size using AQA */
-    writel(aqa, &pnvme_dev->priv.ctrlr_regs->aqa);
-
-    /* Write the DMA address into ASQ base address */
-    WRITEQ(pmetrics_sq_list->priv.sq_dma_addr,
-        &pnvme_dev->priv.ctrlr_regs->asq);
-#ifdef DEBUG
-    /* Debug statements */
-    dnvme_debug("Admin CQ Base Address = 0x%x",
-        (u32)readl(&pnvme_dev->priv.ctrlr_regs->acq));
-    /* Read the AQA attributes after writing and check */
-    tmp_aqa = readl(&pnvme_dev->priv.ctrlr_regs->aqa);
-
-    dnvme_debug("Reading AQA after writing = 0x%x", tmp_aqa);
-
-    /* Read the status register and printout to log */
-    tmp_aqa = readl(&pnvme_dev->priv.ctrlr_regs->csts);
-
-    dnvme_debug("Reading status reg = 0x%x", tmp_aqa);
-#endif
-
-    /* Set the door bell of ASQ to 0x1000 as per spec 1.0b */
-    pmetrics_sq_list->priv.dbs = (u32 __iomem *)
-        (pnvme_dev->priv.bar0 + NVME_SQ0TBDL);
-
-    /* set private members in sq metrics */
-    pmetrics_sq_list->priv.size = asq_depth;
-    pmetrics_sq_list->priv.unique_cmd_id = 0;
-    pmetrics_sq_list->priv.contig = 1;
-    return ret_code;
-
-asq_out:
-    if (pmetrics_sq_list->priv.buf != NULL) {
-        /* Admin SQ dma mem allocated, so free the DMA memory */
-        dma_free_coherent(&pnvme_dev->priv.pdev->dev, asq_depth,
-            (void *)pmetrics_sq_list->priv.buf,
-        pmetrics_sq_list->priv.sq_dma_addr);
-    }
-    return ret_code;
+	list_add_tail(&sq->sq_entry, &ctx->sq_list);
+	return sq;
+out:
+	kfree(sq);
+	return NULL;
 }
 
-
-/*
- * create_admn_cq - This routine is called when the driver invokes the ioctl for
- * admn cq creation. It returns success if the completion q creation is success
- * after dma_coherent_alloc else returns failure at any step which fails.
- */
-int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
-    struct  nvme_cq  *pmetrics_cq_list)
+#ifdef MAPLE // !FIXME: 
+static void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
 {
-    int ret_code = 0; /* Ret code set to SUCCESS check for otherwise */
-    u16 acq_id;             /* Admin Submission Q Id                       */
-    u32 aqa;                /* Admin Q attributes in 32 bits size          */
-    u32 tmp_aqa;            /* local var to hold admin q attributes        */
-    u32 acq_depth = 0;      /* local var to cal nbytes based on elements   */
-    u8  cap_dstrd;          /* local var to cal the doorbell stride.       */
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
 
-    dnvme_debug("Creating Admin Completion Queue...");
+	list_del(&sq->sq_entry);
 
-    /* As the Admin Q ID is always 0*/
-    acq_id = 0;
-
-    /* Checking for overflow or underflow. */
-    if ((qsize > MAX_AQ_ENTRIES) || (qsize == 0)) {
-        dnvme_err("ASQ size is more than MAX Q size or specified NULL");
-        ret_code = -EINVAL;
-        goto acq_out;
-    }
-    /*
-    * As the qsize send is in number of entries this computes the no. of bytes
-    * computed.
-    */
-    acq_depth = qsize * 16;
-    dnvme_debug("ACQ Depth: 0x%x", acq_depth);
-    /*
-     * The function dma_alloc_coherent  maps the dma address for ACQ which gets
-     * the DMA mapped address from the kernel virtual address.
-     */
-    pmetrics_cq_list->priv.buf =
-        dma_alloc_coherent(&pnvme_dev->priv.pdev->dev, acq_depth,
-        &pmetrics_cq_list->priv.cq_dma_addr, GFP_KERNEL);
-    if (!pmetrics_cq_list->priv.buf) {
-        dnvme_err("Unable to allocate DMA Address for ACQ!!");
-        ret_code = -ENOMEM;
-        goto acq_out;
-    }
-
-    /* Zero out all ACQ memory before processing */
-    memset(pmetrics_cq_list->priv.buf, 0, acq_depth);
-
-    dnvme_debug("Virtual ACQ DMA Address: 0x%llx",
-            (u64)pmetrics_cq_list->priv.buf);
-    dnvme_debug("ACQ DMA Address: 0x%llx",
-            (u64)pmetrics_cq_list->priv.cq_dma_addr);
-
-    /* Read, Modify and write the Admin Q attributes */
-    aqa = (qsize - 1) << 16; /* acqs is zero based value */
-    aqa &= ACQS_MASK;
-    tmp_aqa = readl(&pnvme_dev->priv.ctrlr_regs->aqa);
-    tmp_aqa &= ~ACQS_MASK;
-
-    /* Final value to write to AQA Register */
-    aqa |= tmp_aqa;
-
-    dnvme_debug("Modified Attributes (AQA) = 0x%x", tmp_aqa);
-    dnvme_debug("AQA Attributes in ACQ:0x%x", aqa);
-
-    /* Write new ASQ size using AQA */
-    writel(aqa, &pnvme_dev->priv.ctrlr_regs->aqa);
-    /* Write the DMA address into ACQ base address */
-    WRITEQ(pmetrics_cq_list->priv.cq_dma_addr,
-            &pnvme_dev->priv.ctrlr_regs->acq);
-#ifdef DEBUG
-    /* Read the AQA attributes after writing and check */
-    tmp_aqa = readl(&pnvme_dev->priv.ctrlr_regs->aqa);
-    dnvme_debug("Reading AQA after writing in ACQ = 0x%x\n", tmp_aqa);
+	if (sq->priv.contig && sq->priv.buf)
+		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
+			sq->priv.dma);
+	kfree(sq);
+}
 #endif
 
-    pmetrics_cq_list->priv.size = acq_depth;
-    pmetrics_cq_list->priv.contig = 1;
+static struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx, u16 qid, 
+	u32 elements, u8 cqes, u8 contig)
+{
+	struct nvme_cq *cq;
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
+	void *cq_buf;
+	u32 cq_size;
+	dma_addr_t dma;
 
-    /* Get the door bell stride from CAP register */
-    cap_dstrd = ((READQ(&pnvme_dev->priv.ctrlr_regs->cap) >> 32) & 0xF);
-    /* CQ 0 Head DoorBell admin computed used doorbell stride. */
-    pmetrics_cq_list->priv.dbs = (u32 __iomem *)
-        (pnvme_dev->priv.bar0 + NVME_SQ0TBDL + (4 << cap_dstrd));
-    return ret_code;
+	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
+	if (!cq) {
+		dnvme_err("failed to alloc nvme_cq!\n");
+		return NULL;
+	}
 
-acq_out:
-    if (pmetrics_cq_list->priv.buf != NULL) {
-        /* Admin CQ dma mem allocated, so free the DMA memory */
-        dma_free_coherent(&pnvme_dev->priv.pdev->dev, acq_depth,
-            (void *)pmetrics_cq_list->priv.buf,
-            pmetrics_cq_list->priv.cq_dma_addr);
-    }
-    return ret_code;
+	cq_size = elements << cqes;
+	cq_buf = dma_alloc_coherent(&pdev->dev, cq_size, &dma, GFP_KERNEL);
+	if (!cq_buf) {
+		dnvme_err("failed to alloc DMA addr for CQ!\n");
+		goto out;
+	}
+	memset(cq_buf, 0, cq_size);
+
+	cq->pub.q_id = qid;
+	cq->pub.elements = elements;
+	cq->pub.cqes = cqes;
+	cq->pub.irq_no = 0;
+	cq->pub.irq_enabled = 1;
+	cq->pub.pbit_new_entry = 1;
+
+	cq->priv.buf = cq_buf;
+	cq->priv.dma = dma;
+	cq->priv.size = cq_size;
+	cq->priv.contig = contig;
+	cq->priv.dbs = &ndev->priv.dbs[(qid * 2 + 1) * ndev->db_stride];
+
+	dnvme_print_cq(cq);
+
+	list_add_tail(&cq->cq_entry, &ctx->cq_list);
+	return cq;
+out:
+	kfree(cq);
+	return NULL;
 }
 
+#ifdef MAPLE // !FIXME: 
+static void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *sq)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
+
+	list_del(&cq->cq_entry);
+
+	if (cq->priv.contig && cq->priv.buf)
+		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
+			cq->priv.dma);
+	kfree(cq);
+}
+#endif
+
+
+int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_sq *sq;
+	void __iomem *bar0 = ndev->priv.bar0;
+	u32 cc, aqa;
+	u16 asq_id = 0; /* admin queue ID is always 0 */
+	int ret;
+
+	if (!elements || elements > NVME_ASQ_ENTRY_MAX) {
+		dnvme_err("ASQ elements(%u) is invalid!\n", elements);
+		return -EINVAL;
+	}
+
+	ret = dnvme_check_qid_unique(ctx, NVME_SQ, asq_id);
+	if (ret < 0) {
+		dnvme_err("ASQ already exists!\n");
+		return ret;
+	}
+
+	cc = dnvme_readl(bar0, NVME_REG_CC);
+	if (cc & NVME_CC_ENABLE) {
+		dnvme_err("NVMe already enabled!\n");
+		return -EPERM;
+	}
+
+	sq = dnvme_alloc_sq(ctx, asq_id, 0, elements, NVME_ADM_SQES, 1);
+	if (!sq)
+		return -ENOMEM;
+
+	/* Notify NVMe controller */
+	aqa = dnvme_readl(bar0, NVME_REG_AQA);
+	aqa &= ~NVME_AQA_ASQS_MASK;
+	aqa |= NVME_AQA_FOR_ASQS(elements - 1);
+	dnvme_writel(bar0, NVME_REG_AQA, aqa);
+
+	dnvme_writeq(bar0, NVME_REG_ASQ, sq->priv.dma);
+
+	dnvme_dbg("WRITE AQA:0x%x, ASQ:0x%llx\n", aqa, sq->priv.dma);
+	return 0;
+}
+
+int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_cq *cq;
+	void __iomem *bar0 = ndev->priv.bar0;
+	u32 cc, aqa;
+	u16 acq_id = 0; /* admin queue ID is always 0 */
+	int ret;
+
+	if (!elements || elements > NVME_ACQ_ENTRY_MAX) {
+		dnvme_err("ACQ elements(%u) is invalid!\n", elements);
+		return -EINVAL;
+	}
+
+	ret = dnvme_check_qid_unique(ctx, NVME_CQ, acq_id);
+	if (ret < 0) {
+		dnvme_err("ASQ already exists!\n");
+		return ret;
+	}
+
+	cc = dnvme_readl(bar0, NVME_REG_CC);
+	if (cc & NVME_CC_ENABLE) {
+		dnvme_err("NVMe already enabled!\n");
+		return -EPERM;
+	}
+
+	cq = dnvme_alloc_cq(ctx, acq_id, elements, NVME_ADM_CQES, 1);
+	if (!cq)
+		return -ENOMEM;
+
+	/* Notify NVMe controller */
+	aqa = dnvme_readl(bar0, NVME_REG_AQA);
+	aqa &= ~NVME_AQA_ACQS_MASK;
+	aqa |= NVME_AQA_FOR_ACQS(elements - 1);
+	dnvme_writel(bar0, NVME_REG_AQA, aqa);
+
+	dnvme_writeq(bar0, NVME_REG_ACQ, cq->priv.dma);
+
+	dnvme_dbg("WRITE AQA:0x%x, ACQ:0x%llx\n", aqa, cq->priv.dma);
+	return 0;
+}
 
 /*
  * nvme_prepare_sq - This routine is called when the driver invokes the ioctl
  * for IO SQ Creation. It will retrieve the q size from IOSQES from CC.
  */
-int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
+int nvme_prepare_sq(struct nvme_sq *pmetrics_sq_list,
     struct nvme_device *pnvme_dev)
 {
     int ret_code = -ENOMEM;
@@ -524,7 +394,7 @@ int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
 
     regCC = readl(&pnvme_dev->priv.ctrlr_regs->cc);
     regCC = ((regCC >> 16) & 0xF);   /* Extract the IOSQES from CC */
-    dnvme_debug("CC.IOSQES = 0x%x, 2^x = %d", regCC, (1 << regCC));
+    dnvme_vdbg("CC.IOSQES = 0x%x, 2^x = %d", regCC, (1 << regCC));
     //2021/05/15 meng_yu https://hub.fastgit.org/nvmecompliance/dnvme/issues/5
     pmetrics_sq_list->priv.size =
         (pmetrics_sq_list->pub.elements * (u32)(1 << regCC));
@@ -535,7 +405,7 @@ int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
 
         /* Check to see if the entries exceed the Max Q entries supported */
         cap_mqes = ((readl(&pnvme_dev->priv.ctrlr_regs->cap) & 0xFFFF) + 1);
-        dnvme_debug("Elements: (Max Q:Actual Q) = 0x%x:0x%x", cap_mqes,
+        dnvme_vdbg("Elements: (Max Q:Actual Q) = 0x%x:0x%x", cap_mqes,
             pmetrics_sq_list->pub.elements);
         /* I should not return from here if exceeds */
         if (pmetrics_sq_list->pub.elements > cap_mqes) {
@@ -553,7 +423,7 @@ int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
         /* Assume that the future CMD.DW11.PC bit will be set to one. */
         pmetrics_sq_list->priv.buf = dma_alloc_coherent(
             &pnvme_dev->priv.pdev->dev, pmetrics_sq_list->priv.
-            size, &pmetrics_sq_list->priv.sq_dma_addr, GFP_KERNEL);
+            size, &pmetrics_sq_list->priv.dma, GFP_KERNEL);
         if (pmetrics_sq_list->priv.buf == NULL) {
             dnvme_err("Unable to allocate DMA mem for IOSQ");
             ret_code = -ENOMEM;
@@ -569,7 +439,7 @@ int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
 
     // Learn of the doorbell stride
     cap_dstrd = ((READQ(&pnvme_dev->priv.ctrlr_regs->cap) >> 32) & 0xF);
-    dnvme_debug("CAP DSTRD Value = 0x%x", cap_dstrd);
+    dnvme_vdbg("CAP DSTRD Value = 0x%x", cap_dstrd);
 
     pmetrics_sq_list->priv.dbs = (u32 __iomem *)
         (pnvme_dev->priv.bar0 + NVME_SQ0TBDL +
@@ -580,7 +450,7 @@ psq_out:
     if (pmetrics_sq_list->priv.buf != NULL) {
         dma_free_coherent(&pnvme_dev->priv.pdev->dev, pmetrics_sq_list->
             priv.size, (void *)pmetrics_sq_list->priv.
-            buf, pmetrics_sq_list->priv.sq_dma_addr);
+            buf, pmetrics_sq_list->priv.dma);
     }
     return ret_code;
 }
@@ -590,7 +460,7 @@ psq_out:
  * nvme_prepare_cq - This routine is called when the driver invokes the ioctl
  * for IO CQ Preparation. It will retrieve the q size from IOSQES from CC.
  */
-int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
+int nvme_prepare_cq(struct nvme_cq *pmetrics_cq_list,
     struct nvme_device *pnvme_dev)
 {
     int ret_code = -ENOMEM;
@@ -599,7 +469,7 @@ int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
 
     regCC = readl(&pnvme_dev->priv.ctrlr_regs->cc);
     regCC = ((regCC >> 20) & 0xF);    /* Extract the IOCQES from CC */
-    dnvme_debug("CC.IOCQES = 0x%x, 2^x = %d", regCC, (1 << regCC));
+    dnvme_vdbg("CC.IOCQES = 0x%x, 2^x = %d", regCC, (1 << regCC));
     //2021/05/15 meng_yu https://hub.fastgit.org/nvmecompliance/dnvme/issues/5
     pmetrics_cq_list->priv.size =
         (pmetrics_cq_list->pub.elements * (u32)(1 << regCC));
@@ -610,7 +480,7 @@ int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
 
         /* Check to see if the entries exceed the Max Q entries supported */
         cap_mqes = ((readl(&pnvme_dev->priv.ctrlr_regs->cap) & 0xFFFF) + 1);
-        dnvme_debug("Max CQ:Actual CQ elements = 0x%x:0x%x", cap_mqes,
+        dnvme_vdbg("Max CQ:Actual CQ elements = 0x%x:0x%x", cap_mqes,
             pmetrics_cq_list->pub.elements);
         /* I should not return from here if exceeds */
         if (pmetrics_cq_list->pub.elements > cap_mqes) {
@@ -628,7 +498,7 @@ int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
         /* Assume that the future CMD.DW11.PC bit will be set to one. */
         pmetrics_cq_list->priv.buf = dma_alloc_coherent(
             &pnvme_dev->priv.pdev->dev, pmetrics_cq_list->priv.
-            size, &pmetrics_cq_list->priv.cq_dma_addr, GFP_KERNEL);
+            size, &pmetrics_cq_list->priv.dma, GFP_KERNEL);
         if (pmetrics_cq_list->priv.buf == NULL) {
             dnvme_err("Unable to allocate DMA mem for IOCQ");
             ret_code = -ENOMEM;
@@ -641,7 +511,7 @@ int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
 
     // Learn of the doorbell stride
     cap_dstrd = ((READQ(&pnvme_dev->priv.ctrlr_regs->cap) >> 32) & 0xF);
-    dnvme_debug("CAP.DSTRD = 0x%x", cap_dstrd);
+    dnvme_vdbg("CAP.DSTRD = 0x%x", cap_dstrd);
 
     /* Here CQ also used SQ0TDBL offset i.e., 0x1000h. */
     pmetrics_cq_list->priv.dbs = (u32 __iomem *)
@@ -653,7 +523,7 @@ pcq_out:
     if (pmetrics_cq_list->priv.buf != NULL) {
         dma_free_coherent(&pnvme_dev->priv.pdev->dev, pmetrics_cq_list->
             priv.size, (void *)pmetrics_cq_list->priv.
-            buf, pmetrics_cq_list->priv.cq_dma_addr);
+            buf, pmetrics_cq_list->priv.dma);
     }
     return ret_code;
 }
@@ -675,12 +545,12 @@ int nvme_ring_sqx_dbl(u16 ring_sqx, struct nvme_context *pmetrics_device)
         return -EINVAL;
     }
 
-    dnvme_debug("SQ_ID= %d found in kernel metrics.",
+    dnvme_vdbg("SQ_ID= %d found in kernel metrics.",
         pmetrics_sq->pub.sq_id);
-    dnvme_debug("\tvirt_tail_ptr = 0x%x; tail_ptr = 0x%x",
+    dnvme_vdbg("\tvirt_tail_ptr = 0x%x; tail_ptr = 0x%x",
         pmetrics_sq->pub.tail_ptr_virt,
         pmetrics_sq->pub.tail_ptr);
-    dnvme_debug("\tdbs = %p; bar0 = %p", pmetrics_sq->priv.dbs,
+    dnvme_vdbg("\tdbs = %p; bar0 = %p", pmetrics_sq->priv.dbs,
         pmetrics_device->dev->priv.bar0);
     /* Copy tail_prt_virt to tail_prt */
     pmetrics_sq->pub.tail_ptr = pmetrics_sq->pub.tail_ptr_virt;
@@ -713,7 +583,7 @@ static void deallocate_metrics_cq(struct device *dev,
         /* Contiguous CQ, so free the DMA memory */
         dma_free_coherent(dev, pmetrics_cq_list->priv.size,
             (void *)pmetrics_cq_list->priv.buf,
-            pmetrics_cq_list->priv.cq_dma_addr);
+            pmetrics_cq_list->priv.dma);
 
     }
     /* Delete the current cq entry from the list, and free it */
@@ -742,7 +612,7 @@ static void dnvme_release_sq(struct device *dev, struct nvme_sq *sq,
 		/* Contiguous SQ, so free the DMA memory */
 		dma_free_coherent(dev, sq->priv.size,
 		(void *)sq->priv.buf,
-		sq->priv.sq_dma_addr);
+		sq->priv.dma);
 	}
 
 	/* Delete the current sq entry from the list */
@@ -810,7 +680,7 @@ void deallocate_all_queues(struct nvme_context *pmetrics_device,
 
         /* Check if Admin Q is excluded or not */
         if (preserve_admin_qs && (pmetrics_sq_list->pub.sq_id == 0)) {
-            dnvme_debug("Retaining ASQ from deallocation");
+            dnvme_vdbg("Retaining ASQ from deallocation");
             /* drop sq cmds and set to zero the public metrics of asq */
             reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
         } else {
@@ -825,7 +695,7 @@ void deallocate_all_queues(struct nvme_context *pmetrics_device,
 
         /* Check if Admin Q is excluded or not */
         if (preserve_admin_qs && pmetrics_cq_list->pub.q_id == 0) {
-            dnvme_debug("Retaining ACQ from deallocation");
+            dnvme_vdbg("Retaining ACQ from deallocation");
             /* set to zero the public metrics of acq */
             reinit_admn_cq(pmetrics_cq_list);
         } else {
@@ -895,10 +765,10 @@ u32 reap_inquiry(struct nvme_cq  *pmetrics_cq_node, struct device *dev)
     pmetrics_cq_node->pub.tail_ptr =
         pmetrics_cq_node->pub.head_ptr;
 
-    dnvme_debug("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
+    dnvme_vdbg("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
         pmetrics_cq_node->pub.q_id, tmp_pbit, comp_entry_size);
-    dnvme_debug("CQ Hd Ptr = %d", pmetrics_cq_node->pub.head_ptr);
-    dnvme_debug("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->pub.
+    dnvme_vdbg("CQ Hd Ptr = %d", pmetrics_cq_node->pub.head_ptr);
+    dnvme_vdbg("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->pub.
         tail_ptr);
 
     /* loop through the entries in the cq */
@@ -923,10 +793,10 @@ u32 reap_inquiry(struct nvme_cq  *pmetrics_cq_node, struct device *dev)
         }
     }
 
-    dnvme_debug("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->pub.
+    dnvme_vdbg("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->pub.
         tail_ptr);
-    dnvme_debug("cq.elements = %d", pmetrics_cq_node->pub.elements);
-    dnvme_debug("Number of elements remaining = %d", num_remaining);
+    dnvme_vdbg("cq.elements = %d", pmetrics_cq_node->pub.elements);
+    dnvme_vdbg("Number of elements remaining = %d", num_remaining);
     return num_remaining;
 }
 
@@ -973,7 +843,7 @@ int driver_reap_inquiry(struct nvme_context *pmetrics_device,
         == INT_NONE) {
 
         /* Process reap inquiry for non-isr case */
-        dnvme_debug("Non-ISR Reap Inq on CQ = %d",
+        dnvme_vdbg("Non-ISR Reap Inq on CQ = %d",
             pmetrics_cq_node->pub.q_id);
         user_data->num_remaining = reap_inquiry(pmetrics_cq_node,
             &pmetrics_device->dev->priv.pdev->dev);
@@ -984,12 +854,12 @@ int driver_reap_inquiry(struct nvme_context *pmetrics_device,
          */
         if (pmetrics_cq_node->pub.irq_enabled == 0) {
             /* Process reap inquiry for non-isr case */
-            dnvme_debug("Non-ISR Reap Inq on CQ = %d",
+            dnvme_vdbg("Non-ISR Reap Inq on CQ = %d",
                 pmetrics_cq_node->pub.q_id);
             user_data->num_remaining = reap_inquiry(pmetrics_cq_node,
                 &pmetrics_device->dev->priv.pdev->dev);
         } else {
-            dnvme_debug("ISR Reap Inq on CQ = %d",
+            dnvme_vdbg("ISR Reap Inq on CQ = %d",
                 pmetrics_cq_node->pub.q_id);
             /* Lock onto irq mutex for reap inquiry. */
             mutex_lock(&pmetrics_device->irq_process.irq_track_mtx);
@@ -1088,13 +958,13 @@ static int dnvme_delete_cq(struct  nvme_context *pmetrics_device,
 static int process_algo_q(struct nvme_sq *pmetrics_sq_node,
     struct nvme_cmd *pcmd_node, u8 free_q_entry,
     struct  nvme_context *pmetrics_device,
-    enum metrics_type type)
+    enum nvme_queue_type type)
 {
     int err = 0;
 
-    dnvme_debug("Persist Q Id = %d", pcmd_node->persist_q_id);
-    dnvme_debug("Unique Cmd Id = %d", pcmd_node->unique_id);
-    dnvme_debug("free_q_entry = %d", free_q_entry);
+    dnvme_vdbg("Persist Q Id = %d", pcmd_node->persist_q_id);
+    dnvme_vdbg("Unique Cmd Id = %d", pcmd_node->unique_id);
+    dnvme_vdbg("free_q_entry = %d", free_q_entry);
 
     if (free_q_entry) {
         if (pcmd_node->persist_q_id == 0) {
@@ -1102,14 +972,14 @@ static int process_algo_q(struct nvme_sq *pmetrics_sq_node,
             err = -EINVAL;
             return err;
         }
-        if (type == METRICS_CQ) {
+        if (type == NVME_CQ) {
             err = dnvme_delete_cq(pmetrics_device, pcmd_node->persist_q_id);
             if (err != 0) {
                 dnvme_err("CQ Removal failed...");
                 return err;
             }
 
-        } else if (type == METRICS_SQ) {
+        } else if (type == NVME_SQ) {
             err = dnvme_delete_sq(pmetrics_device, pcmd_node->persist_q_id);
             if (err != 0) {
                 dnvme_err("SQ Removal failed...");
@@ -1156,22 +1026,22 @@ static int process_admin_cmd(struct nvme_sq *pmetrics_sq_node,
     case 0x00:
         /* Delete IOSQ */
         err = process_algo_q(pmetrics_sq_node, pcmd_node, (status == 0),
-            pmetrics_device, METRICS_SQ);
+            pmetrics_device, NVME_SQ);
         break;
     case 0x01:
         /* Create IOSQ */
         err = process_algo_q(pmetrics_sq_node, pcmd_node, (status != 0),
-            pmetrics_device, METRICS_SQ);
+            pmetrics_device, NVME_SQ);
         break;
     case 0x04:
         /* Delete IOCQ */
         err = process_algo_q(pmetrics_sq_node, pcmd_node, (status == 0),
-            pmetrics_device, METRICS_CQ);
+            pmetrics_device, NVME_CQ);
         break;
     case 0x05:
         /* Create IOCQ */
         err = process_algo_q(pmetrics_sq_node, pcmd_node, (status != 0),
-            pmetrics_device, METRICS_CQ);
+            pmetrics_device, NVME_CQ);
         break;
     default:
         /* General algo */
@@ -1207,18 +1077,18 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     /* Update our understanding of the corresponding hdw SQ head ptr */
     pmetrics_sq_node->pub.head_ptr = cq_entry->sq_head_ptr;
     ceStatus = (cq_entry->status_field & 0x7ff);
-    dnvme_debug("(SCT, SC) = 0x%04X", ceStatus);
+    dnvme_vdbg("(SCT, SC) = 0x%04X", ceStatus);
 
     /* Find command in sq node */
     pcmd_node = dnvme_find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
     if (pcmd_node != NULL) {
         /* A command node exists, now is it an admin cmd or not? */
         if (cq_entry->sq_identifier == 0) {
-            dnvme_debug("Admin cmd set processing");
+            dnvme_vdbg("Admin cmd set processing");
             err = process_admin_cmd(pmetrics_sq_node, pcmd_node, ceStatus,
                 pmetrics_device);
         } else {
-            dnvme_debug("NVM or other cmd set processing");
+            dnvme_vdbg("NVM or other cmd set processing");
             err = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
                 pmetrics_device);
         }
@@ -1245,7 +1115,7 @@ static int copy_cq_data(struct nvme_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
     }
 
     while (*num_should_reap) {
-        dnvme_debug("Reaping CE's, %d left to reap", *num_should_reap);
+        dnvme_vdbg("Reaping CE's, %d left to reap", *num_should_reap);
 
         /* Call the process reap algos based on CE entry */
         latentErr = process_reap_algos((struct cq_completion *)cq_head_ptr,
@@ -1304,8 +1174,8 @@ static void pos_cq_head_ptr(struct nvme_cq  *pmetrics_cq_node,
     }
 
     pmetrics_cq_node->pub.head_ptr = (u16)temp_head_ptr;
-    dnvme_debug("Head ptr = %d", pmetrics_cq_node->pub.head_ptr);
-    dnvme_debug("Tail ptr = %d", pmetrics_cq_node->pub.tail_ptr);
+    dnvme_vdbg("Head ptr = %d", pmetrics_cq_node->pub.head_ptr);
+    dnvme_vdbg("Tail ptr = %d", pmetrics_cq_node->pub.tail_ptr);
 }
 
 
@@ -1390,12 +1260,12 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
         comp_entry_size = (pmetrics_cq_node->priv.size) /
             (pmetrics_cq_node->pub.elements);
     }
-    dnvme_debug("Tail ptr position before reaping = %d",
+    dnvme_vdbg("Tail ptr position before reaping = %d",
         pmetrics_cq_node->pub.tail_ptr);
-    dnvme_debug("Detected CE size = 0x%04X", comp_entry_size);
-    dnvme_debug("%d elements could be reaped", num_could_reap);
+    dnvme_vdbg("Detected CE size = 0x%04X", comp_entry_size);
+    dnvme_vdbg("%d elements could be reaped", num_could_reap);
     if (num_could_reap == 0) {
-        dnvme_debug("All elements reaped, CQ is empty");
+        dnvme_vdbg("All elements reaped, CQ is empty");
         user_data->num_remaining = 0;
         user_data->num_reaped = 0;
     }
@@ -1406,11 +1276,11 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
     }
     num_will_fit = (user_data->size / comp_entry_size);
 
-    dnvme_debug("Requesting to reap %d elements", user_data->elements);
-    dnvme_debug("User space reap buffer size = %d", user_data->size);
-    dnvme_debug("Total buffer bytes needed to satisfy request = %d",
+    dnvme_vdbg("Requesting to reap %d elements", user_data->elements);
+    dnvme_vdbg("User space reap buffer size = %d", user_data->size);
+    dnvme_vdbg("Total buffer bytes needed to satisfy request = %d",
         num_could_reap * comp_entry_size);
-    dnvme_debug("num elements which fit in buffer = %d", num_will_fit);
+    dnvme_vdbg("num elements which fit in buffer = %d", num_will_fit);
 
     /* Assume we can fit all which are requested, then adjust if necessary */
     num_should_reap = num_could_reap;
@@ -1437,10 +1307,10 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
     }
     user_data->num_reaped = num_should_reap;    /* Expect success */
 
-    dnvme_debug("num elements will attempt to reap = %d", num_should_reap);
-    dnvme_debug("num elements expected to remain after reap = %d",
+    dnvme_vdbg("num elements will attempt to reap = %d", num_should_reap);
+    dnvme_vdbg("num elements expected to remain after reap = %d",
         user_data->num_remaining);
-    dnvme_debug("Head ptr before reaping = %d",
+    dnvme_vdbg("Head ptr before reaping = %d",
         pmetrics_cq_node->pub.head_ptr);
 
     /* Get the required base address */
@@ -1461,7 +1331,7 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
     /* Reevaluate our success during reaping */
     user_data->num_reaped -= num_should_reap;
     user_data->num_remaining += num_should_reap;
-    dnvme_debug("num CE's reaped = %d, num CE's remaining = %d",
+    dnvme_vdbg("num CE's reaped = %d, num CE's remaining = %d",
         user_data->num_reaped, user_data->num_remaining);
 
     /* Updating the user structure */

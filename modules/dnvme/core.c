@@ -31,6 +31,7 @@
 #include <linux/version.h>
 
 #include "core.h"
+#include "io.h"
 #include "cmb.h"
 
 #include "definitions.h"
@@ -235,7 +236,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 		ret = -EINVAL;
 		goto out;
 	}
-	dnvme_debug("K.V.A = 0x%lx, PAGES = %d\n", (unsigned long)mmap_addr, npages);
+	dnvme_vdbg("K.V.A = 0x%lx, PAGES = %d\n", (unsigned long)mmap_addr, npages);
 
 	/* Associated struct page ptr for kernel logical address */
 	pfn = virt_to_phys(mmap_addr) >> PAGE_SHIFT;
@@ -244,7 +245,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 		ret = -EFAULT;
 		goto out;
 	}
-	dnvme_debug("PFN = 0x%lx", pfn);
+	dnvme_vdbg("PFN = 0x%lx", pfn);
 
 	ret = remap_pfn_range(vma, vma->vm_start, pfn, 
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
@@ -258,220 +259,177 @@ out:
 
 static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int err = -EINVAL;
+	int ret = -EINVAL;
 	struct nvme_context *ctx;
-	struct nvme_create_admn_q *create_admn_q;
 	struct inode *inode = inode = filp->f_path.dentry->d_inode;
 	void __user *argp = (void __user *)arg;
 
-	dnvme_debug("cmd num:%u, arg:0x%lx", _IOC_NR(cmd), arg);
+	dnvme_vdbg("cmd num:%u, arg:0x%lx", _IOC_NR(cmd), arg);
 	ctx = lock_context(inode);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	switch (cmd) {
 	case NVME_IOCTL_READ_GENERIC:
-		err = dnvme_generic_read(ctx, argp);
+		ret = dnvme_generic_read(ctx, argp);
 		break;
 
 	case NVME_IOCTL_WRITE_GENERIC:
-		err = dnvme_generic_write(ctx, argp);
+		ret = dnvme_generic_write(ctx, argp);
 		break;
 
 	case NVME_IOCTL_GET_CAPABILITY:
-		err = dnvme_get_capability(ctx, argp);
+		ret = dnvme_get_capability(ctx, argp);
 		break;
 
-	case NVME_IOCTL_CREATE_ADMN_Q:
-		dnvme_debug("NVME_IOCTL_CREATE_ADMN_Q");
-		/* Allocating memory for user struct in kernel space */
-		create_admn_q = kmalloc(sizeof(struct nvme_create_admn_q), GFP_KERNEL);
-		if (create_admn_q == NULL) {
-		dnvme_err("Unable to alloc kernel memory to copy user data");
-		err = -ENOMEM;
-		break;
-		}
-		if (copy_from_user(create_admn_q, (void *)arg,
-		sizeof(struct nvme_create_admn_q))) {
-
-		dnvme_err("Unable to copy from user space");
-		kfree(create_admn_q);
-		err = -EFAULT;
-		break;
-		}
-
-		if (create_admn_q->type == ADMIN_SQ) {
-		dnvme_debug("Create ASQ");
-		err = driver_create_asq(create_admn_q, ctx);
-		} else if (create_admn_q->type == ADMIN_CQ) {
-		dnvme_debug("Create ACQ");
-		err = driver_create_acq(create_admn_q, ctx);
-		} else {
-		dnvme_err("Unknown Q type specified");
-		err = -EINVAL;
-		}
-		kfree(create_admn_q);
+	case NVME_IOCTL_CREATE_ADMIN_QUEUE:
+		ret = dnvme_create_admin_queue(ctx, argp);
 		break;
 
 	case NVME_IOCTL_SET_DEV_STATE:
-		dnvme_debug("NVME_IOCTL_SET_DEV_STATE");
-		switch ((enum nvme_state)arg) {
+		switch (arg) {
 		case NVME_ST_ENABLE:
-		dnvme_debug("Enabling the DUT");
-		err = nvme_ctrl_set_state(ctx, 1);
-		break;
-		case NVME_ST_ENABLE_IOL_TO:
-		dnvme_debug("Enabling the DUT");
-		err = iol_nvme_ctrl_set_state(ctx, 1);
-		break;
-		case NVME_ST_DISABLE_IOL_TO:
-		dnvme_debug("Disabling the DUT");
-		if ((err = iol_nvme_ctrl_set_state(ctx, 0)) == 0) {
-			device_cleanup(ctx, NVME_ST_DISABLE);
-		}
-		break;
+			ret = dnvme_set_ctrl_state(ctx, true);
+			break;
+
 		case NVME_ST_DISABLE:
 		case NVME_ST_DISABLE_COMPLETE:
-		dnvme_debug("Disabling the DUT");
-		if ((err = nvme_ctrl_set_state(ctx, 0)) == 0) {
-			device_cleanup(ctx, (enum nvme_state)arg);
-		}
-		break;
-		case NVME_ST_NVM_SUBSYSTEM:
-		dnvme_debug("Performing NVM Subsystem reset");
-		err = nvme_nvm_subsystem_reset(ctx);
-		break;
+			if ((ret = dnvme_set_ctrl_state(ctx, false)) == 0) {
+				device_cleanup(ctx, (enum nvme_state)arg);
+			}
+			break;
+
+		case NVME_ST_RESET_SUBSYSTEM:
+			ret = dnvme_reset_subsystem(ctx);
+			/* !NOTICE: It's necessary to clean device here? */
+			break;
+
 		default:
-		dnvme_err("Unknown IOCTL parameter");
-		err = -EINVAL;
-		break;
+			dnvme_err("nvme state(%lu) is unkonw!\n", arg);
+			return -EINVAL;
 		}
 		break;
 
-	case NVME_IOCTL_GET_Q_METRICS:
-		dnvme_debug("NVME_IOCTL_GET_Q_METRICS");
-		err = get_public_qmetrics(ctx,
-		(struct nvme_get_q_metrics *)arg);
+	case NVME_IOCTL_GET_QUEUE:
+		ret = dnvme_get_queue(ctx, argp);
 		break;
 
 	case NVME_IOCTL_PREPARE_SQ_CREATION:
-		dnvme_debug("NVME_IOCTL_PREPARE_SQ_CREATION");
-		err = driver_nvme_prep_sq((struct nvme_prep_sq *)arg,
+		ret = driver_nvme_prep_sq((struct nvme_prep_sq *)arg,
 		ctx);
 		break;
 
 	case NVME_IOCTL_PREPARE_CQ_CREATION:
-		dnvme_debug("NVME_IOCTL_PREPARE_CQ_CREATION");
-		err = driver_nvme_prep_cq((struct nvme_prep_cq *)arg,
+		ret = driver_nvme_prep_cq((struct nvme_prep_cq *)arg,
 		ctx);
 		break;
 
 	case NVME_IOCTL_RING_SQ_DOORBELL:
-		dnvme_debug("NVME_IOCTL_RING_SQ_DOORBELL");
-		err = nvme_ring_sqx_dbl((u16)arg, ctx);
+		dnvme_vdbg("NVME_IOCTL_RING_SQ_DOORBELL");
+		ret = nvme_ring_sqx_dbl((u16)arg, ctx);
 		break;
 
 	case NVME_IOCTL_SEND_64B_CMD:
-		dnvme_debug("NVME_IOCTL_SEND_64B_CMD");
-		err = driver_send_64b(ctx,
+		dnvme_vdbg("NVME_IOCTL_SEND_64B_CMD");
+		ret = driver_send_64b(ctx,
 		(struct nvme_64b_send *)arg);
 		break;
 
 	case NVME_IOCTL_TOXIC_64B_DWORD:
-		dnvme_debug("NVME_TOXIC_64B_DWORD");
-		err = driver_toxic_dword(ctx,
+		dnvme_vdbg("NVME_TOXIC_64B_DWORD");
+		ret = driver_toxic_dword(ctx,
 		(struct backdoor_inject *)arg);
 		break;
 
 	case NVME_IOCTL_DUMP_METRICS:
-		dnvme_debug("NVME_IOCTL_DUMP_METRICS");
-		err = driver_log((struct nvme_file *)arg);
+		dnvme_vdbg("NVME_IOCTL_DUMP_METRICS");
+		ret = driver_log((struct nvme_file *)arg);
 		break;
 
 	case NVME_IOCTL_REAP_INQUIRY:
-		dnvme_debug("NVME_IOCTL_REAP_INQUIRY");
-		err = driver_reap_inquiry(ctx,
+		dnvme_vdbg("NVME_IOCTL_REAP_INQUIRY");
+		ret = driver_reap_inquiry(ctx,
 		(struct nvme_reap_inquiry *)arg);
 		break;
 
 	case NVME_IOCTL_REAP:
-		dnvme_debug("NVME_IOCTL_REAP");
-		err = driver_reap_cq(ctx, (struct nvme_reap *)arg);
+		dnvme_vdbg("NVME_IOCTL_REAP");
+		ret = driver_reap_cq(ctx, (struct nvme_reap *)arg);
 		break;
 
 	case NVME_IOCTL_GET_DRIVER_METRICS:
-		dnvme_debug("NVME_IOCTL_GET_DRIVER_METRICS");
+		dnvme_vdbg("NVME_IOCTL_GET_DRIVER_METRICS");
 		if (copy_to_user((struct nvme_driver *)arg,
 		&nvme_drv, sizeof(struct nvme_driver))) {
 
 		dnvme_err("Unable to copy to user space");
-		err = -EFAULT;
+		ret = -EFAULT;
 		} else {
-		err = 0;
+		ret = 0;
 		}
 		break;
 
 	case NVME_IOCTL_METABUF_CREATE:
-		dnvme_debug("NVME_IOCTL_METABUF_CREATE");
+		dnvme_vdbg("NVME_IOCTL_METABUF_CREATE");
 		if (arg > MAX_METABUFF_SIZE) {
 		dnvme_err("Meta buffer size exceeds max(0x%08X) > 0x%08X",
 			MAX_METABUFF_SIZE, (u32)arg);
-		err = -EINVAL;
+		ret = -EINVAL;
 		} else {
-		err = metabuff_create(ctx, (u32)arg);
+		ret = metabuff_create(ctx, (u32)arg);
 		}
 		break;
 
 	case NVME_IOCTL_METABUF_ALLOC:
-		dnvme_debug("NVME_IOCTL_METABUF_ALLOC");
-		err = metabuff_alloc(ctx, (u32)arg);
+		dnvme_vdbg("NVME_IOCTL_METABUF_ALLOC");
+		ret = metabuff_alloc(ctx, (u32)arg);
 		break;
 
 	case NVME_IOCTL_METABUF_DELETE:
-		dnvme_debug("NVME_IOCTL_METABUF_DELETE");
-		err = metabuff_del(ctx, (u32)arg);
+		dnvme_vdbg("NVME_IOCTL_METABUF_DELETE");
+		ret = metabuff_del(ctx, (u32)arg);
 		break;
 
 	case NVME_IOCTL_SET_IRQ:
-		dnvme_debug("NVME_IOCTL_SET_IRQ");
-		err = nvme_set_irq(ctx, (struct interrupts *)arg);
+		dnvme_vdbg("NVME_IOCTL_SET_IRQ");
+		ret = nvme_set_irq(ctx, (struct interrupts *)arg);
 		break;
 
 	case NVME_IOCTL_MASK_IRQ:
-		dnvme_debug("NVME_IOCTL_MASK_IRQ");
-		err = nvme_mask_irq(ctx, (u16)arg);
+		dnvme_vdbg("NVME_IOCTL_MASK_IRQ");
+		ret = nvme_mask_irq(ctx, (u16)arg);
 		break;
 
 	case NVME_IOCTL_UNMASK_IRQ:
-		dnvme_debug("NVME_IOCTL_UNMASK_IRQ");
-		err = nvme_unmask_irq(ctx, (u16)arg);
+		dnvme_vdbg("NVME_IOCTL_UNMASK_IRQ");
+		ret = nvme_unmask_irq(ctx, (u16)arg);
 		break;
 
 	case NVME_IOCTL_GET_DEVICE_METRICS:
-		dnvme_debug("NVME_IOCTL_GET_DEVICE_METRICS");
+		dnvme_vdbg("NVME_IOCTL_GET_DEVICE_METRICS");
 		if (copy_to_user((struct nvme_dev_public *)arg,
 		&ctx->dev->pub,
 		sizeof(struct nvme_dev_public))) {
 
 		dnvme_err("Unable to copy to user space");
-		err = -EFAULT;
+		ret = -EFAULT;
 		} else {
-		err = 0;
+		ret = 0;
 		}
 		break;
 
 	case NVME_IOCTL_MARK_SYSLOG:
-		dnvme_debug("NVME_IOCTL_MARK_SYSLOG");
-		err = driver_logstr((struct nvme_logstr *)arg);
+		dnvme_vdbg("NVME_IOCTL_MARK_SYSLOG");
+		ret = driver_logstr((struct nvme_logstr *)arg);
 		break;
 
 	//***************************boot partition test MengYu***************************
 	//   case NVME_IOCTL_WRITE_BP_BUF:
-	//     dnvme_debug("NVME_IOCTL_WRITE_BP_BUF");
+	//     dnvme_vdbg("NVME_IOCTL_WRITE_BP_BUF");
 	//     err = driver_nvme_write_bp_buf((struct nvme_write_bp_buf *)arg, ctx);
 	//     break;  
 	//   case NVME_IOCTL_GET_BP_MEM_ADDR:
-	//     dnvme_debug("NVME_IOCTL_GET_BP_MEM_ADDR");
+	//     dnvme_vdbg("NVME_IOCTL_GET_BP_MEM_ADDR");
 	//     break;  
 	//***************************boot partition test MengYu***************************
 	default:
@@ -480,7 +438,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 
 	unlock_context(ctx);
-	return err;
+	return ret;
 }
 
 static int dnvme_open(struct inode *inode, struct file *filp)
@@ -613,6 +571,7 @@ static int dnvme_map_resource(struct nvme_context *ctx)
 	ndev->priv.bar0 = bar0;
 	ndev->priv.bar1 = bar1;
 	ndev->priv.bar2 = bar2;
+	ndev->priv.dbs = bar0 + NVME_REG_DBS;
 	ndev->priv.ctrlr_regs = bar0;
 	return 0;
 out5:
@@ -714,7 +673,7 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 		ret = PTR_ERR(dev);
 		goto out3;
 	}
-	dnvme_debug("Create device(%s%d) success!\n", DEVICE_NAME, nvme_minor);
+	dnvme_vdbg("Create device(%s%d) success!\n", DEVICE_NAME, nvme_minor);
 	ndev->priv.spcl_dev = dev;
 	ndev->priv.minor = nvme_minor;
 	nvme_minor++;
@@ -780,6 +739,39 @@ static int dnvme_set_dma_mask(struct pci_dev *pdev)
 	return ret;
 }
 
+static int dnvme_pci_enable(struct nvme_context *ctx)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_ctrl_property *prop = &ndev->prop;
+	struct pci_dev *pdev = ndev->priv.pdev;
+	void __iomem *bar0 = ndev->priv.bar0;
+	int ret;
+
+	pci_set_master(pdev);
+
+	ret = pci_enable_device(pdev);
+	if (ret < 0) {
+		dnvme_err("failed to enable pci device!(%d)\n", ret);
+		return ret;
+	}
+
+	prop->cap = dnvme_readq(bar0, NVME_REG_CAP);
+	ndev->q_depth = NVME_CAP_MQES(prop->cap) + 1;
+	ndev->db_stride = 1 << NVME_CAP_STRIDE(prop->cap);
+
+	dnvme_dbg("db_stride:%u, q_depth:%u\n", ndev->db_stride, ndev->q_depth);
+	return 0;
+}
+
+static void dnvme_pci_disable(struct nvme_context *ctx)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->priv.pdev;
+
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
+}
+
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int ret;
@@ -803,13 +795,9 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		goto out;
 
-	pci_set_master(pdev);
-
-	ret = pci_enable_device(pdev);
-	if (ret < 0) {
-		dnvme_err("Failed to enable pci device!(%d)\n", ret);
+	ret = dnvme_pci_enable(ctx);
+	if (ret < 0)
 		goto out2;
-	}
 
 	ret = dnvme_map_cmb(ctx->dev);
 	if (ret < 0)
@@ -817,14 +805,14 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Finalize this device and prepare for next one */
 	dnvme_info("NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
-	dnvme_debug("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
+	dnvme_vdbg("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
 		PCI_SLOT(pdev->devfn));
-	dnvme_debug("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+	dnvme_vdbg("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
 	list_add_tail(&ctx->entry, &nvme_ctx_list);
 	return 0;
 out3:
-	pci_disable_device(pdev);
+	dnvme_pci_disable(ctx);
 out2:
 	dnvme_unmap_resource(ctx);
 out:
@@ -838,9 +826,9 @@ static void dnvme_remove(struct pci_dev *pdev)
 	struct nvme_context *ctx;
 
 	dnvme_info("Remove NVMe device(0x%x:0x%x) ...\n", pdev->vendor, pdev->device);
-	dnvme_debug("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
+	dnvme_vdbg("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
 		PCI_SLOT(pdev->devfn));
-	dnvme_debug("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+	dnvme_vdbg("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
 
 	list_for_each_entry(ctx, &nvme_ctx_list, entry) {

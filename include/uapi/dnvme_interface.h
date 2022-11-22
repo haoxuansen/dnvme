@@ -35,24 +35,14 @@ enum nvme_irq_type {
 };
 
 /**
- * enums to define the q types.
- */
-enum nvme_q_type {
-	ADMIN_SQ,
-	ADMIN_CQ,
-};
-
-/**
  * These enums are used while enabling or disabling or completely disabling the
  * controller.
  */
 enum nvme_state {
 	NVME_ST_ENABLE,              /* Set the NVME Controller to enable state */
-	NVME_ST_ENABLE_IOL_TO,       /* Set NVME Controller to enable, wait IOL TO */
-	NVME_ST_DISABLE_IOL_TO,      /* Set NVME Controller to disable, wait IOL TO */
 	NVME_ST_DISABLE,             /* Controller reset without affecting Admin Q */
 	NVME_ST_DISABLE_COMPLETE,  /* Completely destroy even Admin Q's */
-	NVME_ST_NVM_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
+	NVME_ST_RESET_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
 };
 
 /* Enum specifying bitmask passed on to IOCTL_SEND_64B */
@@ -107,11 +97,11 @@ struct nvme_cq_public {
 	uint8_t		irq_enabled; /* sets when the irq scheme is active */
 	uint16_t	irq_no; /* idx in list; always 0 based */
 	uint8_t		pbit_new_entry; /* Indicates if a new entry is in CQ */
+	uint8_t		cqes;
 };
 
 /**
- * This structure defines the parameters required for creating any SQ.
- * It supports both Admin SQ and IO SQ.
+ * @sqes: SQ entry size, in bytes and specified as a power of two (2^n)
  */
 struct nvme_sq_public {
 	uint16_t	sq_id; /* Admin SQ are supported with q_id = 0 */
@@ -121,70 +111,7 @@ struct nvme_sq_public {
 	uint16_t	tail_ptr_virt; 
 	uint16_t	head_ptr; /* Calculate this value based on cmds reaped */
 	uint32_t	elements; /* total number of elements in this Q */
-};
-
-/**
- * enum for metrics type. These enums are used when returning the device
- * metrics.
- */
-enum metrics_type {
-	METRICS_CQ,     /* Completion Q Metrics */
-	METRICS_SQ,     /* Submission Q Metrics */
-	MTERICS_FENCE,  /* Always last item */
-};
-
-/**
- * Interface structure for returning the Q metrics. The buffer is where the
- * data is stored for the user to copy from. This assumes that the user will
- * provide correct buffer space to store the required metrics.
- */
-struct nvme_get_q_metrics {
-    uint16_t          q_id;     /* Pass the Q id for which metrics is desired */
-    enum metrics_type type;     /* SQ or CQ metrics desired */
-    uint32_t          bytes;   /* Number of bytes to copy into buffer */
-    uint8_t *         buffer;   /* to store the required data */
-};
-
-/**
- * Interface structure for creating Admin Q's. The elements is a 1 based value.
- */
-struct nvme_create_admn_q {
-	enum nvme_q_type	type;      /* Admin q type, ASQ or ACQ */
-	uint32_t		elements;  /* No. of elements of size 64 B */
-};
-
-enum sq_prio_type
-{
-    URGENT_PRIO = 0x0,
-    HIGH_PRIO = 0x1,
-    MEDIUM_PRIO = 0x2,
-    LOW_PRIO = 0x3,
-};
-
-/**
- * Interface structure for allocating SQ memory. The elements are 1 based
- * values and the CC.IOSQES is 2^n based.
- */
-struct nvme_prep_sq
-{
-    uint32_t elements; /* Total number of entries that need kernel mem */
-    uint16_t sq_id;    /* The user specified unique SQ ID  */
-    uint16_t cq_id;    /* Existing or non-existing CQ ID */
-    uint8_t contig;    /* Indicates if SQ is contig or not, 1 = contig */
-    enum sq_prio_type sq_prio;
-};
-
-/**
- * Interface structure for allocating CQ memory. The elements are 1 based
- * values and the CC.IOSQES is 2^n based.
- */
-struct nvme_prep_cq
-{
-    uint32_t elements; /* Total number of entries that need kernal mem */
-    uint16_t cq_id;    /* Existing or non-existing CQ ID. */
-    uint8_t contig;    /* Indicates if SQ is contig or not, 1 = contig */
-    uint8_t cq_irq_en;
-    uint16_t cq_irq_no;
+	uint8_t		sqes;
 };
 
 /**

@@ -820,7 +820,7 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
 int subsys_reset(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, NVME_ST_NVM_SUBSYSTEM);
+    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, NVME_ST_RESET_SUBSYSTEM);
     if (ret_val < 0)
     {
         pr_err("User Call to subsys_reset: Failed!\n");

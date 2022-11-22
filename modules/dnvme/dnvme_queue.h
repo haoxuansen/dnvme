@@ -43,27 +43,6 @@
  */
 #define MAX_AQ_ENTRIES   4096
 
-// /*
-//  * Enumerating the different NVME Controller Capabilities of the
-//  * PCI Express device as per NVME Spec 1.0b.
-//  */
-// enum {
-//     NVME_CC_ENABLE        = 1 << 0,
-//     NVME_CC_CSS_NVM       = 0 << 4,
-//     NVME_CC_MPS_SHIFT     = 7,
-//     NVME_CC_ARB_RR        = 0 << 11,
-//     NVME_CC_ARB_WRRU      = 1 << 11,
-//     NVME_CC_ARB_VS        = 3 << 11,
-//     NVME_CC_SHN_NONE      = 0 << 13,
-//     NVME_CC_SHN_NORMAL    = 1 << 13,
-//     NVME_CC_SHN_ABRUPT    = 2 << 13,
-//     NVME_CSTS_RDY         = 1 << 0,
-//     NVME_CSTS_CFS         = 1 << 1,
-//     NVME_CSTS_SHST_NORMAL = 0 << 2,
-//     NVME_CSTS_SHST_OCCUR  = 1 << 2,
-//     NVME_CSTS_SHST_CMPLT  = 2 << 2,
-// };
-
 #define NVME_CSTS_SHUTDOWN_BIT_MASK		0x0000000C
 #define NVME_CSTS_CFS_BIT_MASK			0x00000002
 #define NVME_CSTS_RDY_BIT_MASK			0x00000001
@@ -80,33 +59,6 @@ struct cq_completion {
     u8  phase_bit:1;       /* Phase bit            */
     u16 status_field:15;   /* Status field         */
 };
-
-/**
- * The user selection of IOCTL for creating admin cq eventually calls
- * this function if init is successful. This will create infrastructure
- * for Admin Completion Q creation
- * @param pnvme_dev
- * @param qsize
- * @param pmetrics_cq_list
- * @return whether ACQ creation successful or not.
- */
-int create_admn_cq(struct nvme_device *pnvme_dev, u32 qsize,
-        struct  nvme_cq  *pmetrics_cq_list);
-
-/**
- * The user selection of IOCTL for creating admin sq eventually calls
- * this function if init is successful. This will create infrastructure
- * for Admin Submission Q creation
- * @param pnvme_dev
- * @param qsize
- * @param pmetrics_sq_list
- * @return whether ASQ creation successful or not.
- */
-int create_admn_sq(struct nvme_device *pnvme_dev, u32 qsize,
-    struct  nvme_sq  *pmetrics_sq_list);
-
-int nvme_ctrl_set_state(struct  nvme_context *pmetrics_device, u8 state);
-int iol_nvme_ctrl_set_state(struct  nvme_context *pmetrics_device, u8 state);
 
 /**
  * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
@@ -138,16 +90,6 @@ int iol_nvme_ctrl_set_state(struct  nvme_context *pmetrics_device, u8 state);
  */
 //int nvme_ctrl_disable(struct  nvme_context *pmetrics_device);
 
-/*
- * nvme_nvm_subsystem_reset - NVME NVM subsystem reset function. This will
- * write the value 4E564D65h ("NVMe") to the NSSR register in order to trigger
- * an NVM Subsystem reset. Checks for timer expiration and returns success if
- * the ctrl is rdy before timeout.
- * @param pmetrics_device
- * @return 0 or -1
- */
-int nvme_nvm_subsystem_reset(struct nvme_context *pmetrics_device);
-
 /**
  * device_cleanup - Will clean up all the existing data structs used by driver
  * @param pmetrics_device
@@ -155,16 +97,6 @@ int nvme_nvm_subsystem_reset(struct nvme_context *pmetrics_device);
  */
 void device_cleanup(struct  nvme_context *pmetrics_device,
     enum nvme_state new_state);
-/**
- * identify_unique - verify if the q_id specified is unique. If not unique then
- * return fail.
- * @param q_id
- * @param type
- * @param pmetrics_device
- * @return 0 or -1
- */
-int identify_unique(u16 q_id, enum metrics_type type,
-        struct  nvme_context *pmetrics_device);
 
 /**
  * nvme_prepare_sq - NVME controller prepare sq function. This will check
@@ -199,19 +131,15 @@ int nvme_ring_sqx_dbl(u16 ring_sqx, struct  nvme_context
 
 struct nvme_sq *dnvme_find_sq(struct nvme_context *ctx, u16 id);
 struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id);
+
+int dnvme_check_qid_unique(struct nvme_context *ctx, 
+	enum nvme_queue_type type, u16 id);
+
 struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
 struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
 
-/**
- * This function gives the device metrics when the user requests. This
- * routine works with Add Q's including Admin and IO.
- * Assumes user allocated buffer memory to copy accordingly.
- * @param get_q_metrics
- * @param pmetrics_device
- * @return success or failure.
- */
-int get_public_qmetrics(struct  nvme_context *pmetrics_device,
-        struct nvme_get_q_metrics *get_q_metrics);
+int dnvme_create_asq(struct nvme_context *ctx, u32 elements);
+int dnvme_create_acq(struct nvme_context *ctx, u32 elements);
 
 /**
  *  reap_inquiry - This generic function will try to inquire the number of

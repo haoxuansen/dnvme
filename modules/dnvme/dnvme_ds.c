@@ -149,7 +149,7 @@ int driver_log(struct nvme_file *n_file)
     /* If the user didn't provide a NULL term, we will to avoid problems */
     filename[user_data->flen] = '\0';
 
-    dnvme_debug("Dumping dnvme metrics to output file: %s", filename);
+    dnvme_vdbg("Dumping dnvme metrics to output file: %s", filename);
     #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)//2021.05.14 meng_yu add
         oldfs = force_uaccess_begin();
     #else
@@ -242,7 +242,7 @@ int driver_log(struct nvme_file *n_file)
                     (u64)pmetrics_cq_list->priv.buf);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK, IDNT_L2"dma_addr_t = 0X%llX",
-                    (u64)pmetrics_cq_list->priv.cq_dma_addr);
+                    (u64)pmetrics_cq_list->priv.dma);
                 __kernel_write(file, work, strlen(work), &pos);
                 snprintf(work, SIZE_OF_WORK,
                     IDNT_L2"contig (1 = Y/(0 = N) = %d",
