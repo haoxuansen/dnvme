@@ -14,6 +14,7 @@
 #include <linux/pci_regs.h>
 
 #include "io.h"
+#include "core.h"
 #include "dnvme_ioctl.h"
 
 /**
@@ -32,7 +33,7 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 	u32 idx = 0;
 
 	if ((access->offset + access->bytes) > PCI_CFG_SPACE_EXP_SIZE) {
-		pr_err("Access region(%u+%u) out of PCI Config Space(%u)!\n",
+		dnvme_err("Access region(%u+%u) out of PCI Config Space(%u)!\n",
 			access->offset, access->bytes, PCI_CFG_SPACE_EXP_SIZE);
 		return -EINVAL;
 	}
@@ -42,7 +43,7 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_DWORD:
 			ret= pci_read_config_dword(pdev, access->offset + idx, 
 				buf + idx);
-			pr_debug("READ CFG offset:0x%08x data:0x%08x\n",
+			dnvme_debug("READ CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u32 *)(buf + idx));
 			idx += 4;
 			break;
@@ -50,7 +51,7 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_WORD:
 			ret = pci_read_config_word(pdev, access->offset + idx, 
 				buf + idx);
-			pr_debug("READ CFG offset:0x%08x data:0x%08x\n",
+			dnvme_debug("READ CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u16 *)(buf + idx));
 			idx += 2;
 			break;
@@ -58,19 +59,19 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_BYTE:
 			ret = pci_read_config_byte(pdev, access->offset + idx, 
 				buf + idx);
-			pr_debug("READ CFG offset:0x%08x data:0x%08x\n",
+			dnvme_debug("READ CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u8 *)(buf + idx));
 			idx++;
 			break;
 		
 		default:
-			pr_err("Access type(%u) is unknown!\n", access->type);
+			dnvme_err("Access type(%u) is unknown!\n", access->type);
 			return -EINVAL;
 		}
 
 		ret = pcibios_err_to_errno(ret);
 		if (ret < 0) {
-			pr_err("READ something err!(%d)\n", ret);
+			dnvme_err("READ something err!(%d)\n", ret);
 			return ret;
 		}
 
@@ -95,7 +96,7 @@ int dnvme_write_to_config(struct pci_dev *pdev, struct nvme_access *access,
 	u32 idx = 0;
 
 	if ((access->offset + access->bytes) > PCI_CFG_SPACE_EXP_SIZE) {
-		pr_err("Access region(%u+%u) out of PCI Config Space(%u)!\n",
+		dnvme_err("Access region(%u+%u) out of PCI Config Space(%u)!\n",
 			access->offset, access->bytes, PCI_CFG_SPACE_EXP_SIZE);
 		return -EINVAL;
 	}
@@ -105,7 +106,7 @@ int dnvme_write_to_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_DWORD:
 			ret = pci_write_config_dword(pdev, access->offset + idx, 
 				*(u32 *)(buf + idx));
-			pr_debug("WRITE CFG offset:0x%08x data:0x%08x\n",
+			dnvme_debug("WRITE CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u32 *)(buf + idx));
 			idx += 4;
 			break;
@@ -113,7 +114,7 @@ int dnvme_write_to_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_WORD:
 			ret = pci_write_config_word(pdev, access->offset + idx, 
 				*(u16 *)(buf + idx));
-			pr_debug("WRITE CFG offset:0x%08x data:0x%08x\n",
+			dnvme_debug("WRITE CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u16 *)(buf + idx));
 			idx += 2;
 			break;
@@ -121,19 +122,19 @@ int dnvme_write_to_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_BYTE:
 			ret = pci_write_config_byte(pdev, access->offset + idx, 
 				*(u8 *)(buf + idx));
-			pr_debug("WRITE CFG offset:0x%08x data:0x%08x\n",
+			dnvme_debug("WRITE CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u8 *)(buf + idx));
 			idx++;
 			break;
 		
 		default:
-			pr_err("Access type(%u) is unknown!\n", access->type);
+			dnvme_err("Access type(%u) is unknown!\n", access->type);
 			return -EINVAL;
 		}
 
 		ret = pcibios_err_to_errno(ret);
 		if (ret < 0) {
-			pr_err("WRITE something err!(%d)\n", ret);
+			dnvme_err("WRITE something err!(%d)\n", ret);
 			return ret;
 		}
 
@@ -181,7 +182,7 @@ int dnvme_read_from_bar(void __iomem *bar, struct nvme_access *access, void *buf
 			break;
 		
 		default:
-			pr_err("Access type(%u) is unknown!\n", access->type);
+			dnvme_err("Access type(%u) is unknown!\n", access->type);
 			return -EINVAL;
 		}
 	} while (idx < access->bytes);
@@ -228,7 +229,7 @@ int dnvme_write_to_bar(void __iomem *bar, struct nvme_access *access, void *buf)
 			break;
 		
 		default:
-			pr_err("Access type(%u) is unknown!\n", access->type);
+			dnvme_err("Access type(%u) is unknown!\n", access->type);
 			return -EINVAL;
 		}
 	} while (idx < access->bytes);

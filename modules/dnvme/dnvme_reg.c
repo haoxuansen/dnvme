@@ -75,7 +75,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
 
             /* Copy data to user buffer. */
             memcpy((u8 *)&udata[index], &u8data, sizeof(u8));
-            pr_debug("NVME Read byte at 0x%llX:0x%0X", (u64)bar0, u8data);
+            dnvme_debug("NVME Read byte at 0x%llX:0x%0X", (u64)bar0, u8data);
 
             bar0 += 1;
             index += 1;
@@ -85,7 +85,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
 
             /* Copy data to user buffer. */
             memcpy((u8 *)&udata[index], &u16data, sizeof(u16));
-            pr_debug("NVME Read WORD at 0x%llX:0x%X", (u64)bar0, u16data);
+            dnvme_debug("NVME Read WORD at 0x%llX:0x%X", (u64)bar0, u16data);
 
             bar0 += 2;
             index += 2;
@@ -95,7 +95,7 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
 
             /* Copy data to user buffer. */
             memcpy((u8 *)&udata[index], &u32data, sizeof(u32));
-            pr_debug("NVME Read DWORD at 0x%llX:0x%X", (u64)bar0, u32data);
+            dnvme_debug("NVME Read DWORD at 0x%llX:0x%X", (u64)bar0, u32data);
 
             bar0 += 4;
             index += 4;
@@ -105,14 +105,14 @@ int read_nvme_reg_generic(u8 __iomem *bar0,
 
             /* Copy data to user buffer. */
             memcpy((u8 *)&udata[index], &u64data, sizeof(u64));
-            pr_debug("NVME Read QUAD 0x%llX:0x%llX",
+            dnvme_debug("NVME Read QUAD 0x%llX:0x%llX",
                 (u64)bar0, u64data);
 
             bar0 += 8;
             index += 8;
 
         } else {
-            pr_err("Use only BYTE/WORD/DWORD/QUAD access type");
+            dnvme_err("Use only BYTE/WORD/DWORD/QUAD access type");
             return -EINVAL;
         }
     }
@@ -143,7 +143,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
         if (acc_type == NVME_ACCESS_BYTE) {
             memcpy((u8 *)&u8data, &udata[index], sizeof(u8));
             writeb(u8data, bar0);
-            pr_debug("NVME Writing BYTE at Addr:Val::0x%llX:0x%X",
+            dnvme_debug("NVME Writing BYTE at Addr:Val::0x%llX:0x%X",
                 (u64)bar0, u8data);
 
             bar0 += 1;
@@ -152,7 +152,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
         } else if (acc_type == NVME_ACCESS_WORD) {
             memcpy((u8 *)&u16data, &udata[index], sizeof(u16));
             writew(u16data, bar0);
-            pr_debug("NVME Writing WORD at Addr:Val::0x%llX:0x%X",
+            dnvme_debug("NVME Writing WORD at Addr:Val::0x%llX:0x%X",
                 (u64)bar0, u16data);
 
             bar0 += 2;
@@ -161,7 +161,7 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
         } else if (acc_type == NVME_ACCESS_DWORD) {
             memcpy((u8 *)&u32data, &udata[index], sizeof(u32));
             writel(u32data, bar0);
-            pr_debug("NVME Writing DWORD at Addr:Val::0x%llX:0x%X",
+            dnvme_debug("NVME Writing DWORD at Addr:Val::0x%llX:0x%X",
                 (u64)bar0, u32data);
 
             bar0 += 4;
@@ -170,14 +170,14 @@ int write_nvme_reg_generic(u8 __iomem *bar0,
         } else if (acc_type == NVME_ACCESS_QWORD) {
             memcpy((u8 *)&u64data, &udata[index], sizeof(u64));
             WRITEQ(u64data, bar0);
-            pr_debug("NVME Writing QUAD at Addr:Val::0x%llX:0x%llX",
+            dnvme_debug("NVME Writing QUAD at Addr:Val::0x%llX:0x%llX",
                 (u64)bar0, u64data);
 
             bar0 += 8;
             index += 8;
 
         } else {
-            pr_err("use only BYTE/WORD/DWORD/QUAD");
+            dnvme_err("use only BYTE/WORD/DWORD/QUAD");
             return -EINVAL;
         }
     }

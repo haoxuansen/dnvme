@@ -64,6 +64,8 @@ struct nvme_ctrl_reg {
 
 #define REGMASK_CAP_CQR     (1 << 16)
 
+u64 READQ(const volatile void __iomem *addr);
+void WRITEQ(u64 val, volatile void __iomem *addr);
 
 /**
  * read_nvme_reg_generic function is a generic function which

@@ -17,15 +17,19 @@
 #define NVME_CQ_ID_MAX			U16_MAX
 #define NVME_META_ID_MAX		((0x1 << 18) - 1)
 
-/* Debug flag for IOCT_SEND_64B module */
-#define TEST_PRP_DEBUG
+#if !IS_ENABLED(CONFIG_PRINTK_COLOR)
+#include "log/color.h"
 
-/**
- * Absract the differences in trying to make this driver run within QEMU and
- * also within real world 64 bit platforms agaisnt real hardware.
- */
-inline u64 READQ(const volatile void __iomem *addr);
-inline void WRITEQ(u64 val, volatile void __iomem *addr);
-
+#define dnvme_err(fmt, ...) \
+	pr_err(LOG_COLOR_RED fmt, ##__VA_ARGS__)
+#define dnvme_warn(fmt, ...) \
+	pr_warn(LOG_COLOR_YELLOW fmt, ##__VA_ARGS__)
+#define dnvme_notice(fmt, ...) \
+	pr_notice(LOG_COLOR_BLUE fmt, ##__VA_ARGS__)
+#define dnvme_info(fmt, ...) \
+	pr_info(LOG_COLOR_GREEN fmt, ##__VA_ARGS__)
+#define dnvme_debug(fmt, ...) \
+	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+#endif
 
 #endif /* !_DNVME_CORE_H_ */

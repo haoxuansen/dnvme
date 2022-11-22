@@ -93,22 +93,22 @@ int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
     /* Allocating memory for user struct in kernel space */
     user_data = kmalloc(sizeof(struct interrupts), GFP_KERNEL);
     if (user_data == NULL) {
-        pr_err("Unable to alloc kernel memory to copy user data");
+        dnvme_err("Unable to alloc kernel memory to copy user data");
         err = -ENOMEM;
         goto fail_out;
     }
     if (copy_from_user(user_data, irq_new, sizeof(struct interrupts))) {
-        pr_err("Unable to copy from user space");
+        dnvme_err("Unable to copy from user space");
         err = -EFAULT;
         goto fail_out;
     }
-    pr_debug("IRQ Scheme = %d", user_data->irq_type);
+    dnvme_debug("IRQ Scheme = %d", user_data->irq_type);
 
     /* First validate if the inputs given are correct */
     err = validate_irq_inputs(pmetrics_device_elem, user_data,
         &msix_tbl_info);
     if (err < 0) {
-        pr_err("Invalid inputs set or device is not disabled");
+        dnvme_err("Invalid inputs set or device is not disabled");
         return err;
     }
 
@@ -119,13 +119,13 @@ int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
     err = disable_active_irq(pmetrics_device_elem, pnvme_dev->
         pub.irq_active.irq_type);
     if (err < 0) {
-        pr_err("Reset of IRQ to INT_NONE failed...");
+        dnvme_err("Reset of IRQ to INT_NONE failed...");
         goto mutex_unlck;
     }
     /* initialize work queue */
     err = work_queue_init(&pmetrics_device_elem->irq_process);
     if (err < 0) {
-        pr_err("Failed to initialize resources for work queue/items");
+        dnvme_err("Failed to initialize resources for work queue/items");
         goto mutex_unlck;
     }
 
@@ -148,7 +148,7 @@ int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
         /* If here then already the IRQ scheme is none */
         break;
     default:
-        pr_err("Invalid Interrupt Type specified.");
+        dnvme_err("Invalid Interrupt Type specified.");
         err = -EBADRQC;
         break;
     }
@@ -160,11 +160,11 @@ int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
         pnvme_dev->pub.irq_active.num_irqs = user_data->num_irqs;
         /* Following will only be read by ISR */
         pmetrics_device_elem->irq_process.irq_type = user_data->irq_type;
-        pr_debug(">>irq_type:%d enable",user_data->irq_type);
+        dnvme_debug(">>irq_type:%d enable",user_data->irq_type);
     }
     else
     {
-        pr_err(">>irq_type:%d enable fail",user_data->irq_type);
+        dnvme_err(">>irq_type:%d enable fail",user_data->irq_type);
     }
     
 
@@ -188,10 +188,10 @@ void release_irq(struct nvme_context *pmetrics_device_elem)
     irq_disable(pmetrics_device_elem);
 
     if (pmetrics_device_elem->irq_process.wq) {
-        pr_debug("Wait for the WQ to get flushed");
+        dnvme_debug("Wait for the WQ to get flushed");
         /* Flush the WQ and wait till all BH's are executed */
         flush_workqueue(pmetrics_device_elem->irq_process.wq);
-        pr_debug("Destroy the recently flushed WQ");
+        dnvme_debug("Destroy the recently flushed WQ");
         /* Destroy the WQ */
         destroy_workqueue(pmetrics_device_elem->irq_process.wq);
         pmetrics_device_elem->irq_process.wq = NULL;
@@ -226,7 +226,7 @@ static int disable_active_irq(struct nvme_context
 #ifdef DEBUG
     /* If mutex is not locked then exit here */
     if (!mutex_is_locked(&pmetrics_device_elem->irq_process.irq_track_mtx)) {
-        pr_err("Mutex should have been locked before this...");
+        dnvme_err("Mutex should have been locked before this...");
         /* Mutex is not locked so exiting */
         return -EINVAL;
     }
@@ -293,16 +293,16 @@ int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
     int ret_val = -EINVAL;
 
     if (pci_read_config_word(pdev, PCI_DEVICE_STATUS, &val) < 0) {
-        pr_err("pci_read_config failed...");
+        dnvme_err("pci_read_config failed...");
         return -EINVAL;
     }
-    pr_debug("PCI_DEVICE_STATUS = 0x%X", val);
+    dnvme_debug("PCI_DEVICE_STATUS = 0x%X", val);
     if (!(val & CAP_LIST_BIT_MASK)) {
-        pr_err("Controller does not support Capability list...");
+        dnvme_err("Controller does not support Capability list...");
         return -EINVAL;
     } else {
         if (pci_read_config_word(pdev, CAP_REG, &pci_offset) < 0) {
-            pr_err("pci_read_config failed...");
+            dnvme_err("pci_read_config failed...");
             return -EINVAL;
         }
     }
@@ -311,7 +311,7 @@ int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
         /* Loop through Capability list */
         while (pci_offset) {
             if (pci_read_config_word(pdev, pci_offset, &val) < 0) {
-                pr_err("pci_read_config failed...");
+                dnvme_err("pci_read_config failed...");
                 return -EINVAL;
             }
             /* exit when we find MSIX_capbility offset */
@@ -330,7 +330,7 @@ int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
         /* Loop through Capability list */
         while (pci_offset) {
             if (pci_read_config_word(pdev, pci_offset, &val) < 0) {
-                pr_err("pci_read_config failed...");
+                dnvme_err("pci_read_config failed...");
                 return -EINVAL;
             }
             /* exit when we find MSIX_capbility offset */
@@ -346,7 +346,7 @@ int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
         } /* end of while loop */
 
     } else {
-        pr_err("Invalid capability type specified...");
+        dnvme_err("Invalid capability type specified...");
         ret_val = -EINVAL;
     }
 
@@ -372,8 +372,8 @@ static int validate_irq_inputs(struct nvme_context
 
     /* Check if the EN bit is set and return failure if set */
     if (readl(&pnvme_dev->priv.ctrlr_regs->cc) & NVME_CC_ENABLE) {
-        pr_err("IRQ Scheme cannot change when CC.EN bit is set!!");
-        pr_err("Call Disable or Disable completely first...");
+        dnvme_err("IRQ Scheme cannot change when CC.EN bit is set!!");
+        dnvme_err("Call Disable or Disable completely first...");
         return -EINVAL;
     }
 
@@ -382,13 +382,13 @@ static int validate_irq_inputs(struct nvme_context
 
     case INT_MSI_SINGLE: /* MSI Single interrupt settings */
         if (irq_new->num_irqs != MAX_IRQ_VEC_MSI_SIN) {
-            pr_err("IRQ vectors cannot be greater/equal %d in MSI Single IRQ",
+            dnvme_err("IRQ vectors cannot be greater/equal %d in MSI Single IRQ",
                 MAX_IRQ_VEC_MSI_SIN);
             return -EINVAL;
         }
         /* Check if the card Supports MSI capability */
         if (check_cntlr_cap(pdev, INT_MSI_SINGLE, &msi_offset) < 0) {
-            pr_err("Controller does not support for MSI capability!!");
+            dnvme_err("Controller does not support for MSI capability!!");
             return -EINVAL;
         }
         /* Update interrupt vector Mask Set and Mask Clear offsets */
@@ -399,13 +399,13 @@ static int validate_irq_inputs(struct nvme_context
     case INT_MSI_MULTI: /* MSI Multi interrupt settings */
         if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_MUL ||
             irq_new->num_irqs == 0) {
-            pr_err("IRQ vectors cannot be greater/equal %d in MSI Multi IRQ",
+            dnvme_err("IRQ vectors cannot be greater/equal %d in MSI Multi IRQ",
                 MAX_IRQ_VEC_MSI_MUL);
             return -EINVAL;
         }
         /* Check if the card Supports MSI capability */
         if (check_cntlr_cap(pdev, INT_MSI_MULTI, &msi_offset) < 0) {
-            pr_err("Controller does not support for MSI capability!!");
+            dnvme_err("Controller does not support for MSI capability!!");
             return -EINVAL;
         }
         /* compute MSI MC offset if MSI is supported */
@@ -414,7 +414,7 @@ static int validate_irq_inputs(struct nvme_context
         pci_read_config_word(pdev, msi_offset, &mc_val);
 
         if(irq_new->num_irqs > (1 << ((mc_val & MSI_MMC) >> 1))) { 
-            pr_err("IRQs = %d exceed MSI MMC = %d", irq_new->num_irqs,
+            dnvme_err("IRQs = %d exceed MSI MMC = %d", irq_new->num_irqs,
 				(1 << ((mc_val & MSI_MMC) >> 1)));
             return -EINVAL;
         }
@@ -433,13 +433,13 @@ static int validate_irq_inputs(struct nvme_context
         /* First check if num irqs req are greater than MAX MSIX SUPPORTED */
         if (irq_new->num_irqs > MAX_IRQ_VEC_MSI_X ||
             irq_new->num_irqs == 0) {
-            pr_err("IRQ vectors cannot be greater/equal %d in MSI-X IRQ",
+            dnvme_err("IRQ vectors cannot be greater/equal %d in MSI-X IRQ",
                 MAX_IRQ_VEC_MSI_X);
             return -EINVAL;
         }
         /* Check if the card Supports MSIX capability */
         if (check_cntlr_cap(pdev, INT_MSIX, &msi_offset) < 0) {
-            pr_err("Controller does not support for MSI-X capability!!");
+            dnvme_err("Controller does not support for MSI-X capability!!");
             return -EINVAL;
         }
         /* if msix exists then update the msix pointer for this device */
@@ -455,7 +455,7 @@ static int validate_irq_inputs(struct nvme_context
         /* check if Table size of MSIXCAP supports requested irqs.
          * as TS is 0 based and num_irq is 1 based, so we add 1 */
         if (irq_new->num_irqs > (pmsix_tbl_info->ts + 1)) {
-            pr_err("IRQs = %d exceed MSI-X table size = %d", irq_new->
+            dnvme_err("IRQs = %d exceed MSI-X table size = %d", irq_new->
                 num_irqs, pmsix_tbl_info->ts);
             /* does not support the requested irq's*/
             return -EINVAL;
@@ -466,7 +466,7 @@ static int validate_irq_inputs(struct nvme_context
         break;
     default:
         /* invalidate other type of IRQ schemes */
-        pr_err("No validation for default case..");
+        dnvme_err("No validation for default case..");
         ret_val = -EINVAL;
         break;
     }
@@ -503,7 +503,7 @@ static int set_msix(struct nvme_context *pmetrics_device_elem,
     /* Allocate msix interrupts to this device */
     ret_val = pci_enable_msix_range(pdev, msix_entries, num_irqs, num_irqs);
     if (ret_val != num_irqs) {
-        pr_err("Can't enable MSI-X");
+        dnvme_err("Can't enable MSI-X");
         return ret_val;
     }
 
@@ -513,7 +513,7 @@ static int set_msix(struct nvme_context *pmetrics_device_elem,
         ret_val = request_irq( msix_entries[i].vector, tophalf_isr, IRQF_SHARED,
              				   "msi-x", &pmetrics_device_elem->irq_process );
         if (ret_val < 0) {
-            pr_err("MSI-X-Err: request irq failed for ivec= %u",
+            dnvme_err("MSI-X-Err: request irq failed for ivec= %u",
                 msix_entries[i].vector);
             /* As we are allocating memory for one node at a time
              * failing here needs freeing up memory previously allocated */
@@ -521,20 +521,20 @@ static int set_msix(struct nvme_context *pmetrics_device_elem,
         }
 
         /* Add node after determining interrupt vector req is successful */
-        pr_debug("Add Node for Vector = %d", msix_entries[i].vector);
+        dnvme_debug("Add Node for Vector = %d", msix_entries[i].vector);
         ret_val = add_irq_node(pmetrics_device_elem, msix_entries[i].vector,
             msix_entries[i].entry);
         if (ret_val < 0) {
-            pr_err("MSI-X-Err: can't add irq node");
+            dnvme_err("MSI-X-Err: can't add irq node");
             goto free_msix;
         } /* end of if add_irq_node */
 
         /* Add node after determining interrupt vector req is successful */
-        pr_debug("Add Wk item node for Vector = %d", msix_entries[i].vector);
+        dnvme_debug("Add Wk item node for Vector = %d", msix_entries[i].vector);
         ret_val = add_wk_item(&pmetrics_device_elem->irq_process,
             msix_entries[i].vector, msix_entries[i].entry);
         if (ret_val < 0) {
-            pr_err("MSI-X-Err: can't add work item node");
+            dnvme_err("MSI-X-Err: can't add work item node");
             goto free_msix;
         } /* end of if add_wk_item */
     } /* end of for num_irqs */
@@ -542,14 +542,14 @@ static int set_msix(struct nvme_context *pmetrics_device_elem,
     /* fetch the Irq node 0 */
     pirq_node = find_irq_node(pmetrics_device_elem, 0);
     if (pirq_node == NULL) {
-        pr_err("Can't find CQ 0 node inside irq_track list");
+        dnvme_err("Can't find CQ 0 node inside irq_track list");
         ret_val = -EINVAL;
         goto free_msix;
     }
     /* Add the default ACQ node into the default irq node */
     ret_val = add_icq_node(pirq_node, 0);
     if (ret_val < 0) {
-        pr_err("Can't add CQ 0 node inside irq_track list");
+        dnvme_err("Can't add CQ 0 node inside irq_track list");
         goto free_msix;
     }
 
@@ -559,7 +559,7 @@ static int set_msix(struct nvme_context *pmetrics_device_elem,
         regVal = readl((u32*)pmsix_tbl_info->pba_tbl + i);
         for (j = 0; (j < 32) && (j < tmp_irq); j++) {
             if (regVal & (1 << j)) {
-                pr_err("PBA bit is set at IRQ init, nothing should be set");
+                dnvme_err("PBA bit is set at IRQ init, nothing should be set");
                 ret_val = -EINVAL;
                 goto free_msix;
             }
@@ -596,23 +596,23 @@ static int set_pin_int(struct nvme_context *pmetrics_device_elem)
              			   "pin-base", &pmetrics_device_elem->irq_process );
     if(ret_val<0) 
 	{
-        pr_err("Request irq failed for ivec= %i", pdev->irq);
+        dnvme_err("Request irq failed for ivec= %i", pdev->irq);
         return ret_val; 
     }
-    pr_debug("pin-base Interrupt Vector = %d", pdev->irq);
+    dnvme_debug("pin-base Interrupt Vector = %d", pdev->irq);
 	
     /* Add node after determining interrupt vector is successful */
     ret_val = add_irq_node(pmetrics_device_elem, pdev->irq, 0);
     if(ret_val<0) 
 	{
-        pr_err("Can't add irq node");
+        dnvme_err("Can't add irq node");
         goto free_msis;
     }
 
     ret_val = add_wk_item(&pmetrics_device_elem->irq_process, pdev->irq, 0);
     if(ret_val<0) 
 	{
-        pr_err("Can't add work item node");
+        dnvme_err("Can't add work item node");
         goto free_msis;
     }
 
@@ -620,7 +620,7 @@ static int set_pin_int(struct nvme_context *pmetrics_device_elem)
     pirq_node = find_irq_node(pmetrics_device_elem, 0);
     if(pirq_node == NULL) 
 	{
-        pr_err("Can't find CQ 0 node inside irq_track list");
+        dnvme_err("Can't find CQ 0 node inside irq_track list");
         ret_val = -EINVAL;
         goto free_msis;
     }
@@ -628,7 +628,7 @@ static int set_pin_int(struct nvme_context *pmetrics_device_elem)
     ret_val = add_icq_node(pirq_node, 0);
     if(ret_val<0) 
 	{
-        pr_err("Can't add CQ 0 node inside irq_track list");
+        dnvme_err("Can't add CQ 0 node inside irq_track list");
         goto free_msis;
     }
 
@@ -665,41 +665,41 @@ static int set_msi_single(struct nvme_context *pmetrics_device_elem)
      */
     ret_val = pci_enable_msi(pdev);
     if (ret_val) {
-        pr_err("Can't enable MSI-single");
+        dnvme_err("Can't enable MSI-single");
         return ret_val; /* exit from here */
     }
     /* request irq with top half handler and int vec stored in pdev->irq. */
     ret_val = request_irq( pdev->irq, tophalf_isr, IRQF_SHARED,
              			   "msi-single", &pmetrics_device_elem->irq_process );
     if (ret_val < 0) {
-        pr_err("Request irq failed for ivec= %i", pdev->irq);
+        dnvme_err("Request irq failed for ivec= %i", pdev->irq);
         return ret_val; /* exit from here */
     }
-    pr_debug("MSI-Single Interrupt Vector = %d", pdev->irq);
+    dnvme_debug("MSI-Single Interrupt Vector = %d", pdev->irq);
     /* Add node after determining interrupt vector is successful */
     ret_val = add_irq_node(pmetrics_device_elem, pdev->irq, 0);
     if (ret_val < 0) {
-        pr_err("Can't add irq node");
+        dnvme_err("Can't add irq node");
         goto free_msis;
     }
 
     ret_val = add_wk_item(&pmetrics_device_elem->irq_process, pdev->irq, 0);
     if (ret_val < 0) {
-        pr_err("Can't add work item node");
+        dnvme_err("Can't add work item node");
         goto free_msis;
     }
 
     /* fetch the Irq node 0 */
     pirq_node = find_irq_node(pmetrics_device_elem, 0);
     if (pirq_node == NULL) {
-        pr_err("Can't find CQ 0 node inside irq_track list");
+        dnvme_err("Can't find CQ 0 node inside irq_track list");
         ret_val = -EINVAL;
         goto free_msis;
     }
     /* Add the default ACQ node into the default irq node */
     ret_val = add_icq_node(pirq_node, 0);
     if (ret_val < 0) {
-        pr_err("Can't add CQ 0 node inside irq_track list");
+        dnvme_err("Can't add CQ 0 node inside irq_track list");
         goto free_msis;
     }
 
@@ -767,7 +767,7 @@ static int set_msi_multi(struct nvme_context *pmetrics_device_elem,
      * be the lowest of the new interrupts assigned to this device. */
     ret_val = dnvme_pci_enable_msi(pdev, num_irqs);
     if (ret_val) {
-        pr_err("Can't enable MSI-Multi with num_irq=%d", num_irqs);
+        dnvme_err("Can't enable MSI-Multi with num_irq=%d", num_irqs);
         return ret_val;
     }
     /* Request irq on each interrupt vector */
@@ -776,26 +776,26 @@ static int set_msi_multi(struct nvme_context *pmetrics_device_elem,
         ret_val = request_irq((pdev->irq + i), tophalf_isr, IRQF_SHARED,
              				   "msi-multi", &pmetrics_device_elem->irq_process);
         if (ret_val < 0) {
-            pr_err("Request IRQ failed ivec = %d", pdev->irq + i);
+            dnvme_err("Request IRQ failed ivec = %d", pdev->irq + i);
             /* As we are allocating memory for one node at a time
              * failing here needs freeing up memory previously allocated */
             goto free_msim;
         }
 
         /* Add node after determining interrupt vector req is successful */
-        pr_debug("Add Node for Vector = %d", pdev->irq + i);
+        dnvme_debug("Add Node for Vector = %d", pdev->irq + i);
         ret_val = add_irq_node(pmetrics_device_elem, (pdev->irq + i), i);
         if (ret_val < 0) {
-            pr_err("Can't add irq node");
+            dnvme_err("Can't add irq node");
             goto free_msim;
         } /* end of if add_irq_node */
 
         /* Add node after determining interrupt vector req is successful */
-        pr_debug("Add Wk item node for Vector = %d", pdev->irq + i);
+        dnvme_debug("Add Wk item node for Vector = %d", pdev->irq + i);
         ret_val = add_wk_item(&pmetrics_device_elem->irq_process,
             (pdev->irq + i), i);
         if (ret_val < 0) {
-            pr_err("Can't add work item node");
+            dnvme_err("Can't add work item node");
             goto free_msim;
         } /* end of if add_wk_item */
     } /* end of for num_irqs */
@@ -803,14 +803,14 @@ static int set_msi_multi(struct nvme_context *pmetrics_device_elem,
     /* fetch the Irq node 0 */
     pirq_node = find_irq_node(pmetrics_device_elem, 0);
     if (pirq_node == NULL) {
-        pr_err("Can't find CQ 0 node inside irq_track list");
+        dnvme_err("Can't find CQ 0 node inside irq_track list");
         ret_val = -EINVAL;
         goto free_msim;
     }
     /* Add the default ACQ node into the default irq node */
     ret_val = add_icq_node(pirq_node, 0);
     if (ret_val < 0) {
-        pr_err("Can't add CQ 0 node inside irq_track list");
+        dnvme_err("Can't add CQ 0 node inside irq_track list");
         goto free_msim;
     }
 
@@ -858,16 +858,16 @@ static int update_msixptr(struct  nvme_context *pmetrics_device_elem,
         break;
     case 0x04:  /* BAR2 (64-bit) */
         if (dev->priv.bar2 == NULL) {
-            pr_err("BAR2 not implemented by DUT");
+            dnvme_err("BAR2 not implemented by DUT");
             return -EINVAL;
         }
         msix_ptr = (dev->priv.bar2 + msix_to);
         break;
     case 0x05:
-        pr_err("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
+        dnvme_err("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
         return -EINVAL;
     default:
-        pr_err("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
+        dnvme_err("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
         return -EINVAL;
     }
 
@@ -877,16 +877,16 @@ static int update_msixptr(struct  nvme_context *pmetrics_device_elem,
         break;
     case 0x04:  /* BAR2 (64-bit) */
         if (dev->priv.bar2 == NULL) {
-            pr_err("BAR2 not implemented by DUT");
+            dnvme_err("BAR2 not implemented by DUT");
             return -EINVAL;
         }
         pba_ptr = (dev->priv.bar2 + msix_pbao);
         break;
     case 0x05:
-        pr_err("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
+        dnvme_err("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
         return -EINVAL;
     default:
-        pr_err("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
+        dnvme_err("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
         return -EINVAL;
     }
 
@@ -926,7 +926,7 @@ static void set_msix_mask_bit(u8 __iomem *irq_msixptr, u16 irq_no, u32 flag)
  */
 void mask_interrupts(u16 irq_no, struct irq_processing *pirq_process)
 {
-    //pr_err("~~~~irq_type:%x, masked",pirq_process->irq_type);
+    //dnvme_err("~~~~irq_type:%x, masked",pirq_process->irq_type);
     /* handle all masking here */
     switch (pirq_process->irq_type) {
     case INT_PIN:
@@ -943,7 +943,7 @@ void mask_interrupts(u16 irq_no, struct irq_processing *pirq_process)
     case INT_NONE:
         break;
     default:
-        pr_err("Unknown interrupt type to Mask...");
+        dnvme_err("Unknown interrupt type to Mask...");
         break;
     }
 }
@@ -955,7 +955,7 @@ void mask_interrupts(u16 irq_no, struct irq_processing *pirq_process)
 void unmask_interrupts(u16 irq_no, struct irq_processing
     *pirq_process)
 {
-    //pr_err("@@@@irq_type:%x,unmasked",pirq_process->irq_type);
+    //dnvme_err("@@@@irq_type:%x,unmasked",pirq_process->irq_type);
     /* handle all unmasking here */
     switch (pirq_process->irq_type) {
     case INT_PIN:
@@ -972,7 +972,7 @@ void unmask_interrupts(u16 irq_no, struct irq_processing
     case INT_NONE:
         break;
     default:
-        pr_err("Unknown interrupt type to Mask...");
+        dnvme_err("Unknown interrupt type to Mask...");
         break;
     }
 }
@@ -1005,20 +1005,20 @@ irqreturn_t tophalf_isr(int int_vec, void *dev_id)
     /* Look for the required work_struct */
     pwk = get_work_item(pirq_process, int_vec);
     if (pwk == NULL) {
-        pr_err("spurious irq with int_vec = %d", int_vec);
+        dnvme_err("spurious irq with int_vec = %d", int_vec);
         return IRQ_NONE;
     }
-    //pr_err("!!!!!!!!! enter tophalf_isr, irq_no: %d", pwk->irq_no);
+    //dnvme_err("!!!!!!!!! enter tophalf_isr, irq_no: %d", pwk->irq_no);
     /* To resolve contention between ISR's getting fired on different cores */
     spin_lock(&pirq_process->isr_spin_lock);
-    pr_debug("TH:IRQNO = %d is serviced", pwk->irq_no);
+    dnvme_debug("TH:IRQNO = %d is serviced", pwk->irq_no);
     /* Mask the interrupts which was fired till BH */
     //MengYu add. if tests interrupt, should commit this line
     mask_interrupts(pwk->irq_no, pirq_process);
 
     if (queue_work(pirq_process->wq, &pwk->sched_wq)
         == 0) {
-        pr_debug("Work item already in Queue");
+        dnvme_debug("Work item already in Queue");
     }
     /* unlock as we are done with critical section */
     spin_unlock(&pirq_process->isr_spin_lock);
@@ -1041,7 +1041,7 @@ static void inc_isr_count(struct irq_processing *pirq_process,
         if (irq_no == pirq_node->irq_no) {
             pirq_node->isr_fired = 1;
             pirq_node->isr_count++;
-            pr_debug("BH:isr count = %d for irq no = %d",
+            dnvme_debug("BH:isr count = %d for irq no = %d",
                 pirq_node->isr_count, pirq_node->irq_no);
         } /* end of if ivec */
     } /* end of list for irq */
@@ -1068,7 +1068,7 @@ static void bh_callback(struct work_struct *work_element)
     /* unlock as we are done with updating the irq nodes */
     mutex_unlock(&pwork->pirq_process->irq_track_mtx);
 
-    pr_debug("BH:IRQNO = %d is serviced in Bottom Half", pwork->irq_no);
+    dnvme_debug("BH:IRQNO = %d is serviced in Bottom Half", pwork->irq_no);
 }
 
 /*
@@ -1083,7 +1083,7 @@ int work_queue_init(struct  irq_processing *pirq_process)
          */
         pirq_process->wq = create_workqueue("work_queue");
         if (pirq_process->wq == NULL) {
-            pr_err("Failed work queue creation");
+            dnvme_err("Failed work queue creation");
             return -ENOMEM;
         }
     }
@@ -1104,17 +1104,17 @@ static int add_irq_node(struct  nvme_context *pmetrics_device_elem,
 #ifdef DEBUG
     /* If mutex is not locked then exit here */
     if (!mutex_is_locked(&pmetrics_device_elem->irq_process.irq_track_mtx)) {
-        pr_err("Mutex should have been locked before this...");
+        dnvme_err("Mutex should have been locked before this...");
         /* Mutex is not locked so exiting */
         return -EINVAL;
     }
 #endif
 
-    pr_debug("Adding Irq Node...%d", irq_no);
+    dnvme_debug("Adding Irq Node...%d", irq_no);
     /* Allocate memory for the cq node and check if success */
     irq_trk_node = kmalloc(sizeof(struct irq_track), GFP_KERNEL);
     if (irq_trk_node == NULL) {
-        pr_err("IRQ track Node allocation failed");
+        dnvme_err("IRQ track Node allocation failed");
         return -ENOMEM;
     }
     /* Fill the irq track node */
@@ -1143,7 +1143,7 @@ static int add_wk_item(struct irq_processing *pirq_process,
 
     pwork = kmalloc(sizeof(struct work_container), GFP_KERNEL);
     if (pwork == NULL) {
-        pr_err("Failed mem alloc in work_container creation");
+        dnvme_err("Failed mem alloc in work_container creation");
         return -ENOMEM;
     }
     /* Initialize the bottom half call back with the work struct */
@@ -1169,7 +1169,7 @@ int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id)
     /* Allocate memory for the cq node and check if success */
     irq_cq_node = kmalloc(sizeof(struct irq_cq_track), GFP_KERNEL);
     if (irq_cq_node == NULL) {
-        pr_err("IRQ CQ Node allocation failed");
+        dnvme_err("IRQ CQ Node allocation failed");
         return -ENOMEM;
     }
     /* Fill the node with init data */
@@ -1197,7 +1197,7 @@ int update_cq_irqtrack(struct nvme_context *pmetrics_device_elem, u16 cq_id, u16
     /* fetch the Irq node for given irq no */
     pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
     if (pirq_node == NULL) {
-        pr_err("Unable to find IRQ node %d", irq_no);
+        dnvme_err("Unable to find IRQ node %d", irq_no);
         ret_val = -EINVAL;
         goto exit;
     }
@@ -1206,7 +1206,7 @@ int update_cq_irqtrack(struct nvme_context *pmetrics_device_elem, u16 cq_id, u16
     ret_val = add_icq_node(pirq_node, cq_id);
 	if(ret_val) 
 	{
-        pr_err("Add the CQ node into irq node failed!");
+        dnvme_err("Add the CQ node into irq node failed!");
         goto exit;
     }
 
@@ -1232,7 +1232,7 @@ int reap_inquiry_isr(struct nvme_cq  *pmetrics_cq_node,
 #ifdef DEBUG
     /* If mutex is not locked then exit here */
     if (!mutex_is_locked(&pmetrics_device_elem->irq_process.irq_track_mtx)) {
-        pr_err("Mutex should have been locked before this...");
+        dnvme_err("Mutex should have been locked before this...");
         /* Mutex is not locked so exiting */
         return -EINVAL;
     }
@@ -1241,7 +1241,7 @@ int reap_inquiry_isr(struct nvme_cq  *pmetrics_cq_node,
     /* Get the Irq node for given irq vector */
     pirq_node = find_irq_node(pmetrics_device_elem, irq_no);
     if (pirq_node == NULL) {
-        pr_err("Node for IRQ No = %d does not exist in IRQ list!", irq_no);
+        dnvme_err("Node for IRQ No = %d does not exist in IRQ list!", irq_no);
         return -EINVAL;
     }
 
@@ -1331,7 +1331,7 @@ int remove_icq_node(struct  nvme_context
     struct irq_track *pirq_node;
     struct irq_cq_track *picq_node;
 
-    pr_debug("Call to remove the ICQ = %d for irq_no = %d",
+    dnvme_debug("Call to remove the ICQ = %d for irq_no = %d",
             cq_id, irq_no);
     /* Get the Irq node for given irq vector */
     pirq_node = find_irq_node(pmetrics_device, irq_no);
@@ -1341,7 +1341,7 @@ int remove_icq_node(struct  nvme_context
     /* Get the CQ node in the irq node found */
     picq_node = find_icq_node(pirq_node, cq_id);
     if (picq_node == NULL) {
-        pr_err("CQ node does not exist in the IRQ Tracked node!");
+        dnvme_err("CQ node does not exist in the IRQ Tracked node!");
         return -EINVAL;
     }
     /* remove the cq node from the linked list and free it */
@@ -1359,7 +1359,7 @@ void dealloc_wk_list(struct irq_processing *pirq_process)
     struct work_container *pwk_item_next;  /* Next wk item in the list */
     struct work_container *pwk_item_curr;  /* Current wk item in the list */
 
-    pr_debug("Deallocate wk Nodes...");
+    dnvme_debug("Deallocate wk Nodes...");
     /* Loop for each cq node within this irq node */
     list_for_each_entry_safe(pwk_item_curr, pwk_item_next,
         &pirq_process->wrk_item_list, wrk_list_hd) {
@@ -1380,7 +1380,7 @@ static void dealloc_all_icqs(struct  irq_track *pirq_trk_list)
     struct  irq_cq_track    *pirq_cq_list;  /* Type to use as loop cursor  */
     struct  irq_cq_track    *pirq_cq_next;  /* type to use as temp storage */
 
-    pr_debug("Deallocate IRQ CQ Nodes...");
+    dnvme_debug("Deallocate IRQ CQ Nodes...");
     /* Loop for each cq node within this irq node */
     list_for_each_entry_safe(pirq_cq_list, pirq_cq_next,
             &pirq_trk_list->irq_cq_track, irq_cq_head) {
@@ -1401,11 +1401,11 @@ void deallocate_irq_trk(struct nvme_context *pmetrics_device_elem)
     struct  irq_track   *pirq_trk_list; /* Type to use as loop cursor       */
     struct  irq_track   *pirq_trk_next; /* Same type to use as temp storage */
 
-    pr_debug("Deallocate IRQ Track...");
+    dnvme_debug("Deallocate IRQ Track...");
     /* Loop for each irq node */
     list_for_each_entry_safe(pirq_trk_list, pirq_trk_next,
             &pmetrics_device_elem->irq_process.irq_track_list, irq_list_hd) {
-        pr_debug("Int Vec:Irq No = %d:%d", pirq_trk_list->int_vec,
+        dnvme_debug("Int Vec:Irq No = %d:%d", pirq_trk_list->int_vec,
                 pirq_trk_list->irq_no);
         /* remove all the cq nodes for this irq node */
         dealloc_all_icqs(pirq_trk_list);
@@ -1439,20 +1439,20 @@ void irq_disable(struct nvme_context *pmetrics_device_elem)
     if (irq_active == INT_MSI_SINGLE) {
         /* Only one interrupt so call disable once */
         pci_disable_msi(pdev);
-        pr_debug("INT_MSI SINGLE Disabled");
+        dnvme_debug("INT_MSI SINGLE Disabled");
     } else if (irq_active == INT_MSI_MULTI) {
         /* Only main interrupt should be disabled so call disable on device */
         pci_disable_msi(pdev);
-        pr_debug("INT_MSI-Multiple Disabled");
+        dnvme_debug("INT_MSI-Multiple Disabled");
     } else if (irq_active == INT_MSIX) {
         /* disable OS to generate MISX */
         pci_disable_msix(pdev);
-        pr_debug("INT_MSIX Disabled");
+        dnvme_debug("INT_MSIX Disabled");
     } else {
         /* Calling the interrupt disable functions */
-        pr_debug("No Active IRQ scheme to disable...");
+        dnvme_debug("No Active IRQ scheme to disable...");
     }
-    pr_debug(">>irq_type:%d disable", irq_active);
+    dnvme_debug(">>irq_type:%d disable", irq_active);
 }
 
 /* Loop through all CQ's associated with irq_no and check whehter
@@ -1470,7 +1470,7 @@ int reset_isr_flag(struct nvme_context *pmetrics_device,
     /* Get the Irq node for given irq vector */
     pirq_node = find_irq_node(pmetrics_device, irq_no);
     if (pirq_node == NULL) {
-        pr_err("Irq node not found for irq_no: %d", irq_no);
+        dnvme_err("Irq node not found for irq_no: %d", irq_no);
         return -EINVAL;
     }
 
@@ -1480,7 +1480,7 @@ int reset_isr_flag(struct nvme_context *pmetrics_device,
         /* Find CQ metrics */
         pmetrics_cq_node = dnvme_find_cq(pmetrics_device, picq_node->cq_id);
         if (pmetrics_cq_node == NULL) {
-            pr_err("CQ ID = %d not found", picq_node->cq_id);
+            dnvme_err("CQ ID = %d not found", picq_node->cq_id);
             return -EBADSLT;
         }
         /* Reap on all CQ's */

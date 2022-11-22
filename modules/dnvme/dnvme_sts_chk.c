@@ -40,8 +40,8 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     u32 u32aer_msk = 0; /* AER Mask bits data */
     int ret_code = 0; /* Return code for pci reads */
 
-    pr_debug("Offset in AER CAP= 0x%X", base_offset);
-    pr_debug("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");
+    dnvme_debug("Offset in AER CAP= 0x%X", base_offset);
+    dnvme_debug("Checking Advanced Err Capability Status Regs (AERUCES and AERCS)");
 
     /* Compute the offset of AER Uncorrectable error status */
     offset = base_offset + NVME_AERUCES_OFFSET;
@@ -49,7 +49,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     /* Read the aer status bits */
     ret_code = pci_read_config_dword(pdev, offset, &u32aer_sts);
     if (ret_code < 0) {
-        pr_err("pci_read_config failed in driver error check");
+        dnvme_err("pci_read_config failed in driver error check");
     }
     /* Mask the reserved bits */
     u32aer_sts &= ~NVME_AERUCES_RSVD;
@@ -60,7 +60,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     /* get the mask bits */
     ret_code = pci_read_config_dword(pdev, offset, &u32aer_msk);
     if (ret_code < 0) {
-        pr_err("pci_read_config failed in driver error check");
+        dnvme_err("pci_read_config failed in driver error check");
     }
    /* zero out the reserved bits */
    u32aer_msk &= ~NVME_AERUCES_RSVD;
@@ -73,72 +73,72 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
         /* Data Link Protocol Error check */
         if ((u32aer_sts & NVME_AERUCES_DLPES) >> 4) {
             status = -1;
-            pr_err("Data Link Protocol Error Status is Set (DLPES)");
+            dnvme_err("Data Link Protocol Error Status is Set (DLPES)");
         }
         /* Pointed TLP status, not an error. */
         if ((u32aer_sts & NVME_AERUCES_PTS) >> 12) {
-            pr_err("Poisoned TLP Status (PTS)");
+            dnvme_err("Poisoned TLP Status (PTS)");
         }
         /* Check if Flow control Protocol error is set */
         if ((u32aer_sts & NVME_AERUCES_FCPES) >> 13) {
             status = -1;
-            pr_err("Flow Control Protocol Error Status (FCPES)");
+            dnvme_err("Flow Control Protocol Error Status (FCPES)");
         }
         /* check if completion time out status is set */
         if ((u32aer_sts & NVME_AERUCES_CTS) >> 14) {
             status = -1;
-            pr_err("Completion Time Out Status (CTS)");
+            dnvme_err("Completion Time Out Status (CTS)");
         }
         /* check if completer Abort Status is set */
         if ((u32aer_sts & NVME_AERUCES_CAS) >> 15) {
             status = -1;
-            pr_err("Completer Abort Status (CAS)");
+            dnvme_err("Completer Abort Status (CAS)");
         }
         /* Check if Unexpected completion status is set */
         if ((u32aer_sts & NVME_AERUCES_UCS) >> 16) {
             status = -1;
-            pr_err("Unexpected Completion Status (UCS)");
+            dnvme_err("Unexpected Completion Status (UCS)");
         }
         /* Check if Receiver Over Flow status is set, status not error */
         if ((u32aer_sts & NVME_AERUCES_ROS) >> 17) {
-            pr_err("Receiver Overflow Status (ROS)");
+            dnvme_err("Receiver Overflow Status (ROS)");
         }
         /* Check if Malformed TLP Status is set, not an error */
         if ((u32aer_sts & NVME_AERUCES_MTS) >> 18) {
-            pr_err("Malformed TLP Status (MTS)");
+            dnvme_err("Malformed TLP Status (MTS)");
         }
         /* ECRC error status check */
         if ((u32aer_sts & NVME_AERUCES_ECRCES) >> 19) {
             status = -1;
-            pr_err("ECRC Error Status (ECRCES)");
+            dnvme_err("ECRC Error Status (ECRCES)");
         }
         /* Unsupported Request Error Status*/
         if ((u32aer_sts & NVME_AERUCES_URES) >> 20) {
             status = -1;
-            pr_err("Unsupported Request Error Status (URES)");
+            dnvme_err("Unsupported Request Error Status (URES)");
         }
         /* Acs violation status check */
         if ((u32aer_sts & NVME_AERUCES_ACSVS) >> 21) {
             status = -1;
-            pr_err("ACS Violation Status (ACSVS)");
+            dnvme_err("ACS Violation Status (ACSVS)");
         }
         /* uncorrectable error status check */
         if ((u32aer_sts & NVME_AERUCES_UIES) >> 22) {
             status = -1;
-            pr_err("Uncorrectable Internal Error Status (UIES)");
+            dnvme_err("Uncorrectable Internal Error Status (UIES)");
         }
         /* MC blocked TLP status check, not an error*/
         if ((u32aer_sts & NVME_AERUCES_MCBTS) >> 23) {
-            pr_err("MC Blocked TLP Status (MCBTS)");
+            dnvme_err("MC Blocked TLP Status (MCBTS)");
         }
         /* Atomic Op Egress blocked status, not an error */
         if ((u32aer_sts & NVME_AERUCES_AOEBS) >> 24) {
-            pr_err("AtomicOp Egress Blocked Status (AOEBS)");
+            dnvme_err("AtomicOp Egress Blocked Status (AOEBS)");
         }
         /* TLP prefix blocked error status. */
         if ((u32aer_sts & NVME_AERUCES_TPBES) >> 25) {
             status = -1;
-            pr_err("TLP Prefix Blocked Error Status (TPBES)");
+            dnvme_err("TLP Prefix Blocked Error Status (TPBES)");
         }
     }
 
@@ -148,7 +148,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
     /* Read data from pcie space into u32aer_sts */
     ret_code = pci_read_config_dword(pdev, offset, &u32aer_sts);
     if (ret_code < 0) {
-        pr_err("pci_read_config failed in driver error check");
+        dnvme_err("pci_read_config failed in driver error check");
     }
     /* zero out Reserved Bits*/
     u32aer_sts &= ~NVME_AERCS_RSVD;
@@ -162,7 +162,7 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
      */
     ret_code = pci_read_config_dword(pdev, offset, &u32aer_msk);
     if (ret_code < 0) {
-        pr_err("pci_read_config failed in driver error check");
+        dnvme_err("pci_read_config failed in driver error check");
     }
     /* Zero out any reserved bits if they are set */
     u32aer_msk &= ~NVME_AERCS_RSVD;
@@ -176,41 +176,41 @@ int device_status_aercap(struct pci_dev *pdev, u16 base_offset)
             /* Checked if receiver error status is set */
             if (u32aer_sts & NVME_AERCS_RES) {
                 status = -1;
-                pr_err("Receiver Error Status (RES)");
+                dnvme_err("Receiver Error Status (RES)");
             }
 
         /* check if Bad TLP status is set */
         if ((u32aer_sts & NVME_AERCS_BTS) >> 6) {
             status = -1;
-            pr_err("BAD TLP Status (BTS)");
+            dnvme_err("BAD TLP Status (BTS)");
         }
         /* check if BAD DLP is set */
         if ((u32aer_sts & NVME_AERCS_BDS) >> 7) {
             status = -1;
-            pr_err("BAD DLLP Status (BDS)");
+            dnvme_err("BAD DLLP Status (BDS)");
         }
         /* Check if RRS is set, status not an error */
         if ((u32aer_sts & NVME_AERCS_RRS) >> 8) {
-            pr_err("REPLAY_NUM Rollover Status (RRS)");
+            dnvme_err("REPLAY_NUM Rollover Status (RRS)");
         }
         /* Check if RTS is set */
         if ((u32aer_sts & NVME_AERCS_RTS) >> 12) {
             status = -1;
-            pr_err("Replay Timer Timeout Status (RTS)");
+            dnvme_err("Replay Timer Timeout Status (RTS)");
         }
         /* Check if non fatal error is set */
         if ((u32aer_sts & NVME_AERCS_ANFES) >> 13) {
             status = -1;
-            pr_err("Advisory Non Fatal Error Status (ANFES)");
+            dnvme_err("Advisory Non Fatal Error Status (ANFES)");
         }
         /* Check if CIES is set */
         if ((u32aer_sts & NVME_AERCS_CIES) >> 14) {
             status = -1;
-            pr_err("Corrected Internal Error Status (CIES)");
+            dnvme_err("Corrected Internal Error Status (CIES)");
         }
         /* check if HLOS is set, Status not an error */
         if ((u32aer_sts & NVME_AERCS_HLOS) >> 15) {
-            pr_err("Header Log Overflow Status (HLOS)");
+            dnvme_err("Header Log Overflow Status (HLOS)");
         }
     }
 

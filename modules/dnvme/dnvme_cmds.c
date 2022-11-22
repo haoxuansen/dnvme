@@ -28,7 +28,8 @@
 #include "dnvme_cmds.h"
 #include <linux/vmalloc.h>
 
-
+/* Debug flag for IOCT_SEND_64B module */
+#define TEST_PRP_DEBUG
 
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
 static int data_buf_to_prp(struct nvme_device *nvme_dev,
@@ -110,7 +111,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
     u32 num_prps, num_pg, sgl_page = 0;
     struct dma_pool *sgl_page_pool;
     int i = 0;
-    pr_debug("-->[%s]",__FUNCTION__);
+    dnvme_debug("-->[%s]",__FUNCTION__);
 
     dma_addr = sg_dma_address(sg);
     dma_len = sg_dma_len(sg);
@@ -129,7 +130,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
 
     prps->vir_prp_list = kmalloc(sizeof(__le64 *) * num_pg, GFP_ATOMIC);
     if (NULL == prps->vir_prp_list) {
-        pr_err("Memory allocation for virtual list failed");
+        dnvme_err("Memory allocation for virtual list failed");
         return -ENOMEM;
     }
 
@@ -139,7 +140,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
     sg_list = dma_pool_alloc(sgl_page_pool, GFP_ATOMIC, &sgl_dma);
     if (NULL == sg_list) {
         kfree(prps->vir_prp_list);
-        pr_err("Memory allocation for sgl page failed");
+        dnvme_err("Memory allocation for sgl page failed");
         return -ENOMEM;
     }
 
@@ -156,7 +157,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
             sg_list = dma_pool_alloc(sgl_page_pool, GFP_ATOMIC, &sgl_dma);
             if (!sg_list) {
                 kfree(prps->vir_prp_list);
-                pr_err("Memory allocation for sgl page failed");
+                dnvme_err("Memory allocation for sgl page failed");
                 return -ENOMEM;
             }
             i = 0;
@@ -187,14 +188,14 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
     enum dma_data_direction kernel_dir;
     uint8_t opcode = nvme_gen_cmd->opcode; 
     uint16_t persist_q_id = nvme_gen_cmd->command_id;
-    pr_debug("-->[%s]",__FUNCTION__);
+    dnvme_debug("-->[%s]",__FUNCTION__);
 
     /* Catch common mistakes */
     addr = (unsigned long)nvme_64b_send->data_buf_ptr;
     if ((addr & 3) || (addr == 0) ||
         (nvme_64b_send->data_buf_size == 0) || (nvme_dev == NULL)) {
 
-        pr_err("Invalid Arguments");
+        dnvme_err("Invalid Arguments");
         return -EINVAL;
     }
 
@@ -209,7 +210,7 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
     if (err < 0) {
         return err;
     }
-    pr_debug("sgl_num_map_pgs:%#x",prps->num_map_pgs);
+    dnvme_debug("sgl_num_map_pgs:%#x",prps->num_map_pgs);
     err = setup_sgls(nvme_dev, sg_list, nvme_64b_send->data_buf_size, prps,
                     nvme_gen_cmd, nvme_64b_send->bit_mask, prps->num_map_pgs);
     if (err < 0) {
@@ -220,11 +221,11 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
     /* Adding node inside nvme_cmd list for pmetrics_sq */
     err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps, opcode, cmd_id);
     if (err < 0) {
-        pr_err("Failure to add command track node");
+        dnvme_err("Failure to add command track node");
         goto err_unmap_prp_pool;
     }
 
-    pr_debug("<--[%s]",__FUNCTION__);
+    dnvme_debug("<--[%s]",__FUNCTION__);
     return 0;
 
 err_unmap_prp_pool:
@@ -268,10 +269,10 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
             ret_code = data_buf_to_sgl(nvme_dev, pmetrics_sq, nvme_64b_send, prps,
                 nvme_gen_cmd, persist_q_id, data_buf_type);
             if (ret_code < 0) {
-                pr_err("Data buffer to SGL generation failed");
+                dnvme_err("Data buffer to SGL generation failed");
                 return ret_code;
             }
-            pr_debug("sgl_dbg:%d: adr:%#llx,len:%#x,typ:%#x",__LINE__,
+            dnvme_debug("sgl_dbg:%d: adr:%#llx,len:%#x,typ:%#x",__LINE__,
                 nvme_gen_cmd->dptr.sgl.addr,
                 nvme_gen_cmd->dptr.sgl.length,
                 nvme_gen_cmd->dptr.sgl.type);
@@ -284,7 +285,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
                 nvme_gen_cmd->opcode, persist_q_id, data_buf_type,
                 nvme_gen_cmd->command_id);
             if (ret_code < 0) {
-                pr_err("Data buffer to PRP generation failed");
+                dnvme_err("Data buffer to PRP generation failed");
                 return ret_code;
             }
             /* Update the PRP's in the command based on type */
@@ -301,7 +302,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
         ret_code = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
             nvme_gen_cmd->opcode, nvme_gen_cmd->command_id);
         if (ret_code < 0) {
-            pr_err("Failure to add command track node for\
+            dnvme_err("Failure to add command track node for\
                 Create Contig Queue Command");
             return ret_code;
         }
@@ -323,7 +324,7 @@ int add_cmd_track_node(struct  nvme_sq  *pmetrics_sq,
     pcmd_track_list = kmalloc(sizeof(struct nvme_cmd),
         GFP_ATOMIC | __GFP_ZERO);
     if (pcmd_track_list == NULL) {
-        pr_err("Failed to alloc memory for the command track list");
+        dnvme_err("Failed to alloc memory for the command track list");
         return -ENOMEM;
     }
 
@@ -340,7 +341,7 @@ int add_cmd_track_node(struct  nvme_sq  *pmetrics_sq,
     /* Add an element to the end of the list */
     list_add_tail(&pcmd_track_list->entry,
         &pmetrics_sq->priv.cmd_list);
-    pr_debug("Node created and added inside command track list");
+    dnvme_debug("Node created and added inside command track list");
     return 0;
 }
 
@@ -412,7 +413,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     if ((addr & 3) || (addr == 0) ||
         (nvme_64b_send->data_buf_size == 0) || (nvme_dev == NULL)) {
 
-        pr_err("Invalid Arguments");
+        dnvme_err("Invalid Arguments");
         return -EINVAL;
     }
 
@@ -446,13 +447,13 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
 
     if (prps->type == (PRP1 | PRP_List) || prps->type == (PRP2 | PRP_List)) {
         if (!(prps->vir_prp_list)) {
-            pr_err("Creation of PRP failed");
+            dnvme_err("Creation of PRP failed");
             err = -ENOMEM;
             goto err_unmap_prp_pool;
         }
         prp_vlist = prps->vir_prp_list[0];
         if (prps->type == (PRP2 | PRP_List)) {
-            pr_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
+            dnvme_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
         }
         for (i = 0, j = 0; i < num_prps; i++) {
 
@@ -461,29 +462,29 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
                 num_prps -= i;
                 i = 0 ;
                 prp_vlist = prps->vir_prp_list[j];
-                pr_debug("Physical address of next PRP Page: %llx",
+                dnvme_debug("Physical address of next PRP Page: %llx",
                     (__le64) prp_vlist);
             }
 
-            pr_debug("PRP List: %llx", (unsigned long long) prp_vlist[i]);
+            dnvme_debug("PRP List: %llx", (unsigned long long) prp_vlist[i]);
         }
 
     } else if (prps->type == PRP1) {
-        pr_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
+        dnvme_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
     } else {
-        pr_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
-        pr_debug("P2 Entry: %llx", (unsigned long long) prps->prp2);
+        dnvme_debug("P1 Entry: %llx", (unsigned long long) prps->prp1);
+        dnvme_debug("P2 Entry: %llx", (unsigned long long) prps->prp2);
     }
 #endif
 
     /* Adding node inside nvme_cmd list for pmetrics_sq */
     err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps, opcode, cmd_id);
     if (err < 0) {
-        pr_err("Failure to add command track node");
+        dnvme_err("Failure to add command track node");
         goto err_unmap_prp_pool;
     }
 
-    pr_debug("PRP Built and added to command track node successfully");
+    dnvme_debug("PRP Built and added to command track node successfully");
     return 0;
 
 err_unmap_prp_pool:
@@ -504,14 +505,14 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 
     buf_pg_offset = offset_in_page(buf_addr);
     buf_pg_count = DIV_ROUND_UP(buf_pg_offset + total_buf_len, PAGE_SIZE);
-    pr_debug("User buf addr = 0x%016lx", buf_addr);
-    pr_debug("User buf pg offset = 0x%08x", buf_pg_offset);
-    pr_debug("User buf pg count = 0x%08x", buf_pg_count);
-    pr_debug("User buf total length = 0x%08x", total_buf_len);
+    dnvme_debug("User buf addr = 0x%016lx", buf_addr);
+    dnvme_debug("User buf pg offset = 0x%08x", buf_pg_offset);
+    dnvme_debug("User buf pg count = 0x%08x", buf_pg_count);
+    dnvme_debug("User buf total length = 0x%08x", total_buf_len);
 
     pages = kcalloc(buf_pg_count, sizeof(*pages), GFP_KERNEL);
     if (pages  == NULL) {
-        pr_err("Memory alloc for describing user pages failed");
+        dnvme_err("Memory alloc for describing user pages failed");
         return -ENOMEM;
     }
 
@@ -519,14 +520,14 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
      * specifies an incorrect direction of data xfer */
     err = get_user_pages_fast(buf_addr, buf_pg_count, WRITE_PG, pages);
     if (err < buf_pg_count) {
-        pr_err("\n@@@@@@@@@@@@@  buf_pg_count: %d, err: %d", buf_pg_count, err);
-        pr_err("User buf addr = 0x%016lx", buf_addr);
-        pr_err("User buf pg offset = 0x%08x", buf_pg_offset);
-        pr_err("User buf pg count = 0x%08x", buf_pg_count);
-        pr_err("User buf total length = 0x%08x", total_buf_len);
+        dnvme_err("\n@@@@@@@@@@@@@  buf_pg_count: %d, err: %d", buf_pg_count, err);
+        dnvme_err("User buf addr = 0x%016lx", buf_addr);
+        dnvme_err("User buf pg offset = 0x%08x", buf_pg_offset);
+        dnvme_err("User buf pg count = 0x%08x", buf_pg_count);
+        dnvme_err("User buf total length = 0x%08x", total_buf_len);
         buf_pg_count = err;
         err = -EFAULT;
-        pr_err("Pinning down user pages failed");
+        dnvme_err("Pinning down user pages failed");
         goto error;
     }
 
@@ -536,10 +537,10 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
         /* Note: Not suitable for pages with offsets, but since discontig back'd
          *       Q's are required to be page aligned this isn't an issue */
         buf = vmap(pages, buf_pg_count, VM_MAP, PAGE_KERNEL);
-        pr_debug("Map'd user space buf to vir Kernel Addr: %p", buf);
+        dnvme_debug("Map'd user space buf to vir Kernel Addr: %p", buf);
         if (buf == NULL) {
             err = -EFAULT;
-            pr_err("Unable to map user space buffer to kernel space");
+            dnvme_err("Unable to map user space buffer to kernel space");
             goto error;
         }
     }
@@ -548,7 +549,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
     err = pages_to_sg(pages, buf_pg_count, buf_pg_offset,
         total_buf_len, sg_list);
     if (err < 0) {
-        pr_err("Generation of sg lists failed");
+        dnvme_err("Generation of sg lists failed");
         goto error_unmap;
     }
 
@@ -557,10 +558,10 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
      * mapped entries equate to the number given to the func is not warranted */
     num_sg_entries = dma_map_sg(&nvme_dev->priv.pdev->dev, *sg_list,
         buf_pg_count, kernel_dir);
-    pr_debug("%d elements mapped out of %d sglist elements",
+    dnvme_debug("%d elements mapped out of %d sglist elements",
         num_sg_entries, num_sg_entries);
     if (num_sg_entries == 0) {
-        pr_err("Unable to map the sg list into dma addr space");
+        dnvme_err("Unable to map the sg list into dma addr space");
         err = -ENOMEM;
         goto error_unmap;
     }
@@ -569,14 +570,14 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 #ifdef TEST_PRP_DEBUG
     {
         struct scatterlist *work;
-        pr_debug("Dump sg list after DMA mapping");
+        dnvme_debug("Dump sg list after DMA mapping");
         for (i = 0, work = *sg_list; i < num_sg_entries; i++,
             work = sg_next(work)) {
 
-            pr_debug("  sg list: page_link=0x%016lx", work->page_link);
-            pr_debug("  sg list: offset=0x%08x, length=0x%08x",
+            dnvme_debug("  sg list: page_link=0x%016lx", work->page_link);
+            dnvme_debug("  sg list: offset=0x%08x, length=0x%08x",
                 work->offset, work->length);
-            pr_debug("  sg list: dmaAddr=0x%016llx, dmaLen=0x%08x",
+            dnvme_debug("  sg list: dmaAddr=0x%016llx, dmaLen=0x%08x",
                 (u64)work->dma_address, work->dma_length);
         }
     }
@@ -610,7 +611,7 @@ static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
     *sg_list = NULL;
     sg = kmalloc((num_pages * sizeof(struct scatterlist)), GFP_KERNEL);
     if (sg == NULL) {
-        pr_err("Memory alloc for sg list failed");
+        dnvme_err("Memory alloc for sg list failed");
         return -ENOMEM;
     }
 
@@ -656,7 +657,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     if (cr_io_q) {
         /* Checking for PRP1 mask */
         if (!(prp_mask & MASK_PRP1_LIST)) {
-            pr_err("bit_mask does not support PRP1 list");
+            dnvme_err("bit_mask does not support PRP1 list");
             return -EINVAL;
         }
         /* Specifies PRP1 entry is a PRP_List */
@@ -664,13 +665,13 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
         goto prp_list;
     }
 
-    pr_debug("PRP1 Entry: Buf_len %d", buf_len);
-    pr_debug("PRP1 Entry: dma_len %u", dma_len);
-    pr_debug("PRP1 Entry: PRP entry %llx", (unsigned long long) dma_addr);
+    dnvme_debug("PRP1 Entry: Buf_len %d", buf_len);
+    dnvme_debug("PRP1 Entry: dma_len %u", dma_len);
+    dnvme_debug("PRP1 Entry: PRP entry %llx", (unsigned long long) dma_addr);
 
     /* Checking for PRP1 mask */
     if (!(prp_mask & MASK_PRP1_PAGE)) {
-        pr_err("bit_mask does not support PRP1 page");
+        dnvme_err("bit_mask does not support PRP1 page");
         return -EINVAL;
     }
     prps->prp1 = cpu_to_le64(dma_addr);
@@ -696,15 +697,15 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     if (buf_len <= PAGE_SIZE) {
         /* Checking for PRP2 mask */
         if (!(prp_mask & MASK_PRP2_PAGE)) {
-            pr_err("bit_mask does not support PRP2 page");
+            dnvme_err("bit_mask does not support PRP2 page");
             return -EINVAL;
         }
         prps->prp2 = cpu_to_le64(dma_addr);
         prps->type = (PRP1 | PRP2);
-        pr_debug("PRP2 Entry: Type %u", prps->type);
-        pr_debug("PRP2 Entry: Buf_len %d", buf_len);
-        pr_debug("PRP2 Entry: dma_len %u", dma_len);
-        pr_debug("PRP2 Entry: PRP entry %llx", (unsigned long long) dma_addr);
+        dnvme_debug("PRP2 Entry: Type %u", prps->type);
+        dnvme_debug("PRP2 Entry: Buf_len %d", buf_len);
+        dnvme_debug("PRP2 Entry: dma_len %u", dma_len);
+        dnvme_debug("PRP2 Entry: PRP entry %llx", (unsigned long long) dma_addr);
         return 0;
     }
 
@@ -712,7 +713,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     prps->type = (PRP2 | PRP_List);
     /* Checking for PRP2 mask */
     if (!(prp_mask & MASK_PRP2_LIST)) {
-        pr_err("bit_mask does not support PRP2 list");
+        dnvme_err("bit_mask does not support PRP2 list");
         return -EINVAL;
     }
 
@@ -724,11 +725,11 @@ prp_list:
 
     prps->vir_prp_list = kmalloc(sizeof(__le64 *) * num_pg, GFP_ATOMIC);
     if (NULL == prps->vir_prp_list) {
-        pr_err("Memory allocation for virtual list failed");
+        dnvme_err("Memory allocation for virtual list failed");
         return -ENOMEM;
     }
 
-    pr_debug("No. of PRP Entries inside PRPList: %u", num_prps);
+    dnvme_debug("No. of PRP Entries inside PRPList: %u", num_prps);
 
     prp_page = 0;
     prp_page_pool = nvme_dev->priv.prp_page_pool;
@@ -736,7 +737,7 @@ prp_list:
     prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
     if (NULL == prp_list) {
         kfree(prps->vir_prp_list);
-        pr_err("Memory allocation for prp page failed");
+        dnvme_err("Memory allocation for prp page failed");
         return -ENOMEM;
     }
     prps->vir_prp_list[prp_page++] = prp_list;
@@ -744,13 +745,13 @@ prp_list:
     prps->first_dma = prp_dma;
     if (prps->type == (PRP2 | PRP_List)) {
         prps->prp2 = cpu_to_le64(prp_dma);
-        pr_debug("PRP2 Entry: %llx", (unsigned long long) prps->prp2);
+        dnvme_debug("PRP2 Entry: %llx", (unsigned long long) prps->prp2);
     } else if (prps->type == (PRP1 | PRP_List)) {
         prps->prp1 = cpu_to_le64(prp_dma);
         prps->prp2 = 0;
-        pr_debug("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
+        dnvme_debug("PRP1 Entry: %llx", (unsigned long long) prps->prp1);
     } else {
-        pr_err("PRP cmd options don't allow proper description of buffer");
+        dnvme_err("PRP cmd options don't allow proper description of buffer");
         err = -EFAULT;
         goto error;
     }
@@ -761,7 +762,7 @@ prp_list:
             __le64 *old_prp_list = prp_list;
             prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
             if (NULL == prp_list) {
-                pr_err("Memory allocation for prp page failed");
+                dnvme_err("Memory allocation for prp page failed");
                 err = -ENOMEM;
                 goto error;
             }
@@ -771,15 +772,15 @@ prp_list:
             index = 0;
         }
 
-        pr_debug("PRP List: dma_len %d", dma_len);
-        pr_debug("PRP List: Buf_len %d", buf_len);
-        pr_debug("PRP List: offset %d", offset);
-        pr_debug("PRP List: PRP entry %llx", (unsigned long long)dma_addr);
+        dnvme_debug("PRP List: dma_len %d", dma_len);
+        dnvme_debug("PRP List: Buf_len %d", buf_len);
+        dnvme_debug("PRP List: offset %d", offset);
+        dnvme_debug("PRP List: PRP entry %llx", (unsigned long long)dma_addr);
 		//iol_interact-12.0a srart
         // inject offset if flag is set and used for the 2nd entry
         //if ((prp_mask & MASK_PRP_ADDR_OFFSET_ERR) && (index == 1)){
         //	prp_list[index++] = cpu_to_le64(dma_addr | 0x200);
-        //	pr_err("PRP offset injected to entry 1");
+        //	dnvme_err("PRP offset injected to entry 1");
         //} else {
         	prp_list[index++] = cpu_to_le64(dma_addr);//old_dnvme_driver
         //}
@@ -794,7 +795,7 @@ prp_list:
         } else if (dma_len > 0) {
             continue;
         } else if (dma_len < 0) {
-            pr_err("DMA data length is illegal");
+            dnvme_err("DMA data length is illegal");
             err = -EFAULT;
             goto error;
         } else {
@@ -806,7 +807,7 @@ prp_list:
     return 0;
 
 error:
-    pr_err("Error in setup_prps function: %d", err);
+    dnvme_err("Error in setup_prps function: %d", err);
     free_prp_pool(nvme_dev, prps, prp_page);
     return err;
 }
