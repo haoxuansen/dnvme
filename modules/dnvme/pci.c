@@ -1,7 +1,7 @@
 /**
- * @file config.c
+ * @file pci.c
  * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
- * @brief Access PCI or PCIe configuration space.
+ * @brief Access PCI or PCIe configuration space, etc.
  * @version 0.1
  * @date 2022-11-18
  * 
@@ -11,8 +11,7 @@
 
 #include <linux/kernel.h>
 
-#include "config.h"
-#include "dnvme_ioctl.h"
+#include "pci.h"
 
 /**
  * @brief Read pci class code

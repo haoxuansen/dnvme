@@ -1,5 +1,5 @@
 /**
- * @file config.h
+ * @file pci.h
  * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
  * @brief 
  * @version 0.1
@@ -9,13 +9,13 @@
  * 
  */
 
-#ifndef _DNVME_CONFIG_H_
-#define _DNVME_CONFIG_H_
+#ifndef _DNVME_PCI_H_
+#define _DNVME_PCI_H_
 
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 
-struct nvme_capability;
+#include "dnvme_ioctl.h"
 
 /**
  * @base: Base Class Code
@@ -112,4 +112,4 @@ int pci_get_capability(struct pci_dev *pdev, struct nvme_capability *cap);
 
 void pci_parse_status(struct pci_dev *pdev, u16 status);
 
-#endif /* !_DNVME_CONFIG_H_ */
+#endif /* !_DNVME_PCI_H_ */

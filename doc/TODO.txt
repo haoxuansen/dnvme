@@ -1,0 +1,44 @@
+prep_send64b_cmd
+	data_buf_to_sgl (前提 dnvme_pci_use_sgls => 依据 gcmd->flags bit6,7)
+		map_user_pg_to_dma
+
+
+
+enum data_buf_type 只用于 prep_send64b_cmd(), 取代方式：
+	1) nvme_gen_cmd ->opcode, nvme_64b_cmd ->q_id
+	2) wait_sq -> priv.contig
+
+PRP_PRESENT/PRP_ABSENT 只用于 prep_send64b_cmd(), 取代方式：
+	1) nvme_gen_cmd ->opcode, nvme_64b_cmd ->q_id
+
+					contig		
+prep_send64b_cmd	0		NVME_IO_QUEUE_DISCONTIG √	PRP_PRESENT		(create IO SQ/CQ)
+					1		NVME_IO_QUEUE_CONTIG		PRP_ABSENT		(create IO SQ/CQ)
+					0/1		DATA_BUF(0)					PRP_ABSENT(0)	(del IO SQ/CQ)
+					0/1		DATA_BUF(0)					PRP_PRESENT(1)	(others)
+
+
+pmetrics_sq: 添加处理cmd的SQ
+persist_q_id: nvme_gen_cmd 中的qid, 除 create/del IO SQ/CQ 外，默认为0
+
+p_cmd_cq：等待创建的IO SQ/CQ
+
+--------------------------------------------------------
+
+!TODO:
+1. 删除 WRITE_PG / READ_PG √
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

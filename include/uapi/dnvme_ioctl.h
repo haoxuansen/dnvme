@@ -32,7 +32,7 @@
  * following enum.
  */
 enum {
-	NVME_READ_GENERIC = 0xB0,
+	NVME_READ_GENERIC = 0, //0xB0,
 	NVME_WRITE_GENERIC,
 	NVME_GET_CAPABILITY,
 	NVME_SET_DEV_STATE,
@@ -87,6 +87,26 @@ enum nvme_sq_prio
 	HIGH_PRIO = 0x1,
 	MEDIUM_PRIO = 0x2,
 	LOW_PRIO = 0x3,
+};
+
+
+/**
+ * @brief NVMe subsystem or controller status
+ */
+enum nvme_state {
+	NVME_ST_ENABLE, /* Set the NVME Controller to enable state */
+	NVME_ST_DISABLE, /* Controller reset without affecting Admin Q */
+	NVME_ST_DISABLE_COMPLETE, /* Completely destroy even Admin Q's */
+	NVME_ST_RESET_SUBSYSTEM, /* NVM Subsystem reset without affecting Admin Q */
+};
+
+enum nvme_64b_cmd_mask {
+	NVME_MASK_PRP1_PAGE = (1 << 0), /* PRP1 can point to a physical page */
+	NVME_MASK_PRP1_LIST = (1 << 1), /* PRP1 can point to a PRP list */
+	NVME_MASK_PRP2_PAGE = (1 << 2), /* PRP2 can point to a physical page */
+	NVME_MASK_PRP2_LIST = (1 << 3), /* PRP2 can point to a PRP list */
+	NVME_MASK_MPTR = (1 << 4), /* MPTR may be modified */
+	NVME_MASK_PRP_ADDR_OFFSET_ERR = (1 << 5), /* To inject PRP address offset (used for err cases) */
 };
 
 /**
@@ -158,6 +178,25 @@ struct nvme_prep_cq
 	uint16_t	cq_irq_no;
 };
 
+/**
+ * This struct is the basic structure which has important parameter for
+ * sending 64 Bytes command to both admin and IO SQ's and CQ's
+ */
+struct nvme_64b_cmd {
+	/* BIT MASK for PRP1,PRP2 and metadata pointer */
+	enum nvme_64b_cmd_mask	bit_mask;
+	/* Data buffer or discontiguous CQ/SQ's user space address */
+	uint8_t const	*data_buf_ptr;
+	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
+	uint8_t 	data_dir;
+
+	uint8_t 	*cmd_buf_ptr;	/* Virtual Address pointer to 64B command */
+	uint32_t	meta_buf_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
+	uint32_t	data_buf_size; /* Size of Data Buffer */
+	uint16_t	unique_id;     /* Value returned back to user space */
+	uint16_t	q_id;	       /* Queue ID where the cmd_buf command should go */
+};
+
 #define NVME_IOCTL_READ_GENERIC \
 	_IOWR('N', NVME_READ_GENERIC, struct nvme_access)
 #define NVME_IOCTL_WRITE_GENERIC \
@@ -180,13 +219,11 @@ struct nvme_prep_cq
 #define NVME_IOCTL_GET_QUEUE \
 	_IOWR('N', NVME_GET_QUEUE, struct nvme_get_queue)
 
-/**
- * @def NVME_IOCTL_SEND_64B_CMD
- * For sending any 64 Byte command, supporing meta data, IRQ's, PRP user
- * payloads, etc. Simply any 64B cmd should be supported.
- */
-#define NVME_IOCTL_SEND_64B_CMD _IOWR('N', NVME_SEND_64B_CMD, \
-    struct nvme_64b_send)
+#define NVME_IOCTL_RING_SQ_DOORBELL \
+	_IOW('N', NVME_RING_SQ_DOORBELL, uint16_t)
+
+#define NVME_IOCTL_SEND_64B_CMD \
+	_IOWR('N', NVME_SEND_64B_CMD, struct nvme_64b_cmd)
 
 /**
  * @def NVME_IOCTL_TOXIC_64B_CMD
@@ -204,12 +241,6 @@ struct nvme_prep_cq
  */
 #define NVME_IOCTL_TOXIC_64B_DWORD _IOWR('N', NVME_TOXIC_64B_DWORD, \
     struct backdoor_inject)
-
-/**
- * @def NVME_IOCTL_RING_SQ_DOORBELL
- * define a unique value to ring SQ doorbell.
- */
-#define NVME_IOCTL_RING_SQ_DOORBELL _IOWR('N', NVME_RING_SQ_DOORBELL, uint16_t)
 
 /**
  * @def NVME_IOCTL_DUMP_METRICS

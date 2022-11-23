@@ -19,23 +19,14 @@
 #ifndef _DNVME_CMDS_H_
 #define _DNVME_CMDS_H_
 
-/* define's for unique QID creation */
-#define UNIQUE_QID_FLAG         0x01
-
-
 enum {
     PRP_PRESENT = 1, /* Specifies to generate PRP's for a particular command */
     PRP_ABSENT = 0   /* Specifies not to generate PRP's per command */
 };
 
-enum {
-    WRITE_PG = 1,
-    READ_PG = 0
-};
-
 /* Enum specifying Writes/Reads to mapped pages and other general enums */
 enum {
-    PRP_Size = 8, /* Size of PRP entry in bytes */
+    NVME_PRP_ENTRY_SIZE = 8, /* Size of PRP entry in bytes */
     PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
     CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
     CDW11_IEN = 2, /* Mask to check if CDW11.IEN is set */
@@ -52,8 +43,8 @@ enum prp_type {
 /* Enum specifying type of data buffer */
 enum data_buf_type {
 	DATA_BUF,
-	CONTG_IO_Q,
-	DISCONTG_IO_Q
+	NVME_IO_QUEUE_CONTIG,
+	NVME_IO_QUEUE_DISCONTIG
 };
 
 /**
@@ -63,7 +54,7 @@ enum data_buf_type {
  * inside cmd track list
  * @param nvme_dev
  * @param pmetrics_sq
- * @param nvme_64b_send
+ * @param nvme_64b_cmd
  * @param prps
  * @param nvme_gen_cmd
  * @param persist_q_id
@@ -72,7 +63,7 @@ enum data_buf_type {
  * @return Error Codes
  */
 int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
-    *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
+    *pmetrics_sq, struct nvme_64b_cmd *nvme_64b_cmd, struct nvme_prps *prps,
     struct nvme_gen_cmd *nvme_gen_cmd, u16 persist_q_id,
     enum data_buf_type data_buf_type, u8 gen_prp);
 

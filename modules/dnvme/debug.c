@@ -47,3 +47,32 @@ void dnvme_print_cq(struct nvme_cq *cq)
 		(dma_addr_t)cq->priv.dbs, cq->pub.elements, cq->pub.cqes);
 	dnvme_dbg("%s", buf);
 }
+
+const char *dnvme_ioctl_cmd_string(unsigned int cmd)
+{
+	switch (cmd) {
+	case NVME_IOCTL_READ_GENERIC:
+		return "NVME_READ_GENERIC";
+	case NVME_IOCTL_WRITE_GENERIC:
+		return "NVME_WRITE_GENERIC";
+	case NVME_IOCTL_GET_CAPABILITY:
+		return "NVME_GET_CAPABILITY";
+	case NVME_IOCTL_SET_DEV_STATE:
+		return "NVME_SET_DEV_STATE";
+	case NVME_IOCTL_CREATE_ADMIN_QUEUE:
+		return "NVME_CREATE_ADMIN_QUEUE";
+	case NVME_IOCTL_PREPARE_SQ_CREATION:
+		return "NVME_PREPARE_SQ_CREATION";
+	case NVME_IOCTL_PREPARE_CQ_CREATION:
+		return "NVME_PREPARE_CQ_CREATION";
+	case NVME_IOCTL_GET_QUEUE:
+		return "NVME_GET_QUEUE";
+	case NVME_IOCTL_RING_SQ_DOORBELL:
+		return "NVME_RING_SQ_DOORBELL";
+	case NVME_IOCTL_SEND_64B_CMD:
+		return "NVME_SEND_64B_CMD";
+	default:
+		return "UNKNOWN";
+	}
+}
+

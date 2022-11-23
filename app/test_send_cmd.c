@@ -40,7 +40,7 @@
  * @param user_cmd 
  * @return int 
  */
-int nvme_64b_cmd(int file_desc, struct nvme_64b_send *user_cmd)
+int nvme_64b_cmd(int file_desc, struct nvme_64b_cmd *user_cmd)
 {
     return ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, user_cmd);
 }
@@ -56,7 +56,7 @@ int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
         .rsvd1[0] = 0x00,
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .cmd_buf_ptr = (u_int8_t *)&del_q_cmd,
         .data_buf_ptr = NULL,
@@ -83,7 +83,7 @@ int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
                           enum fua_sts fua_sts, void *addr, uint32_t buf_size)
 {
     int ret_val = FAILED;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_rw_command nvme_write = {0};
 
     /* Fill the command for nvme_write*/
@@ -100,10 +100,10 @@ int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
 
     /* Fill the user command */
     user_cmd.q_id = sq_id;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE |
-                         MASK_PRP1_LIST |
-                         MASK_PRP2_PAGE |
-                         MASK_PRP2_LIST);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE |
+                         NVME_MASK_PRP1_LIST |
+                         NVME_MASK_PRP2_PAGE |
+                         NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_write;
     user_cmd.data_buf_size = buf_size;
     user_cmd.data_buf_ptr = addr;
@@ -129,7 +129,7 @@ int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
                          enum fua_sts fua_sts, void *addr, uint32_t buf_size)
 {
     int ret_val = FAILED;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_rw_command nvme_read = {0};
 
     /* Fill the command for nvme_read*/
@@ -147,10 +147,10 @@ int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
 
     /* Fill the user command */
     user_cmd.q_id = sq_id;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE |
-                         MASK_PRP1_LIST |
-                         MASK_PRP2_PAGE |
-                         MASK_PRP2_LIST);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE |
+                         NVME_MASK_PRP1_LIST |
+                         NVME_MASK_PRP2_PAGE |
+                         NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
     user_cmd.data_buf_size = buf_size;
     user_cmd.data_buf_ptr = addr;
@@ -188,7 +188,7 @@ int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16
                             enum fua_sts fua_sts, void *addr, uint32_t buf_size)
 {
     int ret_val = FAILED;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_rw_command nvme_compare = {0};
 
     /* Fill the command for nvme_compare*/
@@ -206,8 +206,8 @@ int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16
 
     /* Fill the user command */
     user_cmd.q_id = sq_id;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
-                         MASK_PRP2_PAGE | MASK_PRP2_LIST);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+                         NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_compare;
     user_cmd.data_buf_size = buf_size;
     user_cmd.data_buf_ptr = addr;
@@ -253,10 +253,10 @@ int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter)
         .cdw15 = fwdma_parameter->cdw15,
     };
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
-                     MASK_PRP2_PAGE | MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+                     NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&maxio_fwdma_rd,
         .data_buf_size = fwdma_parameter->cdw10,
         .data_buf_ptr = fwdma_parameter->addr,
@@ -298,9 +298,9 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
     };
 
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST | MASK_PRP2_PAGE | MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&maxio_fwdma_wr,
         .data_buf_size = fwdma_parameter->cdw10,
         .data_buf_ptr = fwdma_parameter->addr,
@@ -356,9 +356,9 @@ int nvme_firmware_commit(int file_desc, byte_t bpid, byte_t ca, byte_t fs)
     };
 
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST | MASK_PRP2_PAGE | MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&firmware_commit,
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
@@ -400,9 +400,9 @@ int nvme_firmware_download(int file_desc, dword_t numd, dword_t ofst, byte_t *dp
     };
 
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST | MASK_PRP2_PAGE | MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&firmware_download,
         .data_buf_size = numd << 2, //number of dwords
         .data_buf_ptr = dptr,
@@ -433,7 +433,7 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
 {
     int ret_val = FAILED;
 
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_cq create_cq_cmd = {0};
 
     /* prep cq para */
@@ -470,13 +470,13 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
     user_cmd.data_dir = 0;
     if (cq_parameter->contig)
     {
-        user_cmd.bit_mask = (MASK_PRP1_PAGE);
+        user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
         user_cmd.data_buf_size = 0;
         user_cmd.data_buf_ptr = NULL;
     }
     else
     {
-        user_cmd.bit_mask = (MASK_PRP1_LIST);
+        user_cmd.bit_mask = (NVME_MASK_PRP1_LIST);
         user_cmd.data_buf_size = DISCONTIG_IO_CQ_SIZE;
         user_cmd.data_buf_ptr = discontg_cq_buf;
     }
@@ -505,7 +505,7 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
     int ret_val = FAILED;
     struct nvme_prep_sq prep_sq = {0};
 
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_sq create_sq_cmd = {0};
 
     /* prep cq para */
@@ -542,14 +542,14 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_sq_cmd;
     if (sq_parameter->contig)
     {
-        user_cmd.bit_mask = (MASK_PRP1_PAGE);
+        user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
         user_cmd.data_buf_size = 0;
         user_cmd.data_buf_ptr = NULL;
         user_cmd.data_dir = 0;
     }
     else
     {
-        user_cmd.bit_mask = MASK_PRP1_LIST;
+        user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
         user_cmd.data_buf_size = DISCONTIG_IO_SQ_SIZE;
         user_cmd.data_buf_ptr = discontg_sq_buf;
         user_cmd.data_dir = 2;
@@ -581,7 +581,7 @@ int keep_alive_cmd(int file_desc)
         .opcode = nvme_admin_keep_alive,
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .bit_mask = 0,
         .cmd_buf_ptr = (u_int8_t *)(&keep_alive_cmd),
@@ -616,7 +616,7 @@ int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode)
         .opcode = opcode,
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .bit_mask = 0,
         .cmd_buf_ptr = (u_int8_t *)(&nvme_cmd),
@@ -655,9 +655,9 @@ int ioctl_send_abort(int file_desc, uint16_t sq_id, uint16_t cmd_id)
         .cid = cmd_id,
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE),
+        .bit_mask = (NVME_MASK_PRP1_PAGE),
         .cmd_buf_ptr = (u_int8_t *)&abort_cmd,
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
@@ -693,9 +693,9 @@ int ioctl_send_flush(int file_desc, uint16_t sq_id)
     };
 
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
-        .bit_mask = (MASK_PRP1_PAGE),
+        .bit_mask = (NVME_MASK_PRP1_PAGE),
         .cmd_buf_ptr = (u_int8_t *)&flush_cmd,
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
@@ -741,12 +741,12 @@ int ioctl_send_write_zero(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
     };
 
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
-        .bit_mask = (MASK_PRP1_PAGE |
-                     MASK_PRP1_LIST |
-                     MASK_PRP2_PAGE |
-                     MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE |
+                     NVME_MASK_PRP1_LIST |
+                     NVME_MASK_PRP2_PAGE |
+                     NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&write_zero,
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
@@ -790,12 +790,12 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
     };
 
     /* Fill the user command */
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
-        .bit_mask = (MASK_PRP1_PAGE |
-                     MASK_PRP1_LIST |
-                     MASK_PRP2_PAGE |
-                     MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE |
+                     NVME_MASK_PRP1_LIST |
+                     NVME_MASK_PRP2_PAGE |
+                     NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&write_unc,
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
@@ -961,7 +961,7 @@ write_again:
 int ioctl_send_format(int file_desc, uint8_t lbaf)
 {
     int ret_val = FAILED;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_common_command format_cmd = {0};
     PADMIN_FORMAT_COMMAND_DW10 cdw10 = NULL;
     memset(&format_cmd, 0, sizeof(struct nvme_common_command));
@@ -973,7 +973,7 @@ int ioctl_send_format(int file_desc, uint8_t lbaf)
     cdw10->LBAF = lbaf; //lba data size:0-->512;1-->4096;
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&format_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
@@ -1010,9 +1010,9 @@ int ioctl_send_format(int file_desc, uint8_t lbaf)
 static int nvme_io_cmd(int file_desc, uint16_t sq_id, uint8_t const *data_addr, uint32_t buf_size,
                        uint8_t data_dir, struct nvme_rw_command *io_cmd)
 {
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST | MASK_PRP2_PAGE | MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)io_cmd,
         .data_buf_size = buf_size,
         .data_buf_ptr = data_addr,
@@ -1124,9 +1124,9 @@ int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id,
     };
     data_size = nlb * LBA_DATA_SIZE(nsid);
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST | MASK_PRP2_PAGE | MASK_PRP2_LIST | MASK_MPTR),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST | NVME_MASK_MPTR),
         .cmd_buf_ptr = (u_int8_t *)&io_cmd,
         .data_buf_size = data_size,
         .data_buf_ptr = data_addr,
@@ -1151,9 +1151,9 @@ int send_nvme_read_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, 
     };
     data_size = nlb * LBA_DATA_SIZE(nsid);
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST | MASK_PRP2_PAGE | MASK_PRP2_LIST),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
         .cmd_buf_ptr = (u_int8_t *)&io_cmd,
         .data_buf_size = data_size,
         .data_buf_ptr = data_addr,
@@ -1188,9 +1188,9 @@ static int nvme_idfy_cmd(int file_desc, uint32_t nsid, uint32_t cns, uint8_t con
         .nsid = nsid,
         .cns = cns,
     };
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE | MASK_PRP2_PAGE),
+        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP2_PAGE),
         .cmd_buf_ptr = (u_int8_t *)&idfy_cmd,
         .data_buf_size = IDENTIFY_DATA_SIZE,
         .data_buf_ptr = data_addr,
@@ -1255,7 +1255,7 @@ int nvme_set_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id, uint16_t
         .fid = feat_id,
         .dword11 = ((__le32)dw11h << 16) | dw11l,
     };
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .bit_mask = 0,
         .cmd_buf_ptr = (u_int8_t *)&feat_cmd,
@@ -1290,7 +1290,7 @@ int nvme_set_feature_hmb_cmd(int file_desc, uint32_t nsid, uint16_t ehm, uint32_
         .dword14 = hmdlua,
         .dword15 = hmdlec,
     };
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .bit_mask = 0,
         .cmd_buf_ptr = (u_int8_t *)&feat_cmd,
@@ -1315,7 +1315,7 @@ int nvme_get_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id)
         .nsid = nsid,
         .fid = feat_id,
     };
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .bit_mask = 0,
         .cmd_buf_ptr = (u_int8_t *)&feat_cmd,
@@ -1390,9 +1390,9 @@ int nvme_create_contig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, uin
         .irq_vector = irq_no,
         .rsvd1[0] = 0,
     };
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_PAGE),
+        .bit_mask = (NVME_MASK_PRP1_PAGE),
         .cmd_buf_ptr = (u_int8_t *)&create_cq_cmd,
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
@@ -1438,9 +1438,9 @@ int nvme_create_discontig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, 
         .irq_vector = irq_no,
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_LIST),
+        .bit_mask = (NVME_MASK_PRP1_LIST),
         .cmd_buf_ptr = (u_int8_t *)&create_cq_cmd,
         .data_buf_size = discontig_cq_size,
         .data_buf_ptr = discontg_cq_buf,
@@ -1506,10 +1506,10 @@ int nvme_create_contig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint3
         .sq_flags = ((((uint16_t)sq_prio) << 1) | 1),
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
         .cmd_buf_ptr = (u_int8_t *)&create_sq_cmd,
-        .bit_mask = (MASK_PRP1_PAGE),
+        .bit_mask = (NVME_MASK_PRP1_PAGE),
         .data_buf_size = 0,
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
@@ -1553,9 +1553,9 @@ int nvme_create_discontig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, ui
         .sq_flags = ((((uint16_t)sq_prio) << 1) | 0),
     };
 
-    struct nvme_64b_send user_cmd = {
+    struct nvme_64b_cmd user_cmd = {
         .q_id = 0,
-        .bit_mask = (MASK_PRP1_LIST),
+        .bit_mask = (NVME_MASK_PRP1_LIST),
         .cmd_buf_ptr = (u_int8_t *)&create_sq_cmd,
         .data_buf_size = discontig_sq_size,
         .data_buf_ptr = discontg_sq_buf,

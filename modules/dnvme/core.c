@@ -33,6 +33,7 @@
 #include "core.h"
 #include "io.h"
 #include "cmb.h"
+#include "debug.h"
 
 #include "definitions.h"
 #include "sysfuncproto.h"
@@ -264,7 +265,8 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = inode = filp->f_path.dentry->d_inode;
 	void __user *argp = (void __user *)arg;
 
-	dnvme_vdbg("cmd num:%u, arg:0x%lx", _IOC_NR(cmd), arg);
+	dnvme_dbg("cmd num:%u, arg:0x%lx (%s)\n", _IOC_NR(cmd), arg,
+		dnvme_ioctl_cmd_string(cmd));
 	ctx = lock_context(inode);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
@@ -315,30 +317,23 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_PREPARE_SQ_CREATION:
-		ret = driver_nvme_prep_sq((struct nvme_prep_sq *)arg,
-		ctx);
+		ret = dnvme_prepare_sq(ctx, argp);
 		break;
 
 	case NVME_IOCTL_PREPARE_CQ_CREATION:
-		ret = driver_nvme_prep_cq((struct nvme_prep_cq *)arg,
-		ctx);
+		ret = dnvme_prepare_cq(ctx, argp);
 		break;
 
 	case NVME_IOCTL_RING_SQ_DOORBELL:
-		dnvme_vdbg("NVME_IOCTL_RING_SQ_DOORBELL");
-		ret = nvme_ring_sqx_dbl((u16)arg, ctx);
+		ret = dnvme_ring_sq_doorbell(ctx, (u16)arg);
 		break;
 
 	case NVME_IOCTL_SEND_64B_CMD:
-		dnvme_vdbg("NVME_IOCTL_SEND_64B_CMD");
-		ret = driver_send_64b(ctx,
-		(struct nvme_64b_send *)arg);
+		ret = dnvme_send_64b_cmd(ctx, argp);
 		break;
 
 	case NVME_IOCTL_TOXIC_64B_DWORD:
-		dnvme_vdbg("NVME_TOXIC_64B_DWORD");
-		ret = driver_toxic_dword(ctx,
-		(struct backdoor_inject *)arg);
+		ret = driver_toxic_dword(ctx, (struct backdoor_inject *)arg);
 		break;
 
 	case NVME_IOCTL_DUMP_METRICS:

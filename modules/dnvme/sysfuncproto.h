@@ -45,35 +45,10 @@ int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq);
 int dnvme_create_admin_queue(struct nvme_context *ctx, 
 	struct nvme_admin_queue __user *uaq);
 
-/**
- * driver_nvme_prep_sq - Driver routine to set up user parameters into metrics
- * for prepating the IO SQ.
- * @param prep_sq
- * @param pmetrics_device
- * @return allocation of contig mem 0 or -1.
- */
-int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq,
-    struct  nvme_context *pmetrics_device);
+int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep);
+int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep);
 
-/**
- * driver_nvme_prep_cq - Driver routine to set up user parameters into metrics
- * for prepating the IO CQ.
- * @param prep_cq
- * @param pmetrics_device
- * @return allocation of contig mem 0 or -1.
- */
-int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq,
-    struct  nvme_context *pmetrics_device);
-
-/**
- * driver_send_64b - Routine for sending 64 bytes command into
- * admin/IO SQ/CQ's
- * @param pmetrics_device
- * @param nvme_64b_send
- * @return Error Codes
- */
-int driver_send_64b(struct nvme_context *pmetrics_device,
-    struct nvme_64b_send *cmd_request);
+int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd);
 
 /**
  * driver_toxic_dword - Please refer to the header file comment for

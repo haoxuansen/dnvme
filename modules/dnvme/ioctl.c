@@ -27,7 +27,7 @@
 
 #include "io.h"
 #include "core.h"
-#include "config.h"
+#include "pci.h"
 
 #include "dnvme_ioctl.h"
 #include "definitions.h"
@@ -82,10 +82,12 @@ int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 	u32 cc;
 
 	cc = dnvme_readl(bar0, NVME_REG_CC);
-	if (enabled)
+	if (enabled) {
+		cc |= NVME_CC_IOSQES | NVME_CC_IOCQES;
 		cc |= NVME_CC_ENABLE;
-	else
+	} else {
 		cc &= ~NVME_CC_ENABLE;
+	}
 	dnvme_writel(bar0, NVME_REG_CC, cc);
 
 	return dnvme_wait_ready(ndev, enabled);
@@ -331,6 +333,86 @@ int dnvme_create_admin_queue(struct nvme_context *ctx,
 		return -EINVAL;
 	}
 
+	return ret;
+}
+
+int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_sq *sq;
+	struct nvme_prep_sq prep;
+	int ret;
+
+	if (copy_from_user(&prep, uprep, sizeof(prep))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	if (!prep.elements || prep.elements > ndev->q_depth) {
+		dnvme_err("SQ elements(%u) is invalid!\n", prep.elements);
+		return -EINVAL;
+	}
+
+	ret = dnvme_check_qid_unique(ctx, NVME_SQ, prep.sq_id);
+	if (ret < 0)
+		return ret;
+
+	if (ndev->prop.cap & NVME_CAP_CQR && !prep.contig) {
+		dnvme_err("SQ shall be contig!\n");
+		return -EINVAL;
+	}
+
+	sq = dnvme_alloc_sq(ctx, &prep, NVME_NVM_IOSQES);
+	if (!sq)
+		return -ENOMEM;
+
+	sq->priv.bit_mask |= NVME_QF_WAIT_FOR_CREATE;
+	return 0;
+}
+
+int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_cq *cq;
+	struct nvme_prep_cq prep;
+	int ret;
+
+	if (copy_from_user(&prep, uprep, sizeof(prep))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	if (!prep.elements || prep.elements > ndev->q_depth) {
+		dnvme_err("CQ elements(%u) is invalid!\n", prep.elements);
+		return -EINVAL;
+	}
+
+	ret = dnvme_check_qid_unique(ctx, NVME_CQ, prep.cq_id);
+	if (ret < 0)
+		return ret;
+
+	if (ndev->prop.cap & NVME_CAP_CQR && !prep.contig) {
+		dnvme_err("CQ shall be contig!\n");
+		return -EINVAL;
+	}
+
+	cq = dnvme_alloc_cq(ctx, &prep, NVME_NVM_IOCQES);
+	if (!cq)
+		return -ENOMEM;
+
+	cq->priv.bit_mask |= NVME_QF_WAIT_FOR_CREATE;
+
+	if (cq->pub.irq_enabled) {
+		ret = update_cq_irqtrack(ctx, cq->pub.q_id, cq->pub.irq_no);
+		if (ret < 0) {
+			dnvme_err("failed to update_cq_irqtrack!(%d)\n", ret);
+			goto out;
+		}
+	}
+
+	return 0;
+out:
+	dnvme_release_cq(ctx, cq);
 	return ret;
 }
 
@@ -636,367 +718,496 @@ fail_out:
     return err;
 }
 
-
-int driver_send_64b(struct nvme_context *pmetrics_device,
-    struct nvme_64b_send *cmd_request)
+#ifdef MAPLE
+int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_sq *send,
+	struct nvme_64b_cmd *cmd, struct nvme_create_sq *csq)
 {
-    int err = -EINVAL;
-    u32 cmd_buf_size = 0;
-    /* Particular SQ from linked list of SQ's for device */
-    struct nvme_sq *pmetrics_sq;
-    /* SQ represented by the CMD.QID */
-    struct nvme_sq *p_cmd_sq;
-    /* Particular CQ (within CMD) from linked list of Q's for device */
-    struct nvme_cq *p_cmd_cq;
-    /* struct describing the meta buf */
-    struct nvme_meta *meta_buf;
-    /* Kernel space memory for passed in command */
-    void *nvme_cmd_ker = NULL;
-    /* Pointer to passed in command DW0-DW9 */
-    struct nvme_gen_cmd *nvme_gen_cmd;
-    /* Pointer to Gen IOSQ command */
-    struct nvme_create_sq *nvme_create_sq;
-    /* Pointer to Gen IOCQ command */
-    struct nvme_create_cq *nvme_create_cq;
-    /* Pointer to Delete IO Q command */
-    struct nvme_del_q *nvme_del_q;
-    /* void * pointer to check validity of Queues */
-    void *q_ptr = NULL;
-    struct nvme_prps prps; /* Pointer to PRP List */
-    struct nvme_64b_send *user_data = NULL;
+	struct nvme_sq *wait_sq;
+	struct nvme_prps prps;
+	int ret;
+
+	wait_sq = dnvme_find_sq(ctx, csq->sqid);
+	if (!wait_sq) {
+		dnvme_err("The waiting SQ(%u) doesn't exist!\n", csq->sqid);
+		return -EBADSLT;
+	}
+
+	/* Sanity Checks */
+	if (((csq->sq_flags & CDW11_PC) && (wait_sq->priv.contig == 0)) ||
+		(!(csq->sq_flags & CDW11_PC) && (wait_sq->priv.contig != 0))) {
+		dnvme_err("csq contig flag is inconsistent with wait_sq!\n");
+		return -EINVAL;
+	}
+
+	if (wait_sq->priv.contig == 0 && cmd->data_buf_ptr == NULL) {
+		dnvme_err("cmd data_buf_ptr is NULL!(contig:0)\n");
+		return -EINVAL;
+	}
+
+	if (wait_sq->priv.contig != 0 && wait_sq->priv.buf == NULL) {
+		dnvme_err("wait_sq buf is NULL!(contig:1)\n");
+		return -EPERM;
+	}
+
+	if (!(wait_sq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
+		dnvme_err("SQ(%u) already created!\n", csq->sqid);
+		return -EINVAL;
+	}
+
+	if (wait_sq->priv.contig == 0) {
+		if (wait_sq->priv.size != cmd->data_buf_size) {
+			dnvme_err("wait_sq expected size:%u, cmd provide size:%u\n",
+				wait_sq->priv.size, cmd->data_buf_size);
+			return -EINVAL;
+		}
+		memset(&prps, 0, sizeof(prps));
+
+	}
 
 
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct nvme_64b_send), GFP_KERNEL);
-    if (user_data == NULL) {
-        dnvme_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto free_out;
-    }
-    if (copy_from_user(user_data, cmd_request, sizeof(struct nvme_64b_send))) {
-        dnvme_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto free_out;
-    }
+}
 
-    /* Initial invalid arguments checking */
-    if (NULL == user_data->cmd_buf_ptr) {
-        dnvme_err("Command Buffer does not exist");
-        goto free_out;
-    } else if (
-        (user_data->data_buf_size != 0 && NULL == user_data->data_buf_ptr) ||
-        (user_data->data_buf_size == 0 && NULL != user_data->data_buf_ptr)) {
+int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
+{
+	struct nvme_sq *sq;
+	struct nvme_64b_cmd cmd;
+	struct nvme_gen_cmd *gcmd;
+	struct nvme_meta *meta;
+	void *cmd_buf;
+	int ret = 0;
 
-        dnvme_err("Data buffer size and data buffer inconsistent");
-        goto free_out;
-    }
+	if (copy_from_user(&cmd, ucmd, sizeof(cmd))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
 
-    /* Get the required SQ through which command should be sent */
-    pmetrics_sq = dnvme_find_sq(pmetrics_device, user_data->q_id);
-    if (pmetrics_sq == NULL) {
-        dnvme_err("SQ ID = %d does not exist", user_data->q_id);
-        err = -EPERM;
-        goto free_out;
-    }
-    /* Learn the command size */
-    cmd_buf_size =
-        (pmetrics_sq->priv.size / pmetrics_sq->pub.elements);
+	if (!cmd.cmd_buf_ptr) {
+		dnvme_err("cmd buf ptr is NULL!\n");
+		return -EFAULT;
+	}
 
-    /* Check for SQ is full */
-    if ((((u32)pmetrics_sq->pub.tail_ptr_virt + 1UL) %
-        pmetrics_sq->pub.elements) ==
-        (u32)pmetrics_sq->pub.head_ptr) {
+	if ((cmd.data_buf_size && !cmd.data_buf_ptr) || 
+		(!cmd.data_buf_size && cmd.data_buf_ptr)) {
+		dnvme_err("data buf size and ptr are inconsistent!\n");
+		return -EINVAL;
+	}
 
-        dnvme_err("SQ is full");
-        err = -EPERM;
-        goto free_out;
-    }
+	/* Get the SQ for sending this command */
+	sq = dnvme_find_sq(ctx, cmd.q_id);
+	if (!sq) {
+		dnvme_err("SQ(%u) doesn't exist!\n", cmd.q_id);
+		return -EBADSLT;
+	}
 
-    /* Allocating memory for the command in kernel space */
-    nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC | __GFP_ZERO);
-    if (nvme_cmd_ker == NULL) {
-        dnvme_err("Unable to allocate kernel memory");
-        err = -ENOMEM;
-        goto free_out;
-    }
-    if (copy_from_user(nvme_cmd_ker, user_data->cmd_buf_ptr, cmd_buf_size)) {
-        dnvme_err("Invalid copy from user space");
-        err = -EFAULT;
-        goto free_out;
-    }
+	if (dnvme_sq_is_full(sq)) {
+		dnvme_err("SQ(%u) is full!\n", cmd.q_id);
+		return -EBUSY;
+	}
 
-    nvme_gen_cmd = (struct nvme_gen_cmd *)nvme_cmd_ker;
-    memset(&prps, 0, sizeof(prps));
+	cmd_buf = kzalloc(1 << sq->pub.sqes, GFP_ATOMIC);
+	if (!cmd_buf) {
+		dnvme_err("failed to alloc cmd buf!\n");
+		return -ENOMEM;
+	}
 
-    /* Copy and Increment the CMD ID, copy back to user space so can see ID */
-    user_data->unique_id = pmetrics_sq->priv.unique_cmd_id++;
-    //2021/05/15 meng_yu https://github.com/nvmecompliance/dnvme/issues/7
-    nvme_gen_cmd->command_id = user_data->unique_id; 
-    if (copy_to_user(cmd_request, user_data, sizeof(struct nvme_64b_send))) {
-        dnvme_err("Unable to copy to user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
+	if (copy_from_user(cmd_buf, cmd.cmd_buf_ptr, 1 << sq->pub.sqes)) {
+		dnvme_err("failed to copy from user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
 
-    /* Handling meta buffer */
-    if (user_data->bit_mask & MASK_MPTR) {
-        meta_buf = dnvme_find_meta(pmetrics_device, user_data->meta_buf_id);
-        if (NULL == meta_buf) {
-            dnvme_err("Meta Buff ID not found");
-            err = -EINVAL;
-            goto fail_out;
-        }
-        /* Add the required information to the command */
-        nvme_gen_cmd->metadata = cpu_to_le64(meta_buf->dma);
-        dnvme_dbg("Metadata address: 0x%llx", nvme_gen_cmd->metadata);
-    }
+	gcmd = (struct nvme_gen_cmd *)cmd_buf;
 
-    /* Special handling for opcodes 0x00,0x01,0x04 and 0x05 of Admin cmd set */
-    if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x01)) {
-        /* Create IOSQ command */
-        nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
+	cmd.unique_id = sq->priv.unique_cmd_id++;
+	gcmd->command_id = cmd.unique_id;
 
-        /* Get the required SQ from the global linked list from CMD.DW10.QID */
-        list_for_each_entry(p_cmd_sq, &pmetrics_device->sq_list,
-            sq_entry) {
-            if (nvme_create_sq->sqid == p_cmd_sq->pub.sq_id) {
-                q_ptr = (struct  nvme_sq  *)p_cmd_sq;
-                break;
-            }
-        }
-        if (q_ptr == NULL) {
-            err = -EPERM;
-            dnvme_err("SQID node present in create SQ, but lookup found nothing");
-            goto fail_out;
-        }
+	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
+		dnvme_err("failed to copy to user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
 
-        /* Sanity Checks */
-        if( ((nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->priv.contig == 0)) ||
-            (!(nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->priv.contig != 0)) ) 
-        {
-            dnvme_err("Sanity Checks:sq_flags Contig flag out of sync with what cmd states for SQ");
-            goto fail_out;
-        } 
-		else if( (p_cmd_sq->priv.contig == 0 && user_data->data_buf_ptr == NULL) ||
-                 (p_cmd_sq->priv.contig != 0 && p_cmd_sq->priv.buf == NULL) ) 
-        {
-            dnvme_err("Sanity Checks:buf_ptr Contig flag out of sync with what cmd states for SQ");
-            goto fail_out;
-        } else if ((p_cmd_sq->priv.bit_mask & UNIQUE_QID_FLAG) == 0) {
-            /* Avoid duplicate Queue creation */
-            dnvme_err("Required Queue already created!");
-            err = -EINVAL;
-            goto fail_out;
-        }
+	if (cmd.bit_mask & NVME_MASK_MPTR) {
+		meta = dnvme_find_meta(ctx, cmd.meta_buf_id);
+		if (!meta) {
+			dnvme_err("Meta(%u) doesn't exist!\n", cmd.meta_buf_id);
+			ret = -EINVAL;
+			goto out;
+		}
+		/* Add the required information to the command */
+		gcmd->metadata = cpu_to_le64(meta->dma);
+	}
 
-        if (p_cmd_sq->priv.contig == 0) {
-            /* Creation of Discontiguous IO SQ */
-            if (p_cmd_sq->priv.size != user_data->data_buf_size) {
-                dnvme_err("Contig flag out of sync with what cmd states for SQ");
-                goto fail_out;
-            }
-            err = prep_send64b_cmd(pmetrics_device->dev,
-                pmetrics_sq, user_data, &prps, nvme_gen_cmd,
-                nvme_create_sq->sqid, DISCONTG_IO_Q, PRP_PRESENT);
-            if (err < 0) {
-                dnvme_err("Failure to prepare 64 byte command");
-                goto fail_out;
-            }
-        } else {
-            /* Contig IOSQ creation */
-            err = prep_send64b_cmd(pmetrics_device->dev,
-                pmetrics_sq, user_data, &prps, nvme_gen_cmd,
-                nvme_create_sq->sqid, CONTG_IO_Q, PRP_ABSENT);
-            if (err < 0) {
-                dnvme_err("Failure to prepare 64 byte command");
-                goto fail_out;
-            }
-            nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_sq->priv.dma);
-        }
+	if (cmd.q_id == 0) {
+		switch (gcmd->opcode) {
+		case nvme_admin_delete_sq:
+			break;
+
+		case nvme_admin_create_sq:
+			break;
+
+		case nvme_admin_delete_cq:
+			break;
+
+		case nvme_admin_create_cq:
+			break;
+
+		default:
+			break;
+		}
+	} else {
+
+	}
+	// !TODO: now
+
+out:
+	kfree(cmd_buf);
+	return ret;
+}
+#endif
+
+int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
+{
+	int err = -EINVAL;
+	u32 cmd_buf_size = 0;
+	/* Particular SQ from linked list of SQ's for device */
+	struct nvme_sq *pmetrics_sq;
+	/* SQ represented by the CMD.QID */
+	struct nvme_sq *p_cmd_sq;
+	/* Particular CQ (within CMD) from linked list of Q's for device */
+	struct nvme_cq *p_cmd_cq;
+	/* struct describing the meta buf */
+	struct nvme_meta *meta_buf;
+	/* Kernel space memory for passed in command */
+	void *nvme_cmd_ker = NULL;
+	/* Pointer to passed in command DW0-DW9 */
+	struct nvme_gen_cmd *nvme_gen_cmd;
+	/* Pointer to Gen IOSQ command */
+	struct nvme_create_sq *nvme_create_sq;
+	/* Pointer to Gen IOCQ command */
+	struct nvme_create_cq *nvme_create_cq;
+	/* Pointer to Delete IO Q command */
+	struct nvme_del_q *nvme_del_q;
+	/* void * pointer to check validity of Queues */
+	void *q_ptr = NULL;
+	struct nvme_prps prps; /* Pointer to PRP List */
+	struct nvme_64b_cmd cmd;
+
+	if (copy_from_user(&cmd, ucmd, sizeof(struct nvme_64b_cmd))) {
+		dnvme_err("Unable to copy from user space");
+		err = -EFAULT;
+		goto free_out;
+	}
+
+	/* Initial invalid arguments checking */
+	if (NULL == cmd.cmd_buf_ptr) {
+		dnvme_err("Command Buffer does not exist");
+		goto free_out;
+	} else if (
+		(cmd.data_buf_size != 0 && NULL == cmd.data_buf_ptr) ||
+		(cmd.data_buf_size == 0 && NULL != cmd.data_buf_ptr)) {
+
+		dnvme_err("Data buffer size and data buffer inconsistent");
+		goto free_out;
+	}
+
+	/* Get the required SQ through which command should be sent */
+	pmetrics_sq = dnvme_find_sq(ctx, cmd.q_id);
+	if (pmetrics_sq == NULL) {
+		dnvme_err("SQ ID = %d does not exist", cmd.q_id);
+		err = -EPERM;
+		goto free_out;
+	}
+	/* Learn the command size */
+	cmd_buf_size = (pmetrics_sq->priv.size / pmetrics_sq->pub.elements);
+
+	/* Check for SQ is full */
+	if ((((u32)pmetrics_sq->pub.tail_ptr_virt + 1UL) %
+		pmetrics_sq->pub.elements) == (u32)pmetrics_sq->pub.head_ptr) {
+
+		dnvme_err("SQ is full");
+		err = -EPERM;
+		goto free_out;
+	}
+
+	/* Allocating memory for the command in kernel space */
+	nvme_cmd_ker = kmalloc(cmd_buf_size, GFP_ATOMIC | __GFP_ZERO);
+	if (nvme_cmd_ker == NULL) {
+		dnvme_err("Unable to allocate kernel memory");
+		err = -ENOMEM;
+		goto free_out;
+	}
+	if (copy_from_user(nvme_cmd_ker, cmd.cmd_buf_ptr, cmd_buf_size)) {
+		dnvme_err("Invalid copy from user space");
+		err = -EFAULT;
+		goto free_out;
+	}
+
+	nvme_gen_cmd = (struct nvme_gen_cmd *)nvme_cmd_ker;
+	memset(&prps, 0, sizeof(prps));
+
+	/* Copy and Increment the CMD ID, copy back to user space so can see ID */
+	cmd.unique_id = pmetrics_sq->priv.unique_cmd_id++;
+	//2021/05/15 meng_yu https://github.com/nvmecompliance/dnvme/issues/7
+	nvme_gen_cmd->command_id = cmd.unique_id; 
+	if (copy_to_user(ucmd, &cmd, sizeof(struct nvme_64b_cmd))) {
+		dnvme_err("Unable to copy to user space");
+		err = -EFAULT;
+		goto fail_out;
+	}
+
+	/* Handling meta buffer */
+	if (cmd.bit_mask & NVME_MASK_MPTR) {
+		meta_buf = dnvme_find_meta(ctx, cmd.meta_buf_id);
+		if (NULL == meta_buf) {
+			dnvme_err("Meta Buff ID not found");
+			err = -EINVAL;
+			goto fail_out;
+		}
+		/* Add the required information to the command */
+		nvme_gen_cmd->metadata = cpu_to_le64(meta_buf->dma);
+		dnvme_dbg("Metadata address: 0x%llx", nvme_gen_cmd->metadata);
+	}
+
+	/* Special handling for opcodes 0x00,0x01,0x04 and 0x05 of Admin cmd set */
+	if ((cmd.q_id == 0) && (nvme_gen_cmd->opcode == 0x01)) {
+		/* Create IOSQ command */
+		nvme_create_sq = (struct nvme_create_sq *) nvme_cmd_ker;
+
+		/* Get the required SQ from the global linked list from CMD.DW10.QID */
+		list_for_each_entry(p_cmd_sq, &ctx->sq_list, sq_entry) {
+			if (nvme_create_sq->sqid == p_cmd_sq->pub.sq_id) {
+				q_ptr = (struct  nvme_sq  *)p_cmd_sq;
+				break;
+			}
+		}
+		if (q_ptr == NULL) {
+			err = -EPERM;
+			dnvme_err("SQID node present in create SQ, but lookup found nothing");
+			goto fail_out;
+		}
+
+		/* Sanity Checks */
+		if( ((nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->priv.contig == 0)) ||
+			(!(nvme_create_sq->sq_flags & CDW11_PC) && (p_cmd_sq->priv.contig != 0)) ) 
+		{
+			dnvme_err("Sanity Checks:sq_flags Contig flag out of sync with what cmd states for SQ");
+			goto fail_out;
+		} 
+		else if( (p_cmd_sq->priv.contig == 0 && cmd.data_buf_ptr == NULL) ||
+			(p_cmd_sq->priv.contig != 0 && p_cmd_sq->priv.buf == NULL) ) 
+		{
+			dnvme_err("Sanity Checks:buf_ptr Contig flag out of sync with what cmd states for SQ");
+			goto fail_out;
+		} else if ((p_cmd_sq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE) == 0) {
+			/* Avoid duplicate Queue creation */
+			dnvme_err("Required Queue already created!");
+			err = -EINVAL;
+			goto fail_out;
+		}
+
+		if (p_cmd_sq->priv.contig == 0) {
+			/* Creation of Discontiguous IO SQ */
+			if (p_cmd_sq->priv.size != cmd.data_buf_size) {
+				dnvme_err("Contig flag out of sync with what cmd states for SQ");
+				goto fail_out;
+			}
+			err = prep_send64b_cmd(ctx->dev,
+				pmetrics_sq, &cmd, &prps, nvme_gen_cmd,
+				nvme_create_sq->sqid, NVME_IO_QUEUE_DISCONTIG, PRP_PRESENT);
+			if (err < 0) {
+				dnvme_err("Failure to prepare 64 byte command");
+				goto fail_out;
+			}
+		} else {
+			/* Contig IOSQ creation */
+			err = prep_send64b_cmd(ctx->dev,
+				pmetrics_sq, &cmd, &prps, nvme_gen_cmd,
+				nvme_create_sq->sqid, NVME_IO_QUEUE_CONTIG, PRP_ABSENT);
+			if (err < 0) {
+				dnvme_err("Failure to prepare 64 byte command");
+				goto fail_out;
+			}
+			nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_sq->priv.dma);
+		}
 		
-        /* Fill the persistent entry structure */
-        memcpy(&p_cmd_sq->priv.prp_persist, &prps, sizeof(prps));
+		/* Fill the persistent entry structure */
+		memcpy(&p_cmd_sq->priv.prp_persist, &prps, sizeof(prps));
 
-        /* Resetting the unique QID bitmask flag */
-        p_cmd_sq->priv.bit_mask =
-            (p_cmd_sq->priv.bit_mask & ~UNIQUE_QID_FLAG);
+		/* Resetting the unique QID bitmask flag */
+		p_cmd_sq->priv.bit_mask = (p_cmd_sq->priv.bit_mask & ~NVME_QF_WAIT_FOR_CREATE);
 
-    } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x05)) {
-        /* Create IOCQ command */
-        nvme_create_cq = (struct nvme_create_cq *) nvme_cmd_ker;
+	} else if ((cmd.q_id == 0) && (nvme_gen_cmd->opcode == 0x05)) {
+		/* Create IOCQ command */
+		nvme_create_cq = (struct nvme_create_cq *) nvme_cmd_ker;
 
-        /* Get the required CQ from the global linked list
-         * represented by CMD.DW10.QID */
-        list_for_each_entry(p_cmd_cq, &pmetrics_device->cq_list,
-            cq_entry) {
+		/* Get the required CQ from the global linked list
+		* represented by CMD.DW10.QID */
+		list_for_each_entry(p_cmd_cq, &ctx->cq_list, cq_entry) {
 
-            if (nvme_create_cq->cqid == p_cmd_cq->pub.q_id) {
-                q_ptr = (struct  nvme_cq  *)p_cmd_cq;
-                break;
-            }
-        }
-        if (q_ptr == NULL) {
-            err = -EPERM;
-            dnvme_err("CQID node present in create CQ, but lookup found nothing");
-            goto fail_out;
-        }
+			if (nvme_create_cq->cqid == p_cmd_cq->pub.q_id) {
+				q_ptr = (struct  nvme_cq  *)p_cmd_cq;
+				break;
+			}
+		}
+		if (q_ptr == NULL) {
+			err = -EPERM;
+			dnvme_err("CQID node present in create CQ, but lookup found nothing");
+			goto fail_out;
+		}
 
-        /* Sanity Checks */
-        if( ((nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->priv.contig == 0)) || 
+		/* Sanity Checks */
+		if( ((nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->priv.contig == 0)) || 
 			(!(nvme_create_cq->cq_flags & CDW11_PC) && (p_cmd_cq->priv.contig != 0)) ) 
 		{
-            dnvme_err("Sanity Checks:cq_flags Contig flag out of sync with what cmd states for CQ");
-            goto fail_out;
-        } 
-		else if( (p_cmd_cq->priv.contig==0 && user_data->data_buf_ptr==NULL) ||
-                 (p_cmd_cq->priv.contig != 0 && p_cmd_cq->priv.buf==NULL) ) 
-        {
-            dnvme_err("Sanity Checks:buf_ptr Contig flag out of sync with what cmd states for CQ");
-            goto fail_out;
-        } else if ((p_cmd_cq->priv.bit_mask & UNIQUE_QID_FLAG) == 0) {
-            /* Avoid duplicate Queue creation */
-            dnvme_err("Required Queue already created!");
-            err = -EINVAL;
-            goto fail_out;
-        }
-
-        /* Check if interrupts should be enabled for IO CQ */
-        if (nvme_create_cq->cq_flags & CDW11_IEN) {
-            /* Check the Interrupt scheme set up */
-            if (pmetrics_device->dev->pub.irq_active.irq_type
-                == INT_NONE) {
-                dnvme_err("Interrupt scheme and Create IOCQ cmd out of sync");
-                err = -EINVAL;
-                goto fail_out;
-            }
-        }
-
-        if(p_cmd_cq->priv.contig == 0)  				// Discontig IOCQ creation 
+			dnvme_err("Sanity Checks:cq_flags Contig flag out of sync with what cmd states for CQ");
+			goto fail_out;
+		} 
+		else if( (p_cmd_cq->priv.contig==0 && cmd.data_buf_ptr==NULL) ||
+			(p_cmd_cq->priv.contig != 0 && p_cmd_cq->priv.buf==NULL) ) 
 		{
-            if(p_cmd_cq->priv.size != user_data->data_buf_size) 
+			dnvme_err("Sanity Checks:buf_ptr Contig flag out of sync with what cmd states for CQ");
+			goto fail_out;
+		} else if ((p_cmd_cq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE) == 0) {
+			/* Avoid duplicate Queue creation */
+			dnvme_err("Required Queue already created!");
+			err = -EINVAL;
+			goto fail_out;
+		}
+
+		/* Check if interrupts should be enabled for IO CQ */
+		if (nvme_create_cq->cq_flags & CDW11_IEN) {
+			/* Check the Interrupt scheme set up */
+			if (ctx->dev->pub.irq_active.irq_type == INT_NONE) {
+				dnvme_err("Interrupt scheme and Create IOCQ cmd out of sync");
+				err = -EINVAL;
+				goto fail_out;
+			}
+		}
+
+		if(p_cmd_cq->priv.contig == 0)  				// Discontig IOCQ creation 
+		{
+			if(p_cmd_cq->priv.size != cmd.data_buf_size) 
 			{
-                dnvme_err("p_cmd_cq->priv.size:%x != user_data->data_buf_size:%x",p_cmd_cq->priv.size,user_data->data_buf_size);
-                dnvme_err("Contig flag out of sync with what cmd states for CQ");
-                goto fail_out;
-            }
-            err = prep_send64b_cmd( pmetrics_device->dev, pmetrics_sq, user_data, &prps,
-                				    nvme_gen_cmd, nvme_create_cq->cqid, DISCONTG_IO_Q, PRP_PRESENT );
-            dnvme_err("Discontig IOCQ creation: p_cmd_cq->pub.head_ptr:%x",p_cmd_cq->pub.head_ptr);
-            if(err<0) 
+				dnvme_err("p_cmd_cq->priv.size:%x != user_data->data_buf_size:%x",
+					p_cmd_cq->priv.size,cmd.data_buf_size);
+				dnvme_err("Contig flag out of sync with what cmd states for CQ");
+				goto fail_out;
+			}
+			err = prep_send64b_cmd( ctx->dev, pmetrics_sq, &cmd, &prps,
+					nvme_gen_cmd, nvme_create_cq->cqid, NVME_IO_QUEUE_DISCONTIG, PRP_PRESENT );
+			dnvme_err("Discontig IOCQ creation: p_cmd_cq->pub.head_ptr:%x",p_cmd_cq->pub.head_ptr);
+			if(err<0) 
 			{
-                dnvme_err("Failure to prepare 64 byte command");
-                goto fail_out;
-            }
-        } else {
-            /* Contig IOCQ creation */
-            err = prep_send64b_cmd(pmetrics_device->dev,
-                pmetrics_sq, user_data, &prps, nvme_gen_cmd,
-                nvme_create_cq->cqid, CONTG_IO_Q, PRP_ABSENT);
-            if (err < 0) {
-                dnvme_err("Failure to prepare 64 byte command");
-                goto fail_out;
-            }
-            nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_cq->priv.dma);
-        }
+				dnvme_err("Failure to prepare 64 byte command");
+				goto fail_out;
+			}
+		} else {
+			/* Contig IOCQ creation */
+			err = prep_send64b_cmd(ctx->dev,
+				pmetrics_sq, &cmd, &prps, nvme_gen_cmd,
+				nvme_create_cq->cqid, NVME_IO_QUEUE_CONTIG, PRP_ABSENT);
+			if (err < 0) {
+				dnvme_err("Failure to prepare 64 byte command");
+				goto fail_out;
+			}
+			nvme_gen_cmd->dptr.prp1 = cpu_to_le64(p_cmd_cq->priv.dma);
+		}
 
-        /* Fill the persistent entry structure */
-        memcpy(&p_cmd_cq->priv.prp_persist, &prps, sizeof(prps));
+		/* Fill the persistent entry structure */
+		memcpy(&p_cmd_cq->priv.prp_persist, &prps, sizeof(prps));
 
-        /* Resetting the unique QID bitmask flag */
-        p_cmd_cq->priv.bit_mask =
-            (p_cmd_cq->priv.bit_mask & ~UNIQUE_QID_FLAG);
+		/* Resetting the unique QID bitmask flag */
+		p_cmd_cq->priv.bit_mask =
+			(p_cmd_cq->priv.bit_mask & ~NVME_QF_WAIT_FOR_CREATE);
 
-    } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x00)) {
-        /* Delete IOSQ case */
-        nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
+	} else if ((cmd.q_id == 0) && (nvme_gen_cmd->opcode == 0x00)) {
+		/* Delete IOSQ case */
+		nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
-        if (user_data->data_buf_ptr != NULL) {
-            dnvme_err("Invalid argument for opcode 0x00");
-            goto fail_out;
-        }
+		if (cmd.data_buf_ptr != NULL) {
+			dnvme_err("Invalid argument for opcode 0x00");
+			goto fail_out;
+		}
 
-        err = prep_send64b_cmd(pmetrics_device->dev,
-            pmetrics_sq, user_data, &prps, nvme_gen_cmd, nvme_del_q->qid,
-             0, PRP_ABSENT);
+		err = prep_send64b_cmd(ctx->dev,
+			pmetrics_sq, &cmd, &prps, nvme_gen_cmd, nvme_del_q->qid,
+			DATA_BUF, PRP_ABSENT);
 
-        if (err < 0) {
-            dnvme_err("Failure to prepare 64 byte command");
-            goto fail_out;
-        }
+		if (err < 0) {
+			dnvme_err("Failure to prepare 64 byte command");
+			goto fail_out;
+		}
 
-    } else if ((user_data->q_id == 0) && (nvme_gen_cmd->opcode == 0x04)) {
-        /* Delete IOCQ case */
-        nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
+	} else if ((cmd.q_id == 0) && (nvme_gen_cmd->opcode == 0x04)) {
+		/* Delete IOCQ case */
+		nvme_del_q = (struct nvme_del_q *) nvme_cmd_ker;
 
-        if (user_data->data_buf_ptr != NULL) {
-            dnvme_err("Invalid argument for opcode 0x00");
-            goto fail_out;
-        }
+		if (cmd.data_buf_ptr != NULL) {
+			dnvme_err("Invalid argument for opcode 0x00");
+			goto fail_out;
+		}
 
-        err = prep_send64b_cmd(pmetrics_device->dev,
-            pmetrics_sq, user_data, &prps, nvme_gen_cmd, nvme_del_q->qid,
-            0, PRP_ABSENT);
+		err = prep_send64b_cmd(ctx->dev,
+			pmetrics_sq, &cmd, &prps, nvme_gen_cmd, nvme_del_q->qid,
+			DATA_BUF, PRP_ABSENT);
 
-        if (err < 0) {
-            dnvme_err("Failure to prepare 64 byte command");
-            goto fail_out;
-        }
+		if (err < 0) {
+			dnvme_err("Failure to prepare 64 byte command");
+			goto fail_out;
+		}
 
-    } else {
-        /* For rest of the commands */
-        if (user_data->data_buf_ptr != NULL) {
-            err = prep_send64b_cmd(pmetrics_device->dev,
-                pmetrics_sq, user_data, &prps, nvme_gen_cmd,
-                PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
-            if (err < 0) {
-                dnvme_err("Failure to prepare 64 byte command");
-                goto fail_out;
-            }
-        }
-    }
+	} else {
+		/* For rest of the commands */
+		if (cmd.data_buf_ptr != NULL) {
+			err = prep_send64b_cmd(ctx->dev,
+				pmetrics_sq, &cmd, &prps, nvme_gen_cmd,
+				PERSIST_QID_0, DATA_BUF, PRP_PRESENT);
+			if (err < 0) {
+				dnvme_err("Failure to prepare 64 byte command");
+				goto fail_out;
+			}
+		}
+	}
 
-    /* Copying the command in to appropriate SQ and handling sync issues */
-    if(pmetrics_sq->priv.contig) 
+	/* Copying the command in to appropriate SQ and handling sync issues */
+	if(pmetrics_sq->priv.contig) 
 	{
-        memcpy((pmetrics_sq->priv.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size)),
-                nvme_cmd_ker, cmd_buf_size);
+		memcpy((pmetrics_sq->priv.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size)),
+			nvme_cmd_ker, cmd_buf_size);
 
-        //dnvme_err("@@@@@@@ test: 0x%x", *(uint8_t *)(pmetrics_sq->priv.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size) + 44));        
-    } 
+		//dnvme_err("@@@@@@@ test: 0x%x", *(uint8_t *)(pmetrics_sq->priv.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size) + 44));        
+	} 
 	else 
 	{
-        memcpy((pmetrics_sq->priv.prp_persist.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size)),
-                nvme_cmd_ker, cmd_buf_size);
-		
-        dma_sync_sg_for_device(pmetrics_device->dev->priv.dmadev, pmetrics_sq->priv.prp_persist.sg, 
-            				   pmetrics_sq->priv.prp_persist.num_map_pgs, pmetrics_sq->priv.prp_persist.data_dir);
-    }
+		memcpy((pmetrics_sq->priv.prp_persist.buf + ((u32)pmetrics_sq->pub.tail_ptr_virt * cmd_buf_size)),
+			nvme_cmd_ker, cmd_buf_size);
+			
+		dma_sync_sg_for_device(ctx->dev->priv.dmadev, pmetrics_sq->priv.prp_persist.sg, 
+			pmetrics_sq->priv.prp_persist.num_map_pgs, pmetrics_sq->priv.prp_persist.data_dir);
+	}
 
-    /* Increment the Tail pointer and handle roll over conditions */
-    pmetrics_sq->pub.tail_ptr_virt = (u16)(((u32)pmetrics_sq->pub.tail_ptr_virt + 1UL) % 
-                                                  pmetrics_sq->pub.elements);
+	/* Increment the Tail pointer and handle roll over conditions */
+	pmetrics_sq->pub.tail_ptr_virt = (u16)(((u32)pmetrics_sq->pub.tail_ptr_virt + 1UL) % 
+							pmetrics_sq->pub.elements);
     // dnvme_err("@@@@@@@ sqid:%x..cqid:%x,tail_ptr_virt:%#x,elements:%#x,",
     //         pmetrics_sq->pub.sq_id,
     //         pmetrics_sq->pub.cq_id,
     //         pmetrics_sq->pub.tail_ptr_virt, 
     //         pmetrics_sq->pub.elements);        
 
-    kfree(nvme_cmd_ker);
-    kfree(user_data);
-    dnvme_dbg("Command sent successfully");
-    return 0;
+	kfree(nvme_cmd_ker);
+	dnvme_dbg("Command sent successfully");
+	return 0;
 
 fail_out:
-    pmetrics_sq->priv.unique_cmd_id--;
+	pmetrics_sq->priv.unique_cmd_id--;
 free_out:
-    if (nvme_cmd_ker != NULL) {
-        kfree(nvme_cmd_ker);
-    }
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    dnvme_err("Sending of command failed");
-    return err;
+	if (nvme_cmd_ker != NULL) {
+		kfree(nvme_cmd_ker);
+	}
+	dnvme_err("Sending of command failed");
+	return err;
 }
 
 
@@ -1056,183 +1267,6 @@ int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq)
 	return 0;
 }
 
-/*
- * driver_nvme_prep_sq - This function will try to allocate kernel
- * space for the corresponding unique SQ. If the sq_id is duplicated
- * this will return error to the caller. If the kernel memory is not
- * available then fail and return NOMEM error code.
- */
-int driver_nvme_prep_sq(struct nvme_prep_sq *prep_sq, struct nvme_context *ctx)
-{
-    int err;
-    struct nvme_prep_sq *user_data = NULL;
-    struct nvme_sq *sq = NULL;
-    struct nvme_device *ndev = ctx->dev;
-
-
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct nvme_prep_sq), GFP_KERNEL);
-    if (user_data == NULL) {
-        dnvme_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, prep_sq, sizeof(struct nvme_prep_sq))) {
-        dnvme_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
-
-    err = dnvme_check_qid_unique(ctx, NVME_SQ, user_data->sq_id);
-    if (err != 0) {
-        dnvme_err("SQ ID is not unique.");
-        goto fail_out;
-    }
-
-    if (READQ(&ndev->priv.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
-        if (user_data->contig == 0) {
-            dnvme_err("Device doesn't support discontig Q memory");
-            err = -ENOMEM;
-            goto fail_out;
-        }
-    }
-
-    dnvme_dbg("Allocating SQ node in linked list.");
-    sq = kmalloc(sizeof(struct nvme_sq), GFP_KERNEL);
-    if (sq == NULL) {
-        dnvme_err("Failed kernel alloc for SQ metrics node");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-
-    /* Filling the data elements of sq metrics. */
-    memset(sq, 0, sizeof(struct nvme_sq));
-    sq->pub.sq_id = user_data->sq_id;
-    sq->pub.cq_id = user_data->cq_id;
-    sq->pub.elements = user_data->elements;
-    sq->priv.contig = user_data->contig;
-
-    err = nvme_prepare_sq(sq, ndev);
-    if (err < 0) {
-        dnvme_err("nvme_prepare_sq fail");
-        goto fail_out;
-    }
-    // dnvme_err("pre_sq:%d,cqid%d", pmetrics_sq_node->pub.sq_id, pmetrics_sq_node->pub.cq_id);
-
-    INIT_LIST_HEAD(&(sq->priv.cmd_list));
-    sq->priv.bit_mask = (sq->priv.bit_mask | UNIQUE_QID_FLAG);
-
-    /* Add this element to the end of the list */
-    list_add_tail(&sq->sq_entry, &ctx->sq_list);
-
-    kfree(user_data);
-    return 0;
-
-fail_out:
-    if (sq != NULL) {
-        kfree(sq);
-    }
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    return err;
-}
-
-
-/*
- * driver_nvme_prep_cq - This function will try to allocate kernel
- * space for the corresponding unique CQ. If the cq_id is duplicated
- * this will return error to the caller. If the kernel memory is not
- * available then fail and return NOMEM error code.
- */
-int driver_nvme_prep_cq(struct nvme_prep_cq *prep_cq, struct nvme_context *ctx)
-{
-    int err;
-    struct nvme_prep_cq *user_data = NULL;
-    struct nvme_cq *cq = NULL;
-    struct nvme_device *ndev = ctx->dev;
-
-
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct nvme_prep_cq), GFP_KERNEL);
-    if (user_data == NULL) {
-        dnvme_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, prep_cq, sizeof(struct nvme_prep_cq))) {
-        dnvme_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
-
-    err = dnvme_check_qid_unique(ctx, NVME_CQ, user_data->cq_id);
-    if (err != 0) {
-        dnvme_err("CQ ID is not unique");
-        goto fail_out;
-    }
-
-    if (READQ(&ndev->priv.ctrlr_regs->cap) & REGMASK_CAP_CQR) {
-        if (user_data->contig == 0) {
-            dnvme_err("Device doesn't support discontig Q memory");
-            err = -ENOMEM;
-            goto fail_out;
-        }
-    }
-
-    dnvme_dbg("Allocating CQ node in linked list.");
-    cq = kmalloc(sizeof(struct nvme_cq), GFP_KERNEL);
-    if (cq == NULL) {
-        dnvme_err("Failed kernel alloc for CQ metrics node");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-
-    /* Filling the data elements of sq metrics. */
-    memset(cq, 0, sizeof(struct nvme_cq));
-    cq->pub.q_id = user_data->cq_id;
-    cq->pub.elements = user_data->elements;
-    cq->pub.irq_enabled = user_data->cq_irq_en;
-    cq->pub.irq_no = user_data->cq_irq_no;
-    cq->priv.contig = user_data->contig;
-
-    err = nvme_prepare_cq(cq, ndev);
-    if (err < 0) {
-        dnvme_err("nvme_prepare_cq fail");
-        goto fail_out;
-    }
-    // dnvme_err("pre_cq:%d",pmetrics_cq_node->pub.q_id);
-
-    cq->pub.pbit_new_entry = 1;
-    cq->priv.bit_mask =
-        (cq->priv.bit_mask | UNIQUE_QID_FLAG);
-
-    /* Add this element to the end of the list */
-    list_add_tail(&cq->cq_entry, &ctx->cq_list);
-
-	if(cq->pub.irq_enabled)
-	{
-		err = update_cq_irqtrack(ctx, cq->pub.q_id, cq->pub.irq_no);
-		if(err<0) 
-		{
-            		dnvme_err("update_cq_irqtrack fail");
-			goto fail_out;
-		}
-	}
-
-    kfree(user_data);
-    return 0;
-
-fail_out:
-    if (cq != NULL) {
-        kfree(cq);
-    }
-    if(user_data != NULL) 
-	{
-        kfree(user_data);
-    }
-    return err;
-}
 #if 0
 /*
 Boot Partition Memory Buffer Base Address (BMBBA): Specifies the 64-bit physical

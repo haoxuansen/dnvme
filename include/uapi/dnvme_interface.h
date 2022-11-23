@@ -35,46 +35,6 @@ enum nvme_irq_type {
 };
 
 /**
- * These enums are used while enabling or disabling or completely disabling the
- * controller.
- */
-enum nvme_state {
-	NVME_ST_ENABLE,              /* Set the NVME Controller to enable state */
-	NVME_ST_DISABLE,             /* Controller reset without affecting Admin Q */
-	NVME_ST_DISABLE_COMPLETE,  /* Completely destroy even Admin Q's */
-	NVME_ST_RESET_SUBSYSTEM        /* NVM Subsystem reset without affecting Admin Q */
-};
-
-/* Enum specifying bitmask passed on to IOCTL_SEND_64B */
-enum send_64b_bitmask {
-	MASK_PRP1_PAGE = 1, /* PRP1 can point to a physical page */
-	MASK_PRP1_LIST = 2, /* PRP1 can point to a PRP list */
-	MASK_PRP2_PAGE = 4, /* PRP2 can point to a physical page */
-	MASK_PRP2_LIST = 8, /* PRP2 can point to a PRP list */
-	MASK_MPTR = 16,     /* MPTR may be modified */
-	MASK_PRP_ADDR_OFFSET_ERR = 32, /* To inject PRP address offset (used for err cases) */
-};
-
-/**
- * This struct is the basic structure which has important parameter for
- * sending 64 Bytes command to both admin  and IO SQ's and CQ's
- */
-struct nvme_64b_send {
-	/* BIT MASK for PRP1,PRP2 and metadata pointer */
-	enum send_64b_bitmask bit_mask;
-	/* Data buffer or discontiguous CQ/SQ's user space address */
-	uint8_t const *data_buf_ptr;
-	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
-	uint8_t data_dir;
-
-	uint8_t *cmd_buf_ptr;   /* Virtual Address pointer to 64B command */
-	uint32_t meta_buf_id;   /* Meta buffer ID when MASK_MPTR is set */
-	uint32_t data_buf_size; /* Size of Data Buffer */
-	uint16_t unique_id;     /* Value returned back to user space */
-	uint16_t q_id;          /* Queue ID where the cmd_buf command should go */
-};
-
-/**
  * This structure defines the overall interrupt scheme used and
  * defined parameters to specify the driver version and application
  * version. A verification is performed by driver and application to

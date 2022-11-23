@@ -99,35 +99,25 @@ void device_cleanup(struct  nvme_context *pmetrics_device,
     enum nvme_state new_state);
 
 /**
- * nvme_prepare_sq - NVME controller prepare sq function. This will check
- * if q is allocated and then create a memory for the IO SQ.
- * @param pmetrics_sq_list
- * @param pnvme_dev
- * @return 0 or -1
+ * @breif Check whether the SQ is full
+ *
+ * @return 1 if SQ is full, otherwise return 0.
  */
-int nvme_prepare_sq(struct  nvme_sq  *pmetrics_sq_list,
-            struct nvme_device *pnvme_dev);
+static inline int dnvme_sq_is_full(struct nvme_sq *sq)
+{
+	return (((u32)sq->pub.tail_ptr_virt + 1) % sq->pub.elements) ==
+		sq->pub.head_ptr ? 1 : 0;
+}
 
 /**
- * nvme_prepare_cq - NVME controller prepare cq function. This will check
- * if q is allocated and then create a memory for the IO SQ.
- * @param pmetrics_cq_list
- * @param pnvme_dev
- * @return 0 or -1
+ * @breif Check whether the SQ is empty
+ *
+ * @return 1 if SQ is empty, otherwise return 0.
  */
-int nvme_prepare_cq(struct  nvme_cq  *pmetrics_cq_list,
-            struct nvme_device *pnvme_dev);
-
-/**
- * nvme_ring_sqx_dbl - NVME controller function to ring the appropriate
- * SQ doorbell.
- * @param ring_sqx
- * @param pmetrics_device
- * @return 0 or -1
- */
-int nvme_ring_sqx_dbl(u16 ring_sqx, struct  nvme_context
-        *pmetrics_device);
-
+static inline int dnvme_sq_is_empty(struct nvme_sq *sq)
+{
+	return sq->pub.tail_ptr_virt == sq->pub.head_ptr ? 1 : 0;
+}
 
 struct nvme_sq *dnvme_find_sq(struct nvme_context *ctx, u16 id);
 struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id);
@@ -138,8 +128,18 @@ int dnvme_check_qid_unique(struct nvme_context *ctx,
 struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
 struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
 
+struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
+	struct nvme_prep_sq *prep, u8 sqes);
+void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq);
+
+struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx, 
+	struct nvme_prep_cq *prep, u8 cqes);
+void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *sq);
+
 int dnvme_create_asq(struct nvme_context *ctx, u32 elements);
 int dnvme_create_acq(struct nvme_context *ctx, u32 elements);
+
+int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id);
 
 /**
  *  reap_inquiry - This generic function will try to inquire the number of

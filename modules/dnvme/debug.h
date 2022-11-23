@@ -18,4 +18,7 @@ struct nvme_cq;
 void dnvme_print_sq(struct nvme_sq *sq);
 void dnvme_print_cq(struct nvme_cq *cq);
 
+const char *dnvme_ioctl_cmd_string(unsigned int cmd);
+
 #endif /* !_DNVME_DEBUG_H_ */
+

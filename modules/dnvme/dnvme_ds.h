@@ -38,23 +38,24 @@ struct nvme_prps {
 	u32	type; /* refers to types of PRP Possible */
 	/* List of virtual pointers to PRP List pages */
 	__le64	**vir_prp_list;
-	u8	*buf; /* K.V.A for pinned down pages */
 	__le64	prp1; /* Physical address in PRP1 of command */
 	__le64	prp2; /* Physical address in PRP2 of command */
 	dma_addr_t	first_dma; /* First entry in PRP List */
-	/* Size of data buffer for the specific command */
-	u32	data_buf_size;
+
+	u8	*buf; /* K.V.A for pinned down pages */
 	/* Pointer to SG list generated */
 	struct scatterlist	*sg;
 	/* Number of pages mapped to DMA area */
 	u32	num_map_pgs;
+	/* Size of data buffer for the specific command */
+	u32	data_buf_size;
 	/* Address of data buffer for the specific command */
 	u64	data_buf_addr;
 	enum dma_data_direction	data_dir;
 };
 
-/*
- * structure for the CQ tracking params with virtual address and size.
+/**
+ * @brief NVMe CQ private information
  */
 struct nvme_cq_private {
 	u8		*buf; /* phy addr ptr to the q's alloc to kern mem */
@@ -62,7 +63,9 @@ struct nvme_cq_private {
 	u32		size; /* length in bytes of the alloc Q in kernel */
 	u32 __iomem	*dbs; /* Door Bell stride  */
 	u8		contig; /* Indicates if prp list is contig or not */
-	u8		bit_mask; /* bitmask added for unique ID creation */
+	u8		bit_mask;
+#define NVME_QF_WAIT_FOR_CREATE         0x01
+
 	struct nvme_prps	prp_persist; /* PRP element in CQ */
 };
 
@@ -77,8 +80,10 @@ struct nvme_cmd {
 	struct nvme_prps	prp_nonpersist; /* Non persistent PRP entries */
 };
 
-/*
- * structure definition for SQ tracking parameters.
+/**
+ * @brief NVMe SQ private information
+ * 
+ * @bit_mask: see struct nvme_cq_private bit_mask field for details.
  */
 struct nvme_sq_private {
 	void		*buf; /* virtual kernal address using kmalloc */
@@ -87,7 +92,7 @@ struct nvme_sq_private {
 	u32 __iomem	*dbs; /* Door Bell stride */
 	u16		unique_cmd_id; /* unique counter for each comand in SQ */
 	u8		contig; /* Indicates if prp list is contig or not */
-	u8		bit_mask; /* bitmask added for unique ID creation */
+	u8		bit_mask;
 	struct nvme_prps	prp_persist; /* PRP element in CQ */
 	struct list_head	cmd_list; /* link-list head for nvme_cmd list */
 };

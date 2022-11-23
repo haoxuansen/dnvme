@@ -141,7 +141,7 @@ int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
                          uint16_t elem, void *addr)
 {
     int ret_val = -1;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_cq create_cq_cmd = {0};
 
     /* Fill the command for create discontig IOSQ*/
@@ -154,7 +154,7 @@ int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = MASK_PRP1_LIST;
+    user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_cq_cmd;
     user_cmd.data_buf_size = PAGE_SIZE_I * 16;
     user_cmd.data_buf_ptr = addr;
@@ -178,7 +178,7 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
                       int cq_flags, uint16_t elems)
 {
     int ret_val = -1;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_cq create_cq_cmd = {0};
 
     /* Fill the command for create contig IOSQ*/
@@ -191,7 +191,7 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_cq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
@@ -214,7 +214,7 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
 void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
 {
     int ret_val = -1;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_rw_command nvme_read = {0};
 
     /* Fill the command for create discontig IOSQ*/
@@ -227,8 +227,8 @@ void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
 
     /* Fill the user command */
     user_cmd.q_id = sq_id;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
-                         MASK_PRP2_PAGE | MASK_PRP2_LIST);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+                         NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
     user_cmd.data_buf_size = RW_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
@@ -250,7 +250,7 @@ void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
 void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t id)
 {
     int ret_val = -1;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_rw_command nvme_read = {0};
 
     /* Fill the command for create discontig IOSQ*/
@@ -263,8 +263,8 @@ void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t id)
 
     /* Fill the user command */
     user_cmd.q_id = sq_id; /* Contig SQ ID */
-    user_cmd.bit_mask = (MASK_PRP1_PAGE | MASK_PRP1_LIST |
-                         MASK_PRP2_PAGE | MASK_PRP2_LIST);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+                         NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
     user_cmd.data_buf_size = RW_BUFFER_SIZE;
     user_cmd.data_buf_ptr = addr;
@@ -286,7 +286,7 @@ void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t id)
 
 int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
 {
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_cq create_cq_cmd = {0};
     int ret_val;
 
@@ -301,7 +301,7 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_cq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
@@ -378,7 +378,7 @@ void set_cq_irq(int fd, void *p_dcq_buf)
 int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
 {
     int ret_val = -1;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_sq create_sq_cmd = {0};
 
     /* Fill the command for create discontig IOSQ*/
@@ -390,7 +390,7 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = (MASK_PRP1_PAGE);
+    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_sq_cmd;
     user_cmd.data_buf_size = 0;
     user_cmd.data_buf_ptr = NULL;
@@ -414,7 +414,7 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
                       int assoc_cq_id, uint16_t elems)
 {
     int ret_val = -1;
-    struct nvme_64b_send user_cmd = {0};
+    struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_sq create_sq_cmd = {0};
 
     /* Fill the command for create discontig IOSQ*/
@@ -426,7 +426,7 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
 
     /* Fill the user command */
     user_cmd.q_id = 0;
-    user_cmd.bit_mask = MASK_PRP1_LIST;
+    user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_sq_cmd;
     user_cmd.data_buf_size = PAGE_SIZE_I * 64;
     user_cmd.data_buf_ptr = addr;

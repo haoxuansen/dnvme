@@ -19,9 +19,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/types.h>
+#include <linux/scatterlist.h>
 
 #include "core.h"
+#include "cmd.h"
+
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_ds.h"
@@ -33,7 +35,7 @@
 
 /* Declaration of static functions belonging to Submitting 64Bytes Command */
 static int data_buf_to_prp(struct nvme_device *nvme_dev,
-    struct nvme_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
+    struct nvme_sq *pmetrics_sq, struct nvme_64b_cmd *nvme_64b_cmd,
     struct nvme_prps *prps, u8 opcode, u16 persist_q_id,
     enum data_buf_type data_buf_type, u16 cmd_id);
 static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
@@ -44,7 +46,7 @@ static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
     unsigned len, struct scatterlist **sg_list);
 static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     s32 buf_len, struct nvme_prps *prps, u8 cr_io_q,
-    enum send_64b_bitmask prp_mask);
+    enum nvme_64b_cmd_mask prp_mask);
 static void unmap_user_pg_to_dma(struct nvme_device *nvme_dev,
     struct nvme_prps *prps);
 static void free_prp_pool(struct nvme_device *nvme_dev,
@@ -56,42 +58,6 @@ static void free_prp_pool(struct nvme_device *nvme_dev,
 #define SGES_PER_PAGE	(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
 
 /*
- * These macros should be used after a dma_map_sg call has been done
- * to get bus addresses of each of the SG entries and their lengths.
- * You should only work with the number of sg entries dma_map_sg
- * returns, or alternatively stop on the first sg_dma_len(sg) which
- * is 0.
- */
-#define sg_dma_address(sg)	((sg)->dma_address)
-
-#ifdef CONFIG_NEED_SG_DMA_LENGTH
-#define sg_dma_len(sg)		((sg)->dma_length)
-#else
-#define sg_dma_len(sg)		((sg)->length)
-#endif
-
-static void nvme_pci_sgl_set_data(struct nvme_sgl_desc *sge,
-		struct scatterlist *sg)
-{
-	sge->addr = cpu_to_le64(sg_dma_address(sg));
-	sge->length = cpu_to_le32(sg_dma_len(sg));
-	sge->type = NVME_SGL_FMT_DATA_DESC << 4;
-}
-
-static void nvme_pci_sgl_set_seg(struct nvme_sgl_desc *sge,
-		dma_addr_t dma_addr, int entries)
-{
-	sge->addr = cpu_to_le64(dma_addr);
-	if (entries < SGES_PER_PAGE) {
-		sge->length = cpu_to_le32(entries * sizeof(*sge));
-		sge->type = NVME_SGL_FMT_LAST_SEG_DESC << 4;
-	} else {
-		sge->length = cpu_to_le32(PAGE_SIZE);
-		sge->type = NVME_SGL_FMT_SEG_DESC << 4;
-	}
-}
-
-/*
  * setup_sgls:
  * Sets up SGL'sfrom DMA'ed memory
  * Returns Error codes
@@ -101,7 +67,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
     s32 buf_len, 
     struct nvme_prps *prps, 
     struct nvme_gen_cmd *nvme_gen_cmd,
-    enum send_64b_bitmask prp_mask,
+    enum nvme_64b_cmd_mask prp_mask,
     int entries)
 {
     dma_addr_t sgl_dma, dma_addr;
@@ -119,14 +85,14 @@ static int setup_sgls(struct nvme_device *nvme_dev,
 
     if(entries == 1)
     {
-        nvme_pci_sgl_set_data(&nvme_gen_cmd->dptr.sgl, prps->sg);
+        dnvme_sgl_set_data(&nvme_gen_cmd->dptr.sgl, prps->sg);
         return 0;
     }
 
     /* Generate PRP List */
     num_prps = DIV_ROUND_UP(offset + buf_len, PAGE_SIZE);
     /* Taking into account the last entry of PRP Page */
-    num_pg = DIV_ROUND_UP(PRP_Size * num_prps, PAGE_SIZE - PRP_Size);
+    num_pg = DIV_ROUND_UP(NVME_PRP_ENTRY_SIZE * num_prps, PAGE_SIZE - NVME_PRP_ENTRY_SIZE);
 
     prps->vir_prp_list = kmalloc(sizeof(__le64 *) * num_pg, GFP_ATOMIC);
     if (NULL == prps->vir_prp_list) {
@@ -147,7 +113,7 @@ static int setup_sgls(struct nvme_device *nvme_dev,
     prps->vir_prp_list[sgl_page++] = (__le64 *)sg_list;
     prps->npages = sgl_page;
     prps->first_dma = sgl_dma;
-    nvme_pci_sgl_set_seg(&nvme_gen_cmd->dptr.sgl, sgl_dma, entries);
+    dnvme_sgl_set_seg(&nvme_gen_cmd->dptr.sgl, sgl_dma, entries);
 
     do{
         if(i == SGES_PER_PAGE)
@@ -164,9 +130,9 @@ static int setup_sgls(struct nvme_device *nvme_dev,
             sg_list[i++] = *link;
             prps->vir_prp_list[sgl_page++] = (__le64 *)sg_list;
             prps->npages = sgl_page;
-            nvme_pci_sgl_set_seg(link, sgl_dma, entries);
+            dnvme_sgl_set_seg(link, sgl_dma, entries);
         }
-        nvme_pci_sgl_set_data(&sg_list[i++],sg);
+        dnvme_sgl_set_data(&sg_list[i++],sg);
         sg = sg_next(sg);
     }while(--entries > 0);
     return 0;
@@ -178,22 +144,22 @@ static int setup_sgls(struct nvme_device *nvme_dev,
  * and addes a node inside cmd track list pointed by pmetrics_sq
  */
 static int data_buf_to_sgl(struct nvme_device *nvme_dev,
-    struct nvme_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
+    struct nvme_sq *pmetrics_sq, struct nvme_64b_cmd *nvme_64b_cmd,
     struct nvme_prps *prps, struct nvme_gen_cmd *nvme_gen_cmd, 
-    enum data_buf_type data_buf_type, u16 cmd_id)
+    u16 persist_q_id, enum data_buf_type data_buf_type)
 {
     int err;
     unsigned long addr;
     struct scatterlist *sg_list = NULL;
     enum dma_data_direction kernel_dir;
     uint8_t opcode = nvme_gen_cmd->opcode; 
-    uint16_t persist_q_id = nvme_gen_cmd->command_id;
+    uint16_t cmd_id = nvme_gen_cmd->command_id;
     dnvme_vdbg("-->[%s]",__FUNCTION__);
 
     /* Catch common mistakes */
-    addr = (unsigned long)nvme_64b_send->data_buf_ptr;
+    addr = (unsigned long)nvme_64b_cmd->data_buf_ptr;
     if ((addr & 3) || (addr == 0) ||
-        (nvme_64b_send->data_buf_size == 0) || (nvme_dev == NULL)) {
+        (nvme_64b_cmd->data_buf_size == 0) || (nvme_dev == NULL)) {
 
         dnvme_err("Invalid Arguments");
         return -EINVAL;
@@ -202,17 +168,17 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
     /* Typecase is only possible because the kernel vs. user space contract
      * states the following which agrees with 'enum dma_data_direction'
      * 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
-    kernel_dir = (enum dma_data_direction)nvme_64b_send->data_dir;
+    kernel_dir = (enum dma_data_direction)nvme_64b_cmd->data_dir;
 
     /* Mapping user pages to dma memory */
     err = map_user_pg_to_dma(nvme_dev, kernel_dir, addr,
-        nvme_64b_send->data_buf_size, &sg_list, prps, data_buf_type);
+        nvme_64b_cmd->data_buf_size, &sg_list, prps, data_buf_type);
     if (err < 0) {
         return err;
     }
     dnvme_vdbg("sgl_num_map_pgs:%#x",prps->num_map_pgs);
-    err = setup_sgls(nvme_dev, sg_list, nvme_64b_send->data_buf_size, prps,
-                    nvme_gen_cmd, nvme_64b_send->bit_mask, prps->num_map_pgs);
+    err = setup_sgls(nvme_dev, sg_list, nvme_64b_cmd->data_buf_size, prps,
+                    nvme_gen_cmd, nvme_64b_cmd->bit_mask, prps->num_map_pgs);
     if (err < 0) {
         unmap_user_pg_to_dma(nvme_dev, prps);
         return err;
@@ -234,19 +200,6 @@ err_unmap_prp_pool:
     return err;
 }
 
-static bool nvme_pci_use_sgls(struct nvme_device *dev,
-    struct nvme_gen_cmd *nvme_gen_cmd,
-    struct nvme_64b_send *nvme_64b_send)
-{
-    if (!(nvme_gen_cmd->flags & NVME_CMD_SGL_ALL))
-		return false;
-	// if (!(dev->ctrl.sgls & ((1 << 0) | (1 << 1))))
-	// 	return false;
-	if (!nvme_64b_send->q_id)
-		return false;
-	return true;
-}
-
 //****2020/10/24 meng_yu add end****
 
 /* prep_send64b_cmd:
@@ -255,7 +208,7 @@ static bool nvme_pci_use_sgls(struct nvme_device *dev,
  * inside cmd track list
  */
 int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
-    *pmetrics_sq, struct nvme_64b_send *nvme_64b_send, struct nvme_prps *prps,
+    *pmetrics_sq, struct nvme_64b_cmd *nvme_64b_cmd, struct nvme_prps *prps,
     struct nvme_gen_cmd *nvme_gen_cmd, u16 persist_q_id,
     enum data_buf_type data_buf_type, u8 gen_prp)
 {
@@ -263,10 +216,10 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
 
     if (gen_prp) {
 //****2020/10/23 meng_yu add end****
-        if(nvme_pci_use_sgls(nvme_dev,nvme_gen_cmd,nvme_64b_send))
+        if(dnvme_use_sgls(nvme_gen_cmd,nvme_64b_cmd))
         {
             //test
-            ret_code = data_buf_to_sgl(nvme_dev, pmetrics_sq, nvme_64b_send, prps,
+            ret_code = data_buf_to_sgl(nvme_dev, pmetrics_sq, nvme_64b_cmd, prps,
                 nvme_gen_cmd, persist_q_id, data_buf_type);
             if (ret_code < 0) {
                 dnvme_err("Data buffer to SGL generation failed");
@@ -281,7 +234,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
 //****2020/10/23 meng_yu add end****
         {
             /* Create PRP and add the node inside the command track list */
-            ret_code = data_buf_to_prp(nvme_dev, pmetrics_sq, nvme_64b_send, prps,
+            ret_code = data_buf_to_prp(nvme_dev, pmetrics_sq, nvme_64b_cmd, prps,
                 nvme_gen_cmd->opcode, persist_q_id, data_buf_type,
                 nvme_gen_cmd->command_id);
             if (ret_code < 0) {
@@ -302,8 +255,8 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
         ret_code = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
             nvme_gen_cmd->opcode, nvme_gen_cmd->command_id);
         if (ret_code < 0) {
-            dnvme_err("Failure to add command track node for\
-                Create Contig Queue Command");
+            dnvme_err("Failure to add command track node for"
+                " Create Contig Queue Command");
             return ret_code;
         }
     }
@@ -314,7 +267,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
  * add_cmd_track_node:
  * Create and add the node inside command track list
  */
-int add_cmd_track_node(struct  nvme_sq  *pmetrics_sq,
+int add_cmd_track_node(struct nvme_sq *pmetrics_sq,
     u16 persist_q_id, struct nvme_prps *prps, u8 opcode, u16 cmd_id)
 {
     /* pointer to cmd track linked list node */
@@ -393,7 +346,7 @@ void destroy_dma_pool(struct nvme_device *nvme_dev)
  * and addes a node inside cmd track list pointed by pmetrics_sq
  */
 static int data_buf_to_prp(struct nvme_device *nvme_dev,
-    struct nvme_sq *pmetrics_sq, struct nvme_64b_send *nvme_64b_send,
+    struct nvme_sq *pmetrics_sq, struct nvme_64b_cmd *nvme_64b_cmd,
     struct nvme_prps *prps, u8 opcode, u16 persist_q_id,
     enum data_buf_type data_buf_type, u16 cmd_id)
 {
@@ -409,9 +362,9 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
 
 
     /* Catch common mistakes */
-    addr = (unsigned long)nvme_64b_send->data_buf_ptr;
+    addr = (unsigned long)nvme_64b_cmd->data_buf_ptr;
     if ((addr & 3) || (addr == 0) ||
-        (nvme_64b_send->data_buf_size == 0) || (nvme_dev == NULL)) {
+        (nvme_64b_cmd->data_buf_size == 0) || (nvme_dev == NULL)) {
 
         dnvme_err("Invalid Arguments");
         return -EINVAL;
@@ -420,29 +373,29 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     /* Typecase is only possible because the kernel vs. user space contract
      * states the following which agrees with 'enum dma_data_direction'
      * 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
-    kernel_dir = (enum dma_data_direction)nvme_64b_send->data_dir;
+    kernel_dir = (enum dma_data_direction)nvme_64b_cmd->data_dir;
 
     /* Mapping user pages to dma memory */
     err = map_user_pg_to_dma(nvme_dev, kernel_dir, addr,
-        nvme_64b_send->data_buf_size, &sg_list, prps, data_buf_type);
+        nvme_64b_cmd->data_buf_size, &sg_list, prps, data_buf_type);
     if (err < 0) {
         return err;
     }
 
-    err = setup_prps(nvme_dev, sg_list, nvme_64b_send->data_buf_size, prps,
-        data_buf_type, nvme_64b_send->bit_mask);
+    err = setup_prps(nvme_dev, sg_list, nvme_64b_cmd->data_buf_size, prps,
+        data_buf_type, nvme_64b_cmd->bit_mask);
     if (err < 0) {
         unmap_user_pg_to_dma(nvme_dev, prps);
         return err;
     }
 
 #ifdef TEST_PRP_DEBUG
-    last_prp = PAGE_SIZE / PRP_Size - 1;
+    last_prp = PAGE_SIZE / NVME_PRP_ENTRY_SIZE - 1;
     if (prps->type == (PRP1 | PRP_List)) {
-        num_prps = DIV_ROUND_UP(nvme_64b_send->data_buf_size +
+        num_prps = DIV_ROUND_UP(nvme_64b_cmd->data_buf_size +
             offset_in_page(addr), PAGE_SIZE);
     } else {
-        num_prps = DIV_ROUND_UP(nvme_64b_send->data_buf_size, PAGE_SIZE);
+        num_prps = DIV_ROUND_UP(nvme_64b_cmd->data_buf_size, PAGE_SIZE);
     }
 
     if (prps->type == (PRP1 | PRP_List) || prps->type == (PRP2 | PRP_List)) {
@@ -518,7 +471,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 
     /* Pinning user pages in memory, always assuming writing in case user space
      * specifies an incorrect direction of data xfer */
-    err = get_user_pages_fast(buf_addr, buf_pg_count, WRITE_PG, pages);
+    err = get_user_pages_fast(buf_addr, buf_pg_count, FOLL_WRITE, pages);
     if (err < buf_pg_count) {
         dnvme_err("\n@@@@@@@@@@@@@  buf_pg_count: %d, err: %d", buf_pg_count, err);
         dnvme_err("User buf addr = 0x%016lx", buf_addr);
@@ -533,7 +486,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
 
     /* Kernel needs direct access to all Q memory, so discontiguously backed */
     /* IOQ's must be mapped to allow the access to the memory */
-    if (data_buf_type == DISCONTG_IO_Q) {
+    if (data_buf_type == NVME_IO_QUEUE_DISCONTIG) {
         /* Note: Not suitable for pages with offsets, but since discontig back'd
          *       Q's are required to be page aligned this isn't an issue */
         buf = vmap(pages, buf_pg_count, VM_MAP, PAGE_KERNEL);
@@ -559,7 +512,7 @@ static int map_user_pg_to_dma(struct nvme_device *nvme_dev,
     num_sg_entries = dma_map_sg(&nvme_dev->priv.pdev->dev, *sg_list,
         buf_pg_count, kernel_dir);
     dnvme_vdbg("%d elements mapped out of %d sglist elements",
-        num_sg_entries, num_sg_entries);
+        buf_pg_count, num_sg_entries);
     if (num_sg_entries == 0) {
         dnvme_err("Unable to map the sg list into dma addr space");
         err = -ENOMEM;
@@ -639,7 +592,7 @@ static int pages_to_sg(struct page **pages, int num_pages, int buf_offset,
  */
 static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     s32 buf_len, struct nvme_prps *prps, u8 cr_io_q,
-    enum send_64b_bitmask prp_mask)
+    enum nvme_64b_cmd_mask prp_mask)
 {
     dma_addr_t prp_dma, dma_addr;
     s32 dma_len; /* Length of DMA'ed SG */
@@ -656,7 +609,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     /* Create IO CQ/SQ's */
     if (cr_io_q) {
         /* Checking for PRP1 mask */
-        if (!(prp_mask & MASK_PRP1_LIST)) {
+        if (!(prp_mask & NVME_MASK_PRP1_LIST)) {
             dnvme_err("bit_mask does not support PRP1 list");
             return -EINVAL;
         }
@@ -670,7 +623,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     dnvme_vdbg("PRP1 Entry: PRP entry %llx", (unsigned long long) dma_addr);
 
     /* Checking for PRP1 mask */
-    if (!(prp_mask & MASK_PRP1_PAGE)) {
+    if (!(prp_mask & NVME_MASK_PRP1_PAGE)) {
         dnvme_err("bit_mask does not support PRP1 page");
         return -EINVAL;
     }
@@ -696,7 +649,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
 
     if (buf_len <= PAGE_SIZE) {
         /* Checking for PRP2 mask */
-        if (!(prp_mask & MASK_PRP2_PAGE)) {
+        if (!(prp_mask & NVME_MASK_PRP2_PAGE)) {
             dnvme_err("bit_mask does not support PRP2 page");
             return -EINVAL;
         }
@@ -712,7 +665,7 @@ static int setup_prps(struct nvme_device *nvme_dev, struct scatterlist *sg,
     /* Specifies PRP2 entry is a PRP_List */
     prps->type = (PRP2 | PRP_List);
     /* Checking for PRP2 mask */
-    if (!(prp_mask & MASK_PRP2_LIST)) {
+    if (!(prp_mask & NVME_MASK_PRP2_LIST)) {
         dnvme_err("bit_mask does not support PRP2 list");
         return -EINVAL;
     }
@@ -721,7 +674,7 @@ prp_list:
     /* Generate PRP List */
     num_prps = DIV_ROUND_UP(offset + buf_len, PAGE_SIZE);
     /* Taking into account the last entry of PRP Page */
-    num_pg = DIV_ROUND_UP(PRP_Size * num_prps, PAGE_SIZE - PRP_Size);
+    num_pg = DIV_ROUND_UP(NVME_PRP_ENTRY_SIZE * num_prps, PAGE_SIZE - NVME_PRP_ENTRY_SIZE);
 
     prps->vir_prp_list = kmalloc(sizeof(__le64 *) * num_pg, GFP_ATOMIC);
     if (NULL == prps->vir_prp_list) {
@@ -758,7 +711,7 @@ prp_list:
 
     index = 0;
     for (;;) {
-        if ((index == PAGE_SIZE / PRP_Size - 1) && (buf_len > PAGE_SIZE)) {
+        if ((index == PAGE_SIZE / NVME_PRP_ENTRY_SIZE - 1) && (buf_len > PAGE_SIZE)) {
             __le64 *old_prp_list = prp_list;
             prp_list = dma_pool_alloc(prp_page_pool, GFP_ATOMIC, &prp_dma);
             if (NULL == prp_list) {
@@ -778,7 +731,7 @@ prp_list:
         dnvme_vdbg("PRP List: PRP entry %llx", (unsigned long long)dma_addr);
 		//iol_interact-12.0a srart
         // inject offset if flag is set and used for the 2nd entry
-        //if ((prp_mask & MASK_PRP_ADDR_OFFSET_ERR) && (index == 1)){
+        //if ((prp_mask & NVME_MASK_PRP_ADDR_OFFSET_ERR) && (index == 1)){
         //	prp_list[index++] = cpu_to_le64(dma_addr | 0x200);
         //	dnvme_err("PRP offset injected to entry 1");
         //} else {
@@ -859,7 +812,7 @@ static void free_prp_pool(struct nvme_device *nvme_dev,
 {
     int i;
     __le64 *prp_vlist;
-    const int last_prp = ((PAGE_SIZE / PRP_Size) - 1);
+    const int last_prp = ((PAGE_SIZE / NVME_PRP_ENTRY_SIZE) - 1);
     dma_addr_t prp_dma, next_prp_dma = 0;
 
 

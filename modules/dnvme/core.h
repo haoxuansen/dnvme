@@ -16,8 +16,6 @@
 #define NVME_ASQ_ENTRY_MAX		4096
 #define NVME_ACQ_ENTRY_MAX		4096
 
-#define NVME_ASQ_ENTRY_SIZE		64
-
 #define NVME_SQ_ID_MAX			U16_MAX
 #define NVME_CQ_ID_MAX			U16_MAX
 #define NVME_META_ID_MAX		((0x1 << 18) - 1)

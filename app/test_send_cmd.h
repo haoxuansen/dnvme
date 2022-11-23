@@ -58,7 +58,7 @@ enum dma_data_direction
 
 #define LBA_DATA_SIZE(nsid) (g_nvme_ns_info[nsid - 1].lbads)
 
-int nvme_64b_cmd(int file_desc, struct nvme_64b_send *user_cmd);
+int nvme_64b_cmd(int file_desc, struct nvme_64b_cmd *user_cmd);
 
 int nvme_io_write_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                       uint16_t control, void *data_addr);
