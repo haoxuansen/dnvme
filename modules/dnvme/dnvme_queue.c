@@ -108,9 +108,9 @@ int dnvme_check_qid_unique(struct nvme_context *ctx,
  * @param id command identify
  * @return pointer to the cmd node on success. Otherwise returns NULL.
  */
-struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
+struct nvme_cmd_node *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
 {
-	struct nvme_cmd *cmd;
+	struct nvme_cmd_node *cmd;
 
 	list_for_each_entry(cmd, &sq->priv.cmd_list, entry) {
 		if (id == cmd->unique_id)
@@ -146,7 +146,7 @@ struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id)
  */
 static int dnvme_delete_cmd(struct nvme_sq *sq, u16 cmd_id)
 {
-	struct nvme_cmd *cmd;
+	struct nvme_cmd_node *cmd;
 
 	cmd = dnvme_find_cmd(sq, cmd_id);
 	if (!cmd) {
@@ -802,7 +802,7 @@ static int dnvme_delete_cq(struct  nvme_context *pmetrics_device,
 
 
 static int process_algo_q(struct nvme_sq *pmetrics_sq_node,
-    struct nvme_cmd *pcmd_node, u8 free_q_entry,
+    struct nvme_cmd_node *pcmd_node, u8 free_q_entry,
     struct  nvme_context *pmetrics_device,
     enum nvme_queue_type type)
 {
@@ -847,7 +847,7 @@ static int process_algo_gen(struct nvme_sq *pmetrics_sq_node,
     u16 cmd_id, struct  nvme_context *pmetrics_device)
 {
     int err;
-    struct nvme_cmd *pcmd_node;
+    struct nvme_cmd_node *pcmd_node;
 
     /* Find the command ndoe */
     pcmd_node = dnvme_find_cmd(pmetrics_sq_node, cmd_id);
@@ -863,7 +863,7 @@ static int process_algo_gen(struct nvme_sq *pmetrics_sq_node,
 
 
 static int process_admin_cmd(struct nvme_sq *pmetrics_sq_node,
-    struct nvme_cmd *pcmd_node, u16 status,
+    struct nvme_cmd_node *pcmd_node, u16 status,
     struct  nvme_context *pmetrics_device)
 {
     int err = 0;
@@ -909,7 +909,7 @@ static int process_reap_algos(struct cq_completion *cq_entry,
     int err = 0;
     u16 ceStatus;
     struct nvme_sq *pmetrics_sq_node = NULL;
-    struct nvme_cmd *pcmd_node = NULL;
+    struct nvme_cmd_node *pcmd_node = NULL;
 
 
     /* Find sq node for given sq id in CE */

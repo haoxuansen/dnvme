@@ -112,7 +112,7 @@ int driver_log(struct nvme_file *n_file)
     u8 work[SIZE_OF_WORK];
     struct  nvme_cq  *pmetrics_cq_list;        /* CQ linked list */
     struct  nvme_context *pmetrics_device; /* Metrics device list */
-    struct  nvme_cmd  *pcmd_track_list;          /* cmd track linked list */
+    struct  nvme_cmd_node  *pcmd_track_list;          /* cmd track linked list */
     u8 *filename = NULL;
     int err = 0;
     struct nvme_file *user_data = NULL;

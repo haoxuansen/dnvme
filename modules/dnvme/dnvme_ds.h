@@ -29,15 +29,17 @@
 
 /* To store the max vector locations */
 #define    MAX_VEC_SLT              2048
-/*
- * Strucutre used to define all the essential parameters
- * related to PRP1, PRP2 and PRP List
+
+/**
+ * @dma: An array used to hold dma address of prp page. The number of array
+ *  number is @npages.
  */
 struct nvme_prps {
 	u32	npages; /* No. of pages inside the PRP List */
 	u32	type; /* refers to types of PRP Possible */
 	/* List of virtual pointers to PRP List pages */
 	__le64	**vir_prp_list;
+	dma_addr_t	*dma;
 	__le64	prp1; /* Physical address in PRP1 of command */
 	__le64	prp2; /* Physical address in PRP2 of command */
 	dma_addr_t	first_dma; /* First entry in PRP List */
@@ -72,7 +74,7 @@ struct nvme_cq_private {
 /*
  *    Structure definition for tracking the commands.
  */
-struct nvme_cmd {
+struct nvme_cmd_node {
 	u16	unique_id;      /* driver assigned unique id for a particular cmd */
 	u16	persist_q_id;   /* target Q ID used for Create/Delete Q's, never == 0 */
 	u8	opcode;         /* command opcode as per spec */
@@ -94,7 +96,7 @@ struct nvme_sq_private {
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
 	struct nvme_prps	prp_persist; /* PRP element in CQ */
-	struct list_head	cmd_list; /* link-list head for nvme_cmd list */
+	struct list_head	cmd_list; /* link-list head for nvme_cmd_node list */
 };
 
 /*
@@ -198,6 +200,7 @@ struct nvme_device {
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
+	struct nvme_context	*ctx;
 	u32	q_depth;
 	u32	db_stride;
 	u64	cmb_size;

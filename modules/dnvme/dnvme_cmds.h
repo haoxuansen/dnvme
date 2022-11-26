@@ -26,7 +26,6 @@ enum {
 
 /* Enum specifying Writes/Reads to mapped pages and other general enums */
 enum {
-    NVME_PRP_ENTRY_SIZE = 8, /* Size of PRP entry in bytes */
     PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
     CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
     CDW11_IEN = 2, /* Mask to check if CDW11.IEN is set */

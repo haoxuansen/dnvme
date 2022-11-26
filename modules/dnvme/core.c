@@ -686,6 +686,7 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	spin_lock_init(&ctx->irq_process.isr_spin_lock);
 
 	ctx->dev = ndev;
+	ndev->ctx = ctx;
 	dnvme_init_irq(ctx);
 
 	return ctx;

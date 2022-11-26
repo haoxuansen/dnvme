@@ -184,7 +184,7 @@ static int data_buf_to_sgl(struct nvme_device *nvme_dev,
         return err;
     }
 
-    /* Adding node inside nvme_cmd list for pmetrics_sq */
+    /* Adding node inside nvme_cmd_node list for pmetrics_sq */
     err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps, opcode, cmd_id);
     if (err < 0) {
         dnvme_err("Failure to add command track node");
@@ -251,7 +251,7 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
             }
         }
     } else {
-        /* Adding node inside nvme_cmd list for pmetrics_sq */
+        /* Adding node inside nvme_cmd_node list for pmetrics_sq */
         ret_code = add_cmd_track_node(pmetrics_sq, persist_q_id, prps,
             nvme_gen_cmd->opcode, nvme_gen_cmd->command_id);
         if (ret_code < 0) {
@@ -271,10 +271,10 @@ int add_cmd_track_node(struct nvme_sq *pmetrics_sq,
     u16 persist_q_id, struct nvme_prps *prps, u8 opcode, u16 cmd_id)
 {
     /* pointer to cmd track linked list node */
-    struct nvme_cmd  *pcmd_track_list;
+    struct nvme_cmd_node  *pcmd_track_list;
 
-    /* Fill the nvme_cmd structure */
-    pcmd_track_list = kmalloc(sizeof(struct nvme_cmd),
+    /* Fill the nvme_cmd_node structure */
+    pcmd_track_list = kmalloc(sizeof(struct nvme_cmd_node),
         GFP_ATOMIC | __GFP_ZERO);
     if (pcmd_track_list == NULL) {
         dnvme_err("Failed to alloc memory for the command track list");
@@ -306,11 +306,11 @@ int add_cmd_track_node(struct nvme_sq *pmetrics_sq,
  */
 void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 {
-	struct nvme_cmd *cmd;
+	struct nvme_cmd_node *cmd;
 	struct list_head *pos, *tmp;
 
 	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
-		cmd = list_entry(pos, struct nvme_cmd, entry);
+		cmd = list_entry(pos, struct nvme_cmd_node, entry);
 		dnvme_delete_prps(ndev, &cmd->prp_nonpersist);
 		list_del(pos);
 		kfree(cmd);
@@ -430,7 +430,7 @@ static int data_buf_to_prp(struct nvme_device *nvme_dev,
     }
 #endif
 
-    /* Adding node inside nvme_cmd list for pmetrics_sq */
+    /* Adding node inside nvme_cmd_node list for pmetrics_sq */
     err = add_cmd_track_node(pmetrics_sq, persist_q_id, prps, opcode, cmd_id);
     if (err < 0) {
         dnvme_err("Failure to add command track node");

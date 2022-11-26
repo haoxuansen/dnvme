@@ -11,7 +11,7 @@ enum data_buf_type 只用于 prep_send64b_cmd(), 取代方式：
 PRP_PRESENT/PRP_ABSENT 只用于 prep_send64b_cmd(), 取代方式：
 	1) nvme_gen_cmd ->opcode, nvme_64b_cmd ->q_id
 
-					contig		
+					contig	data_buf_type				gen_prp
 prep_send64b_cmd	0		NVME_IO_QUEUE_DISCONTIG √	PRP_PRESENT		(create IO SQ/CQ)
 					1		NVME_IO_QUEUE_CONTIG		PRP_ABSENT		(create IO SQ/CQ)
 					0/1		DATA_BUF(0)					PRP_ABSENT(0)	(del IO SQ/CQ)
@@ -27,7 +27,9 @@ p_cmd_cq：等待创建的IO SQ/CQ
 
 !TODO:
 1. 删除 WRITE_PG / READ_PG √
-
+2. 使用 nvme_delete_queue 替代 nvme_del_q
+3. 使用 nvme_common_command 替代 nvme_gen_cmd
+4. 移除 nvme_prps 中 type&prp1&prp2&first_dma
 
 
 

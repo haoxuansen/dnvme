@@ -125,7 +125,7 @@ struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id);
 int dnvme_check_qid_unique(struct nvme_context *ctx, 
 	enum nvme_queue_type type, u16 id);
 
-struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
+struct nvme_cmd_node *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
 struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
 
 struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
