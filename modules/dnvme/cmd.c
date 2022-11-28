@@ -594,8 +594,23 @@ int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
+#if 0
 void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps)
 {
 	dnvme_free_prp_list(ndev, prps);
 	dnvme_unmap_user_page(ndev, prps);
 }
+
+void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
+{
+	struct nvme_cmd_node *node;
+	struct list_head *pos, *tmp;
+
+	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
+		node = list_entry(pos, struct nvme_cmd_node, entry);
+		dnvme_release_prps(ndev, &node->prp_nonpersist);
+		list_del(pos);
+		kfree(node);
+	}
+}
+#endif

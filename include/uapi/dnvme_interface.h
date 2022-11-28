@@ -22,30 +22,6 @@
 #include "nvme.h"
 
 /**
- * These enums define the type of interrupt scheme that the overall
- * system uses.
- */
-enum nvme_irq_type {
-	INT_MSI_SINGLE,
-	INT_MSI_MULTI,
-	INT_MSIX,
-	INT_PIN,
-	INT_NONE, /* !TODO: It's better to place header position */
-	INT_FENCE    /* Last item to guard from loop run-overs */
-};
-
-/**
- * This structure defines the overall interrupt scheme used and
- * defined parameters to specify the driver version and application
- * version. A verification is performed by driver and application to
- * check if these versions match.
- */
-struct nvme_driver {
-	uint32_t driver_version;  /* dnvme driver version */
-	uint32_t api_version;     /* tnvme test application version */
-};
-
-/**
  * This structure defines the parameters required for creating any CQ.
  * It supports both Admin CQ and IO CQ.
  */
@@ -72,15 +48,6 @@ struct nvme_sq_public {
 	uint16_t	head_ptr; /* Calculate this value based on cmds reaped */
 	uint32_t	elements; /* total number of elements in this Q */
 	uint8_t		sqes;
-};
-
-/**
- * Interface structure for getting the metrics structure into a user file.
- * The filename and location are specified thought file_name parameter.
- */
-struct nvme_file {
-    uint16_t    flen;       /* Length of file name, it is not the total bytes */
-    const char *file_name;  /* location and file name to copy metrics */
 };
 
 /**
@@ -172,23 +139,6 @@ struct nvme_del_q {
 };
 
 /**
- * Interface structure for setting the desired IRQ type.
- * works for all type of interrupt scheme expect PIN based.
- */
-struct interrupts {
-	uint16_t		num_irqs; /* total no. of irqs req by tnvme */
-	enum nvme_irq_type	irq_type; /* Active IRQ scheme for this dev */
-};
-
-/**
- * Public interface for the nvme device parameters. These parameters are
- * copied to user on request through an IOCTL interface GET_DEVICE_METRICS.
- */
-struct nvme_dev_public {
-	struct interrupts	irq_active; /* Active IRQ state of the nvme device */
-};
-
-/**
  * Describes bits/bytes within an existing SQ indicating a new value for any
  * cmd dword. This is only allowed for those cmds for which the doorbell hasn't
  * already rung.
@@ -200,15 +150,6 @@ struct backdoor_inject {
     uint32_t value_mask;  /* Bitmask indicates which 'value' bits to use */
     uint32_t value;       /* Extract spec'd bits; overwrite those exact bits */
 };
-
-/**
- * Interface structure for marking a unique string to the system log.
- */
-struct nvme_logstr {
-    uint16_t    slen;       /* sizeof(log_str) */
-    const char *log_str;    /* NULl terminated ASCII logging statement */
-};
-
 
 // struct nvme_write_bp_buf
 // {

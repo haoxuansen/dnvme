@@ -29,12 +29,12 @@
 #include "core.h"
 #include "io.h"
 #include "debug.h"
+#include "cmd.h"
 
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
-#include "dnvme_cmds.h"
 #include "dnvme_irq.h"
 
 /**
@@ -165,12 +165,17 @@ static int dnvme_delete_cmd(struct nvme_sq *sq, u16 cmd_id)
 void device_cleanup(struct nvme_context *pmetrics_device,
     enum nvme_state new_state)
 {
-    /* Clean the IRQ data structures */
-    release_irq(pmetrics_device);
-    /* Clean Up the data structures */
-    deallocate_all_queues(pmetrics_device, new_state);
-    /* Clean up meta buffers in all disable cases */
-    deallocate_mb(pmetrics_device);
+	/* Clean the IRQ data structures */
+	release_irq(pmetrics_device);
+	/* Clean Up the data structures */
+	deallocate_all_queues(pmetrics_device, new_state);
+	/* Clean up meta buffers in all disable cases */
+	dnvme_destroy_meta_pool(pmetrics_device);
+}
+
+void dnvme_update_sq_tail(struct nvme_sq *sq)
+{
+	
 }
 
 struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
@@ -422,7 +427,7 @@ static void deallocate_metrics_cq(struct device *dev,
     /* Delete memory for all nvme_cq for current id here */
     if (pmetrics_cq_list->priv.contig == 0) {
         /* Deletes the PRP persist entry */
-        dnvme_delete_prps(pmetrics_device->dev,
+        dnvme_release_prps(pmetrics_device->dev,
             &pmetrics_cq_list->priv.prp_persist);
 
     } else {
@@ -452,7 +457,7 @@ static void nvme_release_sq(struct device *dev, struct nvme_sq *sq,
 
 	if (sq->priv.contig == 0) {
 		/* Deletes the PRP persist entry */
-		dnvme_delete_prps(ctx->dev,
+		dnvme_release_prps(ctx->dev,
 		&sq->priv.prp_persist);
 	} else {
 		/* Contiguous SQ, so free the DMA memory */
@@ -686,7 +691,7 @@ int driver_reap_inquiry(struct nvme_context *pmetrics_device,
     user_data->isr_count = 0;
     /* Note: If ISR's are enabled then ACQ will always be attached to INT 0 */
     if (pmetrics_device->dev->pub.irq_active.irq_type
-        == INT_NONE) {
+        == NVME_INT_NONE) {
 
         /* Process reap inquiry for non-isr case */
         dnvme_vdbg("Non-ISR Reap Inq on CQ = %d",
@@ -694,7 +699,7 @@ int driver_reap_inquiry(struct nvme_context *pmetrics_device,
         user_data->num_remaining = reap_inquiry(pmetrics_cq_node,
             &pmetrics_device->dev->priv.pdev->dev);
     } else {
-        /* When INT scheme is other than INT_NONE */
+        /* When INT scheme is other than NVME_INT_NONE */
         /* If the irq is enabled, process reap_inq isr else
          * do polling based inq
          */
@@ -856,7 +861,7 @@ static int process_algo_gen(struct nvme_sq *pmetrics_sq_node,
         return -EBADSLT; /* Invalid slot */
     }
 
-    dnvme_delete_prps(pmetrics_device->dev, &pcmd_node->prp_nonpersist);
+    dnvme_release_prps(pmetrics_device->dev, &pcmd_node->prp_nonpersist);
     err = dnvme_delete_cmd(pmetrics_sq_node, cmd_id);
     return err;
 }
@@ -1070,7 +1075,7 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
     /* Call the reap inquiry on this CQ, see how many unreaped elements exist */
     /* Check if the IRQ is enabled and process accordingly */
     if (pmetrics_device->dev->pub.irq_active.irq_type
-        == INT_NONE) {
+        == NVME_INT_NONE) {
 
         /* Process reap inquiry for non-isr case */
         num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
@@ -1200,7 +1205,7 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
     if ((pmetrics_cq_node->pub.irq_enabled == 1) &&
         (user_data->num_remaining == 0) &&
         (pmetrics_device->dev->pub.irq_active.irq_type !=
-        INT_NONE)) {
+        NVME_INT_NONE)) {
 
         /* reset isr fired flag for the particular irq_no */
         if (reset_isr_flag(pmetrics_device,
@@ -1219,7 +1224,7 @@ int driver_reap_cq(struct  nvme_context *pmetrics_device,
 mtx_unlk:
     if ((pmetrics_cq_node->pub.irq_enabled == 1) &&
         (pmetrics_device->dev->pub.irq_active.irq_type !=
-        INT_NONE)) {
+        NVME_INT_NONE)) {
 
         mutex_unlock(&pmetrics_device->irq_process.irq_track_mtx);
     }

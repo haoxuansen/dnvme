@@ -371,7 +371,7 @@ int main(int argc, char *argv[])
                     pr_info("io write succeed\n");
                 }
             }
-            ioctl_meta_buf_delete(file_desc, 0);
+            ioctl_meta_node_delete(file_desc, 0);
             break;
         case 17:
             memset(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
                     pr_info("io read succeed\n");
                 }
             }
-            ioctl_meta_buf_delete(file_desc, 0);
+            ioctl_meta_node_delete(file_desc, 0);
             break;
         case 18:
             pr_color(LOG_COLOR_CYAN, "pls enter loop cnt:");
@@ -751,7 +751,7 @@ int main(int argc, char *argv[])
     /* Exit gracefully */
     pr_info("\nNow Exiting gracefully....\n");
     ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
-    set_irqs(file_desc, INT_NONE, 0);
+    set_irqs(file_desc, NVME_INT_NONE, 0);
     test_mem_free();
     pr_info("\n\n****** END OF TEST ******\n\n");
     close(file_desc);

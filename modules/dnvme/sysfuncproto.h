@@ -33,8 +33,7 @@
 #include "core.h"
 #include "dnvme_ioctl.h"
 
-int dnvme_reset_subsystem(struct nvme_context *ctx);
-int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled);
+int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state);
 
 int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess);
@@ -50,6 +49,11 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 
 int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd);
 
+int dnvme_create_meta_pool(struct nvme_context *ctx, u32 size);
+void dnvme_destroy_meta_pool(struct nvme_context *ctx);
+int dnvme_create_meta_node(struct nvme_context *ctx, u32 id);
+void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id);
+
 /**
  * driver_toxic_dword - Please refer to the header file comment for
  * NVME_IOCTL_TOXIC_64B_CMD.
@@ -60,20 +64,6 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
  */
 int driver_toxic_dword(struct nvme_context *pmetrics_device,
     struct backdoor_inject *err_inject);
-
-/**
- * driver_log - Driver routine to log data into file from metrics
- * @param n_file
- * @return allocation of contig mem 0 or -1.
- */
-int driver_log(struct nvme_file *n_file);
-
-/**
- * driver_logstr - Driver routine to log a custom string to the system log
- * @param logStr
- * @return 0 or -1.
- */
-int driver_logstr(struct nvme_logstr *logStr);
 
 /**
  * deallocate_all_queues - This function will start freeing up the memory for
@@ -137,45 +127,6 @@ int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
  */
 int driver_reap_cq(struct nvme_context *pmetrics_device,
     struct nvme_reap *usr_reap_data);
-
-/**
- * Create a dma pool for the requested size. Initialize the DMA pool pointer
- * with DWORD alignment and associate it with the active device.
- * @param pmetrics_device
- * @param alloc_size
- * @return 0 or -1 based on dma pool creation.
- */
-int metabuff_create(struct nvme_context *pmetrics_device,
-    u32 alloc_size);
-
-/**
- * Create a meta buffer node when user request and allocate a consistent
- * dma memory from the meta dma pool. Add this node into the meta data
- * linked list.
- * @param pmetrics_device
- * @param id
- * @return Success of Failure based on dma alloc Success or failure.
- */
-int metabuff_alloc(struct nvme_context *pmetrics_device,
-    u32 id);
-
-/**
- * Delete a meta buffer node when user requests and deallocate a consistent
- * dma memory. Delete this node from the meta data linked list.
- * @param pmetrics_device
- * @param id
- * @return Success of Failure based on metabuff delete
- */
-int metabuff_del(struct nvme_context *pmetrics_device,
-    u32 id);
-
-/*
- * deallocate_mb will free up the memory and nodes for the meta buffers
- * that were allocated during the alloc and create meta. Finally
- * destroys the dma pool and free up the metrics meta node.
- * @param pmetrics_device
- */
-void deallocate_mb(struct nvme_context *pmetrics_device);
 
 int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
     u16 *offset);

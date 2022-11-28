@@ -99,7 +99,7 @@ void unmask_interrupts(u16 irq_no, struct irq_processing
 /*
  * Used for releasing the IRQ lists after any scheme is run
  * Also removes all the enqueued wk items
- * set the current active scheme to INT_NONE.
+ * set the current active scheme to NVME_INT_NONE.
  */
 void release_irq(struct nvme_context *pmetrics_device_elem);
 /*

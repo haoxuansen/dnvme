@@ -181,7 +181,7 @@ void ioctl_create_acq(int file_desc, uint32_t queue_size);
 void ioctl_create_asq(int file_desc, uint32_t queue_size);
 void test_meta(int file_desc);
 uint32_t create_meta_buf(int file_desc, uint32_t id);
-int ioctl_meta_buf_delete(int file_desc, uint32_t id);
+int ioctl_meta_node_delete(int file_desc, uint32_t id);
 
 void ioctl_dump(int file_desc, char *tmpfile);
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);

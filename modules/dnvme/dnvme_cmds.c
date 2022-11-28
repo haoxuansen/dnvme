@@ -311,17 +311,17 @@ void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 
 	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
 		cmd = list_entry(pos, struct nvme_cmd_node, entry);
-		dnvme_delete_prps(ndev, &cmd->prp_nonpersist);
+		dnvme_release_prps(ndev, &cmd->prp_nonpersist);
 		list_del(pos);
 		kfree(cmd);
 	}
 }
 
 /*
- * dnvme_delete_prps:
+ * dnvme_release_prps:
  * Deletes the PRP structures of SQ/CQ or command track node
  */
-void dnvme_delete_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
+void dnvme_release_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
 {
     /* First unmap the dma */
     unmap_user_pg_to_dma(nvme_device, prps);

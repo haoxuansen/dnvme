@@ -19,11 +19,11 @@
 #ifndef _DNVME_DS_H_
 #define _DNVME_DS_H_
 
-#include <linux/cdev.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/dma-mapping.h>
 
 #include "dnvme_ioctl.h"
 
@@ -122,7 +122,7 @@ struct nvme_sq {
  * Note:- Struct used for u16 for future additions
  */
 struct irq_cq_track {
-	struct list_head	irq_cq_head; /* linked list head for irq CQ trk */
+	struct list_head	entry; /* linked list head for irq CQ trk */
 	u16			cq_id; /* Completion Q id */
 };
 
@@ -211,12 +211,12 @@ struct nvme_device {
  * Work container which holds vectors and scheduled work queue item
  */
 struct work_container {
-	struct list_head wrk_list_hd;
-	struct work_struct sched_wq; /* Work Struct item used in bh */
-	u16 irq_no; /* 0 based irq_no */
-	u32 int_vec; /* Interrupt vectors assigned by the kernel */
+	struct list_head	wrk_list_hd;
+	struct work_struct	sched_wq; /* Work Struct item used in bh */
+	u16	irq_no; /* 0 based irq_no */
+	u32	int_vec; /* Interrupt vectors assigned by the kernel */
 	/* Pointer to the IRQ_processing strucutre of the device */
-	struct irq_processing *pirq_process;
+	struct irq_processing	*pirq_process;
 };
 
 /*

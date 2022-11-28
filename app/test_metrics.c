@@ -112,12 +112,12 @@ void test_drv_metrics(int file_desc)
     struct nvme_driver get_drv_metrics = {0};
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DRIVER_METRICS, &get_drv_metrics);
+    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DRIVER_INFO, &get_drv_metrics);
     if (ret_val < 0)
     {
         pr_err("\tDrv metrics Failed!\n");
     }
-    pr_debug("Drv Version = 0x%X\n", get_drv_metrics.driver_version);
+    pr_debug("Drv Version = 0x%X\n", get_drv_metrics.drv_version);
     pr_debug("Api Version = 0x%X\n", get_drv_metrics.api_version);
 }
 
@@ -126,7 +126,7 @@ void test_dev_metrics(int file_desc)
     struct nvme_dev_public get_dev_metrics = {0};
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEVICE_METRICS, &get_dev_metrics);
+    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEV_INFO, &get_dev_metrics);
     if (ret_val < 0)
     {
         pr_err("\tDev metrics Failed!\n");
@@ -369,16 +369,16 @@ int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
 void ioctl_dump(int file_desc, char *tmpfile)
 {
     int ret_val = -1;
-    struct nvme_file pfile = {0};
+    struct nvme_log_file pfile = {0};
 
-    pfile.flen = strlen(tmpfile);
+    pfile.len = strlen(tmpfile);
     //pr_info("size = %d\n", pfile.flen);
-    pfile.file_name = malloc(pfile.flen);
-    strcpy((char *)pfile.file_name, tmpfile);
+    pfile.name = malloc(pfile.len);
+    strcpy((char *)pfile.name, tmpfile);
 
-    pr_info("File name = %s\n", pfile.file_name);
+    pr_info("File name = %s\n", pfile.name);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DUMP_METRICS, &pfile);
+    ret_val = ioctl(file_desc, NVME_IOCTL_DUMP_LOG_FILE, &pfile);
     if (ret_val < 0)
     {
         pr_err("Dump Metrics Failed!\n");

@@ -22,17 +22,8 @@
 #include "bitops.h"
 #include "dnvme_interface.h"
 
-/**
- * Enumeration types which provide common interface between kernel driver and
- * user app layer ioctl functions. dnvme is using letter 'N' to designate the
- * first param to _IO macros because of "Nvme" designation. Since
- * drivers/usb/scanner.h is officially designated to use this letter, but
- * only for the 2nd param values ranging from 0x00-0x1f, dnmve will therefore
- * use higher values for the 2nd param as indicated by the value of the
- * following enum.
- */
 enum {
-	NVME_READ_GENERIC = 0, //0xB0,
+	NVME_READ_GENERIC = 0,
 	NVME_WRITE_GENERIC,
 	NVME_GET_CAPABILITY,
 	NVME_SET_DEV_STATE,
@@ -43,18 +34,18 @@ enum {
 	NVME_PREPARE_SQ_CREATION,
 	NVME_PREPARE_CQ_CREATION,
 	NVME_RING_SQ_DOORBELL,
-	NVME_DUMP_METRICS,
+	NVME_DUMP_LOG_FILE,
 	NVME_REAP_INQUIRY,
 	NVME_REAP,
-	NVME_GET_DRIVER_METRICS,
-	NVME_METABUF_ALLOC,
-	NVME_METABUF_CREAT,
-	NVME_METABUF_DEL,
+	NVME_GET_DRIVER_INFO,
+	NVME_CREATE_META_POOL,
+	NVME_DESTROY_META_POOL,
+	NVME_CREATE_META_NODE,
+	NVME_DELETE_META_NODE,
 	NVME_SET_IRQ,
 	NVME_MASK_IRQ,
 	NVME_UNMASK_IRQ,
-	NVME_GET_DEVICE_METRICS,
-	NVME_MARK_SYSLOG,
+	NVME_GET_DEV_INFO,
 	// NVME_GET_BP_MEM,
 	// NVME_GET_BP_MEM_ADDR,
 };
@@ -107,6 +98,19 @@ enum nvme_64b_cmd_mask {
 	NVME_MASK_PRP2_LIST = (1 << 3), /* PRP2 can point to a PRP list */
 	NVME_MASK_MPTR = (1 << 4), /* MPTR may be modified */
 	NVME_MASK_PRP_ADDR_OFFSET_ERR = (1 << 5), /* To inject PRP address offset (used for err cases) */
+};
+
+enum nvme_irq_type {
+	NVME_INT_MSI_SINGLE,
+	NVME_INT_MSI_MULTI,
+	NVME_INT_MSIX,
+	NVME_INT_PIN,
+	NVME_INT_NONE, /* !TODO: It's better to place header position */
+};
+
+struct nvme_driver {
+	uint32_t drv_version;
+	uint32_t api_version;
 };
 
 /**
@@ -197,13 +201,39 @@ struct nvme_64b_cmd {
 	uint16_t	q_id;	       /* Queue ID where the cmd_buf command should go */
 };
 
+/**
+ * Interface structure for setting the desired IRQ type.
+ * works for all type of interrupt scheme expect PIN based.
+ */
+struct interrupts {
+	uint16_t		num_irqs; /* total no. of irqs req by tnvme */
+	enum nvme_irq_type	irq_type; /* Active IRQ scheme for this dev */
+};
+
+struct nvme_dev_public {
+	struct interrupts	irq_active; /* Active IRQ state of the nvme device */
+};
+
+/**
+ * @name: The file name includes its path information.
+ * @len: The length of file name (in bytes).
+ */
+struct nvme_log_file {
+	const char	*name;
+	uint16_t	len;
+};
+
+#define NVME_IOCTL_GET_DRIVER_INFO \
+	_IOR('N', NVME_GET_DRIVER_INFO, struct nvme_driver)
+#define NVME_IOCTL_GET_DEV_INFO \
+	_IOR('N', NVME_GET_DEV_INFO, struct nvme_dev_public)
+#define NVME_IOCTL_GET_CAPABILITY \
+	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_capability)
+
 #define NVME_IOCTL_READ_GENERIC \
 	_IOWR('N', NVME_READ_GENERIC, struct nvme_access)
 #define NVME_IOCTL_WRITE_GENERIC \
 	_IOWR('N', NVME_WRITE_GENERIC, struct nvme_access)
-
-#define NVME_IOCTL_GET_CAPABILITY \
-	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_capability)
 
 #define NVME_IOCTL_SET_DEV_STATE \
 	_IOW('N', NVME_SET_DEV_STATE, enum nvme_state)
@@ -225,6 +255,21 @@ struct nvme_64b_cmd {
 #define NVME_IOCTL_SEND_64B_CMD \
 	_IOWR('N', NVME_SEND_64B_CMD, struct nvme_64b_cmd)
 
+/* uint16_t: assign meta node identify */
+#define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, uint32_t)
+/* uint16_t: assign meta node identify */
+#define NVME_IOCTL_DELETE_META_NODE	_IOW('N', NVME_DELETE_META_NODE, uint32_t)
+/* uint32_t: assign meta buf size */
+#define NVME_IOCTL_CREATE_META_POOL	_IOW('N', NVME_CREATE_META_POOL, uint32_t)
+#define NVME_IOCTL_DESTROY_META_POOL	_IO('N', NVME_DESTROY_META_POOL)
+
+#define NVME_IOCTL_SET_IRQ		_IOWR('N', NVME_SET_IRQ, struct interrupts)
+#define NVME_IOCTL_MASK_IRQ		_IOWR('N', NVME_MASK_IRQ, uint16_t)
+#define NVME_IOCTL_UNMASK_IRQ		_IOWR('N', NVME_UNMASK_IRQ, uint16_t)
+
+#define NVME_IOCTL_DUMP_LOG_FILE \
+	_IOWR('N', NVME_DUMP_LOG_FILE, struct nvme_log_file)
+
 /**
  * @def NVME_IOCTL_TOXIC_64B_CMD
  * After Utilizing NVME_IOCTL_SEND_64B_CMD to issue a cmd into any SQ, but
@@ -243,12 +288,6 @@ struct nvme_64b_cmd {
     struct backdoor_inject)
 
 /**
- * @def NVME_IOCTL_DUMP_METRICS
- * define a unique value to Dump Q metrics.
- */
-#define NVME_IOCTL_DUMP_METRICS _IOWR('N', NVME_DUMP_METRICS, struct nvme_file)
-
-/**
  * @def NVME_IOCTL_REAP_INQUIRY
  * define a unique value to reap inquiry ioctl.
  */
@@ -260,55 +299,6 @@ struct nvme_64b_cmd {
  * define a unique value to reap ioctl.
  */
 #define NVME_IOCTL_REAP _IOWR('N', NVME_REAP, struct nvme_reap)
-
-/**
- * @def NVME_IOCTL_GET_DRIVER_METRICS
- * define a unique value to return driver metrics ioctl.
- */
-#define NVME_IOCTL_GET_DRIVER_METRICS _IOWR('N', NVME_GET_DRIVER_METRICS, \
-    struct nvme_driver)
-
-/**
- * @def NVME_IOCTL_METABUF_ALLOC
- * define a unique value to meta buffer allocation. The third parameter give the
- * size of data and type of data passed to this ioctl from user to kernel.
- */
-#define NVME_IOCTL_METABUF_ALLOC _IOWR('N', NVME_METABUF_ALLOC, uint32_t)
-
-/**
- * @def NVME_IOCTL_METABUF_CREATE
- * define a unique value to meta buffer creation.
- */
-#define NVME_IOCTL_METABUF_CREATE _IOWR('N', NVME_METABUF_CREAT, uint16_t)
-
-/**
- * @def NVME_IOCTL_METABUF_DELETE
- * define a unique value meta buffer deletion.
- */
-#define NVME_IOCTL_METABUF_DELETE _IOWR('N', NVME_METABUF_DEL, uint32_t)
-
-/**
- * @def NVME_IOCTL_SET_IRQ
- * define a unique value for IRQ setting scheme.
- */
-#define NVME_IOCTL_SET_IRQ _IOWR('N', NVME_SET_IRQ, struct interrupts)
-
-#define NVME_IOCTL_MASK_IRQ _IOWR('N', NVME_MASK_IRQ, uint16_t)
-
-#define NVME_IOCTL_UNMASK_IRQ _IOWR('N', NVME_UNMASK_IRQ, uint16_t)
-
-/**
- * @def NVME_IOCTL_GET_DEVICE_METRICS
- * define a unique value for returning the device metrics.
- */
-#define NVME_IOCTL_GET_DEVICE_METRICS _IOWR('N', NVME_GET_DEVICE_METRICS, \
-    struct nvme_dev_public)
-
-/**
- * @def NVME_IOCTL_MARK_SYSLOG
- * Write a unique string, i.e. mark, into the system log to mark a point in time
- */
-#define NVME_IOCTL_MARK_SYSLOG _IOW('N', NVME_MARK_SYSLOG, struct nvme_logstr)
 
 /**
  * @def NVME_GET_BP_MEM

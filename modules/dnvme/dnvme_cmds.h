@@ -24,13 +24,6 @@ enum {
     PRP_ABSENT = 0   /* Specifies not to generate PRP's per command */
 };
 
-/* Enum specifying Writes/Reads to mapped pages and other general enums */
-enum {
-    PERSIST_QID_0 = 0, /* Default value of Persist queue ID */
-    CDW11_PC = 1, /* Mask for checking CDW11.PC of create IO Q cmds */
-    CDW11_IEN = 2, /* Mask to check if CDW11.IEN is set */
-};
-
 /* Enum specifying PRP1,PRP2 or List */
 enum prp_type {
 	NO_PRP = 0,
@@ -80,9 +73,6 @@ int prep_send64b_cmd(struct nvme_device *nvme_dev, struct nvme_sq
 int add_cmd_track_node(struct  nvme_sq  *pmetrics_sq,
     u16 persist_q_id, struct nvme_prps *prps, u8 opcode, u16 cmd_id);
 
-
-void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
-
 /**
  * destroy_dma_pool:
  * Destroy's the dma pool
@@ -90,15 +80,5 @@ void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
  * @return void
  */
 void destroy_dma_pool(struct nvme_device *nvme_dev);
-
-/**
- * dnvme_delete_prps:
- * Deletes the PRP structures of SQ/CQ or command track node
- * @param nvme_device
- * @param prps
- * @return void
- */
-void dnvme_delete_prps(struct nvme_device *nvme_device, struct nvme_prps *prps);
-
 
 #endif

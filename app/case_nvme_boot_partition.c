@@ -50,7 +50,7 @@ int case_nvme_boot_partition(void)
         }
     }
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     return test_flag;
 }
@@ -175,7 +175,7 @@ int writeing_boot_partition(void)
 {
     uint32_t reap_num = 0;
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     // 1. The host issues a Firmware Image Download command to download the contents of the Boot
     // Partition to the controller. There may be multiple portions of the Boot Partition to download, thus
     // the offset for each portion of the Boot Partition being downloaded is specified in the Firmware Image

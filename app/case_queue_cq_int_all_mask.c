@@ -56,7 +56,7 @@ int case_queue_cq_int_all_mask(void)
             break;
         }
     }
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -151,7 +151,7 @@ static dword_t sub_case_pending_bit(void)
     for (word_t i = 0; i < queue_num; i++)
     {
         io_cq_id = ctrl_sq_info[i].cq_id;
-        if( (g_nvme_dev.irq_type == INT_MSI_SINGLE)||(g_nvme_dev.irq_type == INT_MSI_MULTI) )
+        if( (g_nvme_dev.irq_type == NVME_INT_MSI_SINGLE)||(g_nvme_dev.irq_type == NVME_INT_MSI_MULTI) )
         {
             msi_cap_access();
         }

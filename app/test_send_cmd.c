@@ -1780,7 +1780,7 @@ dword_t create_all_io_queue(byte_t flags)
 
     int_type = BYTE_RAND() % 4;
 
-    if (int_type == INT_PIN || int_type == INT_MSI_SINGLE)
+    if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
     {
         num_irqs = 1;
     }
@@ -1802,7 +1802,7 @@ dword_t create_all_io_queue(byte_t flags)
         cq_parameter.cq_size = ctrl_sq_info[sqidx].cq_size;
         cq_parameter.contig = 1;
         cq_parameter.irq_en = 1;
-        if (int_type == INT_PIN || int_type == INT_MSI_SINGLE)
+        if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
         {
             cq_parameter.irq_no = 0;
         }

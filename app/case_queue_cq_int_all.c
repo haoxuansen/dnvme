@@ -67,7 +67,7 @@ int case_queue_cq_int_all(void)
             break;
         }
     }
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -77,7 +77,7 @@ static dword_t sub_case_int_pin(void)
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_PIN, 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_PIN, 1);
 
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
@@ -140,7 +140,7 @@ static dword_t sub_case_int_msi_single(void)
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSI_SINGLE, 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSI_SINGLE, 1);
 
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
@@ -208,7 +208,7 @@ static dword_t sub_case_int_msi_multi(void)
     #endif
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSI_MULTI,
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSI_MULTI,
                      (g_nvme_dev.max_sq_num + 1 > 32) ? 33 : (g_nvme_dev.max_sq_num + 1));
 
     /**********************************************************************/
@@ -277,7 +277,7 @@ static dword_t sub_case_int_msix(void)
     if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
         return SKIPED;
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;

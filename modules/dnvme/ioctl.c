@@ -28,6 +28,7 @@
 #include "io.h"
 #include "core.h"
 #include "pci.h"
+#include "cmd.h"
 
 #include "dnvme_ioctl.h"
 #include "definitions.h"
@@ -35,7 +36,6 @@
 #include "sysfuncproto.h"
 #include "dnvme_sts_chk.h"
 #include "dnvme_queue.h"
-#include "dnvme_cmds.h"
 #include "dnvme_ds.h"
 #include "dnvme_irq.h"
 
@@ -75,7 +75,7 @@ static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
  * @param ctx NVMe context
  * @return 0 on success, otherwise a negative errno.
  */
-int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
+static int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 {
 	struct nvme_device *ndev = ctx->dev;
 	void __iomem *bar0 = ndev->priv.bar0;
@@ -93,7 +93,7 @@ int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 	return dnvme_wait_ready(ndev, enabled);
 }
 
-int dnvme_reset_subsystem(struct nvme_context *ctx)
+static int dnvme_reset_subsystem(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
 	void __iomem *bar0 = ndev->priv.bar0;
@@ -102,6 +102,38 @@ int dnvme_reset_subsystem(struct nvme_context *ctx)
 	dnvme_writel(bar0, NVME_REG_NSSR, rstval);
 
 	return dnvme_wait_ready(ndev, false);
+}
+
+int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
+{
+	int ret;
+
+	switch (state) {
+	case NVME_ST_ENABLE:
+		ret =  dnvme_set_ctrl_state(ctx, true);
+		break;
+
+	case NVME_ST_DISABLE:
+	case NVME_ST_DISABLE_COMPLETE:
+		ret = dnvme_set_ctrl_state(ctx, false);
+		if (ret < 0) {
+			dnvme_err("failed to set ctrl state(%d)!\n", state);
+		} else {
+			device_cleanup(ctx, state);
+		}
+		break;
+
+	case NVME_ST_RESET_SUBSYSTEM:
+		ret = dnvme_reset_subsystem(ctx);
+		/* !NOTICE: It's necessary to clean device here? */
+		break;
+
+	default:
+		dnvme_err("nvme state(%d) is unkonw!\n", state);
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 int dnvme_get_capability(struct nvme_context *ctx, struct nvme_capability __user *ucap)
@@ -416,166 +448,109 @@ out:
 	return ret;
 }
 
-/*
- * Allocate a dma pool for the requested size. Initialize the DMA pool pointer
- * with DWORD alignment and associate it with the active device.
- */
-int metabuff_create(struct nvme_context *pmetrics_device_elem,
-    u32 alloc_size)
+int dnvme_create_meta_pool(struct nvme_context *ctx, u32 size)
 {
-    /* First Check if the meta pool already exists */
-    if (pmetrics_device_elem->meta_set.pool != NULL) {
-        if (alloc_size == pmetrics_device_elem->meta_set.buf_size) {
-            return 0;
-        }
-        dnvme_err("Meta Pool already exists, of a different size");
-        return -EINVAL;
-    }
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_meta_set *meta_set = &ctx->meta_set;
+	struct pci_dev *pdev = ndev->priv.pdev;
 
-    /* Create coherent DMA mapping for meta data buffer creation */
-    pmetrics_device_elem->meta_set.pool = dma_pool_create
-        ("meta_buff", &pmetrics_device_elem->dev->
-        priv.pdev->dev, alloc_size, sizeof(u32), 0);
-    if (pmetrics_device_elem->meta_set.pool == NULL) {
-        dnvme_err("Creation of DMA Pool failed size = 0x%08X", alloc_size);
-        return -ENOMEM;
-    }
+	if (meta_set->pool) {
+		if (size == meta_set->buf_size)
+			return 0;
 
-    pmetrics_device_elem->meta_set.buf_size = alloc_size;
-    return 0;
+		dnvme_err("meta pool already exists!(size: %u vs %u)\n",
+			meta_set->buf_size, size);
+		return -EINVAL;
+	}
+
+	meta_set->pool = dma_pool_create("meta_buf", &pdev->dev, size, 
+		NVME_META_BUF_ALIGN, 0);
+	if (!meta_set->pool) {
+		dnvme_err("failed to create meta pool with size %u!\n", size);
+		return -ENOMEM;
+	}
+
+	meta_set->buf_size = size;
+	return 0;
 }
 
-
-/*
- * alloc a meta buffer node when user request and allocate a consistent
- * dma memory from the meta dma pool. Add this node into the meta data
- * linked list.
- */
-int metabuff_alloc(struct nvme_context *pmetrics_device_elem,
-    u32 id)
+void dnvme_destroy_meta_pool(struct nvme_context *ctx)
 {
-    struct nvme_meta *pmeta_data = NULL;
-    int err = 0;
+	struct nvme_meta_set *meta_set = &ctx->meta_set;
+	struct nvme_meta *meta;
+	struct nvme_meta *tmp;
 
+	if (!meta_set->pool)
+		return;
 
-    /* Check if parameters passed to this function are valid */
-    if (pmetrics_device_elem->meta_set.pool == NULL) {
-        dnvme_info("Call to Create the meta data pool first...");
-        dnvme_err("Meta data pool is not created");
-        return -EINVAL;
-    }
+	if (!list_empty(&meta_set->meta_list)) {
+		list_for_each_entry_safe(meta, tmp, &meta_set->meta_list, entry) {
+			list_del(&meta->entry);
+			dma_pool_free(meta_set->pool, meta->buf, meta->dma);
+			kfree(meta);
+		}
+	}
 
-    pmeta_data = dnvme_find_meta(pmetrics_device_elem, id);
-    if (pmeta_data != NULL) {
-        dnvme_err("Meta ID = %d already exists", pmeta_data->id);
-        return -EINVAL;
-    }
-
-    /* Allocate memory to meta_set for each node */
-    pmeta_data = kmalloc(sizeof(struct nvme_meta), GFP_KERNEL);
-    if (pmeta_data == NULL) {
-        dnvme_err("Allocation to contain meta data node failed");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-
-    /* Allocate DMA memory for the meta data buffer */
-    pmeta_data->id = id;
-    pmeta_data->buf = dma_pool_alloc(pmetrics_device_elem->
-        meta_set.pool, GFP_ATOMIC, &pmeta_data->dma);
-    if (pmeta_data->buf == NULL) {
-        dnvme_err("Allocation for meta data buffer failed");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-
-    /* Add the meta data node into the linked list */
-    list_add_tail(&pmeta_data->entry, &pmetrics_device_elem->
-        meta_set.meta_list);
-    return err;
-
-fail_out:
-    if (pmeta_data != NULL) {
-        kfree(pmeta_data);
-    }
-    return err;
+	dma_pool_destroy(ctx->meta_set.pool);
+	ctx->meta_set.pool = NULL;
+	ctx->meta_set.buf_size = 0;
 }
 
-
-/*
- * Delete the meta buffer node for given meta id from the linked list.
- * First Free the dma pool allocated memory then delete the entry from the
- * linked list and finally free the node memory from the kernel.
- */
-int metabuff_del(struct nvme_context *pmetrics_device,
-    u32 id)
+int dnvme_create_meta_node(struct nvme_context *ctx, u32 id)
 {
-    struct nvme_meta *pmeta_data;
+	struct nvme_meta_set *meta_set = &ctx->meta_set;
+	struct nvme_meta *meta;
+	int ret;
 
-    /* Check if invalid parameters are passed */
-    if (pmetrics_device->meta_set.pool == NULL) {
-        dnvme_err("Meta data pool is not created, nothing to delete");
-        return -EINVAL;
-    }
+	if (!meta_set->pool) {
+		dnvme_err("meta pool doesn't exist!\n");
+		dnvme_notice("please create meta pool first!\n");
+		return -EPERM;
+	}
 
-    /* Check if meta node id exists */
-    pmeta_data = dnvme_find_meta(pmetrics_device, id);
-    if (pmeta_data == NULL) {
-        dnvme_dbg("Meta ID does not exists, it is already deleted");
-        return 0;
-    }
+	meta = dnvme_find_meta(ctx, id);
+	if (meta) {
+		dnvme_err("meta node(%u) already exist!\n", id);
+		return -EINVAL;
+	}
 
-    /* Free the DMA memory if exists */
-    if (pmeta_data->buf != NULL) {
-        dma_pool_free(pmetrics_device->meta_set.pool,
-            pmeta_data->buf, pmeta_data->dma);
-    }
+	meta = kzalloc(sizeof(*meta), GFP_KERNEL);
+	if (!meta) {
+		dnvme_err("failed to alloc meta node!\n");
+		return -ENOMEM;
+	}
 
-    /* Remove from the linked list and free the node */
-    list_del(&pmeta_data->entry);
-    kfree(pmeta_data);
-    return 0;
+	meta->buf = dma_pool_alloc(meta_set->pool, GFP_ATOMIC, &meta->dma);
+	if (!meta->buf) {
+		dnvme_err("failed to alloc meta buf!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+	meta->id = id;
+	list_add_tail(&meta->entry, &meta_set->meta_list);
+
+	return 0;
+out:
+	kfree(meta);
+	return ret;
 }
 
-/*
- * deallocate_mb - This function will start freeing up the memory and
- * nodes for the meta buffers allocated during the alloc and create meta.
- */
-void deallocate_mb(struct nvme_context *pmetrics_device)
+void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id)
 {
-    struct nvme_meta *pmeta_data = NULL;
-    struct nvme_meta *pmeta_data_next = NULL;
+	struct nvme_meta *meta;
+	struct dma_pool *pool = ctx->meta_set.pool;
 
-    /* do not assume the node exists always */
-    if (pmetrics_device->meta_set.pool == NULL) {
-        dnvme_dbg("Meta node is not allocated..");
-        return;
-    }
-    /* Loop for each meta data node */
-    list_for_each_entry_safe(pmeta_data, pmeta_data_next,
-        &(pmetrics_device->meta_set.meta_list), entry) {
+	meta = dnvme_find_meta(ctx, id);
+	if (!meta) {
+		dnvme_warn("meta node(%u) doesn't exist! "
+			"it may be deleted already\n", id);
+		return;
+	}
 
-        /* free the dma memory if exists */
-        if (pmeta_data->buf != NULL) {
-            dma_pool_free(pmetrics_device->meta_set.pool,
-                pmeta_data->buf, pmeta_data->dma);
-        }
-        /* Remove from the linked list and free the node */
-        list_del(&pmeta_data->entry);
-        kfree(pmeta_data);
-    }
-
-    /* check if it has dma pool created then destroy */
-    if (pmetrics_device->meta_set.pool != NULL) {
-        dma_pool_destroy(pmetrics_device->meta_set.pool);
-        pmetrics_device->meta_set.pool = NULL;
-    }
-    pmetrics_device->meta_set.buf_size = 0;
-
-    /* Prepare a clean list, empty, ready for next use */
-    INIT_LIST_HEAD(&pmetrics_device->meta_set.meta_list);
+	list_del(&meta->entry);
+	dma_pool_free(pool, meta->buf, meta->dma);
+	kfree(meta);
 }
-
 
 int driver_toxic_dword(struct nvme_context *pmetrics_device,
     struct backdoor_inject *err_inject)
@@ -719,11 +694,13 @@ fail_out:
 }
 
 #ifdef MAPLE
-int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_sq *send,
-	struct nvme_64b_cmd *cmd, struct nvme_create_sq *csq)
+int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
 {
 	struct nvme_sq *wait_sq;
 	struct nvme_prps prps;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_create_sq *csq = (struct nvme_create_sq *)gcmd;
 	int ret;
 
 	wait_sq = dnvme_find_sq(ctx, csq->sqid);
@@ -753,18 +730,128 @@ int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_sq *send,
 		dnvme_err("SQ(%u) already created!\n", csq->sqid);
 		return -EINVAL;
 	}
+	memset(&prps, 0, sizeof(prps));
 
-	if (wait_sq->priv.contig == 0) {
-		if (wait_sq->priv.size != cmd->data_buf_size) {
-			dnvme_err("wait_sq expected size:%u, cmd provide size:%u\n",
-				wait_sq->priv.size, cmd->data_buf_size);
-			return -EINVAL;
-		}
-		memset(&prps, 0, sizeof(prps));
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0)
+		return ret;
 
+	/* Fill the persistent entry structure */
+	memcpy(&wait_sq->priv.prp_persist, &prps, sizeof(prps));
+
+	wait_sq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
+	return 0;
+}
+
+int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_prps prps;
+
+	/* !NOTE: It's better to check the ptr provided by the cmd is
+	 * consistent with that saved before
+	 */
+	if (!cmd->data_buf_ptr) {
+		dnvme_err("data_buf_ptr is NULL!\n");
+		return -EINVAL;
+	}
+	memset(&prps, 0, sizeof(prps));
+
+	return dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+}
+
+int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_cq *wait_cq;
+	struct nvme_prps prps;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_create_cq *ccq = (struct nvme_create_cq *)gcmd;
+	int ret;
+
+	wait_cq = dnvme_find_cq(ctx, ccq->cqid);
+	if (!wait_cq) {
+		dnvme_err("The waiting CQ(%u) doesn't exist!\n", ccq->cqid);
+		return -EBADSLT;
 	}
 
+	/* Sanity Checks */
+	if (((ccq->cq_flags & CDW11_PC) && (wait_cq->priv.contig == 0)) ||
+		(!(ccq->cq_flags & CDW11_PC) && (wait_cq->priv.contig != 0))) {
+		dnvme_err("ccq contig flag is inconsistent with wait_cq!\n");
+		return -EINVAL;
+	}
 
+	if (wait_cq->priv.contig == 0 && cmd->data_buf_ptr == NULL) {
+		dnvme_err("cmd data_buf_ptr is NULL!(contig:0)\n");
+		return -EINVAL;
+	}
+
+	if (wait_cq->priv.contig != 0 && wait_cq->priv.buf == NULL) {
+		dnvme_err("wait_cq buf is NULL!(contig:1)\n");
+		return -EPERM;
+	}
+
+	if (!(wait_cq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
+		dnvme_err("CQ(%u) already created!\n", ccq->cqid);
+		return -EINVAL;
+	}
+
+	/* Check if interrupts should be enabled for IO CQ */
+	if (ccq->cq_flags & CDW11_IEN) {
+		if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
+			dnvme_err("act irq_type is none!\n");
+			return -EINVAL;
+		}
+	}
+	memset(&prps, 0, sizeof(prps));
+
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0)
+		return ret;
+
+	/* Fill the persistent entry structure */
+	memcpy(&wait_cq->priv.prp_persist, &prps, sizeof(prps));
+
+	wait_cq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
+	return 0;
+}
+
+int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_prps prps;
+
+	/* !NOTE: It's better to check the ptr provided by the cmd is
+	 * consistent with that saved before
+	 */
+	if (!cmd->data_buf_ptr) {
+		dnvme_err("data_buf_ptr is NULL!\n");
+		return -EINVAL;
+	}
+	memset(&prps, 0, sizeof(prps));
+
+	return dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+}
+
+int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_prps prps;
+	int ret;
+
+	memset(&prps, 0, sizeof(prps));
+
+	if (cmd->data_buf_ptr) {
+		ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+		if (ret < 0)
+			return ret;
+	}
+	/* !TODO: data_buf_ptr == NULL ? */
+	return 0;
 }
 
 int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
@@ -773,6 +860,7 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
 	struct nvme_64b_cmd cmd;
 	struct nvme_gen_cmd *gcmd;
 	struct nvme_meta *meta;
+	struct pci_dev *pdev = ctx->dev->priv.pdev;
 	void *cmd_buf;
 	int ret = 0;
 
@@ -841,30 +929,66 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
 	if (cmd.q_id == 0) {
 		switch (gcmd->opcode) {
 		case nvme_admin_delete_sq:
+			ret = dnvme_delete_iosq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
 			break;
 
 		case nvme_admin_create_sq:
+			ret = dnvme_create_iosq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
 			break;
 
 		case nvme_admin_delete_cq:
+			ret = dnvme_delete_iocq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
 			break;
 
 		case nvme_admin_create_cq:
+			ret = dnvme_create_iocq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
 			break;
 
 		default:
+			ret = dnvme_deal_ccmd(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
 			break;
 		}
 	} else {
-
+		ret = dnvme_deal_ccmd(ctx, &cmd, gcmd);
+		if (ret < 0)
+			goto out2;
 	}
-	// !TODO: now
 
+	/* Copying the command in to appropriate SQ and handling sync issues */
+	if (sq->priv.contig) {
+		memcpy((sq->priv.buf + 
+			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
+			gcmd, 1 << sq->pub.sqes);
+	} else {
+		memcpy((sq->priv.prp_persist.buf + 
+			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
+			gcmd, 1 << sq->pub.sqes);
+		dma_sync_sg_for_device(&pdev->dev, sq->priv.prp_persist.sg, 
+			sq->priv.prp_persist.num_map_pgs, sq->priv.prp_persist.data_dir);
+	}
+
+	/* Increment the Tail pointer and handle roll over conditions */
+	sq->pub.tail_ptr_virt = (u16)(((u32)sq->pub.tail_ptr_virt + 1) % sq->pub.elements);
+
+	kfree(cmd_buf);
+	return 0;
+out2:
+	sq->priv.unique_cmd_id--;
 out:
 	kfree(cmd_buf);
 	return ret;
 }
-#endif
+#else
 
 int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
 {
@@ -1078,7 +1202,7 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
 		/* Check if interrupts should be enabled for IO CQ */
 		if (nvme_create_cq->cq_flags & CDW11_IEN) {
 			/* Check the Interrupt scheme set up */
-			if (ctx->dev->pub.irq_active.irq_type == INT_NONE) {
+			if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
 				dnvme_err("Interrupt scheme and Create IOCQ cmd out of sync");
 				err = -EINVAL;
 				goto fail_out;
@@ -1209,7 +1333,7 @@ free_out:
 	dnvme_err("Sending of command failed");
 	return err;
 }
-
+#endif
 
 int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq)
 {

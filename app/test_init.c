@@ -146,7 +146,7 @@ void test_init(int file_desc)
 	assert(ret == SUCCEED);
 	ioctl_create_acq(file_desc, MAX_ADMIN_QUEUE_SIZE);
 	ioctl_create_asq(file_desc, MAX_ADMIN_QUEUE_SIZE);
-	set_irqs(file_desc, INT_PIN, 1);
+	set_irqs(file_desc, NVME_INT_PIN, 1);
 	ioctl_enable_ctrl(file_desc);
 
 	//step4: send get feature cmd (get queue number)
@@ -199,13 +199,13 @@ void test_init(int file_desc)
 	ioctl_create_asq(file_desc, MAX_ADMIN_QUEUE_SIZE);
 
 	//step 2.2: configure Admin queue
-	//set_irqs(file_desc, INT_NONE, 0);
-	// set_irqs(file_desc, INT_PIN, 1);
-	// set_irqs(file_desc, INT_MSI_SINGLE, 1);
+	//set_irqs(file_desc, NVME_INT_NONE, 0);
+	// set_irqs(file_desc, NVME_INT_PIN, 1);
+	// set_irqs(file_desc, NVME_INT_MSI_SINGLE, 1);
 	if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-		set_irqs(file_desc, INT_PIN, 1);
+		set_irqs(file_desc, NVME_INT_PIN, 1);
 	else
-		set_irqs(file_desc, INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
+		set_irqs(file_desc, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
 
 	//step3: enable control
 	ioctl_enable_ctrl(file_desc);

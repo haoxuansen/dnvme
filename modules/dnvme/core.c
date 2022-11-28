@@ -33,6 +33,7 @@
 #include "core.h"
 #include "io.h"
 #include "cmb.h"
+#include "log.h"
 #include "debug.h"
 
 #include "definitions.h"
@@ -41,7 +42,6 @@
 #include "dnvme_ioctl.h"
 #include "dnvme_queue.h"
 #include "dnvme_ds.h"
-#include "dnvme_cmds.h"
 #include "dnvme_irq.h"
 
 #define DEVICE_NAME			"nvme"
@@ -260,16 +260,19 @@ out:
 
 static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int ret = -EINVAL;
+	int ret = 0;
 	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 	struct inode *inode = inode = filp->f_path.dentry->d_inode;
 	void __user *argp = (void __user *)arg;
 
 	dnvme_dbg("cmd num:%u, arg:0x%lx (%s)\n", _IOC_NR(cmd), arg,
 		dnvme_ioctl_cmd_string(cmd));
+
 	ctx = lock_context(inode);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
+	ndev = ctx->dev;
 
 	switch (cmd) {
 	case NVME_IOCTL_READ_GENERIC:
@@ -289,27 +292,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_SET_DEV_STATE:
-		switch (arg) {
-		case NVME_ST_ENABLE:
-			ret = dnvme_set_ctrl_state(ctx, true);
-			break;
-
-		case NVME_ST_DISABLE:
-		case NVME_ST_DISABLE_COMPLETE:
-			if ((ret = dnvme_set_ctrl_state(ctx, false)) == 0) {
-				device_cleanup(ctx, (enum nvme_state)arg);
-			}
-			break;
-
-		case NVME_ST_RESET_SUBSYSTEM:
-			ret = dnvme_reset_subsystem(ctx);
-			/* !NOTICE: It's necessary to clean device here? */
-			break;
-
-		default:
-			dnvme_err("nvme state(%lu) is unkonw!\n", arg);
-			return -EINVAL;
-		}
+		ret = dnvme_set_device_state(ctx, (enum nvme_state)arg);
 		break;
 
 	case NVME_IOCTL_GET_QUEUE:
@@ -336,9 +319,8 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = driver_toxic_dword(ctx, (struct backdoor_inject *)arg);
 		break;
 
-	case NVME_IOCTL_DUMP_METRICS:
-		dnvme_vdbg("NVME_IOCTL_DUMP_METRICS");
-		ret = driver_log((struct nvme_file *)arg);
+	case NVME_IOCTL_DUMP_LOG_FILE:
+		ret = dnvme_dump_log_file(argp);
 		break;
 
 	case NVME_IOCTL_REAP_INQUIRY:
@@ -352,37 +334,27 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = driver_reap_cq(ctx, (struct nvme_reap *)arg);
 		break;
 
-	case NVME_IOCTL_GET_DRIVER_METRICS:
-		dnvme_vdbg("NVME_IOCTL_GET_DRIVER_METRICS");
-		if (copy_to_user((struct nvme_driver *)arg,
-		&nvme_drv, sizeof(struct nvme_driver))) {
-
-		dnvme_err("Unable to copy to user space");
-		ret = -EFAULT;
-		} else {
-		ret = 0;
+	case NVME_IOCTL_GET_DRIVER_INFO:
+		if (copy_to_user(argp, &nvme_drv, sizeof(struct nvme_driver))) {
+			dnvme_err("failed to copy to user space!\n");
+			ret = -EFAULT;
 		}
 		break;
 
-	case NVME_IOCTL_METABUF_CREATE:
-		dnvme_vdbg("NVME_IOCTL_METABUF_CREATE");
-		if (arg > MAX_METABUFF_SIZE) {
-		dnvme_err("Meta buffer size exceeds max(0x%08X) > 0x%08X",
-			MAX_METABUFF_SIZE, (u32)arg);
-		ret = -EINVAL;
-		} else {
-		ret = metabuff_create(ctx, (u32)arg);
-		}
+	case NVME_IOCTL_CREATE_META_POOL:
+		ret = dnvme_create_meta_pool(ctx, (u32)arg);
 		break;
 
-	case NVME_IOCTL_METABUF_ALLOC:
-		dnvme_vdbg("NVME_IOCTL_METABUF_ALLOC");
-		ret = metabuff_alloc(ctx, (u32)arg);
+	case NVME_IOCTL_DESTROY_META_POOL:
+		dnvme_destroy_meta_pool(ctx);
 		break;
 
-	case NVME_IOCTL_METABUF_DELETE:
-		dnvme_vdbg("NVME_IOCTL_METABUF_DELETE");
-		ret = metabuff_del(ctx, (u32)arg);
+	case NVME_IOCTL_CREATE_META_NODE:
+		ret = dnvme_create_meta_node(ctx, (u32)arg);
+		break;
+
+	case NVME_IOCTL_DELETE_META_NODE:
+		dnvme_delete_meta_node(ctx, (u32)arg);
 		break;
 
 	case NVME_IOCTL_SET_IRQ:
@@ -400,22 +372,11 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = nvme_unmask_irq(ctx, (u16)arg);
 		break;
 
-	case NVME_IOCTL_GET_DEVICE_METRICS:
-		dnvme_vdbg("NVME_IOCTL_GET_DEVICE_METRICS");
-		if (copy_to_user((struct nvme_dev_public *)arg,
-		&ctx->dev->pub,
-		sizeof(struct nvme_dev_public))) {
-
-		dnvme_err("Unable to copy to user space");
-		ret = -EFAULT;
-		} else {
-		ret = 0;
+	case NVME_IOCTL_GET_DEV_INFO:
+		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
+			dnvme_err("failed to copy to user space!\n");
+			ret = -EFAULT;
 		}
-		break;
-
-	case NVME_IOCTL_MARK_SYSLOG:
-		dnvme_vdbg("NVME_IOCTL_MARK_SYSLOG");
-		ret = driver_logstr((struct nvme_logstr *)arg);
 		break;
 
 	//***************************boot partition test MengYu***************************
@@ -428,8 +389,8 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	//     break;  
 	//***************************boot partition test MengYu***************************
 	default:
-		dnvme_err("Unknown IOCTL");
-		break;
+		dnvme_err("cmd(%u) is unknown!\n", _IOC_NR(cmd));
+		ret = -EINVAL;
 	}
 
 	unlock_context(ctx);
@@ -617,10 +578,10 @@ static void dnvme_unmap_resource(struct nvme_context *ctx)
 
 static int dnvme_init_irq(struct nvme_context *ctx)
 {
-	ctx->dev->pub.irq_active.irq_type = INT_NONE;
+	ctx->dev->pub.irq_active.irq_type = NVME_INT_NONE;
 	ctx->dev->pub.irq_active.num_irqs = 0;
 	/* Will only be read by ISR */
-	ctx->irq_process.irq_type = INT_NONE;
+	ctx->irq_process.irq_type = NVME_INT_NONE;
 	return 0;
 }
 
@@ -870,7 +831,7 @@ static int __init dnvme_init(void)
 	int ret;
 
 	nvme_drv.api_version = API_VERSION;
-	nvme_drv.driver_version = DRIVER_VERSION;
+	nvme_drv.drv_version = DRIVER_VERSION;
 
 	nvme_major = register_chrdev(0, DEVICE_NAME, &dnvme_fops);
 	if (nvme_major < 0) {
@@ -892,7 +853,7 @@ static int __init dnvme_init(void)
 	}
 
 	dnvme_info("init ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
-		nvme_drv.driver_version);
+		nvme_drv.drv_version);
 	return 0;
 
 out2:
@@ -909,7 +870,7 @@ static void __exit dnvme_exit(void)
 	class_destroy(nvme_class);
 	unregister_chrdev(nvme_major, DEVICE_NAME);
 	dnvme_info("exit ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
-		nvme_drv.driver_version);
+		nvme_drv.drv_version);
 }
 module_exit(dnvme_exit);
 

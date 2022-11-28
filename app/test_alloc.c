@@ -173,10 +173,10 @@ int ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display)
     return ret_val;
 }
 
-int ioctl_meta_buf_create(int file_desc, int size)
+int ioctl_meta_pool_create(int file_desc, uint32_t size)
 {
     int ret_val;
-    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_CREATE, size);
+    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_META_POOL, size);
     if (ret_val < 0)
     {
         pr_err("Meta data creation failed!\n");
@@ -188,10 +188,10 @@ int ioctl_meta_buf_create(int file_desc, int size)
     return ret_val;
 }
 
-int ioctl_meta_buf_alloc(int file_desc, uint32_t id)
+int ioctl_meta_node_create(int file_desc, uint32_t id)
 {
     int ret_val;
-    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_ALLOC, id);
+    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_META_NODE, id);
     if (ret_val < 0)
     {
         pr_err("\nMeta Id = %d allocation failed!\n", id);
@@ -203,10 +203,10 @@ int ioctl_meta_buf_alloc(int file_desc, uint32_t id)
     return ret_val;
 }
 
-int ioctl_meta_buf_delete(int file_desc, uint32_t id)
+int ioctl_meta_node_delete(int file_desc, uint32_t id)
 {
     int ret_val;
-    ret_val = ioctl(file_desc, NVME_IOCTL_METABUF_DELETE, id);
+    ret_val = ioctl(file_desc, NVME_IOCTL_DELETE_META_NODE, id);
     if (ret_val < 0)
     {
         pr_err("\nMeta Id = %d allocation failed!\n", id);
@@ -221,36 +221,36 @@ int ioctl_meta_buf_delete(int file_desc, uint32_t id)
 uint32_t create_meta_buf(int file_desc, uint32_t id)
 {
     int ret_val;
-    ret_val = ioctl_meta_buf_create(file_desc, 4096);
-    ret_val = ioctl_meta_buf_alloc(file_desc, id);
+    ret_val = ioctl_meta_pool_create(file_desc, 4096);
+    ret_val = ioctl_meta_node_create(file_desc, id);
     return ret_val;
 }
 
 void test_meta(int file_desc)
 {
-    int size;
+    uint32_t size;
     int ret_val;
     int id;
     uint64_t *kadr;
 
     size = 4096;
-    ret_val = ioctl_meta_buf_create(file_desc, size);
+    ret_val = ioctl_meta_pool_create(file_desc, size);
 
     for (id = 0; id < 20; id++)
     {
-        ret_val = ioctl_meta_buf_alloc(file_desc, id);
+        ret_val = ioctl_meta_node_create(file_desc, id);
     }
 
     id = 5;
-    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    ret_val = ioctl_meta_node_delete(file_desc, id);
     id = 6;
-    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    ret_val = ioctl_meta_node_delete(file_desc, id);
     id = 6;
-    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    ret_val = ioctl_meta_node_delete(file_desc, id);
     id = 5;
-    ret_val = ioctl_meta_buf_delete(file_desc, id);
+    ret_val = ioctl_meta_node_delete(file_desc, id);
     id = 6;
-    ret_val = ioctl_meta_buf_alloc(file_desc, id);
+    ret_val = ioctl_meta_node_create(file_desc, id);
 
     id = 0x80004;
     pr_info("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", id);

@@ -20,6 +20,11 @@
 #define NVME_CQ_ID_MAX			U16_MAX
 #define NVME_META_ID_MAX		((0x1 << 18) - 1)
 
+#define NVME_META_BUF_ALIGN		4
+
+#undef pr_fmt
+#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
+
 #if !IS_ENABLED(CONFIG_PRINTK_COLOR)
 #include "log/color.h"
 

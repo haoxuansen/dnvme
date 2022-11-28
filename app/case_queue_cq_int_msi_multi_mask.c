@@ -28,7 +28,7 @@ void int_mask_bit(uint32_t msi_mask_flag)
     ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
     admin_queue_config(file_desc);
 
-    set_irqs(file_desc, INT_MSI_MULTI, 9);
+    set_irqs(file_desc, NVME_INT_MSI_MULTI, 9);
 
     /*
     mask_irqs(file_desc, 1);
@@ -267,7 +267,7 @@ int case_queue_cq_int_msi_multi_mask(void)
 
     test_sub();
     
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     if (test_flag != SUCCEED)
     {

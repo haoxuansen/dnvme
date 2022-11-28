@@ -24,11 +24,11 @@
 #include "test_cq_gain.h"
 
 static char * int_type[] = {
-    "INT_MSI_SINGLE",
-    "INT_MSI_MULTI",
-    "INT_MSIX",
-    "INT_PIN",
-    "INT_NONE",
+    "NVME_INT_MSI_SINGLE",
+    "NVME_INT_MSI_MULTI",
+    "NVME_INT_MSIX",
+    "NVME_INT_PIN",
+    "NVME_INT_NONE",
     "INT_FENCE"};
 
 void set_irqs(int fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
@@ -39,9 +39,9 @@ void set_irqs(int fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
     pr_info("Set interrupts, Type: %s, num_irqs:%d\n", int_type[irq_type], num_irqs);
     #ifdef AMD_MB_EN
     //Warning: AMD MB may not support msi-multi
-    if (irq_type == INT_MSI_MULTI)
+    if (irq_type == NVME_INT_MSI_MULTI)
     {
-        irq_type = INT_MSIX;
+        irq_type = NVME_INT_MSIX;
         pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
     }
     #endif
@@ -99,10 +99,10 @@ void test_irq_review568(int fd)
     while (i)
     {
         pr_info("\nIRQ Loop Test = %d\n", i + 1);
-        set_irqs(fd, INT_MSIX, 2);
+        set_irqs(fd, NVME_INT_MSIX, 2);
         i--;
     }
-    set_irqs(file_desc, INT_NONE, 0);
+    set_irqs(file_desc, NVME_INT_NONE, 0);
     pr_info("\nCalling Dump Metrics to irq_loop_test\n");
     ioctl_dump(fd, "/tmp/test_rev568.txt");
     pr_info("\nPressAny key..\n");
