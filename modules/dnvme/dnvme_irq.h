@@ -25,14 +25,6 @@
 #include "dnvme_ioctl.h"
 #include "dnvme_sts_chk.h"
 #include "definitions.h"
-/*
- * MSI-X specific info
- */
-struct msix_info {
-	u16		ts;
-	u8 __iomem	*pba_tbl;
-	u8 __iomem	*msix_tbl;
-};
 
 /* Max IRQ vectors for MSI SINGLE IRQ scheme */
 #define     MAX_IRQ_VEC_MSI_SIN     1
@@ -75,94 +67,28 @@ struct msix_info {
 
 /* Interrupt vector mask clear(IVMC) register offset */
 #define     INTMC_OFFSET            0x10
-/*
- * nvme_set_irq will set the new interrupt scheme for this device regardless
- * of the current irq scheme that is present.
- */
-int nvme_set_irq(struct nvme_context *pmetrics_device_elem,
-        struct interrupts *irq_new);
 
 /*
- * Determine the type of masking required based
- * on the interrupt scheme active. Mask interrupts for MSI-Single,
- * MSI- Multi and MSIX
- */
-void mask_interrupts(u16 irq_no, struct irq_processing
-    *pirq_process);
-
-/*
- * Determine the type of interrupt scheme and
- * unmask interrupts for MSI-Single, MSI- Multi and MSIX.
- */
-void unmask_interrupts(u16 irq_no, struct irq_processing
-    *pirq_process);
-/*
- * Used for releasing the IRQ lists after any scheme is run
- * Also removes all the enqueued wk items
- * set the current active scheme to NVME_INT_NONE.
- */
-void release_irq(struct nvme_context *pmetrics_device_elem);
-/*
- * Disable and free IRQ's which were requested earlier
- */
-void irq_disable(struct  nvme_context
-    *pmetrics_device_elem);
-/*
- * deallocate irq trak, will delete the cq nodes of each irq node, deallocates
- * memory allocated to each of this node. Reinitalize the linked list to
- * contain no elements.
- */
-void deallocate_irq_trk(struct  nvme_context
-    *pmetrics_device_elem);
-/*
- * Deallocate all the work item nodes within the work items list
- */
-void dealloc_wk_list(struct irq_processing *pirq_process);
-
-/*
- * add_icq_node : This function will add a Completion Q node into the
- * interrupt linked list with the given cq id.
- */
-int add_icq_node(struct irq_track *pirq_trk_node, u16 cq_id);
-
-/*
- * ISR callback routine - When any irq is fired the driver invokes the
- * top half isr to process the irq request.
- */
-irqreturn_t tophalf_isr(int int_vec, void *dev_id);
-
-/*
- * Deletes the given cq node for the corresponding irq_no. If either the
- * irq no is not found or the cq id is not in the list it returns invalid.
- */
-int remove_icq_node(struct  nvme_context
-        *pmetrics_device, u16 cq_id, u16 irq_no);
-
-/*
- * Set the IO CQ interrupt vector for the given cq_id. Add a node in the
- * IRQ tracklist with this CQ entry.
- */
-int update_cq_irqtrack(struct nvme_context *pmetrics_device_elem, u16 cq_id, u16 irq_no);
-
-/*
- * reap_inquiry_isr will process reap inquiry for the given cq using irq_vec
- * and isr_fired flags from two nodes, public cq node and irq_track list node.
+ * dnvme_inquiry_cqe_with_isr will process reap inquiry for the given cq using irq_vec
+ * and isr_fired flags from two nodes, public cq node and nvme_irq list node.
  * It fills the num_remaining with number of elements remaining or 0 based on
  * CE entries. If the IRQ aggregation is enabled it returns 0 if aggregation
  * limit is not reached.
  */
-int reap_inquiry_isr(struct nvme_cq  *pmetrics_cq_node,
-    struct  nvme_context *pmetrics_device_elem,
-    u32 *num_remaining, u32 *isr_count);
+int dnvme_inquiry_cqe_with_isr(struct nvme_cq *cq, u32 *num_remaining, u32 *isr_count);
 
-/* Loop through all CQ's associated with irq_no and check whehter
- * they are empty and if empty reset the isr_flag for that particular
- * irq_no
- */
-int reset_isr_flag(struct nvme_context *pmetrics_device,
-    u16 irq_no);
 
-int nvme_mask_irq(struct nvme_context *pmetrics_device_elem, u16 irq_no);
-int nvme_unmask_irq(struct nvme_context *pmetrics_device_elem, u16 irq_no);
+int dnvme_reset_isr_flag(struct nvme_context *nvme_ctx_list, u16 irq_no);
+
+int dnvme_create_icq_node(struct nvme_irq_set *irq_set, u16 cq_id, u16 irq_no);
+void dnvme_delete_icq_node(struct nvme_irq_set *irq_set, u16 cq_id, u16 irq_no);
+
+int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *uirq);
+void dnvme_clear_interrupt(struct nvme_context *ctx);
+
+int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no);
+int dnvme_unmask_interrupt(struct nvme_irq_set *irq, u16 irq_no);
+
+irqreturn_t dnvme_interrupt(int irq, void *data);
 
 #endif

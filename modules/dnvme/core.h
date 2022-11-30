@@ -13,6 +13,8 @@
 
 #include <linux/limits.h>
 
+#include "dnvme_ds.h"
+
 #define NVME_ASQ_ENTRY_MAX		4096
 #define NVME_ACQ_ENTRY_MAX		4096
 
@@ -45,5 +47,10 @@
 #define dnvme_vdbg(fmt, ...)
 #endif /* !VERBOSE_DEBUG */
 #endif
+
+static inline struct nvme_context *dnvme_irq_to_context(struct nvme_irq_set *irq_set)
+{
+	return container_of(irq_set, struct nvme_context, irq_set);
+}
 
 #endif /* !_DNVME_CORE_H_ */

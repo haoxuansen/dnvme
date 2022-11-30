@@ -26,6 +26,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 
+#include "nvme.h"
 #include "core.h"
 #include "io.h"
 #include "debug.h"
@@ -108,9 +109,9 @@ int dnvme_check_qid_unique(struct nvme_context *ctx,
  * @param id command identify
  * @return pointer to the cmd node on success. Otherwise returns NULL.
  */
-struct nvme_cmd_node *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
+struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
 {
-	struct nvme_cmd_node *cmd;
+	struct nvme_cmd *cmd;
 
 	list_for_each_entry(cmd, &sq->priv.cmd_list, entry) {
 		if (id == cmd->unique_id)
@@ -138,39 +139,31 @@ struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id)
 }
 
 /**
- * @brief Delete the cmd node from the SQ list.
+ * @brief Delete the cmd node from the SQ list and free memory.
  * 
  * @param sq The submission queue where the command resides.
  * @param cmd_id command identify
- * @return 0 on success, otherwise a negative errno.
  */
-static int dnvme_delete_cmd(struct nvme_sq *sq, u16 cmd_id)
+static void dnvme_delete_cmd(struct nvme_cmd *cmd)
 {
-	struct nvme_cmd_node *cmd;
-
-	cmd = dnvme_find_cmd(sq, cmd_id);
-	if (!cmd) {
-		dnvme_err("cmd(%u) not exist in SQ(%d)\n", cmd_id, sq->pub.sq_id);
-		return -EBADSLT;
-	}
+	if (unlikely(!cmd))
+		return;
 
 	list_del(&cmd->entry);
 	kfree(cmd);
-	return 0;
 }
 
 /*
  * Called to clean up the driver data structures
  */
-void device_cleanup(struct nvme_context *pmetrics_device,
-    enum nvme_state new_state)
+void device_cleanup(struct nvme_context *ctx, enum nvme_state new_state)
 {
 	/* Clean the IRQ data structures */
-	release_irq(pmetrics_device);
+	dnvme_clear_interrupt(ctx);
 	/* Clean Up the data structures */
-	deallocate_all_queues(pmetrics_device, new_state);
+	deallocate_all_queues(ctx, new_state);
 	/* Clean up meta buffers in all disable cases */
-	dnvme_destroy_meta_pool(pmetrics_device);
+	dnvme_destroy_meta_pool(ctx);
 }
 
 void dnvme_update_sq_tail(struct nvme_sq *sq)
@@ -208,6 +201,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 		sq->priv.dma = dma;
 	}
 
+	sq->ctx = ctx;
 	sq->pub.sq_id = prep->sq_id;
 	sq->pub.cq_id = prep->cq_id;
 	sq->pub.elements = prep->elements;
@@ -233,12 +227,36 @@ void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->priv.pdev;
 
-	list_del(&sq->sq_entry);
+	if (unlikely(!sq))
+		return;
 
-	if (sq->priv.contig && sq->priv.buf)
+	dnvme_delete_cmd_list(ndev, sq);
+
+	if (sq->priv.contig) {
 		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
 			sq->priv.dma);
+	} else {
+		dnvme_release_prps(ndev, &sq->priv.prp_persist);
+	}
+
+	list_del(&sq->sq_entry);
 	kfree(sq);
+}
+
+/**
+ * @brief Delete the given SQ node from the linked list and free memory.
+ */
+static void dnvme_delete_sq(struct nvme_context *ctx, u16 sq_id)
+{
+	struct nvme_sq *sq;
+
+	sq = dnvme_find_sq(ctx, sq_id);
+	if (!sq) {
+		dnvme_vdbg("SQ(%u) doesn't exist!\n", sq_id);
+		return;
+	}
+
+	dnvme_release_sq(ctx, sq);
 }
 
 struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx, 
@@ -271,6 +289,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 		cq->priv.dma = dma;
 	}
 
+	cq->ctx = ctx;
 	cq->pub.q_id = prep->cq_id;
 	cq->pub.elements = prep->elements;
 	cq->pub.cqes = cqes;
@@ -296,13 +315,39 @@ void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *cq)
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->priv.pdev;
 
-	list_del(&cq->cq_entry);
+	if (unlikely(!cq))
+		return;
 
-	if (cq->priv.contig && cq->priv.buf)
+	if (cq->priv.contig) {
 		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
 			cq->priv.dma);
+	} else {
+		dnvme_release_prps(ndev, &cq->priv.prp_persist);
+	}
+
+	list_del(&cq->cq_entry);
 	kfree(cq);
 }
+
+/**
+ * @brief Delete the given CQ node from the linked list and free memory.
+ */
+static void dnvme_delete_cq(struct nvme_context *ctx, u16 cq_id)
+{
+	struct nvme_cq *cq;
+
+	cq = dnvme_find_cq(ctx, cq_id);
+	if (!cq) {
+		dnvme_vdbg("CQ(%u) doesn't exist!\n", cq_id);
+		return;
+	}
+
+	/* try to delete icq node associated with the CQ */
+	dnvme_delete_icq_node(&ctx->irq_set, cq_id, cq->pub.irq_no);
+
+	dnvme_release_cq(ctx, cq);
+}
+
 
 int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 {
@@ -397,6 +442,35 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 	return 0;
 }
 
+/*
+ * @brief Reinitialize the admin Submission queue's public parameters, when
+ *  a controller is not completely disabled
+ */
+static void dnvme_reinit_asq(struct nvme_context *ctx, struct nvme_sq *sq)
+{
+	/* free cmd list for admin sq */
+	dnvme_delete_cmd_list(ctx->dev, sq);
+
+	sq->pub.head_ptr = 0;
+	sq->pub.tail_ptr = 0;
+	sq->pub.tail_ptr_virt = 0;
+	sq->priv.unique_cmd_id = 0;
+	memset(sq->priv.buf, 0, sq->priv.size);
+}
+
+/*
+ * @brief Reinitialize the admin completion queue's public parameters, when
+ *  a controller is not completely disabled
+ */
+static void dnvme_reinit_acq(struct nvme_cq *cq)
+{
+	cq->pub.head_ptr = 0;
+	cq->pub.tail_ptr = 0;
+	cq->pub.pbit_new_entry = 1;
+	cq->pub.irq_enabled = 1;
+	memset(cq->priv.buf, 0, cq->priv.size);
+}
+
 int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id)
 {
 	struct nvme_sq *sq;
@@ -414,97 +488,6 @@ int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id)
 	writel(sq->pub.tail_ptr, sq->priv.dbs);
 	return 0;
 }
-
-/*
- * Deallocate function is called when we want to free up the kernel or prp
- * memory based on the contig flag. The kernel memory is given back, nodes
- * from the cq list are deleted.
- */
-static void deallocate_metrics_cq(struct device *dev,
-        struct  nvme_cq  *pmetrics_cq_list,
-        struct  nvme_context *pmetrics_device)
-{
-    /* Delete memory for all nvme_cq for current id here */
-    if (pmetrics_cq_list->priv.contig == 0) {
-        /* Deletes the PRP persist entry */
-        dnvme_release_prps(pmetrics_device->dev,
-            &pmetrics_cq_list->priv.prp_persist);
-
-    } else {
-        /* Contiguous CQ, so free the DMA memory */
-        dma_free_coherent(dev, pmetrics_cq_list->priv.size,
-            (void *)pmetrics_cq_list->priv.buf,
-            pmetrics_cq_list->priv.dma);
-
-    }
-    /* Delete the current cq entry from the list, and free it */
-    list_del(&pmetrics_cq_list->cq_entry);
-    kfree(pmetrics_cq_list);
-}
-
-
-/*
- * Deallocate function is called when we want to free up the kernel or prp
- * memory based on the contig flag. The kernel memory is given back, nodes
- * from the sq list are deleted. The cmds tracked are dropped and nodes in
- * command list are deleted.
- */
-static void nvme_release_sq(struct device *dev, struct nvme_sq *sq, 
-	struct nvme_context *ctx)
-{
-	/* Clean the Cmd track list */
-	dnvme_delete_cmd_list(ctx->dev, sq);
-
-	if (sq->priv.contig == 0) {
-		/* Deletes the PRP persist entry */
-		dnvme_release_prps(ctx->dev,
-		&sq->priv.prp_persist);
-	} else {
-		/* Contiguous SQ, so free the DMA memory */
-		dma_free_coherent(dev, sq->priv.size,
-		(void *)sq->priv.buf,
-		sq->priv.dma);
-	}
-
-	/* Delete the current sq entry from the list */
-	list_del(&sq->sq_entry);
-	kfree(sq);
-}
-
-
-/*
- * Reinitialize the admin completion queue's public parameters, when
- * a controller is not completely disabled
- */
-static void reinit_admn_cq(struct nvme_cq *pmetrics_cq_list)
-{
-    /* reinit required params in admin node */
-    pmetrics_cq_list->pub.head_ptr = 0;
-    pmetrics_cq_list->pub.tail_ptr = 0;
-    pmetrics_cq_list->pub.pbit_new_entry = 1;
-    memset(pmetrics_cq_list->priv.buf, 0,
-        pmetrics_cq_list->priv.size);
-    pmetrics_cq_list->pub.irq_enabled = 1;
-}
-
-
-/*
- * Reinitialize the admin Submission queue's public parameters, when
- * a controller is not completely disabled
- */
-static void reinit_admn_sq(struct nvme_sq *pmetrics_sq_list,
-    struct nvme_context *pmetrics_device)
-{
-    /* Free command track list for admin */
-    dnvme_delete_cmd_list(pmetrics_device->dev, pmetrics_sq_list);
-
-    /* reinit required params in admin node */
-    pmetrics_sq_list->pub.head_ptr = 0;
-    pmetrics_sq_list->pub.tail_ptr = 0;
-    pmetrics_sq_list->pub.tail_ptr_virt = 0;
-    pmetrics_sq_list->priv.unique_cmd_id = 0;
-}
-
 
 /*
  * deallocate_all_queues - This function will start freeing up the memory for
@@ -533,10 +516,10 @@ void deallocate_all_queues(struct nvme_context *pmetrics_device,
         if (preserve_admin_qs && (pmetrics_sq_list->pub.sq_id == 0)) {
             dnvme_vdbg("Retaining ASQ from deallocation");
             /* drop sq cmds and set to zero the public metrics of asq */
-            reinit_admn_sq(pmetrics_sq_list, pmetrics_device);
+            dnvme_reinit_asq(pmetrics_device, pmetrics_sq_list);
         } else {
             /* Call the generic deallocate sq function */
-            nvme_release_sq(dev, pmetrics_sq_list, pmetrics_device);
+	    dnvme_release_sq(pmetrics_device, pmetrics_sq_list);
         }
     }
 
@@ -548,10 +531,10 @@ void deallocate_all_queues(struct nvme_context *pmetrics_device,
         if (preserve_admin_qs && pmetrics_cq_list->pub.q_id == 0) {
             dnvme_vdbg("Retaining ACQ from deallocation");
             /* set to zero the public metrics of acq */
-            reinit_admn_cq(pmetrics_cq_list);
+            dnvme_reinit_acq(pmetrics_cq_list);
         } else {
             /* Call the generic deallocate cq function */
-            deallocate_metrics_cq(dev, pmetrics_cq_list, pmetrics_device);
+            dnvme_release_cq(pmetrics_device, pmetrics_cq_list);
         }
     }
 
@@ -571,666 +554,380 @@ void deallocate_all_queues(struct nvme_context *pmetrics_device,
 }
 
 
-/*
- *  reap_inquiry - This generic function will try to inquire the number of
- *  commands in the Completion Queue that are waiting to be reaped for any
- *  given q_id.
+/**
+ * @brief Try to inquire the number of cmd in the CQ that are waiting
+ *  to be reaped for any given q_id.
  */
-u32 reap_inquiry(struct nvme_cq  *pmetrics_cq_node, struct device *dev)
+u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 {
-    u8 tmp_pbit;                    /* Local phase bit      */
-    /* mem head ptr in cq, base address for queue */
-    u8 *q_head_ptr, *queue_base_addr;
-    struct cq_completion *cq_entry; /* cq entry format      */
-    u32 comp_entry_size = 16;       /* acq entry size       */
-    u32 num_remaining = 0;          /* reap elem remaining  */
+	struct nvme_prps *prps = &cq->priv.prp_persist;
+	struct cq_completion *entry;
+	void *cq_addr;
+	u32 remain = 0;
+	u8 phase = cq->pub.pbit_new_entry;
 
+	if (cq->priv.contig) {
+		cq_addr = cq->priv.buf;
+	} else {
+		dma_sync_sg_for_cpu(dev, prps->sg, prps->num_map_pgs, 
+			prps->data_dir);
+		cq_addr = cq->priv.prp_persist.buf;
+	}
 
-    /* If IO CQ set the completion Q entry size */
-    if (pmetrics_cq_node->pub.q_id != 0) {
-        comp_entry_size = (pmetrics_cq_node->priv.size /
-            pmetrics_cq_node->pub.elements);
-    }
+	/* Start from head ptr and update till phase bit incorrect */
+	cq->pub.tail_ptr = cq->pub.head_ptr;
+	entry = (struct cq_completion *)cq_addr + cq->pub.tail_ptr;
 
-    /* local tmp phase bit */
-    tmp_pbit = pmetrics_cq_node->pub.pbit_new_entry;
+	/* loop through the entries in the cq */
+	while (entry->phase_bit == phase) {
 
-    /* point the address to corresponding head ptr */
-    if (pmetrics_cq_node->priv.contig != 0) {
-        queue_base_addr = pmetrics_cq_node->priv.buf;
-        q_head_ptr = pmetrics_cq_node->priv.buf +
-            (comp_entry_size * (u32)pmetrics_cq_node->pub.head_ptr);
-    } else {
-        /* do sync and update when pointer to discontig Q is reaped inq */
-        dma_sync_sg_for_cpu(dev, pmetrics_cq_node->priv.prp_persist.sg,
-            pmetrics_cq_node->priv.prp_persist.num_map_pgs,
-            pmetrics_cq_node->priv.prp_persist.data_dir);
-        queue_base_addr =
-            pmetrics_cq_node->priv.prp_persist.buf;
-        q_head_ptr = queue_base_addr +
-            (comp_entry_size * (u32)pmetrics_cq_node->pub.head_ptr);
+		remain++;
+		cq->pub.tail_ptr++;
 
-    }
+		/* Q wrapped around? */
+		if (cq->pub.tail_ptr >= cq->pub.elements) {
+			phase ^= 1;
+			cq->pub.tail_ptr = 0;
+		}
+		entry = (struct cq_completion *)cq_addr + cq->pub.tail_ptr;
+	}
 
-    /* Start from head ptr and update till phase bit incorrect */
-    pmetrics_cq_node->pub.tail_ptr =
-        pmetrics_cq_node->pub.head_ptr;
-
-    dnvme_vdbg("Reap Inquiry on CQ_ID:PBit:EntrySize = %d:%d:%d",
-        pmetrics_cq_node->pub.q_id, tmp_pbit, comp_entry_size);
-    dnvme_vdbg("CQ Hd Ptr = %d", pmetrics_cq_node->pub.head_ptr);
-    dnvme_vdbg("Rp Inq. Tail Ptr before = %d", pmetrics_cq_node->pub.
-        tail_ptr);
-
-    /* loop through the entries in the cq */
-    while (1) {
-        cq_entry = (struct cq_completion *)q_head_ptr;
-        if (cq_entry->phase_bit == tmp_pbit) {
-
-            pmetrics_cq_node->pub.tail_ptr += 1;
-            q_head_ptr += comp_entry_size;
-            num_remaining += 1;
-
-            /* Q wrapped around */
-            if (q_head_ptr >= (queue_base_addr +
-                pmetrics_cq_node->priv.size)) {
-
-                tmp_pbit = !tmp_pbit;
-                q_head_ptr = queue_base_addr;
-                pmetrics_cq_node->pub.tail_ptr = 0;
-            }
-        } else {    /* we reached stale element */
-            break;
-        }
-    }
-
-    dnvme_vdbg("Rp Inq. Tail Ptr After = %d", pmetrics_cq_node->pub.
-        tail_ptr);
-    dnvme_vdbg("cq.elements = %d", pmetrics_cq_node->pub.elements);
-    dnvme_vdbg("Number of elements remaining = %d", num_remaining);
-    return num_remaining;
+	dnvme_vdbg("Inquiry CQ(%u) element:%u, head:%u, tail:%u, remain:%u\n",
+		cq->pub.q_id, cq->pub.elements, cq->pub.head_ptr,
+		cq->pub.tail_ptr, remain);
+	return remain;
 }
 
 
-/*
- *  driver_reap_inquiry - This function will try to inquire the number of
- *  commands in the CQ that are waiting to be reaped.
+/**
+ * @brief Inquire the number of CQ entries that are waiting to be reaped.
  */
-int driver_reap_inquiry(struct nvme_context *pmetrics_device,
-    struct nvme_reap_inquiry *usr_reap_inq)
+int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq)
 {
-    int err = 0;
-    struct nvme_cq *pmetrics_cq_node;   /* ptr to cq node */
-    struct nvme_reap_inquiry *user_data = NULL;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_interrupt *act_irq = &ndev->pub.irq_active;
+	struct nvme_cq *cq;
+	struct nvme_inquiry inquiry;
+	int ret = 0;
 
+	if (copy_from_user(&inquiry, uinq, sizeof(inquiry))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
 
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct nvme_reap_inquiry), GFP_KERNEL);
-    if (user_data == NULL) {
-        dnvme_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, usr_reap_inq,
-        sizeof(struct nvme_reap_inquiry))) {
+	cq = dnvme_find_cq(ctx, inquiry.q_id);
+	if (!cq) {
+		dnvme_err("CQ(%u) doesn't exist!\n", inquiry.q_id);
+		return -EINVAL;
+	}
 
-        dnvme_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
+	/* Initializing ISR count for all the possible cases */
+	inquiry.isr_count = 0;
 
-    /* Find given CQ in list */
-    pmetrics_cq_node = dnvme_find_cq(pmetrics_device, user_data->q_id);
-    if (pmetrics_cq_node == NULL) {
-        /* if the control comes here it implies q id not in list */
-        dnvme_err("CQ ID = %d is not in list", user_data->q_id);
-        err = -ENODEV;
-        goto fail_out;
-    }
-    /* Initializing ISR count for all the possible cases */
-    user_data->isr_count = 0;
-    /* Note: If ISR's are enabled then ACQ will always be attached to INT 0 */
-    if (pmetrics_device->dev->pub.irq_active.irq_type
-        == NVME_INT_NONE) {
+	if (act_irq->irq_type == NVME_INT_NONE || cq->pub.irq_enabled == 0) {
+		dnvme_vdbg("Non-ISR Inquiry on CQ(%u)!\n", cq->pub.q_id);
+		inquiry.num_remaining = dnvme_get_cqe_remain(cq, &ndev->priv.pdev->dev);
+	} else {
 
-        /* Process reap inquiry for non-isr case */
-        dnvme_vdbg("Non-ISR Reap Inq on CQ = %d",
-            pmetrics_cq_node->pub.q_id);
-        user_data->num_remaining = reap_inquiry(pmetrics_cq_node,
-            &pmetrics_device->dev->priv.pdev->dev);
-    } else {
-        /* When INT scheme is other than NVME_INT_NONE */
-        /* If the irq is enabled, process reap_inq isr else
-         * do polling based inq
-         */
-        if (pmetrics_cq_node->pub.irq_enabled == 0) {
-            /* Process reap inquiry for non-isr case */
-            dnvme_vdbg("Non-ISR Reap Inq on CQ = %d",
-                pmetrics_cq_node->pub.q_id);
-            user_data->num_remaining = reap_inquiry(pmetrics_cq_node,
-                &pmetrics_device->dev->priv.pdev->dev);
-        } else {
-            dnvme_vdbg("ISR Reap Inq on CQ = %d",
-                pmetrics_cq_node->pub.q_id);
-            /* Lock onto irq mutex for reap inquiry. */
-            mutex_lock(&pmetrics_device->irq_process.irq_track_mtx);
-            /* Process ISR based reap inquiry as isr is enabled */
-            err = reap_inquiry_isr(pmetrics_cq_node, pmetrics_device,
-                &user_data->num_remaining, &user_data->isr_count);
-            /* unlock irq track mutex here */
-            mutex_unlock(&pmetrics_device->irq_process.irq_track_mtx);
-            /* delay err checking to return after mutex unlock */
-            if (err < 0) {
-                dnvme_err("ISR Reap Inquiry failed...");
-                err = -EINVAL;
-                goto fail_out;
-             }
-         }
-    }
+		dnvme_vdbg("ISR Reap Inq on CQ = %d", cq->pub.q_id);
 
-    /* Copy to user the remaining elements in this q */
-    if (copy_to_user(usr_reap_inq, user_data,
-        sizeof(struct nvme_reap_inquiry))) {
+		mutex_lock(&ctx->irq_set.mtx_lock);
+		ret = dnvme_inquiry_cqe_with_isr(cq, &inquiry.num_remaining, &inquiry.isr_count);
+		mutex_unlock(&ctx->irq_set.mtx_lock);
 
-        dnvme_err("Unable to copy to user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
+		if (ret < 0)
+			return ret;
+	}
 
-    /* Check for hw violation of full Q definition */
-    if (user_data->num_remaining >= pmetrics_cq_node->pub.elements) {
-        dnvme_err("HW violating full Q definition");
-        err = -EINVAL;
-        goto fail_out;
-    }
-    /* Fall through is intended */
+	if (copy_to_user(uinq, &inquiry, sizeof(inquiry))) {
+		dnvme_err("failed to copy to user space!\n");
+		return -EFAULT;
+	}
 
-fail_out:
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    return err;
+	/* Check for hw violation of full Q definition */
+	if (inquiry.num_remaining >= cq->pub.elements) {
+		dnvme_err("HW violating full Q definition!\n");
+		return -EPERM;
+	}
+
+	return 0;
 }
 
-
-/*
- * Remove the given sq node from the linked list.
+/**
+ * @brief Handle create/delete IO queue command completion 
  */
-static int dnvme_delete_sq(struct nvme_context *pmetrics_device,
-    u16 sq_id)
+static int handle_queue_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
+	enum nvme_queue_type type, bool free_queue)
 {
-    struct nvme_sq *pmetrics_sq_node;
+	struct nvme_context *ctx = sq->ctx;
+	int ret = 0;
 
-    pmetrics_sq_node = dnvme_find_sq(pmetrics_device, sq_id);
-    if (pmetrics_sq_node == NULL) {
-        dnvme_err("SQ ID = %d does not exist", sq_id);
-        return -EBADSLT; /* Invalid slot */
-    }
+	dnvme_vdbg("Queue:%u, CMD:%u, Free:%s\n", cmd->persist_q_id,
+		cmd->unique_id, free_queue ? "true" : "faile");
 
-    nvme_release_sq(&pmetrics_device->dev->priv.
-        pdev->dev, pmetrics_sq_node, pmetrics_device);
-    return 0;
+	if (!free_queue)
+		goto del_cmd;
+
+	if (cmd->persist_q_id == NVME_AQ_ID) {
+		dnvme_err("Trying to delete Admin Queue is blunder!\n");
+		ret = -EINVAL;
+		goto del_cmd;
+	}
+
+	if (type == NVME_CQ) {
+		dnvme_delete_cq(ctx, cmd->persist_q_id);
+	} else if (type == NVME_SQ) {
+		dnvme_delete_sq(ctx, cmd->persist_q_id);
+	}
+
+del_cmd:
+	dnvme_delete_cmd(cmd);
+	return ret;
 }
 
-
-/*
- * remove the given cq node from the linked list.Also if
- * the CQ node is present inside the IRQ track list it deletes it
+/**
+ * @brief Handle general command completion. Just delete cmd node in SQ.
  */
-static int dnvme_delete_cq(struct  nvme_context *pmetrics_device,
-    u16 cq_id)
+static int handle_gen_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *node)
 {
-    struct  nvme_cq  *pmetrics_cq_node;
-    int err = 0;
-
-    pmetrics_cq_node = dnvme_find_cq(pmetrics_device, cq_id);
-    if (pmetrics_cq_node == NULL) {
-        dnvme_err("CQ ID = %d does not exist", cq_id);
-        return -EBADSLT;
-    }
-
-    /* If irq is enabled then clean up the irq track list
-     * NOTE:- only for IO queues
-     */
-    if (pmetrics_cq_node->pub.irq_enabled != 0) {
-        if (remove_icq_node(pmetrics_device, cq_id, pmetrics_cq_node->
-            pub.irq_no) < 0) {
-            dnvme_err("Removal of IRQ CQ node failed. ");
-            err = -EINVAL;
-        }
-    }
-
-    deallocate_metrics_cq(&pmetrics_device->dev->priv.
-        pdev->dev, pmetrics_cq_node, pmetrics_device);
-    return err;
+	dnvme_release_prps(sq->ctx->dev, &node->prp_nonpersist);
+	dnvme_delete_cmd(node);
+	return 0;
 }
 
-
-static int process_algo_q(struct nvme_sq *pmetrics_sq_node,
-    struct nvme_cmd_node *pcmd_node, u8 free_q_entry,
-    struct  nvme_context *pmetrics_device,
-    enum nvme_queue_type type)
-{
-    int err = 0;
-
-    dnvme_vdbg("Persist Q Id = %d", pcmd_node->persist_q_id);
-    dnvme_vdbg("Unique Cmd Id = %d", pcmd_node->unique_id);
-    dnvme_vdbg("free_q_entry = %d", free_q_entry);
-
-    if (free_q_entry) {
-        if (pcmd_node->persist_q_id == 0) {
-            dnvme_err("Trying to delete ACQ is blunder");
-            err = -EINVAL;
-            return err;
-        }
-        if (type == NVME_CQ) {
-            err = dnvme_delete_cq(pmetrics_device, pcmd_node->persist_q_id);
-            if (err != 0) {
-                dnvme_err("CQ Removal failed...");
-                return err;
-            }
-
-        } else if (type == NVME_SQ) {
-            err = dnvme_delete_sq(pmetrics_device, pcmd_node->persist_q_id);
-            if (err != 0) {
-                dnvme_err("SQ Removal failed...");
-                return err;
-            }
-        }
-    }
-    err = dnvme_delete_cmd(pmetrics_sq_node, pcmd_node->unique_id);
-    if (err != 0) {
-        dnvme_err("Cmd Removal failed...");
-        return err;
-    }
-
-    return err;
-}
-
-
-static int process_algo_gen(struct nvme_sq *pmetrics_sq_node,
-    u16 cmd_id, struct  nvme_context *pmetrics_device)
-{
-    int err;
-    struct nvme_cmd_node *pcmd_node;
-
-    /* Find the command ndoe */
-    pcmd_node = dnvme_find_cmd(pmetrics_sq_node, cmd_id);
-    if (pcmd_node == NULL) {
-        dnvme_err("Command id = %d does not exist", cmd_id);
-        return -EBADSLT; /* Invalid slot */
-    }
-
-    dnvme_release_prps(pmetrics_device->dev, &pcmd_node->prp_nonpersist);
-    err = dnvme_delete_cmd(pmetrics_sq_node, cmd_id);
-    return err;
-}
-
-
-static int process_admin_cmd(struct nvme_sq *pmetrics_sq_node,
-    struct nvme_cmd_node *pcmd_node, u16 status,
-    struct  nvme_context *pmetrics_device)
-{
-    int err = 0;
-
-    switch (pcmd_node->opcode) {
-    case 0x00:
-        /* Delete IOSQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status == 0),
-            pmetrics_device, NVME_SQ);
-        break;
-    case 0x01:
-        /* Create IOSQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status != 0),
-            pmetrics_device, NVME_SQ);
-        break;
-    case 0x04:
-        /* Delete IOCQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status == 0),
-            pmetrics_device, NVME_CQ);
-        break;
-    case 0x05:
-        /* Create IOCQ */
-        err = process_algo_q(pmetrics_sq_node, pcmd_node, (status != 0),
-            pmetrics_device, NVME_CQ);
-        break;
-    default:
-        /* General algo */
-        err = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
-            pmetrics_device);
-        break;
-    }
-    return err;
-}
-
-
-/*
- * Process various algorithms depending on the Completion entry in a CQ
- * This works for both Admin and IO CQ entries.
+/**
+ * @brief Handle admin command completion.
  */
-static int process_reap_algos(struct cq_completion *cq_entry,
-    struct  nvme_context *pmetrics_device)
+static int handle_admin_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
+	u16 status)
 {
-    int err = 0;
-    u16 ceStatus;
-    struct nvme_sq *pmetrics_sq_node = NULL;
-    struct nvme_cmd_node *pcmd_node = NULL;
+	int ret;
 
+	switch (cmd->opcode) {
+	case nvme_admin_delete_sq:
+		ret = handle_queue_cmd_completion(sq, cmd, NVME_SQ, (status == 0));
+		break;
+	case nvme_admin_create_sq:
+		ret = handle_queue_cmd_completion(sq, cmd, NVME_SQ, (status != 0));
+		break;
+	case nvme_admin_delete_cq:
+		ret = handle_queue_cmd_completion(sq, cmd, NVME_CQ, (status == 0));
+		break;
+	case nvme_admin_create_cq:
+		ret = handle_queue_cmd_completion(sq, cmd, NVME_CQ, (status != 0));
+		break;
+	default:
+		ret = handle_gen_cmd_completion(sq, cmd);
+		break;
+	}
+	return ret;
+}
 
-    /* Find sq node for given sq id in CE */
-    pmetrics_sq_node = dnvme_find_sq(pmetrics_device, cq_entry->sq_identifier);
-    if (pmetrics_sq_node == NULL) {
-        dnvme_err("SQ ID = %d does not exist", cq_entry->sq_identifier);
-        /* Error must be EBADSLT per design; user may want to reap all entry */
-        return -EBADSLT; /* Invalid slot */
-    }
+/**
+ * @brief Handle all command completion which include admin & IO command etc.
+ */
+static int handle_cmd_completion(struct nvme_context *ctx, 
+	struct cq_completion *cq_entry)
+{
+	struct nvme_sq *sq;
+	struct nvme_cmd *cmd;
+	u16 status;
+	int ret = 0;
 
-    /* Update our understanding of the corresponding hdw SQ head ptr */
-    pmetrics_sq_node->pub.head_ptr = cq_entry->sq_head_ptr;
-    ceStatus = (cq_entry->status_field & 0x7ff);
-    dnvme_vdbg("(SCT, SC) = 0x%04X", ceStatus);
+	sq = dnvme_find_sq(ctx, cq_entry->sq_identifier);
+	if (!sq) {
+		dnvme_err("SQ(%u) doesn't exist!\n", cq_entry->sq_identifier);
+		return -EBADSLT;
+	}
 
-    /* Find command in sq node */
-    pcmd_node = dnvme_find_cmd(pmetrics_sq_node, cq_entry->cmd_identifier);
-    if (pcmd_node != NULL) {
-        /* A command node exists, now is it an admin cmd or not? */
-        if (cq_entry->sq_identifier == 0) {
-            dnvme_vdbg("Admin cmd set processing");
-            err = process_admin_cmd(pmetrics_sq_node, pcmd_node, ceStatus,
-                pmetrics_device);
-        } else {
-            dnvme_vdbg("NVM or other cmd set processing");
-            err = process_algo_gen(pmetrics_sq_node, pcmd_node->unique_id,
-                pmetrics_device);
-        }
-    }
-    return err;
+	/* update SQ info */
+	sq->pub.head_ptr = cq_entry->sq_head_ptr;
+	status = (cq_entry->status_field & 0x7ff);
+
+	cmd = dnvme_find_cmd(sq, cq_entry->cmd_identifier);
+	if (cmd) {
+		dnvme_vdbg("SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
+			cq_entry->sq_identifier, cq_entry->cmd_identifier, 
+			cmd->opcode, cq_entry->status_field);
+
+		if (cq_entry->sq_identifier == NVME_AQ_ID) {
+			ret = handle_admin_cmd_completion(sq, cmd, status);
+		} else {
+			ret = handle_gen_cmd_completion(sq, cmd);
+		}
+	} else {
+		/* !TODO: some cmd hasn't create cmd node? */
+		dnvme_vdbg("SQ %u, CMD %u - status:0x%x\n",
+			cq_entry->sq_identifier, cq_entry->cmd_identifier, 
+			cq_entry->status_field);
+	}
+	return ret;
 }
 
 /*
  * Copy the cq data to user buffer for the elements reaped.
  */
-static int copy_cq_data(struct nvme_cq  *pmetrics_cq_node, u8 *cq_head_ptr,
-    u32 comp_entry_size, u32 *num_should_reap, u8 *buffer,
-    struct  nvme_context *pmetrics_device)
+static int copy_cq_data(struct nvme_cq *cq, u8 *cq_head_ptr,
+	u32 comp_entry_size, u32 *num_should_reap, u8 *buffer,
+	struct nvme_context *ctx)
 {
-    int latentErr = 0;
-    u8 *queue_base_addr; /* Base address for Queue */
+	int latentErr = 0;
+	u8 *queue_base_addr; /* Base address for Queue */
 
-    if (pmetrics_cq_node->priv.contig != 0) {
-        queue_base_addr = pmetrics_cq_node->priv.buf;
-    } else {
-        /* Point to discontig Q memory here */
-        queue_base_addr =
-            pmetrics_cq_node->priv.prp_persist.buf;
-    }
+	if (cq->priv.contig != 0) {
+		queue_base_addr = cq->priv.buf;
+	} else {
+		/* Point to discontig Q memory here */
+		queue_base_addr = cq->priv.prp_persist.buf;
+	}
 
-    while (*num_should_reap) {
-        dnvme_vdbg("Reaping CE's, %d left to reap", *num_should_reap);
+	while (*num_should_reap) {
+		dnvme_vdbg("Reaping CE's, %d left to reap", *num_should_reap);
 
-        /* Call the process reap algos based on CE entry */
-        latentErr = process_reap_algos((struct cq_completion *)cq_head_ptr,
-            pmetrics_device);
-        if (latentErr) {
-            dnvme_err("Unable to find CE.SQ_id in dnvme metrics");
-        }
+		/* Call the process reap algos based on CE entry */
+		latentErr = handle_cmd_completion(ctx, (struct cq_completion *)cq_head_ptr);
+		if (latentErr) {
+			dnvme_err("Unable to find CE.SQ_id in dnvme metrics");
+		}
 
-        /* Copy to user even on err; allows seeing latent err */
-        if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
-            dnvme_err("Unable to copy request data to user space");
-            return -EFAULT;
-        }
+		/* Copy to user even on err; allows seeing latent err */
+		if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
+			dnvme_err("Unable to copy request data to user space");
+			return -EFAULT;
+		}
 
-        cq_head_ptr += comp_entry_size;     /* Point to next CE entry */
-        buffer += comp_entry_size;          /* Prepare for next element */
-        *num_should_reap -= 1;              /* decrease for the one reaped. */
+		cq_head_ptr += comp_entry_size;     /* Point to next CE entry */
+		buffer += comp_entry_size;          /* Prepare for next element */
+		*num_should_reap -= 1;              /* decrease for the one reaped. */
 
-        if (cq_head_ptr >= (queue_base_addr +
-            pmetrics_cq_node->priv.size)) {
+		if (cq_head_ptr >= (queue_base_addr + cq->priv.size)) {
 
-            /* Q wrapped so point to base again */
-            cq_head_ptr = queue_base_addr;
-        }
+			/* Q wrapped so point to base again */
+			cq_head_ptr = queue_base_addr;
+		}
 
-        if (latentErr) {
-            /* Latent errors were introduced to allow reaping CE's to user
-             * space and also counting them as reaped, because they were
-             * successfully copied. However, there was something about the CE
-             * that indicated an error, possibly malformed CE by hdw, thus the
-             * entire IOCTL should error, but we successfully reaped some CE's
-             * which allows tnvme to inspect and trust the copied CE's for debug
-             */
-            dnvme_err("Detected a partial reap situation; some, not all reaped");
-            return latentErr;
-        }
-    }
+		if (latentErr) {
+			/* Latent errors were introduced to allow reaping CE's to user
+			* space and also counting them as reaped, because they were
+			* successfully copied. However, there was something about the CE
+			* that indicated an error, possibly malformed CE by hdw, thus the
+			* entire IOCTL should error, but we successfully reaped some CE's
+			* which allows tnvme to inspect and trust the copied CE's for debug
+			*/
+			dnvme_err("Detected a partial reap situation; some, not all reaped");
+			return latentErr;
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 /*
  * move the cq head pointer to point to location of the elements that is
  * to be reaped.
  */
-static void pos_cq_head_ptr(struct nvme_cq  *pmetrics_cq_node,
-    u32 num_reaped)
+static void pos_cq_head_ptr(struct nvme_cq *cq, u32 num_reaped)
 {
-    u32 temp_head_ptr = pmetrics_cq_node->pub.head_ptr;
+	u32 temp_head_ptr = cq->pub.head_ptr;
 
-    temp_head_ptr += num_reaped;
-    if (temp_head_ptr >= pmetrics_cq_node->pub.elements) {
-        pmetrics_cq_node->pub.pbit_new_entry =
-            !pmetrics_cq_node->pub.pbit_new_entry;
-        temp_head_ptr = temp_head_ptr % pmetrics_cq_node->pub.elements;
-    }
+	temp_head_ptr += num_reaped;
+	if (temp_head_ptr >= cq->pub.elements) {
+		cq->pub.pbit_new_entry = !cq->pub.pbit_new_entry;
+		temp_head_ptr = temp_head_ptr % cq->pub.elements;
+	}
 
-    pmetrics_cq_node->pub.head_ptr = (u16)temp_head_ptr;
-    dnvme_vdbg("Head ptr = %d", pmetrics_cq_node->pub.head_ptr);
-    dnvme_vdbg("Tail ptr = %d", pmetrics_cq_node->pub.tail_ptr);
+	cq->pub.head_ptr = (u16)temp_head_ptr;
+	dnvme_vdbg("Head ptr = %d", cq->pub.head_ptr);
+	dnvme_vdbg("Tail ptr = %d", cq->pub.tail_ptr);
 }
 
-
-/*
- * Reap the number of elements specified for the given CQ id and send
- * the reaped elements back. This is the main place and only place where
- * head_ptr is updated. The pbit_new_entry is inverted when Q wraps.
- */
-int driver_reap_cq(struct  nvme_context *pmetrics_device,
-    struct nvme_reap *usr_reap_data)
+int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 {
-    int err;
-    u32 num_will_fit;
-    u32 num_could_reap;
-    u32 num_should_reap;
-    struct nvme_cq *pmetrics_cq_node;   /* ptr to CQ node in ll */
-    u32 comp_entry_size = 16;               /* Assumption is for ACQ */
-    u8 *queue_base_addr;    /* base addr for both contig and discontig queues */
-    struct nvme_reap *user_data = NULL;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_irq_set *irq_set = &ctx->irq_set;
+	struct nvme_interrupt *act_irq = &ndev->pub.irq_active;
+	struct pci_dev *pdev = ndev->priv.pdev;
+	struct nvme_reap reap;
+	struct nvme_cq *cq;
+	void *cq_head;
+	u32 cqes, expect, actual, remain;
+	int ret;
 
+	if (copy_from_user(&reap, ureap, sizeof(reap))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
+	reap.isr_count = 0;
 
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct nvme_reap), GFP_KERNEL);
-    if (user_data == NULL) {
-        dnvme_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, usr_reap_data, sizeof(struct nvme_reap))) {
-        dnvme_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
+	cq = dnvme_find_cq(ctx, reap.q_id);
+	if (!cq) {
+		dnvme_err("CQ(%u) doesn't exist!\n", reap.q_id);
+		return -EBADSLT;
+	}
+	cqes = 1 << cq->pub.cqes;
 
-    /* Find CQ with given id from user */
-    pmetrics_cq_node = dnvme_find_cq(pmetrics_device, user_data->q_id);
-    if (pmetrics_cq_node == NULL) {
-        dnvme_err("CQ ID = %d not found", user_data->q_id);
-        err = -EBADSLT;
-        goto fail_out;
-    }
+	/* calculate the number of CQ entries that the user expects to reap */
+	if (reap.elements)
+		expect = min_t(u32, reap.elements, reap.size >> cq->pub.cqes);
+	else
+		expect = reap.size >> cq->pub.cqes;
 
-    /* Initializing ISR count for all the possible cases */
-    user_data->isr_count = 0;
+	if (act_irq->irq_type == NVME_INT_NONE || cq->pub.irq_enabled == 0) {
+		remain = dnvme_get_cqe_remain(cq, &pdev->dev);
+	} else {
+		mutex_lock(&irq_set->mtx_lock);
+		ret = dnvme_inquiry_cqe_with_isr(cq, &remain, &reap.isr_count);
+		mutex_unlock(&irq_set->mtx_lock);
 
-    /* Call the reap inquiry on this CQ, see how many unreaped elements exist */
-    /* Check if the IRQ is enabled and process accordingly */
-    if (pmetrics_device->dev->pub.irq_active.irq_type
-        == NVME_INT_NONE) {
+		if (ret < 0)
+			return ret;
+	}
 
-        /* Process reap inquiry for non-isr case */
-        num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
-            dev->priv.pdev->dev);
-    } else {
-        if (pmetrics_cq_node->pub.irq_enabled == 0) {
-            /* Process reap inquiry for non-isr case */
-            num_could_reap = reap_inquiry(pmetrics_cq_node, &pmetrics_device->
-                dev->priv.pdev->dev);
+	if (remain >= cq->pub.elements) {
+		dnvme_err("HW violating full Q definition!\n");
+		return -EPERM;
+	}
 
-        } else { /* ISR Reap additions for IRQ support as irq_enabled is set */
-            /* Lock the IRQ mutex to guarantee coherence with bottom half. */
-            mutex_lock(&pmetrics_device->irq_process.irq_track_mtx);
-            /* Process ISR based reap inquiry as isr is enabled */
-            err = reap_inquiry_isr(pmetrics_cq_node, pmetrics_device,
-                &num_could_reap, &user_data->isr_count);
-            if (err < 0) {
-                dnvme_err("ISR Reap Inquiry failed...");
-                goto mtx_unlk;
-            }
-        }
-    }
+	reap.num_reaped = min_t(u32, expect, remain);
+	reap.num_remaining = remain - reap.num_reaped;
+	actual = reap.num_reaped;
 
-    /* Check for hw violation of full Q definition */
-    if (num_could_reap >= pmetrics_cq_node->pub.elements) {
-        dnvme_err("HW violating full Q definition");
-        err = -EINVAL;
-        goto mtx_unlk;
-    }
+	if (cq->priv.contig)
+		cq_head = cq->priv.buf + ((u32)cq->pub.head_ptr << cq->pub.cqes);
+	else
+		cq_head = cq->priv.prp_persist.buf + 
+			((u32)cq->pub.head_ptr << cq->pub.cqes);
 
-    /* If this CQ is an IOCQ, not ACQ, then lookup the CE size */
-    if (pmetrics_cq_node->pub.q_id != 0) {
-        comp_entry_size = (pmetrics_cq_node->priv.size) /
-            (pmetrics_cq_node->pub.elements);
-    }
-    dnvme_vdbg("Tail ptr position before reaping = %d",
-        pmetrics_cq_node->pub.tail_ptr);
-    dnvme_vdbg("Detected CE size = 0x%04X", comp_entry_size);
-    dnvme_vdbg("%d elements could be reaped", num_could_reap);
-    if (num_could_reap == 0) {
-        dnvme_vdbg("All elements reaped, CQ is empty");
-        user_data->num_remaining = 0;
-        user_data->num_reaped = 0;
-    }
+	ret = copy_cq_data(cq, cq_head, (1 << cq->pub.cqes), &actual, 
+		reap.buffer, ctx);
 
-    /* Is this request asking for every CE element? */
-    if (user_data->elements == 0) {
-        user_data->elements = num_could_reap;
-    }
-    num_will_fit = (user_data->size / comp_entry_size);
+	reap.num_reaped -= actual;
+	reap.num_remaining += actual;
 
-    dnvme_vdbg("Requesting to reap %d elements", user_data->elements);
-    dnvme_vdbg("User space reap buffer size = %d", user_data->size);
-    dnvme_vdbg("Total buffer bytes needed to satisfy request = %d",
-        num_could_reap * comp_entry_size);
-    dnvme_vdbg("num elements which fit in buffer = %d", num_will_fit);
+	/* update data to user */
+	if (copy_to_user(ureap, &reap, sizeof(reap))) {
+		dnvme_err("failed to copy to user space!\n");
+		return (ret == 0) ? -EFAULT : ret;
+	}
 
-    /* Assume we can fit all which are requested, then adjust if necessary */
-    num_should_reap = num_could_reap;
-    user_data->num_remaining = 0;
+	if (reap.num_reaped) {
+		pos_cq_head_ptr(cq, reap.num_reaped);
+		writel(cq->pub.head_ptr, cq->priv.dbs);
+	}
 
-    /* Adjust our assumption based on size and elements */
-    if (user_data->elements <= num_could_reap) {
-    	// !FIXME: num_should_reap may greater than "user_data->elements"
+	if (act_irq->irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
+		reap.num_remaining == 0) {
 
-        if (user_data->size < (num_could_reap * comp_entry_size)) {
-            /* Buffer not large enough to hold all requested */
-            num_should_reap = num_will_fit;
-            user_data->num_remaining = (num_could_reap - num_should_reap);
-        }
+		mutex_lock(&irq_set->mtx_lock);
+		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);
+		mutex_unlock(&irq_set->mtx_lock);
+		if (ret < 0) {
+			dnvme_err("reset isr fired flag failed\n");
+			return ret;
+		}
+	}
 
-    } else {    /* Asking for more elements than presently exist in CQ */
-        if (user_data->size < (num_could_reap * comp_entry_size)) {
-            if (num_could_reap > num_will_fit) {
-                /* Buffer not large enough to hold all requested */
-                num_should_reap = num_will_fit;
-                user_data->num_remaining = (num_could_reap - num_should_reap);
-            }
-        }
-    }
-    user_data->num_reaped = num_should_reap;    /* Expect success */
-
-    dnvme_vdbg("num elements will attempt to reap = %d", num_should_reap);
-    dnvme_vdbg("num elements expected to remain after reap = %d",
-        user_data->num_remaining);
-    dnvme_vdbg("Head ptr before reaping = %d",
-        pmetrics_cq_node->pub.head_ptr);
-
-    /* Get the required base address */
-    if (pmetrics_cq_node->priv.contig != 0) {
-        queue_base_addr = pmetrics_cq_node->priv.buf;
-    } else {
-        /* Point to discontig Q memory here */
-        queue_base_addr =
-            pmetrics_cq_node->priv.prp_persist.buf;
-    }
-
-    /* Copy the number of CE's we should be able to reap */
-    err = copy_cq_data(pmetrics_cq_node, (queue_base_addr +
-        (comp_entry_size * (u32)pmetrics_cq_node->pub.head_ptr)),
-        comp_entry_size, &num_should_reap, user_data->buffer,
-        pmetrics_device);
-
-    /* Reevaluate our success during reaping */
-    user_data->num_reaped -= num_should_reap;
-    user_data->num_remaining += num_should_reap;
-    dnvme_vdbg("num CE's reaped = %d, num CE's remaining = %d",
-        user_data->num_reaped, user_data->num_remaining);
-
-    /* Updating the user structure */
-    if (copy_to_user(usr_reap_data, user_data, sizeof(struct nvme_reap))) {
-        dnvme_err("Unable to copy request data to user space");
-        err = (err == 0) ? -EFAULT : err;
-        goto mtx_unlk;
-    }
-
-    /* Update system with number actually reaped */
-    if(user_data->num_reaped)
-    {
-        pos_cq_head_ptr(pmetrics_cq_node, user_data->num_reaped);
-        writel(pmetrics_cq_node->pub.head_ptr, pmetrics_cq_node->
-        priv.dbs);
-        //dnvme_err("@@@@@@@@@cqid:%x hdbl:%x",pmetrics_cq_node->pub.q_id,pmetrics_cq_node->pub.head_ptr);
-    }
-
-    /* if 0 CE in a given cq, then reset the isr flag. */
-    if ((pmetrics_cq_node->pub.irq_enabled == 1) &&
-        (user_data->num_remaining == 0) &&
-        (pmetrics_device->dev->pub.irq_active.irq_type !=
-        NVME_INT_NONE)) {
-
-        /* reset isr fired flag for the particular irq_no */
-        if (reset_isr_flag(pmetrics_device,
-            pmetrics_cq_node->pub.irq_no) < 0) {
-            dnvme_err("reset isr fired flag failed");
-            err = (err == 0) ? -EINVAL : err;
-        }
-    }
-
-    /* Unmask the irq for which it was masked in Top Half */
-    //MengYu add. if tests interrupt, should commit this line
-    unmask_interrupts(pmetrics_cq_node->pub.irq_no,
-        &pmetrics_device->irq_process);
-    /* Fall through is intended */
-
-mtx_unlk:
-    if ((pmetrics_cq_node->pub.irq_enabled == 1) &&
-        (pmetrics_device->dev->pub.irq_active.irq_type !=
-        NVME_INT_NONE)) {
-
-        mutex_unlock(&pmetrics_device->irq_process.irq_track_mtx);
-    }
-fail_out:
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    return err;
+	dnvme_unmask_interrupt(&ctx->irq_set, cq->pub.irq_no);
+	return 0;
 }
+

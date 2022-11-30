@@ -323,15 +323,12 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_dump_log_file(argp);
 		break;
 
-	case NVME_IOCTL_REAP_INQUIRY:
-		dnvme_vdbg("NVME_IOCTL_REAP_INQUIRY");
-		ret = driver_reap_inquiry(ctx,
-		(struct nvme_reap_inquiry *)arg);
+	case NVME_IOCTL_INQUIRY_CQE:
+		ret = dnvme_inquiry_cqe(ctx, argp);
 		break;
 
-	case NVME_IOCTL_REAP:
-		dnvme_vdbg("NVME_IOCTL_REAP");
-		ret = driver_reap_cq(ctx, (struct nvme_reap *)arg);
+	case NVME_IOCTL_REAP_CQE:
+		ret = dnvme_reap_cqe(ctx, argp);
 		break;
 
 	case NVME_IOCTL_GET_DRIVER_INFO:
@@ -358,18 +355,15 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_SET_IRQ:
-		dnvme_vdbg("NVME_IOCTL_SET_IRQ");
-		ret = nvme_set_irq(ctx, (struct interrupts *)arg);
+		ret = dnvme_set_interrupt(ctx, argp);
 		break;
 
 	case NVME_IOCTL_MASK_IRQ:
-		dnvme_vdbg("NVME_IOCTL_MASK_IRQ");
-		ret = nvme_mask_irq(ctx, (u16)arg);
+		ret = dnvme_mask_interrupt(&ctx->irq_set, (u16)arg);
 		break;
 
 	case NVME_IOCTL_UNMASK_IRQ:
-		dnvme_vdbg("NVME_IOCTL_UNMASK_IRQ");
-		ret = nvme_unmask_irq(ctx, (u16)arg);
+		ret = dnvme_unmask_interrupt(&ctx->irq_set, (u16)arg);
 		break;
 
 	case NVME_IOCTL_GET_DEV_INFO:
@@ -581,7 +575,7 @@ static int dnvme_init_irq(struct nvme_context *ctx)
 	ctx->dev->pub.irq_active.irq_type = NVME_INT_NONE;
 	ctx->dev->pub.irq_active.num_irqs = 0;
 	/* Will only be read by ISR */
-	ctx->irq_process.irq_type = NVME_INT_NONE;
+	ctx->irq_set.irq_type = NVME_INT_NONE;
 	return 0;
 }
 
@@ -638,13 +632,13 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	INIT_LIST_HEAD(&ctx->sq_list);
 	INIT_LIST_HEAD(&ctx->cq_list);
 	INIT_LIST_HEAD(&ctx->meta_set.meta_list);
-	INIT_LIST_HEAD(&ctx->irq_process.irq_track_list);
-	INIT_LIST_HEAD(&ctx->irq_process.wrk_item_list);
+	INIT_LIST_HEAD(&ctx->irq_set.irq_list);
+	INIT_LIST_HEAD(&ctx->irq_set.work_list);
 
 	mutex_init(&ctx->lock);
-	mutex_init(&ctx->irq_process.irq_track_mtx);
+	mutex_init(&ctx->irq_set.mtx_lock);
 	/* Spinlock to protect from kernel preemption in ISR handler */
-	spin_lock_init(&ctx->irq_process.isr_spin_lock);
+	spin_lock_init(&ctx->irq_set.spin_lock);
 
 	ctx->dev = ndev;
 	ndev->ctx = ctx;

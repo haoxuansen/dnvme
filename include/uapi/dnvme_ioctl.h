@@ -35,8 +35,8 @@ enum {
 	NVME_PREPARE_CQ_CREATION,
 	NVME_RING_SQ_DOORBELL,
 	NVME_DUMP_LOG_FILE,
-	NVME_REAP_INQUIRY,
-	NVME_REAP,
+	NVME_INQUIRY_CQE,
+	NVME_REAP_CQE,
 	NVME_GET_DRIVER_INFO,
 	NVME_CREATE_META_POOL,
 	NVME_DESTROY_META_POOL,
@@ -202,16 +202,29 @@ struct nvme_64b_cmd {
 };
 
 /**
+ * @brief Inquiry the number of ready CQ entries and save it.
+ *
+ * @q_id: CQ identify
+ * @num_remaining: return the number of cmds waiting to be reaped
+ * @isr_count: return the number of times the irq fired which bind to CQ
+ */
+struct nvme_inquiry {
+	uint16_t	q_id;
+	uint32_t	num_remaining;
+	uint32_t	isr_count;
+};
+
+/**
  * Interface structure for setting the desired IRQ type.
  * works for all type of interrupt scheme expect PIN based.
  */
-struct interrupts {
+struct nvme_interrupt {
 	uint16_t		num_irqs; /* total no. of irqs req by tnvme */
 	enum nvme_irq_type	irq_type; /* Active IRQ scheme for this dev */
 };
 
 struct nvme_dev_public {
-	struct interrupts	irq_active; /* Active IRQ state of the nvme device */
+	struct nvme_interrupt	irq_active; /* Active IRQ state of the nvme device */
 };
 
 /**
@@ -254,6 +267,11 @@ struct nvme_log_file {
 
 #define NVME_IOCTL_SEND_64B_CMD \
 	_IOWR('N', NVME_SEND_64B_CMD, struct nvme_64b_cmd)
+#define NVME_IOCTL_TOXIC_64B_DWORD \
+	_IOWR('N', NVME_TOXIC_64B_DWORD, struct backdoor_inject)
+
+#define NVME_IOCTL_INQUIRY_CQE		_IOWR('N', NVME_INQUIRY_CQE, struct nvme_inquiry)
+#define NVME_IOCTL_REAP_CQE		_IOWR('N', NVME_REAP_CQE, struct nvme_reap)
 
 /* uint16_t: assign meta node identify */
 #define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, uint32_t)
@@ -263,42 +281,14 @@ struct nvme_log_file {
 #define NVME_IOCTL_CREATE_META_POOL	_IOW('N', NVME_CREATE_META_POOL, uint32_t)
 #define NVME_IOCTL_DESTROY_META_POOL	_IO('N', NVME_DESTROY_META_POOL)
 
-#define NVME_IOCTL_SET_IRQ		_IOWR('N', NVME_SET_IRQ, struct interrupts)
-#define NVME_IOCTL_MASK_IRQ		_IOWR('N', NVME_MASK_IRQ, uint16_t)
-#define NVME_IOCTL_UNMASK_IRQ		_IOWR('N', NVME_UNMASK_IRQ, uint16_t)
+#define NVME_IOCTL_SET_IRQ		_IOWR('N', NVME_SET_IRQ, struct nvme_interrupt)
+/* uint16_t: specified irq identify */
+#define NVME_IOCTL_MASK_IRQ		_IOW('N', NVME_MASK_IRQ, uint16_t)
+/* uint16_t: specified irq identify */
+#define NVME_IOCTL_UNMASK_IRQ		_IOW('N', NVME_UNMASK_IRQ, uint16_t)
 
 #define NVME_IOCTL_DUMP_LOG_FILE \
 	_IOWR('N', NVME_DUMP_LOG_FILE, struct nvme_log_file)
-
-/**
- * @def NVME_IOCTL_TOXIC_64B_CMD
- * After Utilizing NVME_IOCTL_SEND_64B_CMD to issue a cmd into any SQ, but
- * before utilizing NVME_IOCTL_RING_SQ_DOORBELL on that same cmd, one is allowed
- * issue this IOCTL. This IOCTL will effectively bypass all safety checking,
- * those things which prevent an erroneous IOCTL from bringing down the kernel,
- * to inject bad/illegal data bits into a cmd. This is HIGHLY VOLATILE if you
- * are NOT intimately aware of the logic of this driver. Assumptions are made,
- * albeit a minimal set of, which require proper setup of all cmds when they
- * are send via NVME_IOCTL_SEND_64B_CMD and subsequently reaped via
- * NVME_IOCTL_REAP, and thus bypassing these assumptions is what will crash
- * the kernel. However, if you thoroughly understand these assumption, this
- * IOCTL will allow to modify the cmd bits after safety checking is performed.
- */
-#define NVME_IOCTL_TOXIC_64B_DWORD _IOWR('N', NVME_TOXIC_64B_DWORD, \
-    struct backdoor_inject)
-
-/**
- * @def NVME_IOCTL_REAP_INQUIRY
- * define a unique value to reap inquiry ioctl.
- */
-#define NVME_IOCTL_REAP_INQUIRY _IOWR('N', NVME_REAP_INQUIRY, \
-    struct nvme_reap_inquiry)
-
-/**
- * @def NVME_IOCTL_REAP
- * define a unique value to reap ioctl.
- */
-#define NVME_IOCTL_REAP _IOWR('N', NVME_REAP, struct nvme_reap)
 
 /**
  * @def NVME_GET_BP_MEM

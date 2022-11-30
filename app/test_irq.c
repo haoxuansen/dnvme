@@ -34,7 +34,7 @@ static char * int_type[] = {
 void set_irqs(int fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
 {
     int ret_val;
-    struct interrupts new_irq = {0};
+    struct nvme_interrupt new_irq = {0};
 
     pr_info("Set interrupts, Type: %s, num_irqs:%d\n", int_type[irq_type], num_irqs);
     #ifdef AMD_MB_EN

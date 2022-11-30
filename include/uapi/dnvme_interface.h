@@ -51,18 +51,6 @@ struct nvme_sq_public {
 };
 
 /**
- * Interface structure for reap inquiry ioctl. It works well for both admin
- * and IO Q's.
- */
-struct nvme_reap_inquiry {
-    uint16_t q_id;           /* CQ ID to reap commands for */
-    uint32_t num_remaining;  /* return no of cmds waiting to be reaped */
-
-    /* no of times isr was fired which is associated with cq reaped on */
-    uint32_t isr_count;
-};
-
-/**
  * Interface structure for reap ioctl. Admin Q and all IO Q's are supported.
  */
 struct nvme_reap {

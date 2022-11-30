@@ -25,7 +25,7 @@
 #define LOG_LEVEL_DEBUG			7
 #define LOG_LEVEL_BUBBLING		8
 #define LOG_LEVEL_DIVING		9
-#define LOG_LEVEL_DEFAULT		LOG_LEVEL_DEBUG
+#define LOG_LEVEL_DEFAULT		LOG_LEVEL_INFO
 
 #define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
 #ifndef pr_fmt

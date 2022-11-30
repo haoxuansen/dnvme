@@ -78,7 +78,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 
 	while (*reaped_num < expect_num)
 	{
-		ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
+		ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
 		if (ret_val)
 		{
 			pr_err("Call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
@@ -137,7 +137,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 
 	while (*reaped_num < expect_num)
 	{
-		ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
+		ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
 		if (ret_val)
 		{
 			pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
@@ -229,7 +229,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 		{
 			cq_id = i;
 			rp_cq.q_id = cq_id;
-			ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
+			ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
 			if (ret_val)
 			{
 				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, arb_parameter->expect_num);
@@ -505,7 +505,7 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 		{
 			cq_id = i;
 			rp_cq.q_id = cq_id;
-			ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
+			ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
 			if (ret_val)
 			{
 				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, arb_parameter->expect_num);

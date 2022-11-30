@@ -435,9 +435,9 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 	cq->priv.bit_mask |= NVME_QF_WAIT_FOR_CREATE;
 
 	if (cq->pub.irq_enabled) {
-		ret = update_cq_irqtrack(ctx, cq->pub.q_id, cq->pub.irq_no);
+		ret = dnvme_create_icq_node(&ctx->irq_set, cq->pub.q_id, cq->pub.irq_no);
 		if (ret < 0) {
-			dnvme_err("failed to update_cq_irqtrack!(%d)\n", ret);
+			dnvme_err("failed to create icq node!(%d)\n", ret);
 			goto out;
 		}
 	}

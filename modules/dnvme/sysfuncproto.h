@@ -78,18 +78,6 @@ void deallocate_all_queues(struct nvme_context *pmetrics_device,
     enum nvme_state nstate);
 
 /**
- * driver_reap_inquiry - This function will traverse the metrics device list
- * for the given cq_id and return the number of commands that are to be reaped.
- * This is only function apart from initializations, that will modify tail_ptr
- * for the corresponding CQ.
- * @param pmetrics_device
- * @param usr_reap_inq
- * @return success or failure based on reap_inquiry
- */
-int driver_reap_inquiry(struct nvme_context *pmetrics_device,
-    struct nvme_reap_inquiry *usr_reap_inq);
-
-/**
  * dnvme_device_open - This operation is always the first operation performed
  * on the device file.
  * @param inode
@@ -117,16 +105,6 @@ int dnvme_device_release(struct inode *inode, struct file *filp);
  * @return success or failure depending on mapping.
  */
 int dnvme_device_mmap(struct file *filp, struct vm_area_struct *vma);
-
-/**
- * driver_reap_cq - Reap the number of elements specified for the given CQ id.
- * Return the CQ entry data in the buffer specified.
- * @param pmetrics_device
- * @param usr_reap_data
- * @return Success of Failure based on Reap Success or failure.
- */
-int driver_reap_cq(struct nvme_context *pmetrics_device,
-    struct nvme_reap *usr_reap_data);
 
 int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
     u16 *offset);

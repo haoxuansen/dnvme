@@ -13,6 +13,7 @@
 #define _DNVME_PCI_H_
 
 #include <linux/pci.h>
+#include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 
 #include "dnvme_ioctl.h"
@@ -107,6 +108,9 @@ static inline int pci_read_int_pin(const struct pci_dev *dev, u8 *data)
 
 
 int pci_read_class_code(const struct pci_dev *dev, struct pci_class_code *data);
+
+int pci_enable_int_pin(struct pci_dev *pdev);
+int pci_disable_int_pin(struct pci_dev *pdev);
 
 int pci_get_capability(struct pci_dev *pdev, struct nvme_capability *cap);
 

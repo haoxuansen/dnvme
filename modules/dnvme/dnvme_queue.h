@@ -51,13 +51,13 @@
  * completion q entry structure.
  */
 struct cq_completion {
-    u32 cmd_specifc;       /* DW 0 all 32 bits     */
-    u32 reserved;          /* DW 1 all 32 bits     */
-    u16 sq_head_ptr;       /* DW 2 lower 16 bits   */
-    u16 sq_identifier;     /* DW 2 higher 16 bits  */
-    u16 cmd_identifier;    /* Cmd identifier       */
-    u8  phase_bit:1;       /* Phase bit            */
-    u16 status_field:15;   /* Status field         */
+	u32	cmd_specifc;       /* DW 0 all 32 bits     */
+	u32	reserved;          /* DW 1 all 32 bits     */
+	u16	sq_head_ptr;       /* DW 2 lower 16 bits   */
+	u16	sq_identifier;     /* DW 2 higher 16 bits  */
+	u16	cmd_identifier;    /* Cmd identifier       */
+	u8	phase_bit:1;       /* Phase bit            */
+	u16	status_field:15;   /* Status field         */
 };
 
 /**
@@ -125,7 +125,7 @@ struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id);
 int dnvme_check_qid_unique(struct nvme_context *ctx, 
 	enum nvme_queue_type type, u16 id);
 
-struct nvme_cmd_node *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
+struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
 struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
 
 struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
@@ -141,14 +141,17 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements);
 
 int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id);
 
+int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq);
+int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap);
+
 /**
- *  reap_inquiry - This generic function will try to inquire the number of
+ *  dnvme_get_cqe_remain - This generic function will try to inquire the number of
  *  CE entries in the Completion Queue that are waiting to be reaped for any
  *  given q_id.
  *  @param pmetrics_cq_node
  *  @param dev
  *  @return number of CE's remaining
   */
-u32 reap_inquiry(struct nvme_cq  *pmetrics_cq_node, struct device *dev);
+u32 dnvme_get_cqe_remain(struct nvme_cq  *pmetrics_cq_node, struct device *dev);
 
 #endif

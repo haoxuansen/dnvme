@@ -9,8 +9,6 @@
  * 
  */
 
-#define DEBUG
-
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
 #include "core.h"
@@ -82,6 +80,13 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 
 	case NVME_IOCTL_SEND_64B_CMD:
 		return "NVME_SEND_64B_CMD";
+	case NVME_IOCTL_TOXIC_64B_DWORD:
+		return "NVME_TOXIC_64B_DWORD";
+
+	case NVME_IOCTL_INQUIRY_CQE:
+		return "NVME_INQUIRY_CQE";
+	case NVME_IOCTL_REAP_CQE:
+		return "NVME_REAP_CQE";
 
 	case NVME_IOCTL_CREATE_META_NODE:
 		return "NVME_CREATE_META_NODE";

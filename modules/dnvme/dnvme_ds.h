@@ -74,7 +74,7 @@ struct nvme_cq_private {
 /*
  *    Structure definition for tracking the commands.
  */
-struct nvme_cmd_node {
+struct nvme_cmd {
 	u16	unique_id;      /* driver assigned unique id for a particular cmd */
 	u16	persist_q_id;   /* target Q ID used for Create/Delete Q's, never == 0 */
 	u8	opcode;         /* command opcode as per spec */
@@ -96,7 +96,7 @@ struct nvme_sq_private {
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
 	struct nvme_prps	prp_persist; /* PRP element in CQ */
-	struct list_head	cmd_list; /* link-list head for nvme_cmd_node list */
+	struct list_head	cmd_list; /* link-list head for nvme_cmd list */
 };
 
 /*
@@ -106,6 +106,7 @@ struct nvme_cq {
 	struct list_head	cq_entry;
 	struct nvme_cq_public	pub;
 	struct nvme_cq_private	priv;
+	struct nvme_context	*ctx;
 };
 
 /*
@@ -115,24 +116,27 @@ struct nvme_sq {
 	struct list_head	sq_entry;
 	struct nvme_sq_public	pub;
 	struct nvme_sq_private	priv;
+	struct nvme_context	*ctx;
 };
 
 /*
  * Structure with cq track parameters for interrupt related functionality.
  * Note:- Struct used for u16 for future additions
  */
-struct irq_cq_track {
+struct nvme_icq {
 	struct list_head	entry; /* linked list head for irq CQ trk */
 	u16			cq_id; /* Completion Q id */
 };
 
-/*
- * Structure with parameters of IRQ vector, CQ track linked list and irq_no
+/**
+ * @irq_entry: nvme_irq is managed by nvme_meta_set
+ * @icq_list: manage nvme_icq nodes
+ * @irq_id: irq identify, always 0 based
  */
-struct irq_track {
-	struct list_head	irq_list_hd; /* list head for irq track list */
-	struct list_head	irq_cq_track; /* linked list of IRQ CQ nodes */
-	u16			irq_no; /* idx in list; always 0 based */
+struct nvme_irq {
+	struct list_head	irq_entry;
+	struct list_head	icq_list;
+	u16			irq_id;
 	u32			int_vec; /* vec number; assigned by OS */
 	u8			isr_fired; /* flag to indicate if irq has fired */
 	u32			isr_count; /* total no. of times irq fired */
@@ -207,44 +211,45 @@ struct nvme_device {
 	bool	cmb_use_sqes;
 };
 
-/*
- * Work container which holds vectors and scheduled work queue item
+/**
+ * @entry: nvme_work is managed by nvme_irq_set
+ * @irq_id: see nvme_irq.irq_id for details
+ * @int_vec: see nvme_irq.int_vec for details
  */
-struct work_container {
-	struct list_head	wrk_list_hd;
-	struct work_struct	sched_wq; /* Work Struct item used in bh */
-	u16	irq_no; /* 0 based irq_no */
-	u32	int_vec; /* Interrupt vectors assigned by the kernel */
-	/* Pointer to the IRQ_processing strucutre of the device */
-	struct irq_processing	*pirq_process;
+struct nvme_work {
+	struct list_head	entry;
+	struct work_struct	work;
+	u16	irq_id;
+	u32	int_vec;
+	struct nvme_irq_set	*irq_set;
 };
 
 /*
  * Irq Processing structure to hold all the irq parameters per device.
  */
-struct irq_processing {
-	/* irq_track_mtx is used only while traversing/editing/deleting the
-	 * irq_track_list
+struct nvme_irq_set {
+	/* mtx_lock is used only while traversing/editing/deleting the
+	 * irq_list
 	 */
-	struct list_head irq_track_list; /* IRQ list; sorted by irq_no */
-	struct mutex irq_track_mtx; /* Mutex for access to irq_track_list */
+	struct list_head	irq_list; /* IRQ list; sorted by irq_no */
+	struct mutex	mtx_lock; /* Mutex for access to irq_list */
 
 	/* To resolve contention for ISR's getting scheduled on different cores */
-	spinlock_t isr_spin_lock;
+	spinlock_t	spin_lock;
 
 	/* Mask pointer for ISR (read both in ISR and BH) */
 	/* Pointer to MSI-X table offset or INTMS register */
-	u8 __iomem *mask_ptr;
+	u8 __iomem	*mask_ptr;
 	/* Will only be read by ISR and set once per SET/DISABLE of IRQ scheme */
-	u8 irq_type; /* Type of IRQ set */
+	u8	irq_type; /* Type of IRQ set */
 
 	/* Used by ISR to enqueue work to BH */
-	struct workqueue_struct *wq; /* Wq per device */
+	struct workqueue_struct	*wq; /* Wq per device */
 
 	/* Used by BH to dequeue work and process on it */
-	/* Head of work_container's list */
+	/* Head of nvme_work's list */
 	/* Remains static throughout the lifetime of the interrupts */
-	struct list_head wrk_item_list;
+	struct list_head	work_list;
 };
 
 /*
@@ -258,7 +263,7 @@ struct nvme_context {
 	struct nvme_device	*dev; /* Pointer to this nvme device */
 	struct mutex		lock; /* Mutex for locking per device */
 	struct nvme_meta_set	meta_set; /* Pointer to meta data buff */
-	struct irq_processing	irq_process; /* IRQ processing structure */
+	struct nvme_irq_set	irq_set; /* IRQ processing structure */
 };
 
 /* Global linked list for the entire data structure for all devices. */

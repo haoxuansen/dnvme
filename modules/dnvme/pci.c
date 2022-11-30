@@ -25,13 +25,40 @@ int pci_read_class_code(const struct pci_dev *dev, struct pci_class_code *data)
 	u32 reg;
 
 	ret = pci_read_config_dword(dev, PCI_CLASS_REVISION, &reg);
-	if (ret == PCIBIOS_SUCCESSFUL)
-	{
+	if (ret == PCIBIOS_SUCCESSFUL) {
 		data->base = (reg >> 24) & 0xff;
 		data->sub = (reg >> 16) & 0xff;
 		data->prog = (reg >> 8) & 0xff;
 	}
 	
+	return pcibios_err_to_errno(ret);
+}
+
+int pci_enable_int_pin(struct pci_dev *pdev)
+{
+	int ret;
+	u16 val;
+
+	ret = pci_read_config_word(pdev, PCI_COMMAND, &val);
+	if (ret == PCIBIOS_SUCCESSFUL) {
+		val &= ~PCI_COMMAND_INTX_DISABLE;
+		ret = pci_write_config_word(pdev, PCI_COMMAND, val);
+	}
+
+	return pcibios_err_to_errno(ret);
+}
+
+int pci_disable_int_pin(struct pci_dev *pdev)
+{
+	int ret;
+	u16 val;
+
+	ret = pci_read_config_word(pdev, PCI_COMMAND, &val);
+	if (ret == PCIBIOS_SUCCESSFUL) {
+		val |= PCI_COMMAND_INTX_DISABLE;
+		ret = pci_write_config_word(pdev, PCI_COMMAND, val);
+	}
+
 	return pcibios_err_to_errno(ret);
 }
 

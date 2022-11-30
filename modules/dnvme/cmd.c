@@ -442,7 +442,7 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 {
 	struct nvme_context *ctx = ndev->ctx;
 	struct nvme_sq *sq;
-	struct nvme_cmd_node *node;
+	struct nvme_cmd *node;
 
 	sq = dnvme_find_sq(ctx, cmd->q_id);
 	if (!sq) {
@@ -603,11 +603,11 @@ void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps)
 
 void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 {
-	struct nvme_cmd_node *node;
+	struct nvme_cmd *node;
 	struct list_head *pos, *tmp;
 
 	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
-		node = list_entry(pos, struct nvme_cmd_node, entry);
+		node = list_entry(pos, struct nvme_cmd, entry);
 		dnvme_release_prps(ndev, &node->prp_nonpersist);
 		list_del(pos);
 		kfree(node);

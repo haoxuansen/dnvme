@@ -94,11 +94,11 @@ int ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig)
 uint32_t ioctl_reap_inquiry(int file_desc, int cq_id)
 {
     int ret_val = -1;
-    struct nvme_reap_inquiry rp_inq = {0};
+    struct nvme_inquiry rp_inq = {0};
 
     rp_inq.q_id = cq_id;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_REAP_INQUIRY, &rp_inq);
+    ret_val = ioctl(file_desc, NVME_IOCTL_INQUIRY_CQE, &rp_inq);
     if (ret_val < 0)
     {
         pr_err("reap inquiry Failed! ret_val:%d\n", ret_val);
@@ -157,7 +157,7 @@ int ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display)
         pr_err("Malloc Failed");
         return -1;
     }
-    ret_val = ioctl(file_desc, NVME_IOCTL_REAP, &rp_cq);
+    ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
     if (ret_val < 0)
     {
         pr_err("reap cq Failed! ret_val:%d\n", ret_val);

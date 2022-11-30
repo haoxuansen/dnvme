@@ -83,7 +83,7 @@ static int log_prps(struct nvme_prps *prps, struct file *fp,
 	return 0;
 }
 
-static int log_cmd_node(struct nvme_cmd_node *node, int idx, 
+static int log_cmd_node(struct nvme_cmd *node, int idx, 
 	struct file *fp, loff_t *pos, int indent)
 {
 	int oft;
@@ -111,7 +111,7 @@ static int log_sq(struct nvme_sq *sq, int idx, struct file *fp, loff_t *pos,
 {
 	int oft, i;
 	char *buf = log_buf;
-	struct nvme_cmd_node *cmd_node;
+	struct nvme_cmd *cmd_node;
 
 	/* SQ public info */
 	oft = snprintf(buf, LOG_BUF_SIZE, "%s sq->pub[%d]\n", 
@@ -252,7 +252,7 @@ static int log_meta_list(struct nvme_context *ctx, struct file *fp,
 	return 0;
 }
 
-static int log_irq_sub_node(struct irq_cq_track *node, int idx, struct file *fp,
+static int log_irq_sub_node(struct nvme_icq *node, int idx, struct file *fp,
 	loff_t *pos, int indent)
 {
 	char *buf = log_buf;
@@ -266,34 +266,34 @@ static int log_irq_sub_node(struct irq_cq_track *node, int idx, struct file *fp,
 	return 0;
 }
 
-static int log_irq_node(struct irq_track *list, int idx, struct file *fp, 
+static int log_irq_node(struct nvme_irq *irq, int idx, struct file *fp, 
 	loff_t *pos, int indent)
 {
-	struct irq_cq_track *node;
+	struct nvme_icq *node;
 	char *buf = log_buf;
 	int oft, i;
 
 	oft = snprintf(buf, LOG_BUF_SIZE, "%s irq_node[%d]\n", 
 		log_indent_level(indent), idx);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s irq_no: %u\n", 
-		log_indent_level(indent + 1), list->irq_no);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s irq_id: %u\n", 
+		log_indent_level(indent + 1), irq->irq_id);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s int_vec: %u\n", 
-		log_indent_level(indent + 1), list->int_vec);
+		log_indent_level(indent + 1), irq->int_vec);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s isr_fired: %u\n", 
-		log_indent_level(indent + 1), list->isr_fired);
+		log_indent_level(indent + 1), irq->isr_fired);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s isr_count: %u\n", 
-		log_indent_level(indent + 1), list->isr_count);
+		log_indent_level(indent + 1), irq->isr_count);
 	__kernel_write(fp, buf, oft, pos);
 
 	i = 0;
-	list_for_each_entry(node, &list->irq_cq_track, entry) {
+	list_for_each_entry(node, &irq->icq_list, entry) {
 		log_irq_sub_node(node, i, fp, pos, indent + 1);
 		i++;
 	}
 	return 0;
 }
 
-static int log_irq_work_node(struct work_container *node, int idx,
+static int log_irq_work_node(struct nvme_work *node, int idx,
 	struct file *fp, loff_t *pos, int indent)
 {
 	char *buf = log_buf;
@@ -301,12 +301,12 @@ static int log_irq_work_node(struct work_container *node, int idx,
 
 	oft = snprintf(buf, LOG_BUF_SIZE, "%s work_node[%d]\n",
 		log_indent_level(indent), idx);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s irq_no: %u\n", 
-		log_indent_level(indent + 1), node->irq_no);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s irq_id: %u\n", 
+		log_indent_level(indent + 1), node->irq_id);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s int_vec: %u\n", 
 		log_indent_level(indent + 1), node->int_vec);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s pirq_process: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)node->pirq_process);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s irq_set: 0x%lx\n", 
+		log_indent_level(indent + 1), (unsigned long)node->irq_set);
 	__kernel_write(fp, buf, oft, pos);
 	return 0;
 }
@@ -314,34 +314,34 @@ static int log_irq_work_node(struct work_container *node, int idx,
 static int log_irq_process(struct nvme_context *ctx, struct file *fp, 
 	loff_t *pos, int indent)
 {
-	struct irq_track *irq_node;
-	struct irq_processing *irq_proc = &ctx->irq_process;
-	struct work_container *work_node;  /* Current wk item in the list */
+	struct nvme_irq *irq_node;
+	struct nvme_irq_set *irq_proc = &ctx->irq_set;
+	struct nvme_work *work_node;  /* Current wk item in the list */
 	char *buf = log_buf;
 	int oft, i;
 
-	mutex_lock(&irq_proc->irq_track_mtx);
+	mutex_lock(&irq_proc->mtx_lock);
 
-	oft = snprintf(buf, LOG_BUF_SIZE, "%s irq_process->mask_ptr: 0x%lx\n", 
+	oft = snprintf(buf, LOG_BUF_SIZE, "%s irq_set->mask_ptr: 0x%lx\n", 
 		log_indent_level(indent), (unsigned long)irq_proc->mask_ptr);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, 
-		"%s irq_process->irq_type: %u\n", 
+		"%s irq_set->irq_type: %u\n", 
 		log_indent_level(indent), irq_proc->irq_type);
 	__kernel_write(fp, buf, oft, pos);
 
 	i = 0;
-	list_for_each_entry(irq_node, &irq_proc->irq_track_list, irq_list_hd) {
+	list_for_each_entry(irq_node, &irq_proc->irq_list, irq_entry) {
 		log_irq_node(irq_node, i, fp, pos, indent + 1);
 		i++;
 	}
 
 	i = 0;
-	list_for_each_entry(work_node, &irq_proc->wrk_item_list, wrk_list_hd) {
+	list_for_each_entry(work_node, &irq_proc->work_list, entry) {
 		log_irq_work_node(work_node, i, fp, pos, indent + 1);
 		i++;
 	}
 
-	mutex_unlock(&irq_proc->irq_track_mtx);
+	mutex_unlock(&irq_proc->mtx_lock);
 	return 0;
 }
 
