@@ -30,11 +30,11 @@
 #include "core.h"
 #include "io.h"
 #include "debug.h"
-#include "cmd.h"
 
 #include "definitions.h"
 #include "dnvme_reg.h"
 #include "dnvme_queue.h"
+#include "dnvme_cmds.h"
 #include "dnvme_ds.h"
 #include "dnvme_irq.h"
 
@@ -151,19 +151,6 @@ static void dnvme_delete_cmd(struct nvme_cmd *cmd)
 
 	list_del(&cmd->entry);
 	kfree(cmd);
-}
-
-/*
- * Called to clean up the driver data structures
- */
-void device_cleanup(struct nvme_context *ctx, enum nvme_state new_state)
-{
-	/* Clean the IRQ data structures */
-	dnvme_clear_interrupt(ctx);
-	/* Clean Up the data structures */
-	deallocate_all_queues(ctx, new_state);
-	/* Clean up meta buffers in all disable cases */
-	dnvme_destroy_meta_pool(ctx);
 }
 
 void dnvme_update_sq_tail(struct nvme_sq *sq)
@@ -489,68 +476,47 @@ int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id)
 	return 0;
 }
 
-/*
- * deallocate_all_queues - This function will start freeing up the memory for
- * the queues (SQ and CQ) allocated during the prepare queues. The parameter
- * 'new_state', NVME_ST_DISABLE or NVME_ST_DISABLE_COMPLETE, identifies if you need to
- * clear Admin Q along with other Q's.
+/**
+ * @brief Delete all queues, unbind from nvme_context and free memory.
+ *
+ * @param state set NVME_ST_DISABLE_COMPLETE if you want to save Admin Queue.
  */
-void deallocate_all_queues(struct nvme_context *pmetrics_device,
-    enum nvme_state new_state)
+void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 {
-    char preserve_admin_qs = (new_state == NVME_ST_DISABLE_COMPLETE) ? 0 : -1;
-    struct  nvme_sq  *pmetrics_sq_list;
-    struct  nvme_sq  *pmetrics_sq_next;
-    struct  nvme_cq  *pmetrics_cq_list;
-    struct  nvme_cq  *pmetrics_cq_next;
-    struct device *dev;
+	struct nvme_sq *sq;
+	struct nvme_sq *sq_tmp;
+	struct nvme_cq *cq;
+	struct nvme_cq *cq_tmp;
+	void *bar0 = ctx->dev->priv.bar0;
+	bool save_aq = (state == NVME_ST_DISABLE_COMPLETE) ? false : true;
 
+	list_for_each_entry_safe(sq, sq_tmp, &ctx->sq_list, sq_entry) {
+		if (save_aq && sq->pub.sq_id == NVME_AQ_ID) {
+			dnvme_vdbg("Retaining ASQ from deallocation\n");
+			/* drop sq cmds and set to zero the public metrics of asq */
+			dnvme_reinit_asq(ctx, sq);
+		} else {
+			dnvme_release_sq(ctx, sq);
+		}
+	}
 
-    dev = &pmetrics_device->dev->priv.pdev->dev;
+	list_for_each_entry_safe(cq, cq_tmp, &ctx->cq_list, cq_entry) {
+		if (save_aq && cq->pub.q_id == NVME_AQ_ID) {
+			dnvme_vdbg("Retaining ACQ from deallocation");
+			/* set to zero the public metrics of acq */
+			dnvme_reinit_acq(cq);
+		} else {
+			dnvme_release_cq(ctx, cq);
+		}
+	}
 
-    /* Loop for each sq node */
-    list_for_each_entry_safe(pmetrics_sq_list, pmetrics_sq_next,
-        &pmetrics_device->sq_list, sq_entry) {
-
-        /* Check if Admin Q is excluded or not */
-        if (preserve_admin_qs && (pmetrics_sq_list->pub.sq_id == 0)) {
-            dnvme_vdbg("Retaining ASQ from deallocation");
-            /* drop sq cmds and set to zero the public metrics of asq */
-            dnvme_reinit_asq(pmetrics_device, pmetrics_sq_list);
-        } else {
-            /* Call the generic deallocate sq function */
-	    dnvme_release_sq(pmetrics_device, pmetrics_sq_list);
-        }
-    }
-
-    /* Loop for each cq node */
-    list_for_each_entry_safe(pmetrics_cq_list, pmetrics_cq_next,
-        &pmetrics_device->cq_list, cq_entry) {
-
-        /* Check if Admin Q is excluded or not */
-        if (preserve_admin_qs && pmetrics_cq_list->pub.q_id == 0) {
-            dnvme_vdbg("Retaining ACQ from deallocation");
-            /* set to zero the public metrics of acq */
-            dnvme_reinit_acq(pmetrics_cq_list);
-        } else {
-            /* Call the generic deallocate cq function */
-            dnvme_release_cq(pmetrics_device, pmetrics_cq_list);
-        }
-    }
-
-    /* if complete disable then reset the controller admin registers. */
-    if (! preserve_admin_qs) {
-        /* Set the Registers to default values. */
-        /* Write 0 to AQA */
-        writel(0x0, &pmetrics_device->dev->priv.
-            ctrlr_regs->aqa);
-        /* Write 0 to the DMA address into ASQ base address */
-        WRITEQ(0x0, &pmetrics_device->dev->priv.
-            ctrlr_regs->asq);
-        /* Write 0 to the DMA address into ACQ base address */
-        WRITEQ(0x0, &pmetrics_device->dev->priv.
-            ctrlr_regs->acq);
-    }
+	/* if complete disable then reset the controller admin registers. */
+	if (!save_aq) {
+		/* Set the Registers to default values. */
+		dnvme_writel(bar0, NVME_REG_AQA, 0);
+		dnvme_writeq(bar0, NVME_REG_ASQ, 0);
+		dnvme_writeq(bar0, NVME_REG_ACQ, 0);
+	}
 }
 
 
@@ -764,46 +730,46 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 	return ret;
 }
 
-/*
- * Copy the cq data to user buffer for the elements reaped.
+/**
+ * @brief Copy the cq data to user buffer for the elements reaped.
  */
-static int copy_cq_data(struct nvme_cq *cq, u8 *cq_head_ptr,
-	u32 comp_entry_size, u32 *num_should_reap, u8 *buffer,
-	struct nvme_context *ctx)
+static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 {
+	struct nvme_context *ctx = cq->ctx;
+	void *cq_head;
+	void *cq_base;
+	u32 cqes = 1 << cq->pub.cqes;
 	int latentErr = 0;
-	u8 *queue_base_addr; /* Base address for Queue */
 
-	if (cq->priv.contig != 0) {
-		queue_base_addr = cq->priv.buf;
-	} else {
-		/* Point to discontig Q memory here */
-		queue_base_addr = cq->priv.prp_persist.buf;
-	}
+	if (cq->priv.contig)
+		cq_base = cq->priv.buf;
+	else
+		cq_base = cq->priv.prp_persist.buf;
 
-	while (*num_should_reap) {
-		dnvme_vdbg("Reaping CE's, %d left to reap", *num_should_reap);
+	cq_head = cq_base + ((u32)cq->pub.head_ptr << cq->pub.cqes);
+
+	while (*nr_reap) {
+		dnvme_vdbg("Reaping CE's, %d left to reap", *nr_reap);
 
 		/* Call the process reap algos based on CE entry */
-		latentErr = handle_cmd_completion(ctx, (struct cq_completion *)cq_head_ptr);
+		latentErr = handle_cmd_completion(ctx, cq_head);
 		if (latentErr) {
 			dnvme_err("Unable to find CE.SQ_id in dnvme metrics");
 		}
 
 		/* Copy to user even on err; allows seeing latent err */
-		if (copy_to_user(buffer, cq_head_ptr, comp_entry_size)) {
+		if (copy_to_user(buffer, cq_head, cqes)) {
 			dnvme_err("Unable to copy request data to user space");
 			return -EFAULT;
 		}
 
-		cq_head_ptr += comp_entry_size;     /* Point to next CE entry */
-		buffer += comp_entry_size;          /* Prepare for next element */
-		*num_should_reap -= 1;              /* decrease for the one reaped. */
+		cq_head += cqes;     /* Point to next CE entry */
+		buffer += cqes;          /* Prepare for next element */
+		*nr_reap -= 1;              /* decrease for the one reaped. */
 
-		if (cq_head_ptr >= (queue_base_addr + cq->priv.size)) {
-
+		if (cq_head >= (cq_base + cq->priv.size)) {
 			/* Q wrapped so point to base again */
-			cq_head_ptr = queue_base_addr;
+			cq_head = cq_base;
 		}
 
 		if (latentErr) {
@@ -822,23 +788,24 @@ static int copy_cq_data(struct nvme_cq *cq, u8 *cq_head_ptr,
 	return 0;
 }
 
-/*
- * move the cq head pointer to point to location of the elements that is
- * to be reaped.
+/**
+ * @brief Update the cq head pointer to point to location of the elements
+ *  that is to be reaped.
  */
-static void pos_cq_head_ptr(struct nvme_cq *cq, u32 num_reaped)
+static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 {
-	u32 temp_head_ptr = cq->pub.head_ptr;
+	u32 head = cq->pub.head_ptr;
 
-	temp_head_ptr += num_reaped;
-	if (temp_head_ptr >= cq->pub.elements) {
+	head += num_reaped;
+	if (head >= cq->pub.elements) {
 		cq->pub.pbit_new_entry = !cq->pub.pbit_new_entry;
-		temp_head_ptr = temp_head_ptr % cq->pub.elements;
+		head = head % cq->pub.elements;
 	}
 
-	cq->pub.head_ptr = (u16)temp_head_ptr;
-	dnvme_vdbg("Head ptr = %d", cq->pub.head_ptr);
-	dnvme_vdbg("Tail ptr = %d", cq->pub.tail_ptr);
+	cq->pub.head_ptr = (u16)head;
+
+	dnvme_vdbg("CQ(%u) head:%u, tail:%u\n", cq->pub.q_id, cq->pub.head_ptr,
+		cq->pub.tail_ptr);
 }
 
 int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
@@ -849,7 +816,6 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 	struct pci_dev *pdev = ndev->priv.pdev;
 	struct nvme_reap reap;
 	struct nvme_cq *cq;
-	void *cq_head;
 	u32 cqes, expect, actual, remain;
 	int ret;
 
@@ -892,14 +858,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 	reap.num_remaining = remain - reap.num_reaped;
 	actual = reap.num_reaped;
 
-	if (cq->priv.contig)
-		cq_head = cq->priv.buf + ((u32)cq->pub.head_ptr << cq->pub.cqes);
-	else
-		cq_head = cq->priv.prp_persist.buf + 
-			((u32)cq->pub.head_ptr << cq->pub.cqes);
-
-	ret = copy_cq_data(cq, cq_head, (1 << cq->pub.cqes), &actual, 
-		reap.buffer, ctx);
+	ret = copy_cq_data(cq, &actual, reap.buffer);
 
 	reap.num_reaped -= actual;
 	reap.num_remaining += actual;
@@ -911,7 +870,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 	}
 
 	if (reap.num_reaped) {
-		pos_cq_head_ptr(cq, reap.num_reaped);
+		update_cq_head(cq, reap.num_reaped);
 		writel(cq->pub.head_ptr, cq->priv.dbs);
 	}
 

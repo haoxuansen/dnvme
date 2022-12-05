@@ -45,9 +45,8 @@ struct nvme_prps {
 	dma_addr_t	first_dma; /* First entry in PRP List */
 
 	u8	*buf; /* K.V.A for pinned down pages */
-	/* Pointer to SG list generated */
+
 	struct scatterlist	*sg;
-	/* Number of pages mapped to DMA area */
 	u32	num_map_pgs;
 	/* Size of data buffer for the specific command */
 	u32	data_buf_size;

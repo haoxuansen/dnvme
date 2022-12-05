@@ -202,6 +202,17 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 	return 0;
 }
 
+/*
+ * Called to clean up the driver data structures
+ */
+void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state)
+{
+	dnvme_clear_interrupt(ctx);
+	/* Clean Up the data structures */
+	dnvme_delete_all_queues(ctx, state);
+	dnvme_destroy_meta_pool(ctx);
+}
+
 /**
  * @brief Maps the contiguous device mapped area to user space.
  * 
@@ -315,10 +326,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_send_64b_cmd(ctx, argp);
 		break;
 
-	case NVME_IOCTL_TOXIC_64B_DWORD:
-		ret = driver_toxic_dword(ctx, (struct backdoor_inject *)arg);
-		break;
-
 	case NVME_IOCTL_DUMP_LOG_FILE:
 		ret = dnvme_dump_log_file(argp);
 		break;
@@ -407,7 +414,8 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 	}
 
 	ctx->dev->priv.opened = 1;
-	device_cleanup(ctx, NVME_ST_DISABLE_COMPLETE);
+	/* !TODO: There is no need to clean device */
+	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_info("Open NVMe device ok!\n");
 out:
 	unlock_context(ctx);
@@ -425,7 +433,11 @@ static int dnvme_release(struct inode *inode, struct file *filp)
 	dnvme_info("Close NVMe device ...\n");
 
 	ctx->dev->priv.opened = 0;
-	device_cleanup(ctx, NVME_ST_DISABLE_COMPLETE);
+	/* !TODO: shall reset nvme device before delete I/O queue?
+	 * Otherwise, the information saved by the driver may be inconsistent
+	 * with the device.
+	 */
+	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	unlock_context(ctx);
 	return 0;
 }
@@ -799,7 +811,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 	list_del(&ctx->entry);
 	mutex_unlock(&ctx->lock);
 
-	device_cleanup(ctx, NVME_ST_DISABLE_COMPLETE);
+	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_unmap_cmb(ctx->dev);
 	pci_disable_device(pdev);
 

@@ -55,29 +55,6 @@ int dnvme_create_meta_node(struct nvme_context *ctx, u32 id);
 void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id);
 
 /**
- * driver_toxic_dword - Please refer to the header file comment for
- * NVME_IOCTL_TOXIC_64B_CMD.
- * @param pmetrics_device
- * @param err_inject Pass ptr to the user space buffer describing the error
- *        to inject.
- * @return Error Codes
- */
-int driver_toxic_dword(struct nvme_context *pmetrics_device,
-    struct backdoor_inject *err_inject);
-
-/**
- * deallocate_all_queues - This function will start freeing up the memory for
- * the queues (SQ and CQ) allocated during the prepare queues. This function
- * takes a parameter, NVME_ST_DISABLE or NVME_ST_DISABLE_COMPLETE, which identifies if
- * you need to clear Admin or not. Also while driver exit call this function
- * with NVME_ST_DISABLE_COMPLETE.
- * @param pmetrics_device
- * @param nstate
- */
-void deallocate_all_queues(struct nvme_context *pmetrics_device,
-    enum nvme_state nstate);
-
-/**
  * dnvme_device_open - This operation is always the first operation performed
  * on the device file.
  * @param inode

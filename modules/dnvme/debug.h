@@ -12,8 +12,11 @@
 #ifndef _DNVME_DEBUG_H_
 #define _DNVME_DEBUG_H_
 
-struct nvme_sq;
-struct nvme_cq;
+#include "nvme.h"
+#include "dnvme_ds.h"
+#include "dnvme_ioctl.h"
+
+void dnvme_print_ccmd(struct nvme_common_command *ccmd);
 
 void dnvme_print_sq(struct nvme_sq *sq);
 void dnvme_print_cq(struct nvme_cq *cq);

@@ -79,40 +79,6 @@ struct nvme_gen_cmd {
 	union nvme_data_ptr dptr;
 };
 
-// /**
-//  * Specific structure for Create CQ command
-//  */
-// struct nvme_create_cq {
-//     uint8_t  opcode;
-//     uint8_t  flags;
-//     uint16_t command_id;
-//     uint32_t rsvd1[5];
-//     uint64_t prp1;
-//     uint64_t rsvd8;
-//     uint16_t cqid;
-//     uint16_t qsize;
-//     uint16_t cq_flags;
-//     uint16_t irq_no;
-//     uint32_t rsvd12[4];
-// };
-
-// /**
-//  * Specific structure for Create SQ command
-//  */
-// struct nvme_create_sq {
-//     uint8_t  opcode;
-//     uint8_t  flags;
-//     uint16_t command_id;
-//     uint32_t rsvd1[5];
-//     uint64_t prp1;
-//     uint64_t rsvd8;
-//     uint16_t sqid;
-//     uint16_t qsize;
-//     uint16_t sq_flags;
-//     uint16_t cqid;
-//     uint32_t rsvd12[4];
-// };
-
 /**
  * Specific structure for Delete Q command
  */
@@ -124,19 +90,6 @@ struct nvme_del_q {
     uint16_t qid;
     uint16_t rsvd10;
     uint32_t rsvd11[5];
-};
-
-/**
- * Describes bits/bytes within an existing SQ indicating a new value for any
- * cmd dword. This is only allowed for those cmds for which the doorbell hasn't
- * already rung.
- */
-struct backdoor_inject {
-    uint16_t q_id;        /* SQ ID where the cmd is residing */
-    uint16_t cmd_ptr;     /* [0 -> (CreateIOSQ.DW10.SIZE-1)] which cmd in SQ? */
-    uint8_t  dword;       /* [0 -> (CC.IOSQES-1)] which DWORD in the cmd */
-    uint32_t value_mask;  /* Bitmask indicates which 'value' bits to use */
-    uint32_t value;       /* Extract spec'd bits; overwrite those exact bits */
 };
 
 // struct nvme_write_bp_buf

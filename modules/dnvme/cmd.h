@@ -27,12 +27,6 @@ enum {
     CDW11_IEN = 2, /* Mask to check if CDW11.IEN is set */
 };
 
-bool dnvme_use_sgls(struct nvme_gen_cmd *gcmd, struct nvme_64b_cmd *cmd);
-
-void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg);
-void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
-	int entries);
-
 int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
 	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps);
 

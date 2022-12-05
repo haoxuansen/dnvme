@@ -61,44 +61,6 @@ struct cq_completion {
 };
 
 /**
- * nvme_ctrl_enable - NVME controller enable function.This will set the CAP.EN
- * flag and this function which call the timer handler and check for the timer
- * expiration. It returns success if the ctrl in rdy before timeout.
- * @param  pmetrics_device
- * @return 0 or -1
- */
-//int nvme_ctrl_enable(struct  nvme_context *pmetrics_device);
-
-/*
- * iol_nvme_ctrl_enable - NVME controller enable function. This will set the
- * CAP.EN flag and this function which call the timer handler and check for the
- * timer expiration. It returns success if the ctrl in rdy before timeout.
- *
- * Modified from nvme_ctrl_enable to call different wait function to conform
- * to test plan.
- * @param  pmetrics_device
- * @return 0 or -1
- */
-//int iol_nvme_ctrl_enable(struct nvme_context *pmetrics_device);
-
-/**
- * nvme_ctrl_disable - NVME controller disable function.This will reset the
- * CAP.EN flag and this function which call the timer handler and check for
- * the timer expiration. It returns success if the ctrl in rdy before timeout.
- * @param pmetrics_device
- * @return 0 or -1
- */
-//int nvme_ctrl_disable(struct  nvme_context *pmetrics_device);
-
-/**
- * device_cleanup - Will clean up all the existing data structs used by driver
- * @param pmetrics_device
- * @param new_state
- */
-void device_cleanup(struct  nvme_context *pmetrics_device,
-    enum nvme_state new_state);
-
-/**
  * @breif Check whether the SQ is full
  *
  * @return 1 if SQ is full, otherwise return 0.
@@ -139,19 +101,12 @@ void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *sq);
 int dnvme_create_asq(struct nvme_context *ctx, u32 elements);
 int dnvme_create_acq(struct nvme_context *ctx, u32 elements);
 
+void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state);
+
 int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id);
 
+u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev);
 int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq);
 int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap);
-
-/**
- *  dnvme_get_cqe_remain - This generic function will try to inquire the number of
- *  CE entries in the Completion Queue that are waiting to be reaped for any
- *  given q_id.
- *  @param pmetrics_cq_node
- *  @param dev
- *  @return number of CE's remaining
-  */
-u32 dnvme_get_cqe_remain(struct nvme_cq  *pmetrics_cq_node, struct device *dev);
 
 #endif

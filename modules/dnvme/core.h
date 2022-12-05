@@ -14,6 +14,7 @@
 #include <linux/limits.h>
 
 #include "dnvme_ds.h"
+#include "dnvme_ioctl.h"
 
 #define NVME_ASQ_ENTRY_MAX		4096
 #define NVME_ACQ_ENTRY_MAX		4096
@@ -23,6 +24,8 @@
 #define NVME_META_ID_MAX		((0x1 << 18) - 1)
 
 #define NVME_META_BUF_ALIGN		4
+
+#define NVME_PRP_ENTRY_SIZE		8 /* in bytes */
 
 #undef pr_fmt
 #define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
@@ -52,5 +55,7 @@ static inline struct nvme_context *dnvme_irq_to_context(struct nvme_irq_set *irq
 {
 	return container_of(irq_set, struct nvme_context, irq_set);
 }
+
+void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state);
 
 #endif /* !_DNVME_CORE_H_ */

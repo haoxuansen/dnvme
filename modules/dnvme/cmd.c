@@ -21,6 +21,7 @@
 #include "dnvme_ioctl.h"
 #include "core.h"
 #include "cmd.h"
+#include "debug.h"
 #include "dnvme_ds.h"
 #include "dnvme_queue.h"
 
@@ -32,7 +33,7 @@
  * 
  * @return true if cmd uses SGLS, otherwise returns false.
  */
-bool dnvme_use_sgls(struct nvme_gen_cmd *gcmd, struct nvme_64b_cmd *cmd)
+static bool dnvme_use_sgls(struct nvme_gen_cmd *gcmd, struct nvme_64b_cmd *cmd)
 {
 	if (!(gcmd->flags & NVME_CMD_SGL_ALL))
 		return false;
@@ -43,14 +44,14 @@ bool dnvme_use_sgls(struct nvme_gen_cmd *gcmd, struct nvme_64b_cmd *cmd)
 	return true;
 }
 
-void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg)
+static void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg)
 {
 	sge->addr = cpu_to_le64(sg_dma_address(sg));
 	sge->length = cpu_to_le32(sg_dma_len(sg));
 	sge->type = NVME_SGL_FMT_DATA_DESC << 4;
 }
 
-void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
+static void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
 	int entries)
 {
 	sge->addr = cpu_to_le64(dma_addr);
@@ -504,6 +505,8 @@ static int dnvme_data_buf_to_sgl(struct nvme_device *ndev, struct nvme_64b_cmd *
 {
 	int ret;
 
+	dnvme_dbg("CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
+
 	ret = dnvme_map_user_page(ndev, cmd, gcmd, prps);
 	if (ret < 0)
 		return ret;
@@ -528,6 +531,8 @@ static int dnvme_data_buf_to_prp(struct nvme_device *ndev, struct nvme_64b_cmd *
 	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
 {
 	int ret;
+
+	dnvme_dbg("CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
 
 	ret = dnvme_map_user_page(ndev, cmd, gcmd, prps);
 	if (ret < 0)
@@ -594,7 +599,6 @@ int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-#if 0
 void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps)
 {
 	dnvme_free_prp_list(ndev, prps);
@@ -613,4 +617,296 @@ void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 		kfree(node);
 	}
 }
-#endif
+
+static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_sq *wait_sq;
+	struct nvme_prps prps;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_create_sq *csq = (struct nvme_create_sq *)gcmd;
+	int ret;
+
+	wait_sq = dnvme_find_sq(ctx, csq->sqid);
+	if (!wait_sq) {
+		dnvme_err("The waiting SQ(%u) doesn't exist!\n", csq->sqid);
+		return -EBADSLT;
+	}
+
+	/* Sanity Checks */
+	if (((csq->sq_flags & CDW11_PC) && (wait_sq->priv.contig == 0)) ||
+		(!(csq->sq_flags & CDW11_PC) && (wait_sq->priv.contig != 0))) {
+		dnvme_err("csq contig flag is inconsistent with wait_sq!\n");
+		return -EINVAL;
+	}
+
+	if (wait_sq->priv.contig == 0 && cmd->data_buf_ptr == NULL) {
+		dnvme_err("cmd data_buf_ptr is NULL!(contig:0)\n");
+		return -EINVAL;
+	}
+
+	if (wait_sq->priv.contig != 0 && wait_sq->priv.buf == NULL) {
+		dnvme_err("wait_sq buf is NULL!(contig:1)\n");
+		return -EPERM;
+	}
+
+	if (!(wait_sq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
+		dnvme_err("SQ(%u) already created!\n", csq->sqid);
+		return -EINVAL;
+	}
+	memset(&prps, 0, sizeof(prps));
+
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0)
+		return ret;
+
+	if (wait_sq->priv.contig) {
+		gcmd->dptr.prp1 = cpu_to_le64(wait_sq->priv.dma);
+		gcmd->dptr.prp2 = 0;
+	}
+
+	/* Fill the persistent entry structure */
+	memcpy(&wait_sq->priv.prp_persist, &prps, sizeof(prps));
+
+	wait_sq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
+	return 0;
+}
+
+static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_prps prps;
+
+	memset(&prps, 0, sizeof(prps));
+
+	return dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+}
+
+static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_cq *wait_cq;
+	struct nvme_prps prps;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_create_cq *ccq = (struct nvme_create_cq *)gcmd;
+	int ret;
+
+	wait_cq = dnvme_find_cq(ctx, ccq->cqid);
+	if (!wait_cq) {
+		dnvme_err("The waiting CQ(%u) doesn't exist!\n", ccq->cqid);
+		return -EBADSLT;
+	}
+
+	/* Sanity Checks */
+	if (((ccq->cq_flags & CDW11_PC) && (wait_cq->priv.contig == 0)) ||
+		(!(ccq->cq_flags & CDW11_PC) && (wait_cq->priv.contig != 0))) {
+		dnvme_err("ccq contig flag is inconsistent with wait_cq!\n");
+		return -EINVAL;
+	}
+
+	if (wait_cq->priv.contig == 0 && cmd->data_buf_ptr == NULL) {
+		dnvme_err("cmd data_buf_ptr is NULL!(contig:0)\n");
+		return -EINVAL;
+	}
+
+	if (wait_cq->priv.contig != 0 && wait_cq->priv.buf == NULL) {
+		dnvme_err("wait_cq buf is NULL!(contig:1)\n");
+		return -EPERM;
+	}
+
+	if (!(wait_cq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
+		dnvme_err("CQ(%u) already created!\n", ccq->cqid);
+		return -EINVAL;
+	}
+
+	/* Check if interrupts should be enabled for IO CQ */
+	if (ccq->cq_flags & CDW11_IEN) {
+		if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
+			dnvme_err("act irq_type is none!\n");
+			return -EINVAL;
+		}
+	}
+	memset(&prps, 0, sizeof(prps));
+
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0)
+		return ret;
+
+	if (wait_cq->priv.contig) {
+		gcmd->dptr.prp1 = cpu_to_le64(wait_cq->priv.dma);
+		gcmd->dptr.prp2 = 0;
+	}
+
+	/* Fill the persistent entry structure */
+	memcpy(&wait_cq->priv.prp_persist, &prps, sizeof(prps));
+
+	wait_cq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
+	return 0;
+}
+
+static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_prps prps;
+
+	memset(&prps, 0, sizeof(prps));
+
+	return dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+}
+
+static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+	struct nvme_gen_cmd *gcmd)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_prps prps;
+	int ret;
+
+	memset(&prps, 0, sizeof(prps));
+
+	if (cmd->data_buf_ptr) {
+		ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+		if (ret < 0)
+			return ret;
+	}
+	/* !TODO: data_buf_ptr == NULL ? */
+	return 0;
+}
+
+int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
+{
+	struct nvme_sq *sq;
+	struct nvme_64b_cmd cmd;
+	struct nvme_gen_cmd *gcmd;
+	struct nvme_meta *meta;
+	struct pci_dev *pdev = ctx->dev->priv.pdev;
+	void *cmd_buf;
+	int ret = 0;
+
+	if (copy_from_user(&cmd, ucmd, sizeof(cmd))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	if (!cmd.cmd_buf_ptr) {
+		dnvme_err("cmd buf ptr is NULL!\n");
+		return -EFAULT;
+	}
+
+	if ((cmd.data_buf_size && !cmd.data_buf_ptr) || 
+		(!cmd.data_buf_size && cmd.data_buf_ptr)) {
+		dnvme_err("data buf size and ptr are inconsistent!\n");
+		return -EINVAL;
+	}
+
+	/* Get the SQ for sending this command */
+	sq = dnvme_find_sq(ctx, cmd.q_id);
+	if (!sq) {
+		dnvme_err("SQ(%u) doesn't exist!\n", cmd.q_id);
+		return -EBADSLT;
+	}
+
+	if (dnvme_sq_is_full(sq)) {
+		dnvme_err("SQ(%u) is full!\n", cmd.q_id);
+		return -EBUSY;
+	}
+
+	cmd_buf = kzalloc(1 << sq->pub.sqes, GFP_ATOMIC);
+	if (!cmd_buf) {
+		dnvme_err("failed to alloc cmd buf!\n");
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(cmd_buf, cmd.cmd_buf_ptr, 1 << sq->pub.sqes)) {
+		dnvme_err("failed to copy from user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
+
+	gcmd = (struct nvme_gen_cmd *)cmd_buf;
+
+	cmd.unique_id = sq->priv.unique_cmd_id++;
+	gcmd->command_id = cmd.unique_id;
+
+	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
+		dnvme_err("failed to copy to user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (cmd.bit_mask & NVME_MASK_MPTR) {
+		meta = dnvme_find_meta(ctx, cmd.meta_buf_id);
+		if (!meta) {
+			dnvme_err("Meta(%u) doesn't exist!\n", cmd.meta_buf_id);
+			ret = -EINVAL;
+			goto out;
+		}
+		/* Add the required information to the command */
+		gcmd->metadata = cpu_to_le64(meta->dma);
+	}
+
+	if (cmd.q_id == NVME_AQ_ID) {
+		switch (gcmd->opcode) {
+		case nvme_admin_delete_sq:
+			ret = dnvme_delete_iosq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
+			break;
+
+		case nvme_admin_create_sq:
+			ret = dnvme_create_iosq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
+			break;
+
+		case nvme_admin_delete_cq:
+			ret = dnvme_delete_iocq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
+			break;
+
+		case nvme_admin_create_cq:
+			ret = dnvme_create_iocq(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
+			break;
+
+		default:
+			ret = dnvme_deal_ccmd(ctx, &cmd, gcmd);
+			if (ret < 0)
+				goto out2;
+			break;
+		}
+	} else {
+		ret = dnvme_deal_ccmd(ctx, &cmd, gcmd);
+		if (ret < 0)
+			goto out2;
+	}
+	dnvme_print_ccmd((struct nvme_common_command *)gcmd);
+
+	/* Copying the command in to appropriate SQ and handling sync issues */
+	if (sq->priv.contig) {
+		memcpy((sq->priv.buf + 
+			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
+			gcmd, 1 << sq->pub.sqes);
+	} else {
+		memcpy((sq->priv.prp_persist.buf + 
+			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
+			gcmd, 1 << sq->pub.sqes);
+		dma_sync_sg_for_device(&pdev->dev, sq->priv.prp_persist.sg, 
+			sq->priv.prp_persist.num_map_pgs, sq->priv.prp_persist.data_dir);
+	}
+
+	/* Increment the Tail pointer and handle roll over conditions */
+	sq->pub.tail_ptr_virt = (u16)(((u32)sq->pub.tail_ptr_virt + 1) % sq->pub.elements);
+
+	kfree(cmd_buf);
+	return 0;
+out2:
+	sq->priv.unique_cmd_id--;
+out:
+	kfree(cmd_buf);
+	return ret;
+}
+
