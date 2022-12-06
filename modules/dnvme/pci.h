@@ -18,6 +18,12 @@
 
 #include "dnvme_ioctl.h"
 
+#define PCI_CAP_ID_MASK			0x00ff
+#define PCI_CAP_NEXT_MASK		0xff00
+
+#define PCI_MSI_VEC_MAX			32
+#define PCI_MSIX_VEC_MAX		2048
+
 /**
  * @base: Base Class Code
  * @sub: Sub-Class Code

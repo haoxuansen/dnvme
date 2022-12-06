@@ -25,7 +25,6 @@
 #include <linux/version.h>
 
 #include "core.h"
-#include "dnvme_ds.h"
 
 #define LOG_BUF_SIZE			1024
 
@@ -55,12 +54,12 @@ static int log_prps(struct nvme_prps *prps, struct file *fp,
 	oft = snprintf(buf, LOG_BUF_SIZE, 
 		"%s prp_persist:\n", log_indent_level(indent));
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, 
-		"%s npages: %u\n", log_indent_level(indent + 1), prps->npages);
+		"%s nr_pages: %u\n", log_indent_level(indent + 1), prps->nr_pages);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft,
-		"%s vir_prp_list: 0x%lx\n", log_indent_level(indent + 1), 
-		(unsigned long)prps->vir_prp_list);
+		"%s prp_list: 0x%lx\n", log_indent_level(indent + 1), 
+		(unsigned long)prps->prp_list);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s dma: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)prps->dma);
+		log_indent_level(indent + 1), (unsigned long)prps->pg_addr);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s buf: 0x%lx\n", 
 		log_indent_level(indent + 1), (unsigned long)prps->buf);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft,

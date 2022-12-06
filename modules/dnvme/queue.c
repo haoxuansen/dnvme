@@ -29,14 +29,10 @@
 #include "nvme.h"
 #include "core.h"
 #include "io.h"
+#include "cmd.h"
+#include "queue.h"
+#include "irq.h"
 #include "debug.h"
-
-#include "definitions.h"
-#include "dnvme_reg.h"
-#include "dnvme_queue.h"
-#include "dnvme_cmds.h"
-#include "dnvme_ds.h"
-#include "dnvme_irq.h"
 
 /**
  * @brief Find the SQ node in the given SQ list by the given SQID

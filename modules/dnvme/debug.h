@@ -13,8 +13,8 @@
 #define _DNVME_DEBUG_H_
 
 #include "nvme.h"
-#include "dnvme_ds.h"
 #include "dnvme_ioctl.h"
+#include "core.h"
 
 void dnvme_print_ccmd(struct nvme_common_command *ccmd);
 

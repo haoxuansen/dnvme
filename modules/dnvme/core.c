@@ -30,19 +30,16 @@
 #include <linux/dma-mapping.h>
 #include <linux/version.h>
 
+#include "dnvme_ioctl.h"
 #include "core.h"
 #include "io.h"
 #include "cmb.h"
+#include "cmd.h"
+#include "ioctl.h"
+#include "irq.h"
+#include "queue.h"
 #include "log.h"
 #include "debug.h"
-
-#include "definitions.h"
-#include "sysfuncproto.h"
-#include "dnvme_reg.h"
-#include "dnvme_ioctl.h"
-#include "dnvme_queue.h"
-#include "dnvme_ds.h"
-#include "dnvme_irq.h"
 
 #define DEVICE_NAME			"nvme"
 #define DRIVER_NAME			"dnvme"
@@ -380,15 +377,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 
-	//***************************boot partition test MengYu***************************
-	//   case NVME_IOCTL_WRITE_BP_BUF:
-	//     dnvme_vdbg("NVME_IOCTL_WRITE_BP_BUF");
-	//     err = driver_nvme_write_bp_buf((struct nvme_write_bp_buf *)arg, ctx);
-	//     break;  
-	//   case NVME_IOCTL_GET_BP_MEM_ADDR:
-	//     dnvme_vdbg("NVME_IOCTL_GET_BP_MEM_ADDR");
-	//     break;  
-	//***************************boot partition test MengYu***************************
 	default:
 		dnvme_err("cmd(%u) is unknown!\n", _IOC_NR(cmd));
 		ret = -EINVAL;
@@ -534,7 +522,6 @@ static int dnvme_map_resource(struct nvme_context *ctx)
 	ndev->priv.bar1 = bar1;
 	ndev->priv.bar2 = bar2;
 	ndev->priv.dbs = bar0 + NVME_REG_DBS;
-	ndev->priv.ctrlr_regs = bar0;
 	return 0;
 out5:
 	if (test_bit(BAR4_BAR5, &bars))

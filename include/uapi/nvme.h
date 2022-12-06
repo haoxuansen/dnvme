@@ -1162,6 +1162,11 @@ struct nvme_create_cq {
 	__le16			cqid;
 	__le16			qsize;
 	__le16			cq_flags;
+/* bit[1] Interrupt Enabled */
+#define NVME_CCQ_F_IEN			(1 << 1)
+/* bit[0] Phyically Contiguous */
+#define NVME_CCQ_F_PC			(1 << 0)
+
 	__le16			irq_vector;
 	__u32			rsvd12[4];
 };
@@ -1176,6 +1181,9 @@ struct nvme_create_sq {
 	__le16			sqid;
 	__le16			qsize;
 	__le16			sq_flags;
+/* bit[0] Phyically Contiguous */
+#define NVME_CSQ_F_PC			(1 << 0)
+
 	__le16			cqid;
 	__u32			rsvd12[4];
 };

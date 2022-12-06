@@ -20,7 +20,7 @@
 
 #include "nvme.h"
 #include "io.h"
-#include "dnvme_ds.h"
+#include "core.h"
 
 static int use_cmb_sqes = true;
 module_param(use_cmb_sqes, int, 0444);

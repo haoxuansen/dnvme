@@ -19,46 +19,7 @@
 #ifndef _DNVME_QUEUE_H_
 #define _DNVME_QUEUE_H_
 
-#include "dnvme_reg.h"
-#include "dnvme_ds.h"
-#include "sysfuncproto.h"
-
-/* Admin SQ tail Door bell offset */
-#define NVME_SQ0TBDL    0x1000
-
-/* Admin SQ size Mask bits 0-11 in AQA */
-#define ASQS_MASK       0xFFF
-
-/* Admin Completion Q Mask Bits 16-21 in ADA */
-#define ACQS_MASK       0x0FFF0000
-
-/* As Time Out is in lower 32 bits of 64 bit CAP */
-#define NVME_TO_SHIFT_MASK 24
-
-/* CAP.TO field units */
-#define CAP_TO_UNIT 500
-
-/*
- * Maximum AQ entries allowed.
- */
-#define MAX_AQ_ENTRIES   4096
-
-#define NVME_CSTS_SHUTDOWN_BIT_MASK		0x0000000C
-#define NVME_CSTS_CFS_BIT_MASK			0x00000002
-#define NVME_CSTS_RDY_BIT_MASK			0x00000001
-
-/*
- * completion q entry structure.
- */
-struct cq_completion {
-	u32	cmd_specifc;       /* DW 0 all 32 bits     */
-	u32	reserved;          /* DW 1 all 32 bits     */
-	u16	sq_head_ptr;       /* DW 2 lower 16 bits   */
-	u16	sq_identifier;     /* DW 2 higher 16 bits  */
-	u16	cmd_identifier;    /* Cmd identifier       */
-	u8	phase_bit:1;       /* Phase bit            */
-	u16	status_field:15;   /* Status field         */
-};
+#include "core.h"
 
 /**
  * @breif Check whether the SQ is full
@@ -109,4 +70,4 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev);
 int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq);
 int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap);
 
-#endif
+#endif /* !_DNVME_QUEUE_H_ */

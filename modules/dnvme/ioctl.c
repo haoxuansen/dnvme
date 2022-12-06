@@ -25,18 +25,12 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 
+#include "dnvme_ioctl.h"
 #include "io.h"
 #include "core.h"
 #include "pci.h"
-
-#include "dnvme_ioctl.h"
-#include "definitions.h"
-#include "dnvme_reg.h"
-#include "sysfuncproto.h"
-#include "dnvme_sts_chk.h"
-#include "dnvme_queue.h"
-#include "dnvme_ds.h"
-#include "dnvme_irq.h"
+#include "queue.h"
+#include "irq.h"
 
 static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
 {
@@ -606,97 +600,3 @@ int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq)
 
 	return 0;
 }
-
-#if 0
-/*
-Boot Partition Memory Buffer Base Address (BMBBA): Specifies the 64-bit physical
-address for the Boot Partition Memory Buffer. This address shall be 4KB aligned. Note
-that this field contains the 52 most significant bits of the 64 bit address.
-add by yumeng 2019.4.22
- */
-int driver_nvme_write_bp_buf(struct nvme_write_bp_buf *nvme_data, struct nvme_context *pmetrics_device)
-{
-    u16 index;
-    int err = -EINVAL;
-    void *datap = NULL;
-    //void *bp_buf = NULL;
-    struct nvme_device *nvme_dev;
-    struct nvme_write_bp_buf *user_data = NULL;
-    uint64_t BMBBA = 0;
-
-    //this function is error!!
-    goto fail_out;
-
-    /* Allocating memory for user struct in kernel space */
-    user_data = kmalloc(sizeof(struct nvme_write_bp_buf), GFP_KERNEL);
-    if (user_data == NULL) {
-        dnvme_err("Unable to alloc kernel memory to copy user data");
-        err = -ENOMEM;
-        goto fail_out;
-    }
-    if (copy_from_user(user_data, nvme_data, sizeof(struct nvme_write_bp_buf))) {
-        dnvme_err("Unable to copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
-
-    /* Allocating memory for the data in kernel space */
-    datap = kmalloc(sizeof(uint64_t), GFP_KERNEL | __GFP_ZERO);
-    if (!datap) {
-        dnvme_err("Unable to allocate kernel memory");
-        return -ENOMEM;
-    }
-
-    //error!!!
-    //there is error! kernel space memory is cann't kmalloc to user space memory
-    //error!!!
-    user_data->bp_buf = kmalloc(user_data->bp_buf_size, GFP_KERNEL | __GFP_ZERO);
-    if (!user_data->bp_buf) {
-        dnvme_err("Unable to allocate kernel memory");
-        return -ENOMEM;
-    }
-
-    BMBBA = (uint64_t)(user_data->bp_buf);
-
-    dnvme_err("Boot Partition Memory Buffer Base Address:0x%lx",BMBBA);
-
-    nvme_dev = pmetrics_device->dev;
-
-    /* Copying user space buffer to kernel memory */
-    if (copy_from_user(datap, (uint8_t *)&BMBBA, sizeof(uint64_t))) {
-        dnvme_err("Invalid copy from user space");
-        err = -EFAULT;
-        goto fail_out;
-    }
-
-    switch (user_data->type) {
-    case NVME_BAR0_BAR1:
-        err = write_nvme_reg_generic(nvme_dev->priv.bar0,
-            datap, user_data->bytes, user_data->offset, user_data->acc_type);
-        if (err < 0) {
-            dnvme_err("Write NVME Space failed");
-            goto fail_out;
-        }
-        break;
-    default:
-        dnvme_dbg("Could not find switch case using default");
-        err = -EINVAL;
-        break;
-    }
-    /* Fall through upon success is meant to be */
-
-fail_out:
-    if (datap != NULL) {
-        kfree(datap);
-    }
-    if (user_data != NULL) {
-        kfree(user_data);
-    }
-    if (bp_buf != NULL) {
-        kfree(user_data->bp_buf);
-    }
-    
-    return err;
-}
-
-#endif

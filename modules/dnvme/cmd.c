@@ -1,29 +1,31 @@
-/**
- * @file cmd.c
- * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
- * @brief 
- * @version 0.1
- * @date 2022-11-24
- * 
- * @copyright Copyright (c) 2022
- * 
+/*
+ * NVM Express Compliance Suite
+ * Copyright (c) 2011, Intel Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
 #include <linux/dma-mapping.h>
+#include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
-#include <linux/pci.h>
 
-#include "nvme.h"
-#include "dnvme_ioctl.h"
 #include "core.h"
 #include "cmd.h"
+#include "queue.h"
 #include "debug.h"
-#include "dnvme_ds.h"
-#include "dnvme_queue.h"
 
 #define SGES_PER_PAGE	(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
 #define PRPS_PER_PAGE	(PAGE_SIZE / NVME_PRP_ENTRY_SIZE)
@@ -115,6 +117,12 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 		return -EINVAL;
 	}
 
+	/* !TODO: It's better to use physical address to calculate the offset.
+	 *
+	 * Because the virtual address passed from the user space is currently
+	 * used, the actual mapping range will be larger than the actual data
+	 * length.
+	 */
 	offset = offset_in_page(addr);
 	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
 	dnvme_vdbg("User buf ptr 0x%lx(0x%x) size:0x%x => nr_pages:0x%x\n",
@@ -265,9 +273,9 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_gen_cmd *gcmd,
 		}
 	}
 
-	prps->vir_prp_list = (__le64 **)prp_list;
-	prps->npages = nr_seg;
-	prps->dma = prp_dma;
+	prps->prp_list = (__le64 **)prp_list;
+	prps->nr_pages = nr_seg;
+	prps->pg_addr = prp_dma;
 	dnvme_sgl_set_seg(&gcmd->dptr.sgl, prp_dma[0], nr_desc);
 
 	for (j = 0, k = 0; nr_desc > 0;) {
@@ -306,36 +314,42 @@ static void dnvme_free_prp_list(struct nvme_device *ndev, struct nvme_prps *prps
 	if (!prps)
 		return;
 
-	if (prps->vir_prp_list) {
-		for (i = 0; i < prps->npages; i++)
-			dma_pool_free(pool, prps->vir_prp_list[i], prps->dma[i]);
+	if (prps->prp_list) {
+		for (i = 0; i < prps->nr_pages; i++)
+			dma_pool_free(pool, prps->prp_list[i], prps->pg_addr[i]);
 
-		kfree(prps->dma);
-		prps->dma = NULL;
-		kfree(prps->vir_prp_list);
-		prps->vir_prp_list = NULL;
+		kfree(prps->pg_addr);
+		prps->pg_addr = NULL;
+		kfree(prps->prp_list);
+		prps->prp_list = NULL;
 	}
 }
 
 static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
 	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
 {
-	enum nvme_64b_cmd_mask cmd_mask = cmd->bit_mask;
+	enum nvme_64b_cmd_mask prp_mask = cmd->bit_mask;
 	enum nvme_64b_cmd_mask flag;
 	struct scatterlist *sg = prps->sg;
 	void **prp_list;
 	dma_addr_t *prp_dma;
 	struct dma_pool *pool = ndev->priv.prp_page_pool;
 	__le64 *prp_entry;
-	u32 nr_entry = prps->num_map_pgs;
-	u32 nr_pages;
+	int buf_len = prps->data_buf_size;
+	u32 nr_pages, nr_entry, pg_oft;
+	dma_addr_t dma_addr;
+	int dma_len;
 	int ret = -ENOMEM;
 	int i, j, k;
+
+	dma_addr = sg_dma_address(sg);
+	dma_len = sg_dma_len(sg);
+	pg_oft = offset_in_page(dma_addr);
 
 	if (cmd->q_id == NVME_AQ_ID && (gcmd->opcode == nvme_admin_create_sq ||
 		gcmd->opcode == nvme_admin_create_cq)) {
 
-		if (!(cmd_mask & NVME_MASK_PRP1_LIST)) {
+		if (!(prp_mask & NVME_MASK_PRP1_LIST)) {
 			dnvme_err("cmd mask doesn't support PRP1 list!\n");
 			return -EINVAL;
 		}
@@ -343,37 +357,45 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		goto prp_list;
 	}
 
-	if (nr_entry == 1) {
-		if (!(cmd_mask & NVME_MASK_PRP1_PAGE)) {
-			dnvme_err("cmd mask doesn't support PRP1 page!\n");
-			return -EINVAL;
-		}
-
-		gcmd->dptr.prp1 = cpu_to_le64(sg_dma_address(sg));
-		gcmd->dptr.prp2 = 0;
-		return 0;
+	if (!(prp_mask & NVME_MASK_PRP1_PAGE)) {
+		dnvme_err("cmd mask doesn't support PRP1 page!\n");
+		return -EINVAL;
 	}
+	gcmd->dptr.prp1 = cpu_to_le64(dma_addr);
+	buf_len -= (PAGE_SIZE - pg_oft);
+	dma_len -= (PAGE_SIZE - pg_oft);
 
-	if (nr_entry == 2) {
-		if (!(cmd_mask & NVME_MASK_PRP1_PAGE) || 
-			!(cmd_mask & NVME_MASK_PRP2_PAGE)) {
-			dnvme_err("cmd mask doesn't support PRP1 or PRP2 page!\n");
-			return -EINVAL;
-		}
+	if (buf_len <= 0)
+		return 0;
 
-		gcmd->dptr.prp1 = cpu_to_le64(sg_dma_address(sg));
+	/* If pages were contiguous in memory use same SG Entry */
+	if (dma_len) {
+		dma_addr += (PAGE_SIZE - pg_oft);
+	} else {
 		sg = sg_next(sg);
-		gcmd->dptr.prp2 = cpu_to_le64(sg_dma_address(sg));
+		dma_addr = sg_dma_address(sg);
+		dma_len = sg_dma_len(sg);
+	}
+	pg_oft = 0;
+
+	if (buf_len <= PAGE_SIZE) {
+		if (!(prp_mask & NVME_MASK_PRP2_PAGE)) {
+			dnvme_err("cmd mask doesn't support PRP2 page!\n");
+			return -EINVAL;
+		}
+
+		gcmd->dptr.prp2 = cpu_to_le64(dma_addr);
 		return 0;
 	}
 
-	if (!(cmd_mask & NVME_MASK_PRP2_LIST)) {
+	if (!(prp_mask & NVME_MASK_PRP2_LIST)) {
 		dnvme_err("cmd mask doesn't support PRP2 list!\n");
 		return -EINVAL;
 	}
 	flag = NVME_MASK_PRP2_LIST;
 
 prp_list:
+	nr_entry = DIV_ROUND_UP(pg_oft + buf_len, PAGE_SIZE);
 	nr_pages = DIV_ROUND_UP(NVME_PRP_ENTRY_SIZE * nr_entry, 
 		PAGE_SIZE - NVME_PRP_ENTRY_SIZE);
 	
@@ -397,19 +419,19 @@ prp_list:
 		}
 	}
 
-	prps->vir_prp_list = (__le64 **)prp_list;
-	prps->npages = nr_pages;
-	prps->dma = prp_dma;
+	prps->prp_list = (__le64 **)prp_list;
+	prps->nr_pages = nr_pages;
+	prps->pg_addr = prp_dma;
 
 	if (flag == NVME_MASK_PRP1_LIST) {
 		gcmd->dptr.prp1 = cpu_to_le64(prp_dma[0]);
 		gcmd->dptr.prp2 = 0;
 	} else if (flag == NVME_MASK_PRP2_LIST) {
-		gcmd->dptr.prp1 = cpu_to_le64(sg_dma_address(sg));
+		/* prp1 has configured before */
 		gcmd->dptr.prp2 = cpu_to_le64(prp_dma[0]);
 	}
 
-	for (j = 0, k = 0; nr_entry > 0;) {
+	for (j = 0, k = 0; buf_len > 0;) {
 		WARN_ON(j >= nr_pages || !sg); /* sanity check */
 
 		prp_entry = prp_list[j];
@@ -420,10 +442,28 @@ prp_list:
 			prp_entry[k] = cpu_to_le64(prp_dma[j]);
 			k = 0;
 		} else {
-			prp_entry[k] = cpu_to_le64(sg_dma_address(sg));
-			sg = sg_next(sg);
+			prp_entry[k] = cpu_to_le64(dma_addr);
+			buf_len -= (PAGE_SIZE - pg_oft);
+			dma_len -= (PAGE_SIZE - pg_oft);
+			pg_oft = 0;
+
+			if (buf_len <= 0)
+				break;
+
+			/* If pages were contiguous in memory use same SG Entry */
+			if (dma_len > 0) {
+				dma_addr += (PAGE_SIZE - pg_oft);
+			} else if (dma_len < 0) {
+				dnvme_err("DMA data length is illegal!\n");
+				ret = -EFAULT;
+				goto out2;
+			} else {
+				sg = sg_next(sg);
+				dma_addr = sg_dma_address(sg);
+				dma_len = sg_dma_len(sg);
+			}
+
 			k++;
-			nr_entry--;
 		}
 	}
 
@@ -599,66 +639,69 @@ int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps)
+void dnvme_release_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
 {
-	dnvme_free_prp_list(ndev, prps);
-	dnvme_unmap_user_page(ndev, prps);
+	dnvme_free_prp_list(nvme_device, prps);
+	dnvme_unmap_user_page(nvme_device, prps);
 }
 
+/**
+ * @brief Delete command list in the SQ
+ * 
+ * @param ndev NVMe device
+ * @param sq the specified submission queue
+ */
 void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 {
-	struct nvme_cmd *node;
+	struct nvme_cmd *cmd;
 	struct list_head *pos, *tmp;
 
 	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
-		node = list_entry(pos, struct nvme_cmd, entry);
-		dnvme_release_prps(ndev, &node->prp_nonpersist);
+		cmd = list_entry(pos, struct nvme_cmd, entry);
+		dnvme_release_prps(ndev, &cmd->prp_nonpersist);
 		list_del(pos);
-		kfree(node);
+		kfree(cmd);
 	}
 }
 
 static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_gen_cmd *gcmd)
 {
-	struct nvme_sq *wait_sq;
-	struct nvme_prps prps;
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_create_sq *csq = (struct nvme_create_sq *)gcmd;
+	struct nvme_sq *wait_sq;
+	struct nvme_prps prps;
 	int ret;
 
 	wait_sq = dnvme_find_sq(ctx, csq->sqid);
 	if (!wait_sq) {
-		dnvme_err("The waiting SQ(%u) doesn't exist!\n", csq->sqid);
-		return -EBADSLT;
-	}
-
-	/* Sanity Checks */
-	if (((csq->sq_flags & CDW11_PC) && (wait_sq->priv.contig == 0)) ||
-		(!(csq->sq_flags & CDW11_PC) && (wait_sq->priv.contig != 0))) {
-		dnvme_err("csq contig flag is inconsistent with wait_sq!\n");
+		dnvme_err("SQ(%u) doesn't exist!\n", csq->sqid);
 		return -EINVAL;
 	}
 
-	if (wait_sq->priv.contig == 0 && cmd->data_buf_ptr == NULL) {
-		dnvme_err("cmd data_buf_ptr is NULL!(contig:0)\n");
+	if ((csq->sq_flags & NVME_CSQ_F_PC && wait_sq->priv.contig == 0) ||
+		(!(csq->sq_flags & NVME_CSQ_F_PC) && wait_sq->priv.contig != 0)) {
+		dnvme_err("Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
 
-	if (wait_sq->priv.contig != 0 && wait_sq->priv.buf == NULL) {
-		dnvme_err("wait_sq buf is NULL!(contig:1)\n");
-		return -EPERM;
+	if ((wait_sq->priv.contig == 0 && cmd->data_buf_ptr == NULL) ||
+		(wait_sq->priv.contig != 0 && wait_sq->priv.buf == NULL)) {
+		dnvme_err("Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
+		return -EINVAL;
 	}
 
-	if (!(wait_sq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
+	if ((wait_sq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE) == 0) {
 		dnvme_err("SQ(%u) already created!\n", csq->sqid);
-		return -EINVAL;
+		return -EPERM;
 	}
 	memset(&prps, 0, sizeof(prps));
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
-	if (ret < 0)
+	if (ret < 0) {
+		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
+	}
 
 	if (wait_sq->priv.contig) {
 		gcmd->dptr.prp1 = cpu_to_le64(wait_sq->priv.dma);
@@ -677,10 +720,17 @@ static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_prps prps;
+	int ret;
 
 	memset(&prps, 0, sizeof(prps));
 
-	return dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0) {
+		dnvme_err("failed to prepare 64-byte cmd!\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
@@ -698,21 +748,16 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 		return -EBADSLT;
 	}
 
-	/* Sanity Checks */
-	if (((ccq->cq_flags & CDW11_PC) && (wait_cq->priv.contig == 0)) ||
-		(!(ccq->cq_flags & CDW11_PC) && (wait_cq->priv.contig != 0))) {
-		dnvme_err("ccq contig flag is inconsistent with wait_cq!\n");
+	if ((ccq->cq_flags & NVME_CCQ_F_PC && wait_cq->priv.contig == 0) ||
+		(!(ccq->cq_flags & NVME_CCQ_F_PC) && wait_cq->priv.contig != 0)) {
+		dnvme_err("Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
 
-	if (wait_cq->priv.contig == 0 && cmd->data_buf_ptr == NULL) {
-		dnvme_err("cmd data_buf_ptr is NULL!(contig:0)\n");
+	if ((wait_cq->priv.contig == 0 && cmd->data_buf_ptr == NULL) ||
+		(wait_cq->priv.contig != 0 && wait_cq->priv.buf == NULL)) {
+		dnvme_err("Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
 		return -EINVAL;
-	}
-
-	if (wait_cq->priv.contig != 0 && wait_cq->priv.buf == NULL) {
-		dnvme_err("wait_cq buf is NULL!(contig:1)\n");
-		return -EPERM;
 	}
 
 	if (!(wait_cq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
@@ -721,7 +766,7 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	}
 
 	/* Check if interrupts should be enabled for IO CQ */
-	if (ccq->cq_flags & CDW11_IEN) {
+	if (ccq->cq_flags & NVME_CCQ_F_IEN) {
 		if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
 			dnvme_err("act irq_type is none!\n");
 			return -EINVAL;
@@ -730,8 +775,10 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	memset(&prps, 0, sizeof(prps));
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
-	if (ret < 0)
+	if (ret < 0) {
+		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
+	}
 
 	if (wait_cq->priv.contig) {
 		gcmd->dptr.prp1 = cpu_to_le64(wait_cq->priv.dma);
@@ -750,10 +797,16 @@ static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_prps prps;
+	int ret;
 
 	memset(&prps, 0, sizeof(prps));
 
-	return dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0) {
+		dnvme_err("failed to prepare 64-byte cmd!\n");
+		return ret;
+	}
+	return 0;
 }
 
 static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
@@ -767,8 +820,10 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	if (cmd->data_buf_ptr) {
 		ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
-		if (ret < 0)
+		if (ret < 0) {
+			dnvme_err("failed to prepare 64-byte cmd!\n");
 			return ret;
+		}
 	}
 	/* !TODO: data_buf_ptr == NULL ? */
 	return 0;

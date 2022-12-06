@@ -16,11 +16,11 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _DNVME_IOCTLS_H_
-#define _DNVME_IOCTLS_H_
+#ifndef _UAPI_DNVME_IOCTLS_H_
+#define _UAPI_DNVME_IOCTLS_H_
 
 #include "bitops.h"
-#include "dnvme_interface.h"
+#include "nvme.h"
 
 enum {
 	NVME_READ_GENERIC = 0,
@@ -46,8 +46,6 @@ enum {
 	NVME_MASK_IRQ,
 	NVME_UNMASK_IRQ,
 	NVME_GET_DEV_INFO,
-	// NVME_GET_BP_MEM,
-	// NVME_GET_BP_MEM_ADDR,
 };
 
 enum nvme_region {
@@ -106,6 +104,17 @@ enum nvme_irq_type {
 	NVME_INT_MSIX,
 	NVME_INT_PIN,
 	NVME_INT_NONE, /* !TODO: It's better to place header position */
+};
+
+struct cq_completion
+{
+	uint32_t	cmd_specifc;       /* DW 0 all 32 bits     */
+	uint32_t	reserved;          /* DW 1 all 32 bits     */
+	uint16_t	sq_head_ptr;       /* DW 2 lower 16 bits   */
+	uint16_t	sq_identifier;     /* DW 2 higher 16 bits  */
+	uint16_t	cmd_identifier;    /* Cmd identifier       */
+	uint16_t	phase_bit:1;      /* Phase bit            */
+	uint16_t	status_field:15; /* Status field         */
 };
 
 struct nvme_driver {
@@ -228,6 +237,77 @@ struct nvme_dev_public {
 };
 
 /**
+ * This structure defines the parameters required for creating any CQ.
+ * It supports both Admin CQ and IO CQ.
+ */
+struct nvme_cq_public {
+	uint16_t	q_id; /* even admin q's are supported here q_id = 0 */
+	uint16_t	tail_ptr; /* The value calculated for respective tail_ptr */
+	uint16_t	head_ptr; /* Actual value in CQxTDBL for this q_id */
+	uint32_t	elements; /* pass the actual elements in this q */
+	uint8_t		irq_enabled; /* sets when the irq scheme is active */
+	uint16_t	irq_no; /* idx in list; always 0 based */
+	uint8_t		pbit_new_entry; /* Indicates if a new entry is in CQ */
+	uint8_t		cqes;
+};
+
+/**
+ * @sqes: SQ entry size, in bytes and specified as a power of two (2^n)
+ */
+struct nvme_sq_public {
+	uint16_t	sq_id; /* Admin SQ are supported with q_id = 0 */
+	uint16_t	cq_id; /* The CQ ID to which this SQ is associated */
+	uint16_t	tail_ptr; /* Actual value in SQxTDBL for this SQ id */
+	/* future SQxTDBL write value based on no. of new cmds copied to SQ */
+	uint16_t	tail_ptr_virt; 
+	uint16_t	head_ptr; /* Calculate this value based on cmds reaped */
+	uint32_t	elements; /* total number of elements in this Q */
+	uint8_t		sqes;
+};
+
+/**
+ * Interface structure for reap ioctl. Admin Q and all IO Q's are supported.
+ */
+struct nvme_reap {
+	uint16_t q_id;          /* CQ ID to reap commands for */
+	uint32_t elements;      /* Get the no. of elements to be reaped */
+	uint32_t num_remaining; /* return no. of cmds waiting for this cq */
+	uint32_t num_reaped;    /* Return no. of elements reaped */
+	uint8_t  *buffer;       /* Buffer to copy reaped data */
+	/* no of times isr was fired which is associated with cq reaped on */
+	uint32_t isr_count;
+	uint32_t size;          /* Size of buffer to fill data to */
+};
+
+/**
+ * Format of general purpose nvme command DW0-DW9
+ */
+struct nvme_gen_cmd {
+	uint8_t  opcode;
+	uint8_t  flags;
+	uint16_t command_id;
+	uint32_t nsid;
+	uint64_t rsvd2;
+	uint64_t metadata;
+	// uint64_t prp1;
+	// uint64_t prp2;
+	union nvme_data_ptr dptr;
+};
+
+/**
+ * Specific structure for Delete Q command
+ */
+struct nvme_del_q {
+	uint8_t  opcode;
+	uint8_t  flags;
+	uint16_t command_id;
+	uint32_t rsvd1[9];
+	uint16_t qid;
+	uint16_t rsvd10;
+	uint32_t rsvd11[5];
+};
+
+/**
  * @name: The file name includes its path information.
  * @len: The length of file name (in bytes).
  */
@@ -288,16 +368,4 @@ struct nvme_log_file {
 #define NVME_IOCTL_DUMP_LOG_FILE \
 	_IOWR('N', NVME_DUMP_LOG_FILE, struct nvme_log_file)
 
-/**
- * @def NVME_GET_BP_MEM
- * boot part kernel memory alloc
- */
-//#define NVME_IOCTL_WRITE_BP_BUF _IOW('N', NVME_GET_BP_MEM, struct nvme_write_bp_buf)
-
-/**
- * @def NVME_GET_BP_MEM_ADDR
- * boot part kernel memory alloc
- */
-//#define NVME_IOCTL_GET_BP_MEM_ADDR _IOW('N', NVME_GET_BP_MEM_ADDR, struct nvme_write_bp_buf)
-
-#endif
+#endif /* _UAPI_DNVME_IOCTLS_H_ */
