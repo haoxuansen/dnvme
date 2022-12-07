@@ -707,22 +707,22 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 	status = (cq_entry->status_field & 0x7ff);
 
 	cmd = dnvme_find_cmd(sq, cq_entry->cmd_identifier);
-	if (cmd) {
-		dnvme_vdbg("SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
-			cq_entry->sq_identifier, cq_entry->cmd_identifier, 
-			cmd->opcode, cq_entry->status_field);
-
-		if (cq_entry->sq_identifier == NVME_AQ_ID) {
-			ret = handle_admin_cmd_completion(sq, cmd, status);
-		} else {
-			ret = handle_gen_cmd_completion(sq, cmd);
-		}
-	} else {
-		/* !TODO: some cmd hasn't create cmd node? */
-		dnvme_vdbg("SQ %u, CMD %u - status:0x%x\n",
-			cq_entry->sq_identifier, cq_entry->cmd_identifier, 
-			cq_entry->status_field);
+	if (!cmd) {
+		dnvme_err("CMD(%u) doesn't exist in SQ(%u)!\n",
+			cq_entry->cmd_identifier, cq_entry->sq_identifier);
+		return -EBADSLT;
 	}
+
+	dnvme_vdbg("SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
+		cq_entry->sq_identifier, cq_entry->cmd_identifier, 
+		cmd->opcode, cq_entry->status_field);
+
+	if (cq_entry->sq_identifier == NVME_AQ_ID) {
+		ret = handle_admin_cmd_completion(sq, cmd, status);
+	} else {
+		ret = handle_gen_cmd_completion(sq, cmd);
+	}
+
 	return ret;
 }
 

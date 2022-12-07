@@ -594,7 +594,7 @@ out:
 	return ret;
 }
 
-int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
+static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
 	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
 {
 	bool need_prp = false;
@@ -613,10 +613,12 @@ int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 			break;
 
 		default:
-			need_prp = true;
+			if (cmd->data_buf_ptr)
+				need_prp = true;
 		}
 	} else {
-		need_prp = true;
+		if (cmd->data_buf_ptr)
+			need_prp = true;
 	}
 
 	if (!need_prp)
@@ -818,14 +820,12 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	memset(&prps, 0, sizeof(prps));
 
-	if (cmd->data_buf_ptr) {
-		ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
-		if (ret < 0) {
-			dnvme_err("failed to prepare 64-byte cmd!\n");
-			return ret;
-		}
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	if (ret < 0) {
+		dnvme_err("failed to prepare 64-byte cmd!\n");
+		return ret;
 	}
-	/* !TODO: data_buf_ptr == NULL ? */
+
 	return 0;
 }
 
