@@ -523,7 +523,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 {
 	struct nvme_prps *prps = &cq->priv.prps;
-	struct cq_completion *entry;
+	struct nvme_completion *entry;
 	void *cq_addr;
 	u32 remain = 0;
 	u8 phase = cq->pub.pbit_new_entry;
@@ -538,10 +538,10 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 
 	/* Start from head ptr and update till phase bit incorrect */
 	cq->pub.tail_ptr = cq->pub.head_ptr;
-	entry = (struct cq_completion *)cq_addr + cq->pub.tail_ptr;
+	entry = (struct nvme_completion *)cq_addr + cq->pub.tail_ptr;
 
 	/* loop through the entries in the cq */
-	while (entry->phase_bit == phase) {
+	while (NVME_CQE_STATUS_TO_PHASE(entry->status) == phase) {
 
 		remain++;
 		cq->pub.tail_ptr++;
@@ -551,7 +551,7 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 			phase ^= 1;
 			cq->pub.tail_ptr = 0;
 		}
-		entry = (struct cq_completion *)cq_addr + cq->pub.tail_ptr;
+		entry = (struct nvme_completion *)cq_addr + cq->pub.tail_ptr;
 	}
 
 	dnvme_vdbg("Inquiry CQ(%u) element:%u, head:%u, tail:%u, remain:%u\n",
@@ -689,35 +689,35 @@ static int handle_admin_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
  * @brief Handle all command completion which include admin & IO command etc.
  */
 static int handle_cmd_completion(struct nvme_context *ctx, 
-	struct cq_completion *cq_entry)
+	struct nvme_completion *cq_entry)
 {
 	struct nvme_sq *sq;
 	struct nvme_cmd *cmd;
 	u16 status;
 	int ret = 0;
 
-	sq = dnvme_find_sq(ctx, cq_entry->sq_identifier);
+	sq = dnvme_find_sq(ctx, cq_entry->sq_id);
 	if (!sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", cq_entry->sq_identifier);
+		dnvme_err("SQ(%u) doesn't exist!\n", cq_entry->sq_id);
 		return -EBADSLT;
 	}
 
 	/* update SQ info */
-	sq->pub.head_ptr = cq_entry->sq_head_ptr;
-	status = (cq_entry->status_field & 0x7ff);
+	sq->pub.head_ptr = cq_entry->sq_head;
+	status = (NVME_CQE_STATUS_TO_STATE(cq_entry->status) & 0x7ff);
 
-	cmd = dnvme_find_cmd(sq, cq_entry->cmd_identifier);
+	cmd = dnvme_find_cmd(sq, cq_entry->command_id);
 	if (!cmd) {
 		dnvme_err("CMD(%u) doesn't exist in SQ(%u)!\n",
-			cq_entry->cmd_identifier, cq_entry->sq_identifier);
+			cq_entry->command_id, cq_entry->sq_id);
 		return -EBADSLT;
 	}
 
 	dnvme_vdbg("SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
-		cq_entry->sq_identifier, cq_entry->cmd_identifier, 
-		cmd->opcode, cq_entry->status_field);
+		cq_entry->sq_id, cq_entry->command_id, 
+		cmd->opcode, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 
-	if (cq_entry->sq_identifier == NVME_AQ_ID) {
+	if (cq_entry->sq_id == NVME_AQ_ID) {
 		ret = handle_admin_cmd_completion(sq, cmd, status);
 	} else {
 		ret = handle_gen_cmd_completion(sq, cmd);

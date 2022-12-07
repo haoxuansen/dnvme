@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include "dnvme_ioctl.h"
+#include "byteorder.h"
 #include "dnvme_ioctl.h"
 
 #include "common.h"
@@ -116,15 +116,16 @@ uint32_t ioctl_reap_inquiry(int file_desc, int cq_id)
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display)
 {
     int ret_val = -1;
-    struct cq_completion *cq_entry = NULL;
+    struct nvme_completion *cq_entry = NULL;
     while (reap_ele)
     {
-        cq_entry = (struct cq_completion *)cq_buffer;
-        if (cq_entry->status_field) // status != 0 !!!!! force display
+        cq_entry = (struct nvme_completion *)cq_buffer;
+        if (NVME_CQE_STATUS_TO_STATE(cq_entry->status)) // status != 0 !!!!! force display
         {
             pr_warn("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-                cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-                cq_entry->sq_identifier, cq_entry->status_field);
+                cq_entry->command_id, cq_entry->result.u32, 
+                NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+                cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
             ret_val = -1;
         }
         else
@@ -132,13 +133,14 @@ int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display)
             if (display)
             {
                 pr_info("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-                    cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-                    cq_entry->sq_identifier, cq_entry->status_field);
+                    cq_entry->command_id, cq_entry->result.u32, 
+                    NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+                    cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
             }
             ret_val = 0;
         }
         reap_ele--;
-        cq_buffer += sizeof(struct cq_completion);
+        cq_buffer += sizeof(struct nvme_completion);
     }
     return ret_val;
 }

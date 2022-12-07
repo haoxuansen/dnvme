@@ -43,6 +43,7 @@
 	pr_info(LOG_COLOR_GREEN fmt, ##__VA_ARGS__)
 #define dnvme_dbg(fmt, ...) \
 	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+
 #ifdef VERBOSE_DEBUG
 #define dnvme_vdbg(fmt, ...) \
 	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)

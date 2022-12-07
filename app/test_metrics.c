@@ -406,7 +406,7 @@ int test_reap_cq(int file_desc, int cq_id, uint32_t cmd_cnt, int disp_flag)
     return (ioctl_reap_cq(file_desc, cq_id, cmd_cnt, 16, disp_flag));
 }
 
-struct cq_completion *send_get_feature(int file_desc, uint8_t feature_id)
+struct nvme_completion *send_get_feature(int file_desc, uint8_t feature_id)
 {
     uint32_t reap_num = 0;
     //send command

@@ -1668,6 +1668,8 @@ struct nvme_completion {
 	__le16	sq_id;		/* submission queue that generated this entry */
 	__u16	command_id;	/* of the command which completed */
 	__le16	status;		/* did the command fail, and if so, why? */
+#define NVME_CQE_STATUS_TO_PHASE(s)	((le16_to_cpu(s) >> 0) & 0x1)
+#define NVME_CQE_STATUS_TO_STATE(s)	((le16_to_cpu(s) >> 1) & 0x7fff)
 };
 
 #define NVME_VS(major, minor, tertiary) \

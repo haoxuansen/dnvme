@@ -106,17 +106,6 @@ enum nvme_irq_type {
 	NVME_INT_NONE, /* !TODO: It's better to place header position */
 };
 
-struct cq_completion
-{
-	uint32_t	cmd_specifc;       /* DW 0 all 32 bits     */
-	uint32_t	reserved;          /* DW 1 all 32 bits     */
-	uint16_t	sq_head_ptr;       /* DW 2 lower 16 bits   */
-	uint16_t	sq_identifier;     /* DW 2 higher 16 bits  */
-	uint16_t	cmd_identifier;    /* Cmd identifier       */
-	uint16_t	phase_bit:1;      /* Phase bit            */
-	uint16_t	status_field:15; /* Status field         */
-};
-
 struct nvme_driver {
 	uint32_t drv_version;
 	uint32_t api_version;

@@ -36,7 +36,7 @@
  */
 static int set_queue_num(int file_desc, uint16_t *iosq_num, uint16_t *iocq_num)
 {
-	struct cq_completion *cq_entry = NULL;
+	struct nvme_completion *cq_entry = NULL;
 	int ret_val = nvme_set_feature_cmd(file_desc, 1, NVME_FEAT_NUM_QUEUES, 0xFF, 0xFF);
 	if (SUCCEED != ret_val)
 	{
@@ -49,10 +49,10 @@ static int set_queue_num(int file_desc, uint16_t *iosq_num, uint16_t *iocq_num)
 	cq_entry = get_cq_entry();
 
 	// must be admin queue
-	if (0 == cq_entry->sq_identifier)
+	if (0 == cq_entry->sq_id)
 	{
-		*iosq_num = (uint16_t)(cq_entry->cmd_specifc & 0xFFFF);
-		*iocq_num = (uint16_t)(cq_entry->cmd_specifc >> 16);
+		*iosq_num = (uint16_t)(cq_entry->result.u32 & 0xFFFF);
+		*iocq_num = (uint16_t)(cq_entry->result.u32 >> 16);
 	}
 	else
 	{

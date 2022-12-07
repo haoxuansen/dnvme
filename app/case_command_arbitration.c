@@ -525,7 +525,7 @@ int case_command_arbitration(void)
     uint32_t u32_tmp_data = 0;
     uint32_t reap_num = 0;
 
-    struct cq_completion *cq_entry = get_cq_entry();
+    struct nvme_completion *cq_entry = get_cq_entry();
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s", disp_this_case);
@@ -543,12 +543,12 @@ int case_command_arbitration(void)
 
     cq_entry = send_get_feature(file_desc, NVME_FEAT_ARBITRATION);
     // must be admin queue
-    if (0 == cq_entry->sq_identifier)
+    if (0 == cq_entry->sq_id)
     {
-        Arbit_HPW = (uint8_t)((cq_entry->cmd_specifc & 0xFF000000) >> 24);
-        Arbit_MPW = (uint8_t)((cq_entry->cmd_specifc & 0xFF0000) >> 16);
-        Arbit_LPW = (uint8_t)((cq_entry->cmd_specifc & 0xFF00) >> 8);
-        Arbit_AB = (uint8_t)(cq_entry->cmd_specifc & 0x7);
+        Arbit_HPW = (uint8_t)((cq_entry->result.u32 & 0xFF000000) >> 24);
+        Arbit_MPW = (uint8_t)((cq_entry->result.u32 & 0xFF0000) >> 16);
+        Arbit_LPW = (uint8_t)((cq_entry->result.u32 & 0xFF00) >> 8);
+        Arbit_AB = (uint8_t)(cq_entry->result.u32 & 0x7);
     }
     else
     {
@@ -572,12 +572,12 @@ int case_command_arbitration(void)
     /**********************************************************************/
     cq_entry = send_get_feature(file_desc, NVME_FEAT_ARBITRATION);
     // must be admin queue
-    if (0 == cq_entry->sq_identifier)
+    if (0 == cq_entry->sq_id)
     {
-        Arbit_HPW = (uint8_t)((cq_entry->cmd_specifc & 0xFF000000) >> 24);
-        Arbit_MPW = (uint8_t)((cq_entry->cmd_specifc & 0xFF0000) >> 16);
-        Arbit_LPW = (uint8_t)((cq_entry->cmd_specifc & 0xFF00) >> 8);
-        Arbit_AB = (uint8_t)(cq_entry->cmd_specifc & 0x7);
+        Arbit_HPW = (uint8_t)((cq_entry->result.u32 & 0xFF000000) >> 24);
+        Arbit_MPW = (uint8_t)((cq_entry->result.u32 & 0xFF0000) >> 16);
+        Arbit_LPW = (uint8_t)((cq_entry->result.u32 & 0xFF00) >> 8);
+        Arbit_AB = (uint8_t)(cq_entry->result.u32 & 0x7);
     }
     else
     {

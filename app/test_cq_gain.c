@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "dnvme_ioctl.h"
+#include "byteorder.h"
 #include "dnvme_ioctl.h"
 
 #include "common.h"
@@ -29,15 +29,16 @@ char *tmpfile_dump = "/tmp/dump_cq.txt";
 int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 {
 	int ret_val = SUCCEED;
-	struct cq_completion *cq_entry = NULL;
+	struct nvme_completion *cq_entry = NULL;
 	while (reap_num)
 	{
-		cq_entry = (struct cq_completion *)cq_buffer;
-		if (cq_entry->status_field) // status != 0 !!!!! force display
+		cq_entry = (struct nvme_completion *)cq_buffer;
+		if (NVME_CQE_STATUS_TO_STATE(cq_entry->status)) // status != 0 !!!!! force display
 		{
 			pr_warn("Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-				cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-				cq_entry->sq_identifier, cq_entry->status_field);
+				cq_entry->command_id, cq_entry->result.u32, 
+				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 			ret_val = FAILED;
 			/*for debug*/
 			// ioctl_dump(file_desc, tmpfile_dump);
@@ -47,11 +48,12 @@ int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 		else
 		{
 			pr_debug("Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-				cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-				cq_entry->sq_identifier, cq_entry->status_field);
+				cq_entry->command_id, cq_entry->result.u32, 
+				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 		}
 		reap_num--;
-		cq_buffer += sizeof(struct cq_completion);
+		cq_buffer += sizeof(struct nvme_completion);
 	}
 	return ret_val;
 }
@@ -149,8 +151,8 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 			*reaped_num += rp_cq.num_reaped;
 			//full parameter for next
 			rp_cq.elements = expect_num - (*reaped_num);
-			rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.num_reaped * sizeof(struct cq_completion));
-			rp_cq.buffer = (uint8_t *)(rp_cq.buffer + rp_cq.num_reaped * sizeof(struct cq_completion));
+			rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.num_reaped * sizeof(struct nvme_completion));
+			rp_cq.buffer = (uint8_t *)(rp_cq.buffer + rp_cq.num_reaped * sizeof(struct nvme_completion));
 			cq_to_cnt = 0; //if reaped, timeout cnt clear to 0;
 		}
 
@@ -175,9 +177,9 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 }
 
 
-struct cq_completion *get_cq_entry(void)
+struct nvme_completion *get_cq_entry(void)
 {
-	return (struct cq_completion *)buffer_cq_entry;
+	return (struct nvme_completion *)buffer_cq_entry;
 }
 
 /***********************/
@@ -192,7 +194,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 	uint16_t cq_id = 0;
 	uint32_t reaped_num = 0;
 
-	struct cq_completion *cq_entry = NULL;
+	struct nvme_completion *cq_entry = NULL;
 	unsigned char *cq_buffer = NULL;
 
 	uint32_t loop = 0;
@@ -266,25 +268,27 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 	cq_buffer = buffer_cq_entry;
 	for (cq_cmd_cnt = 1; cq_cmd_cnt <= reaped_num; cq_cmd_cnt++)
 	{
-		cq_entry = (struct cq_completion *)cq_buffer;
-		if (cq_entry->status_field) // status != 0 !!!!! force display
+		cq_entry = (struct nvme_completion *)cq_buffer;
+		if (NVME_CQE_STATUS_TO_STATE(cq_entry->status)) // status != 0 !!!!! force display
 		{
 			pr_warn("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-				cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-				cq_entry->sq_identifier, cq_entry->status_field);
+				cq_entry->command_id, cq_entry->result.u32, 
+				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 			ret_val = -1;
 		}
 		else
 		{
 			pr_info("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-				cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-				cq_entry->sq_identifier, cq_entry->status_field);
+				cq_entry->command_id, cq_entry->result.u32, 
+				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 		}
-		cq_buffer += sizeof(struct cq_completion);
+		cq_buffer += sizeof(struct nvme_completion);
 
 		if ((cq_cmd_cnt >= 1) && (cq_cmd_cnt <= arb_parameter->urgent_prio_cmd_num))
 		{
-			if (URGENT_PRIO == get_q_prio(cq_entry->sq_identifier))
+			if (URGENT_PRIO == get_q_prio(cq_entry->sq_id))
 			{
 				urgent_cnt++;
 			}
@@ -293,8 +297,8 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 				urgent_err_cnt++;
 				pr_err("cq_cmd_cnt: %d, prio_urgent_err sq_id:%d, prio:%d\n",
 					cq_cmd_cnt,
-					cq_entry->sq_identifier,
-					get_q_prio(cq_entry->sq_identifier));
+					cq_entry->sq_id,
+					get_q_prio(cq_entry->sq_id));
 			}
 			if (cq_cmd_cnt == arb_parameter->urgent_prio_cmd_num) //在urgent最后一个cmd时，为high准备比较数据
 			{
@@ -319,7 +323,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 		{
 			if ((left_data_high <= cq_cmd_cnt) && (cq_cmd_cnt <= right_data_high))
 			{
-				if (get_prio_order(1) == get_q_prio(cq_entry->sq_identifier))
+				if (get_prio_order(1) == get_q_prio(cq_entry->sq_id))
 				{
 					high_cnt++;
 				}
@@ -330,8 +334,8 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 						left_data_high,
 						right_data_high,
 						cq_cmd_cnt,
-						cq_entry->sq_identifier,
-						get_q_prio(cq_entry->sq_identifier));
+						cq_entry->sq_id,
+						get_q_prio(cq_entry->sq_id));
 				}
 				if (cq_cmd_cnt == right_data_high) //在High最后一个cmd时，为medium准备比较数据
 				{
@@ -354,7 +358,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 			}
 			else if ((left_data_medium <= cq_cmd_cnt) && (cq_cmd_cnt <= right_data_medium))
 			{
-				if (get_prio_order(2) == get_q_prio(cq_entry->sq_identifier))
+				if (get_prio_order(2) == get_q_prio(cq_entry->sq_id))
 				{
 					medium_cnt++;
 				}
@@ -365,8 +369,8 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 						left_data_medium,
 						right_data_medium,
 						cq_cmd_cnt,
-						cq_entry->sq_identifier,
-						get_q_prio(cq_entry->sq_identifier));
+						cq_entry->sq_id,
+						get_q_prio(cq_entry->sq_id));
 				}
 				if (cq_cmd_cnt == right_data_medium) //在medium最后一个cmd时，为low准备比较数据
 				{
@@ -389,7 +393,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 			}
 			else if ((left_data_low <= cq_cmd_cnt) && (cq_cmd_cnt <= right_data_low))
 			{
-				if (get_prio_order(3) == get_q_prio(cq_entry->sq_identifier))
+				if (get_prio_order(3) == get_q_prio(cq_entry->sq_id))
 				{
 					low_cnt++;
 				}
@@ -400,8 +404,8 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 						left_data_low,
 						right_data_low,
 						cq_cmd_cnt,
-						cq_entry->sq_identifier,
-						get_q_prio(cq_entry->sq_identifier));
+						cq_entry->sq_id,
+						get_q_prio(cq_entry->sq_id));
 				}
 				if (cq_cmd_cnt == right_data_low) //在low最后一个cmd时，为high准备比较数据
 				{
@@ -481,7 +485,7 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 	uint16_t cq_id = 0;
 	uint32_t reaped_num = 0;
 
-	struct cq_completion *cq_entry = NULL;
+	struct nvme_completion *cq_entry = NULL;
 	unsigned char *cq_buffer = NULL;
 
 	uint32_t cq_cmd_cnt = 0;
@@ -541,24 +545,26 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 	cq_buffer = buffer_cq_entry;
 	for (cq_cmd_cnt = 1; cq_cmd_cnt <= reaped_num; cq_cmd_cnt++)
 	{
-		cq_entry = (struct cq_completion *)cq_buffer;
-		if (cq_entry->status_field) // status != 0 !!!!! force display
+		cq_entry = (struct nvme_completion *)cq_buffer;
+		if (NVME_CQE_STATUS_TO_STATE(cq_entry->status)) // status != 0 !!!!! force display
 		{
 			pr_warn("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-				cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-				cq_entry->sq_identifier, cq_entry->status_field);
+				cq_entry->command_id, cq_entry->result.u32, 
+				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 			ret_val = -1;
 		}
 		else
 		{
 			pr_info("  Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
-				cq_entry->cmd_identifier, cq_entry->cmd_specifc, cq_entry->phase_bit, cq_entry->sq_head_ptr,
-				cq_entry->sq_identifier, cq_entry->status_field);
+				cq_entry->command_id, cq_entry->result.u32, 
+				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
+				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 		}
-		cq_buffer += sizeof(struct cq_completion);
+		cq_buffer += sizeof(struct nvme_completion);
 		if ((cq_cmd_cnt >= 1) && (cq_cmd_cnt <= arb_parameter->urgent_prio_cmd_num))
 		{
-			if (URGENT_PRIO == get_q_prio(cq_entry->sq_identifier))
+			if (URGENT_PRIO == get_q_prio(cq_entry->sq_id))
 			{
 				urgent_cnt++;
 			}
@@ -567,27 +573,27 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 				urgent_err_cnt++;
 				pr_err("cq_cmd_cnt: %d, prio_urgent_err sq_id:%d, prio:%d\n",
 					cq_cmd_cnt,
-					cq_entry->sq_identifier,
-					get_q_prio(cq_entry->sq_identifier));
+					cq_entry->sq_id,
+					get_q_prio(cq_entry->sq_id));
 			}
 		}
 		else
 		{
-			if (HIGH_PRIO == get_q_prio(cq_entry->sq_identifier))
+			if (HIGH_PRIO == get_q_prio(cq_entry->sq_id))
 			{
 				high_cnt++;
 			}
-			else if (MEDIUM_PRIO == get_q_prio(cq_entry->sq_identifier))
+			else if (MEDIUM_PRIO == get_q_prio(cq_entry->sq_id))
 			{
 				medium_cnt++;
 			}
-			else if (LOW_PRIO == get_q_prio(cq_entry->sq_identifier))
+			else if (LOW_PRIO == get_q_prio(cq_entry->sq_id))
 			{
 				low_cnt++;
 			}
 			else
 			{
-				pr_err("q prio error! id: %d, prio:%d\n", cq_entry->sq_identifier, get_q_prio(cq_entry->sq_identifier));
+				pr_err("q prio error! id: %d, prio:%d\n", cq_entry->sq_id, get_q_prio(cq_entry->sq_id));
 			}
 		}
 	}

@@ -12,6 +12,8 @@
 #ifndef _UAPI_COMPILER_H_
 #define _UAPI_COMPILER_H_
 
+#define __force
+
 #ifndef likely
 #define likely(x)			__builtin_expect(!!(x), 1)
 #endif

@@ -48,7 +48,7 @@ int case_queue_cq_int_coalescing(void)
 
     test_loop = 10;
 
-    // struct cq_completion *cq_entry;
+    // struct nvme_completion *cq_entry;
     // uint32_t reap_num;
     // /**********************************************************************/
     // cq_entry = send_get_feature(file_desc, NVME_FEAT_IRQ_COALESCE);

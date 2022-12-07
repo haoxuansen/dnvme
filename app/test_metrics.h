@@ -188,7 +188,7 @@ int test_create_contig_iocq(int file_desc, uint16_t io_cq_id, uint16_t cq_size);
 int test_create_contig_iosq(int file_desc, uint16_t io_sq_id, uint16_t io_cq_id, uint16_t sq_size);
 int test_reap_cq(int file_desc, int cq_id, uint32_t cmd_cnt, int disp_flag);
 
-struct cq_completion *send_get_feature(int file_desc, uint8_t feature_id);
+struct nvme_completion *send_get_feature(int file_desc, uint8_t feature_id);
 
 int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter);
 int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter);

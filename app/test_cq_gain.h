@@ -25,7 +25,7 @@ struct arbitration_parameter
 extern void *buffer_cq_entry;
 int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reap_num);
 int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , uint32_t disp_cq);
-struct cq_completion *get_cq_entry(void);
+struct nvme_completion *get_cq_entry(void);
 
 int arb_reap_all_cq(struct arbitration_parameter *arb_parameter); //for command_arbitration
 enum nvme_sq_prio get_q_prio(uint16_t x);                        //for command_arbitration in case_command_arbitration.c
