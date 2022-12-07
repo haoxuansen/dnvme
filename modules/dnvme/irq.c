@@ -1341,7 +1341,7 @@ irqreturn_t dnvme_interrupt(int int_vec, void *data)
 
 	/* To resolve contention between ISR's getting fired on different cores */
 	spin_lock(&irq_set->spin_lock);
-	dnvme_vdbg("TH:IRQNO = %d is serviced", wk_node->irq_no);
+	dnvme_vdbg("TH:IRQNO = %d is serviced", wk_node->irq_id);
 	/* Mask the interrupts which was fired till BH */
 	//MengYu add. if tests interrupt, should commit this line
 	dnvme_mask_interrupt(irq_set, wk_node->irq_id);

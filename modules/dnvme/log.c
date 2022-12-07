@@ -52,7 +52,7 @@ static int log_prps(struct nvme_prps *prps, struct file *fp,
 	char *buf = log_buf;
 
 	oft = snprintf(buf, LOG_BUF_SIZE, 
-		"%s prp_persist:\n", log_indent_level(indent));
+		"%s prps:\n", log_indent_level(indent));
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, 
 		"%s nr_pages: %u\n", log_indent_level(indent + 1), prps->nr_pages);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft,
@@ -90,17 +90,18 @@ static int log_cmd_node(struct nvme_cmd *node, int idx,
 
 	oft = snprintf(buf, LOG_BUF_SIZE, "%s cmd_node[%d]:\n", 
 		log_indent_level(indent), idx);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s unique_id: %u\n", 
-		log_indent_level(indent + 1), node->unique_id);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s persist_q_id: %u\n", 
-		log_indent_level(indent + 1), node->persist_q_id);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s sqid: %u\n", 
+		log_indent_level(indent + 1), node->sqid);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s id: %u\n", 
+		log_indent_level(indent + 1), node->id);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s opcode: %u\n", 
 		log_indent_level(indent + 1), node->opcode);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s cmd list:\n", 
-		log_indent_level(indent + 1));
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s target_qid: %u\n", 
+		log_indent_level(indent + 1), node->target_qid);
+
 	__kernel_write(fp, buf, oft, pos);
 
-	log_prps(&node->prp_nonpersist, fp, pos, indent + 1);
+	log_prps(&node->prps, fp, pos, indent + 1);
 
 	return 0;
 }
@@ -147,7 +148,7 @@ static int log_sq(struct nvme_sq *sq, int idx, struct file *fp, loff_t *pos,
 		log_indent_level(indent + 1), sq->priv.contig);
 	__kernel_write(fp, buf, oft, pos);
 
-	log_prps(&sq->priv.prp_persist, fp, pos, indent + 1);
+	log_prps(&sq->priv.prps, fp, pos, indent + 1);
 
 	/* SQ cmd list */
 	oft = snprintf(buf, LOG_BUF_SIZE, "%s cmd_list:\n", 
@@ -206,7 +207,7 @@ static int log_cq(struct nvme_cq *cq, int idx, struct file *fp, loff_t *pos,
 		log_indent_level(indent + 1), cq->priv.bit_mask);
 	__kernel_write(fp, buf, oft, pos);
 
-	log_prps(&cq->priv.prp_persist, fp, pos, indent + 1);
+	log_prps(&cq->priv.prps, fp, pos, indent + 1);
 	return 0;
 }
 

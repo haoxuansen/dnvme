@@ -35,9 +35,9 @@
  * 
  * @return true if cmd uses SGLS, otherwise returns false.
  */
-static bool dnvme_use_sgls(struct nvme_gen_cmd *gcmd, struct nvme_64b_cmd *cmd)
+static bool dnvme_use_sgls(struct nvme_common_command *ccmd, struct nvme_64b_cmd *cmd)
 {
-	if (!(gcmd->flags & NVME_CMD_SGL_ALL))
+	if (!(ccmd->flags & NVME_CMD_SGL_ALL))
 		return false;
 
 	if (!cmd->q_id) /* admin sq won't use sgls */
@@ -98,7 +98,7 @@ out:
 }
 
 static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
+	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	struct scatterlist *sgl;
 	struct page **pages;
@@ -149,8 +149,8 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 	/*
 	 * Kernel needs direct access to all Q memory, so discontiguously backed
 	 */
-	if (cmd->q_id == NVME_AQ_ID && (gcmd->opcode == nvme_admin_create_sq || 
-		gcmd->opcode == nvme_admin_create_cq)) {
+	if (cmd->q_id == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq || 
+		ccmd->opcode == nvme_admin_create_cq)) {
 		/* Note: Not suitable for pages with offsets, but since discontig back'd
         	 *       Q's are required to be page aligned this isn't an issue */
 		buf = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
@@ -231,7 +231,7 @@ static void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *pr
 	}
 }
 
-static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_gen_cmd *gcmd, 
+static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command *ccmd, 
 	struct nvme_prps *prps)
 {
 	struct dma_pool *pool = ndev->priv.prp_page_pool;
@@ -246,7 +246,7 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_gen_cmd *gcmd,
 	int i, j, k;
 
 	if (nr_desc == 1) {
-		dnvme_sgl_set_data(&gcmd->dptr.sgl, prps->sg);
+		dnvme_sgl_set_data(&ccmd->dptr.sgl, prps->sg);
 		return 0;
 	}
 
@@ -276,7 +276,7 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_gen_cmd *gcmd,
 	prps->prp_list = (__le64 **)prp_list;
 	prps->nr_pages = nr_seg;
 	prps->pg_addr = prp_dma;
-	dnvme_sgl_set_seg(&gcmd->dptr.sgl, prp_dma[0], nr_desc);
+	dnvme_sgl_set_seg(&ccmd->dptr.sgl, prp_dma[0], nr_desc);
 
 	for (j = 0, k = 0; nr_desc > 0;) {
 		WARN_ON(j >= nr_seg || !sg); /* sanity check */
@@ -326,7 +326,7 @@ static void dnvme_free_prp_list(struct nvme_device *ndev, struct nvme_prps *prps
 }
 
 static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
-	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
+	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	enum nvme_64b_cmd_mask prp_mask = cmd->bit_mask;
 	enum nvme_64b_cmd_mask flag;
@@ -346,8 +346,8 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	dma_len = sg_dma_len(sg);
 	pg_oft = offset_in_page(dma_addr);
 
-	if (cmd->q_id == NVME_AQ_ID && (gcmd->opcode == nvme_admin_create_sq ||
-		gcmd->opcode == nvme_admin_create_cq)) {
+	if (cmd->q_id == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq ||
+		ccmd->opcode == nvme_admin_create_cq)) {
 
 		if (!(prp_mask & NVME_MASK_PRP1_LIST)) {
 			dnvme_err("cmd mask doesn't support PRP1 list!\n");
@@ -361,7 +361,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		dnvme_err("cmd mask doesn't support PRP1 page!\n");
 		return -EINVAL;
 	}
-	gcmd->dptr.prp1 = cpu_to_le64(dma_addr);
+	ccmd->dptr.prp1 = cpu_to_le64(dma_addr);
 	buf_len -= (PAGE_SIZE - pg_oft);
 	dma_len -= (PAGE_SIZE - pg_oft);
 
@@ -384,7 +384,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 			return -EINVAL;
 		}
 
-		gcmd->dptr.prp2 = cpu_to_le64(dma_addr);
+		ccmd->dptr.prp2 = cpu_to_le64(dma_addr);
 		return 0;
 	}
 
@@ -424,11 +424,11 @@ prp_list:
 	prps->pg_addr = prp_dma;
 
 	if (flag == NVME_MASK_PRP1_LIST) {
-		gcmd->dptr.prp1 = cpu_to_le64(prp_dma[0]);
-		gcmd->dptr.prp2 = 0;
+		ccmd->dptr.prp1 = cpu_to_le64(prp_dma[0]);
+		ccmd->dptr.prp2 = 0;
 	} else if (flag == NVME_MASK_PRP2_LIST) {
 		/* prp1 has configured before */
-		gcmd->dptr.prp2 = cpu_to_le64(prp_dma[0]);
+		ccmd->dptr.prp2 = cpu_to_le64(prp_dma[0]);
 	}
 
 	for (j = 0, k = 0; buf_len > 0;) {
@@ -479,7 +479,7 @@ out:
 }
 
 static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
-	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
+	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	struct nvme_context *ctx = ndev->ctx;
 	struct nvme_sq *sq;
@@ -497,65 +497,66 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 		return -ENOMEM;
 	}
 
-	node->unique_id = gcmd->command_id;
-	node->opcode = gcmd->opcode;
+	node->id = ccmd->command_id;
+	node->opcode = ccmd->opcode;
+	node->sqid = cmd->q_id;
 
 	if (cmd->q_id == NVME_AQ_ID) {
 		struct nvme_create_sq *csq;
 		struct nvme_create_cq *ccq;
 		struct nvme_delete_queue *dq;
 
-		switch (gcmd->opcode) {
+		switch (ccmd->opcode) {
 		case nvme_admin_create_sq:
-			csq = (struct nvme_create_sq *)gcmd;
-			node->persist_q_id = csq->sqid;
+			csq = (struct nvme_create_sq *)ccmd;
+			node->target_qid = csq->sqid;
 			break;
 
 		case nvme_admin_create_cq:
-			ccq = (struct nvme_create_cq *)gcmd;
-			node->persist_q_id = ccq->cqid;
+			ccq = (struct nvme_create_cq *)ccmd;
+			node->target_qid = ccq->cqid;
 			break;
 
 		case nvme_admin_delete_sq:
 		case nvme_admin_delete_cq:
-			dq = (struct nvme_delete_queue *)gcmd;
-			node->persist_q_id = dq->qid;
+			dq = (struct nvme_delete_queue *)ccmd;
+			node->target_qid = dq->qid;
 			break;
 
 		default:
-			node->persist_q_id = 0;
+			node->target_qid = 0;
 		}
 	} else {
-		node->persist_q_id = 0;
+		node->target_qid = 0;
 	}
 
 	/*
 	 *   If cmd is create or delete SQ/CQ, nvme_prps will be copied to
 	 * nvme_sq or nvme_cq. Otherwise, nvme_prps is belong to cmd node.
 	 */
-	if (!node->persist_q_id)
-		memcpy(&node->prp_nonpersist, prps, sizeof(struct nvme_prps));
+	if (!node->target_qid)
+		memcpy(&node->prps, prps, sizeof(struct nvme_prps));
 
 	list_add_tail(&node->entry, &sq->priv.cmd_list);
 	return 0;
 }
 
 static int dnvme_data_buf_to_sgl(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
+	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	int ret;
 
 	dnvme_dbg("CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
 
-	ret = dnvme_map_user_page(ndev, cmd, gcmd, prps);
+	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
 		return ret;
 
-	ret = dnvme_setup_sgl(ndev, gcmd, prps);
+	ret = dnvme_setup_sgl(ndev, ccmd, prps);
 	if (ret < 0)
 		goto out;
 
-	ret = dnvme_add_cmd_node(ndev, cmd, gcmd, prps);
+	ret = dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
 	if (ret < 0)
 		goto out2;
 
@@ -568,21 +569,21 @@ out:
 }
 
 static int dnvme_data_buf_to_prp(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
+	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	int ret;
 
 	dnvme_dbg("CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
 
-	ret = dnvme_map_user_page(ndev, cmd, gcmd, prps);
+	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
 		return ret;
 	
-	ret = dnvme_setup_prps(ndev, cmd, gcmd, prps);
+	ret = dnvme_setup_prps(ndev, cmd, ccmd, prps);
 	if (ret < 0)
 		goto out;
 
-	ret = dnvme_add_cmd_node(ndev, cmd, gcmd, prps);
+	ret = dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
 	if (ret < 0)
 		goto out2;
 
@@ -595,13 +596,13 @@ out:
 }
 
 static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
-	struct nvme_gen_cmd *gcmd, struct nvme_prps *prps)
+	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	bool need_prp = false;
 	int ret;
 
 	if (cmd->q_id == NVME_AQ_ID) {
-		switch (gcmd->opcode) {
+		switch (ccmd->opcode) {
 		case nvme_admin_create_sq:
 		case nvme_admin_create_cq:
 			if (cmd->data_buf_ptr) /* discontig */
@@ -622,16 +623,16 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *
 	}
 
 	if (!need_prp)
-		return dnvme_add_cmd_node(ndev, cmd, gcmd, prps);
+		return dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
 
-	if (dnvme_use_sgls(gcmd, cmd)) {
-		ret = dnvme_data_buf_to_sgl(ndev, cmd, gcmd, prps);
+	if (dnvme_use_sgls(ccmd, cmd)) {
+		ret = dnvme_data_buf_to_sgl(ndev, cmd, ccmd, prps);
 		if (ret < 0) {
 			dnvme_err("data buffer to SGL err!(%d)\n", ret);
 			return ret;
 		}
 	} else {
-		ret = dnvme_data_buf_to_prp(ndev, cmd, gcmd, prps);
+		ret = dnvme_data_buf_to_prp(ndev, cmd, ccmd, prps);
 		if (ret < 0) {
 			dnvme_err("data buffer to PRP err!(%d)\n", ret);
 			return ret;
@@ -660,17 +661,17 @@ void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 
 	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
 		cmd = list_entry(pos, struct nvme_cmd, entry);
-		dnvme_release_prps(ndev, &cmd->prp_nonpersist);
+		dnvme_release_prps(ndev, &cmd->prps);
 		list_del(pos);
 		kfree(cmd);
 	}
 }
 
 static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd)
+	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_create_sq *csq = (struct nvme_create_sq *)gcmd;
+	struct nvme_create_sq *csq = (struct nvme_create_sq *)ccmd;
 	struct nvme_sq *wait_sq;
 	struct nvme_prps prps;
 	int ret;
@@ -699,26 +700,26 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	}
 	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
 		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 
 	if (wait_sq->priv.contig) {
-		gcmd->dptr.prp1 = cpu_to_le64(wait_sq->priv.dma);
-		gcmd->dptr.prp2 = 0;
+		ccmd->dptr.prp1 = cpu_to_le64(wait_sq->priv.dma);
+		ccmd->dptr.prp2 = 0;
 	}
 
 	/* Fill the persistent entry structure */
-	memcpy(&wait_sq->priv.prp_persist, &prps, sizeof(prps));
+	memcpy(&wait_sq->priv.prps, &prps, sizeof(prps));
 
 	wait_sq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
 	return 0;
 }
 
 static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd)
+	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_prps prps;
@@ -726,7 +727,7 @@ static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
 		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -736,12 +737,12 @@ static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 }
 
 static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd)
+	struct nvme_common_command *ccmd)
 {
 	struct nvme_cq *wait_cq;
 	struct nvme_prps prps;
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_create_cq *ccq = (struct nvme_create_cq *)gcmd;
+	struct nvme_create_cq *ccq = (struct nvme_create_cq *)ccmd;
 	int ret;
 
 	wait_cq = dnvme_find_cq(ctx, ccq->cqid);
@@ -776,26 +777,26 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	}
 	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
 		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 
 	if (wait_cq->priv.contig) {
-		gcmd->dptr.prp1 = cpu_to_le64(wait_cq->priv.dma);
-		gcmd->dptr.prp2 = 0;
+		ccmd->dptr.prp1 = cpu_to_le64(wait_cq->priv.dma);
+		ccmd->dptr.prp2 = 0;
 	}
 
 	/* Fill the persistent entry structure */
-	memcpy(&wait_cq->priv.prp_persist, &prps, sizeof(prps));
+	memcpy(&wait_cq->priv.prps, &prps, sizeof(prps));
 
 	wait_cq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
 	return 0;
 }
 
 static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd)
+	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_prps prps;
@@ -803,7 +804,7 @@ static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
 		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -812,7 +813,7 @@ static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 }
 
 static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
-	struct nvme_gen_cmd *gcmd)
+	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_prps prps;
@@ -820,7 +821,7 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, gcmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
 		dnvme_err("failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -833,7 +834,7 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
 {
 	struct nvme_sq *sq;
 	struct nvme_64b_cmd cmd;
-	struct nvme_gen_cmd *gcmd;
+	struct nvme_common_command *ccmd;
 	struct nvme_meta *meta;
 	struct pci_dev *pdev = ctx->dev->priv.pdev;
 	void *cmd_buf;
@@ -879,10 +880,10 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
 		goto out;
 	}
 
-	gcmd = (struct nvme_gen_cmd *)cmd_buf;
+	ccmd = (struct nvme_common_command *)cmd_buf;
 
 	cmd.unique_id = sq->priv.unique_cmd_id++;
-	gcmd->command_id = cmd.unique_id;
+	ccmd->command_id = cmd.unique_id;
 
 	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
 		dnvme_err("failed to copy to user space!\n");
@@ -898,59 +899,59 @@ int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucm
 			goto out;
 		}
 		/* Add the required information to the command */
-		gcmd->metadata = cpu_to_le64(meta->dma);
+		ccmd->metadata = cpu_to_le64(meta->dma);
 	}
 
 	if (cmd.q_id == NVME_AQ_ID) {
-		switch (gcmd->opcode) {
+		switch (ccmd->opcode) {
 		case nvme_admin_delete_sq:
-			ret = dnvme_delete_iosq(ctx, &cmd, gcmd);
+			ret = dnvme_delete_iosq(ctx, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		case nvme_admin_create_sq:
-			ret = dnvme_create_iosq(ctx, &cmd, gcmd);
+			ret = dnvme_create_iosq(ctx, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		case nvme_admin_delete_cq:
-			ret = dnvme_delete_iocq(ctx, &cmd, gcmd);
+			ret = dnvme_delete_iocq(ctx, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		case nvme_admin_create_cq:
-			ret = dnvme_create_iocq(ctx, &cmd, gcmd);
+			ret = dnvme_create_iocq(ctx, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		default:
-			ret = dnvme_deal_ccmd(ctx, &cmd, gcmd);
+			ret = dnvme_deal_ccmd(ctx, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 		}
 	} else {
-		ret = dnvme_deal_ccmd(ctx, &cmd, gcmd);
+		ret = dnvme_deal_ccmd(ctx, &cmd, ccmd);
 		if (ret < 0)
 			goto out2;
 	}
-	dnvme_print_ccmd((struct nvme_common_command *)gcmd);
+	dnvme_print_ccmd(ccmd);
 
 	/* Copying the command in to appropriate SQ and handling sync issues */
 	if (sq->priv.contig) {
 		memcpy((sq->priv.buf + 
 			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
-			gcmd, 1 << sq->pub.sqes);
+			ccmd, 1 << sq->pub.sqes);
 	} else {
-		memcpy((sq->priv.prp_persist.buf + 
+		memcpy((sq->priv.prps.buf + 
 			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
-			gcmd, 1 << sq->pub.sqes);
-		dma_sync_sg_for_device(&pdev->dev, sq->priv.prp_persist.sg, 
-			sq->priv.prp_persist.num_map_pgs, sq->priv.prp_persist.data_dir);
+			ccmd, 1 << sq->pub.sqes);
+		dma_sync_sg_for_device(&pdev->dev, sq->priv.prps.sg, 
+			sq->priv.prps.num_map_pgs, sq->priv.prps.data_dir);
 	}
 
 	/* Increment the Tail pointer and handle roll over conditions */

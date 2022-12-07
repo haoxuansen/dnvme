@@ -50,7 +50,7 @@ int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
 {
 
     int ret_val = FAILED;
-    struct nvme_del_q del_q_cmd = {
+    struct nvme_delete_queue del_q_cmd = {
         .opcode = opcode,
         .qid = qid,
         .rsvd1[0] = 0x00,

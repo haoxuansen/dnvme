@@ -280,34 +280,6 @@ struct nvme_reap {
 };
 
 /**
- * Format of general purpose nvme command DW0-DW9
- */
-struct nvme_gen_cmd {
-	uint8_t  opcode;
-	uint8_t  flags;
-	uint16_t command_id;
-	uint32_t nsid;
-	uint64_t rsvd2;
-	uint64_t metadata;
-	// uint64_t prp1;
-	// uint64_t prp2;
-	union nvme_data_ptr dptr;
-};
-
-/**
- * Specific structure for Delete Q command
- */
-struct nvme_del_q {
-	uint8_t  opcode;
-	uint8_t  flags;
-	uint16_t command_id;
-	uint32_t rsvd1[9];
-	uint16_t qid;
-	uint16_t rsvd10;
-	uint32_t rsvd11[5];
-};
-
-/**
  * @name: The file name includes its path information.
  * @len: The length of file name (in bytes).
  */

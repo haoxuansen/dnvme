@@ -84,26 +84,36 @@ struct nvme_cq_private {
 	u32 __iomem	*dbs; /* Door Bell stride  */
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
-#define NVME_QF_WAIT_FOR_CREATE         0x01
+#define NVME_QF_WAIT_FOR_CREATE         (1 << 0)
 
-	struct nvme_prps	prp_persist; /* PRP element in CQ */
+	struct nvme_prps	prps; /* PRP element in CQ */
 };
 
-/*
- *    Structure definition for tracking the commands.
+/**
+ * @brief Snapshot of the command sent by user.
+ * 
+ * @id: Command identifier is assigned by driver.
+ * @sqid: Specify the SQ to process the command.
+ * @target_qid: Target queue ID used for Create/Delete Q's, never == 0
+ * @opcode: Command operation code specified in NVMe specification
+ * @entry: @nvme_cmd is managed by @nvme_sq
+ * @prps: see @nvme_prps for details
  */
 struct nvme_cmd {
-	u16	unique_id;      /* driver assigned unique id for a particular cmd */
-	u16	persist_q_id;   /* target Q ID used for Create/Delete Q's, never == 0 */
-	u8	opcode;         /* command opcode as per spec */
-	struct list_head	entry; /* link-list using the kernel list */
-	struct nvme_prps	prp_nonpersist; /* Non persistent PRP entries */
+	u16	id;
+	u16	sqid;
+	u16	target_qid;
+	u8	opcode;
+	struct list_head	entry;
+	struct nvme_prps	prps;
 };
 
 /**
  * @brief NVMe SQ private information
  * 
- * @bit_mask: see struct nvme_cq_private bit_mask field for details.
+ * @bit_mask: see "struct nvme_cq_private" bit_mask field for details.
+ * @prps: see "struct nvme_prps" for details.
+ * @cmd_list: This is a list head for managing "struct nvme_cmd"
  */
 struct nvme_sq_private {
 	void		*buf; /* virtual kernal address using kmalloc */
@@ -113,8 +123,8 @@ struct nvme_sq_private {
 	u16		unique_cmd_id; /* unique counter for each comand in SQ */
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
-	struct nvme_prps	prp_persist; /* PRP element in CQ */
-	struct list_head	cmd_list; /* link-list head for nvme_cmd list */
+	struct nvme_prps	prps;
+	struct list_head	cmd_list;
 };
 
 /*

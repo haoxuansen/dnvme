@@ -110,7 +110,7 @@ struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
 	struct nvme_cmd *cmd;
 
 	list_for_each_entry(cmd, &sq->priv.cmd_list, entry) {
-		if (id == cmd->unique_id)
+		if (id == cmd->id)
 			return cmd;
 	}
 	return NULL;
@@ -219,7 +219,7 @@ void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
 		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
 			sq->priv.dma);
 	} else {
-		dnvme_release_prps(ndev, &sq->priv.prp_persist);
+		dnvme_release_prps(ndev, &sq->priv.prps);
 	}
 
 	list_del(&sq->sq_entry);
@@ -305,7 +305,7 @@ void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *cq)
 		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
 			cq->priv.dma);
 	} else {
-		dnvme_release_prps(ndev, &cq->priv.prp_persist);
+		dnvme_release_prps(ndev, &cq->priv.prps);
 	}
 
 	list_del(&cq->cq_entry);
@@ -522,7 +522,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
  */
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 {
-	struct nvme_prps *prps = &cq->priv.prp_persist;
+	struct nvme_prps *prps = &cq->priv.prps;
 	struct cq_completion *entry;
 	void *cq_addr;
 	u32 remain = 0;
@@ -533,7 +533,7 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 	} else {
 		dma_sync_sg_for_cpu(dev, prps->sg, prps->num_map_pgs, 
 			prps->data_dir);
-		cq_addr = cq->priv.prp_persist.buf;
+		cq_addr = cq->priv.prps.buf;
 	}
 
 	/* Start from head ptr and update till phase bit incorrect */
@@ -624,22 +624,22 @@ static int handle_queue_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	struct nvme_context *ctx = sq->ctx;
 	int ret = 0;
 
-	dnvme_vdbg("Queue:%u, CMD:%u, Free:%s\n", cmd->persist_q_id,
-		cmd->unique_id, free_queue ? "true" : "faile");
+	dnvme_vdbg("Queue:%u, CMD:%u, Free:%s\n", cmd->target_qid,
+		cmd->id, free_queue ? "true" : "false");
 
 	if (!free_queue)
 		goto del_cmd;
 
-	if (cmd->persist_q_id == NVME_AQ_ID) {
+	if (cmd->target_qid == NVME_AQ_ID) {
 		dnvme_err("Trying to delete Admin Queue is blunder!\n");
 		ret = -EINVAL;
 		goto del_cmd;
 	}
 
 	if (type == NVME_CQ) {
-		dnvme_delete_cq(ctx, cmd->persist_q_id);
+		dnvme_delete_cq(ctx, cmd->target_qid);
 	} else if (type == NVME_SQ) {
-		dnvme_delete_sq(ctx, cmd->persist_q_id);
+		dnvme_delete_sq(ctx, cmd->target_qid);
 	}
 
 del_cmd:
@@ -652,7 +652,7 @@ del_cmd:
  */
 static int handle_gen_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *node)
 {
-	dnvme_release_prps(sq->ctx->dev, &node->prp_nonpersist);
+	dnvme_release_prps(sq->ctx->dev, &node->prps);
 	dnvme_delete_cmd(node);
 	return 0;
 }
@@ -740,7 +740,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 	if (cq->priv.contig)
 		cq_base = cq->priv.buf;
 	else
-		cq_base = cq->priv.prp_persist.buf;
+		cq_base = cq->priv.prps.buf;
 
 	cq_head = cq_base + ((u32)cq->pub.head_ptr << cq->pub.cqes);
 
