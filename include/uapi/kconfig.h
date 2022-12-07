@@ -12,7 +12,7 @@
 #ifndef _UAPI_KCONFIG_H_
 #define _UAPI_KCONFIG_H_
 
-// #include "generated/autoconf.h"
+#include "autoconf.h"
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 #define __BIG_ENDIAN 4321

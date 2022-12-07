@@ -1,0 +1,37 @@
+menuconfig DNVME
+	bool "DNVME Support"
+	default y
+	help
+	  Say Y here to compile dnvme modules.
+
+if DNVME
+
+config DNVME_CMB
+	bool "Support Controller Memory Buffer"
+	help
+	  Say Y here to support controller memory buffer operation.
+
+config DNVME_FLUSH_REG_WRITE
+	bool "Flush Register Write"
+	help
+	  Say Y here if it is necessary to make the written register value
+	  effective through read back. 
+
+comment "DNVME Debug Options"
+
+config DNVME_DEBUG
+	bool "Enable Debugging Message"
+	help
+	  Say Y here to enable debugging messages in dnvme driver.
+
+config DNVME_CHECK_MUTEX_LOCK
+	bool "Check Mutex Lock"
+	help
+	  Say Y here to check whether mutex locking and unlocking positions
+	  are reasonable.
+
+	  If the state of mutex possession is unreasonable, the 
+	  corresponding error or warning message will be generated.
+
+endif # DNVME
+
