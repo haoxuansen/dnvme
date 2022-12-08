@@ -35,11 +35,11 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static dword_t sub_case_pre(void);
-static dword_t sub_case_end(void);
+static uint32_t sub_case_pre(void);
+static uint32_t sub_case_end(void);
 
-static dword_t sub_case_disable_volatile_wc(void);
-static dword_t sub_case_enable_volatile_wc(void);
+static uint32_t sub_case_disable_volatile_wc(void);
+static uint32_t sub_case_enable_volatile_wc(void);
 
 static SubCaseHeader_t sub_case_header = {
     "test_3_adm_wr_cache_fua",
@@ -81,7 +81,7 @@ int test_3_adm_wr_cache_fua(void)
     return test_flag;
 }
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -92,7 +92,7 @@ static dword_t sub_case_pre(void)
     return test_flag;
 }
 
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
@@ -100,12 +100,12 @@ static dword_t sub_case_end(void)
     return test_flag;
 }
 
-static dword_t sub_case_disable_volatile_wc(void)
+static uint32_t sub_case_disable_volatile_wc(void)
 {
-    test_flag |= nvme_set_feature_cmd(file_desc, 1, NVME_FEAT_VOLATILE_WC, FALSE, 0);
+    test_flag |= nvme_set_feature_cmd(file_desc, 1, NVME_FEAT_VOLATILE_WC, false, 0);
     if (test_flag == FAILED)
         return test_flag;
-    pr_info("NVME_FEAT_VOLATILE_WC:%d\n", FALSE);
+    pr_info("NVME_FEAT_VOLATILE_WC:%d\n", false);
     test_flag |= nvme_admin_ring_dbl_reap_cq(file_desc);
     wr_nsid = 1;
     mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
@@ -128,12 +128,12 @@ static dword_t sub_case_disable_volatile_wc(void)
     return test_flag;
 }
 
-static dword_t sub_case_enable_volatile_wc(void)
+static uint32_t sub_case_enable_volatile_wc(void)
 {
-    test_flag |= nvme_set_feature_cmd(file_desc, 1, NVME_FEAT_VOLATILE_WC, TRUE, 0);
+    test_flag |= nvme_set_feature_cmd(file_desc, 1, NVME_FEAT_VOLATILE_WC, true, 0);
     if (test_flag == FAILED)
         return test_flag;
-    pr_info("NVME_FEAT_VOLATILE_WC:%d\n", TRUE);
+    pr_info("NVME_FEAT_VOLATILE_WC:%d\n", true);
     test_flag |= nvme_admin_ring_dbl_reap_cq(file_desc);
     wr_nsid = 1;
     mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));

@@ -26,14 +26,14 @@ static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 static uint32_t send_num = 0;
 
-static dword_t sub_case_pre(void);
-static dword_t sub_case_end(void);
+static uint32_t sub_case_pre(void);
+static uint32_t sub_case_end(void);
 
-static dword_t sub_case_abort_1_wrd_cmd(void);
-static dword_t sub_case_random_abort_1_wrd_cmd(void);
-static dword_t sub_case_abort_2_wrd_cmd(void);
-static dword_t sub_case_abort_3_wrd_cmd(void);
-static dword_t sub_case_abort_4_wrd_cmd(void);
+static uint32_t sub_case_abort_1_wrd_cmd(void);
+static uint32_t sub_case_random_abort_1_wrd_cmd(void);
+static uint32_t sub_case_abort_2_wrd_cmd(void);
+static uint32_t sub_case_abort_3_wrd_cmd(void);
+static uint32_t sub_case_abort_4_wrd_cmd(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_queue_abort",
@@ -76,7 +76,7 @@ int case_queue_abort(void)
     return test_flag;
 }
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -86,7 +86,7 @@ static dword_t sub_case_pre(void)
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
@@ -94,7 +94,7 @@ static dword_t sub_case_end(void)
     return test_flag;
 }
 
-static dword_t sub_case_abort_1_wrd_cmd(void)
+static uint32_t sub_case_abort_1_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -115,12 +115,12 @@ static dword_t sub_case_abort_1_wrd_cmd(void)
     return test_flag;
 }
 
-static dword_t sub_case_random_abort_1_wrd_cmd(void)
+static uint32_t sub_case_random_abort_1_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
     cmd_cnt = 0;
-    for (dword_t index = 0; index < 20; index++)
+    for (uint32_t index = 0; index < 20; index++)
     {
         test_flag |= nvme_send_iocmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
         cmd_cnt++;
@@ -140,13 +140,13 @@ static dword_t sub_case_random_abort_1_wrd_cmd(void)
     return test_flag;
 }
 
-static dword_t sub_case_abort_2_wrd_cmd(void)
+static uint32_t sub_case_abort_2_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
     cmd_cnt = 0;
     send_num = ((WORD_RAND() % 300) + 100);
-    for (dword_t index = 0; index < send_num; index++)
+    for (uint32_t index = 0; index < send_num; index++)
     {
         test_flag |= nvme_send_iocmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
         cmd_cnt++;
@@ -166,20 +166,20 @@ static dword_t sub_case_abort_2_wrd_cmd(void)
     return test_flag;
 }
 
-static dword_t sub_case_abort_3_wrd_cmd(void)
+static uint32_t sub_case_abort_3_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
     cmd_cnt = 0;
     send_num = ((WORD_RAND() % 300) + 100);
-    for (dword_t index = 0; index < send_num; index++)
+    for (uint32_t index = 0; index < send_num; index++)
     {
         test_flag |= nvme_send_iocmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
         cmd_cnt++;
     }
     // send abort cmd
     send_num = ((send_num) / 10) * 9;
-    for (dword_t index = send_num; index < send_num + 3; index++)
+    for (uint32_t index = send_num; index < send_num + 3; index++)
     {
         ioctl_send_abort(file_desc, io_sq_id, index);
     }
@@ -194,20 +194,20 @@ static dword_t sub_case_abort_3_wrd_cmd(void)
     return test_flag;
 }
 
-static dword_t sub_case_abort_4_wrd_cmd(void)
+static uint32_t sub_case_abort_4_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
     cmd_cnt = 0;
     send_num = ((WORD_RAND() % 300) + 100);
-    for (dword_t index = 0; index < send_num; index++)
+    for (uint32_t index = 0; index < send_num; index++)
     {
         test_flag |= nvme_send_iocmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
         cmd_cnt++;
     }
     // send abort cmd
     send_num = ((send_num) / 10) * 9;
-    for (dword_t index = send_num; index < send_num + 4; index++)
+    for (uint32_t index = send_num; index < send_num + 4; index++)
     {
         ioctl_send_abort(file_desc, io_sq_id, index);
     }

@@ -90,7 +90,7 @@ int identify_control(int file_desc, void *addr)
  */
 int identify_ns(int file_desc, uint32_t nsid, void *addr)
 {
-	int ret_val = nvme_idfy_ns(file_desc, nsid, FALSE, addr);
+	int ret_val = nvme_idfy_ns(file_desc, nsid, false, addr);
 	if (ret_val != SUCCEED)
 	{
 		pr_err("[E]nvme_idfy_ns\n");
@@ -105,11 +105,11 @@ int identify_ns(int file_desc, uint32_t nsid, void *addr)
  */
 void random_sq_cq_info(void)
 {
-	dword_t num = 0;
+	uint32_t num = 0;
 	struct nvme_sq_info temp;
-	dword_t cnt = g_nvme_dev.max_sq_num;
-	srand((dword_t)time(NULL));
-	for (dword_t i = 0; i < (cnt - 1); i++)
+	uint32_t cnt = g_nvme_dev.max_sq_num;
+	srand((uint32_t)time(NULL));
+	for (uint32_t i = 0; i < (cnt - 1); i++)
 	{
 		num = i + rand() % (cnt - i);
 		temp.cq_id = ctrl_sq_info[i].cq_id;
@@ -123,7 +123,7 @@ void random_sq_cq_info(void)
 
 		// pr_info("random_map:sq_id:%#x, cq_id:%#x, cq_vct:%#x\n", ctrl_sq_info[i].sq_id, ctrl_sq_info[i].cq_id, ctrl_sq_info[i].cq_int_vct);
 	}
-	for (dword_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
+	for (uint32_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
 	{
 		ctrl_sq_info[i - 1].sq_size = rand() % (g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes - 512) + 512;
 		ctrl_sq_info[i - 1].cq_size = rand() % (g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes - 512) + 512;
@@ -166,7 +166,7 @@ void test_init(int file_desc)
 	{
 		pr_err("Malloc Failed\n");
 	}
-	for (dword_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
+	for (uint32_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
 	{
 		ctrl_sq_info[i - 1].sq_id = i;
 		ctrl_sq_info[i - 1].cq_id = i;
@@ -258,7 +258,7 @@ void test_init(int file_desc)
 	{
 		pr_err("[E] read ctrlr register ret_val:%d!\n", ret_val);
 	}
-	for (dword_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
+	for (uint32_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
 	{
 		ctrl_sq_info[i - 1].sq_size = WORD_RAND() % (g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes - 512) + 512;
 		ctrl_sq_info[i - 1].cq_size = WORD_RAND() % (g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes - 512) + 512;

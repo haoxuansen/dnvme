@@ -118,10 +118,10 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static dword_t sub_case_nvme_reg_normal(void);
-static dword_t sub_case_pcie_reg_normal(void);
-static dword_t sub_case_iocmd_nvme_reg(void);
-static dword_t sub_case_iocmd_nvme_reg_normal(void);
+static uint32_t sub_case_nvme_reg_normal(void);
+static uint32_t sub_case_pcie_reg_normal(void);
+static uint32_t sub_case_iocmd_nvme_reg(void);
+static uint32_t sub_case_iocmd_nvme_reg_normal(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_register_test",
@@ -139,11 +139,11 @@ static SubCase_t sub_case_list[] = {
 
 void scan_control_reister(void)
 {
-    for (dword_t i = 0; i < ARRAY_SIZE(nvme_ctrl_reg); i++)
+    for (uint32_t i = 0; i < ARRAY_SIZE(nvme_ctrl_reg); i++)
     {
         nvme_ctrl_reg[i].def_val = ioctl_read_data(file_desc, nvme_ctrl_reg[i].addr, 4);
     }
-    for (dword_t i = 0; i < ARRAY_SIZE(pcie_ids_reg); i++)
+    for (uint32_t i = 0; i < ARRAY_SIZE(pcie_ids_reg); i++)
     {
         pcie_ids_reg[i].def_val = pci_read_dword(file_desc, pcie_ids_reg[i].addr);
     }
@@ -169,7 +169,7 @@ int case_register_test(void)
     return test_flag;
 }
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -181,7 +181,7 @@ static dword_t sub_case_pre(void)
     return test_flag;
 }
 
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
@@ -189,7 +189,7 @@ static dword_t sub_case_end(void)
     return test_flag;
 }
 
-static dword_t sub_case_nvme_reg_normal(void)
+static uint32_t sub_case_nvme_reg_normal(void)
 {
     uint32_t u32_tmp_data = 0, rand_data = 0;
     uint32_t i = 0;
@@ -237,7 +237,7 @@ static dword_t sub_case_nvme_reg_normal(void)
     return test_flag;
 }
 
-static dword_t sub_case_pcie_reg_normal(void)
+static uint32_t sub_case_pcie_reg_normal(void)
 {
     uint32_t u32_tmp_data = 0, rand_data = 0;
     uint32_t i = 0;
@@ -284,7 +284,7 @@ static dword_t sub_case_pcie_reg_normal(void)
     return test_flag;
 }
 
-static dword_t sub_case_iocmd_nvme_reg(void)
+static uint32_t sub_case_iocmd_nvme_reg(void)
 {
     // if(strstr(g_nvme_dev.id_ctrl.mn, "Cougar"))
     // {
@@ -361,7 +361,7 @@ out:
     return test_flag;
 }
 
-static dword_t sub_case_iocmd_nvme_reg_normal(void)
+static uint32_t sub_case_iocmd_nvme_reg_normal(void)
 {
     //for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {

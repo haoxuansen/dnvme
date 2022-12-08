@@ -179,8 +179,8 @@ int main(int argc, char *argv[])
     // memset(write_buffer, 0x55, RW_BUFFER_SIZE);
     for (i = 0; i < RW_BUFFER_SIZE; i += 4)
     {
-        // *((dword_t *)(write_buffer + i)) = DWORD_RAND();
-        *((dword_t *)(write_buffer + i)) = i;
+        // *((uint32_t *)(write_buffer + i)) = DWORD_RAND();
+        *((uint32_t *)(write_buffer + i)) = i;
     }
     memset(&g_nvme_dev, 0xff, sizeof(struct nvme_ctrl));
 
@@ -248,10 +248,10 @@ int main(int argc, char *argv[])
             break;
         case 6:
             pr_info("\nTest: Sending IO Write Command through sq_id %d\n", io_sq_id);
-            for (dword_t i = 0; i < RW_BUFFER_SIZE / 4; i += 4)
+            for (uint32_t i = 0; i < RW_BUFFER_SIZE / 4; i += 4)
             {
                 // *(char *)(write_buffer + i) = BYTE_RAND();
-                *(dword_t *)(write_buffer + i) = i;
+                *(uint32_t *)(write_buffer + i) = i;
             }
 
             ret = FAILED;

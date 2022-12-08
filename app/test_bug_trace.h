@@ -10,8 +10,8 @@
  */
 
 
-dword_t iocmd_cstc_rdy_test(void);
-dword_t reg_bug_trace(void);
+uint32_t iocmd_cstc_rdy_test(void);
+uint32_t reg_bug_trace(void);
 
 
 

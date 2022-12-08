@@ -37,12 +37,12 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static dword_t sub_case_pre(void);
-static dword_t sub_case_end(void);
+static uint32_t sub_case_pre(void);
+static uint32_t sub_case_end(void);
 
-static dword_t sub_case_write_read_compare(void);
-static dword_t sub_case_fua_write_read_compare(void);
-static dword_t sub_case_write_read_fua_compare(void);
+static uint32_t sub_case_write_read_compare(void);
+static uint32_t sub_case_fua_write_read_compare(void);
+static uint32_t sub_case_write_read_fua_compare(void);
 
 static SubCaseHeader_t sub_case_header = {
     "test_5_fua_wr_rd_cmp",
@@ -87,7 +87,7 @@ int test_5_fua_wr_rd_cmp(void)
     return test_flag;
 }
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -97,7 +97,7 @@ static dword_t sub_case_pre(void)
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
@@ -105,7 +105,7 @@ static dword_t sub_case_end(void)
     return test_flag;
 }
 
-static dword_t sub_case_write_read_compare(void)
+static uint32_t sub_case_write_read_compare(void)
 {
     for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / g_wr_nlb)); i++)
     {
@@ -147,7 +147,7 @@ static dword_t sub_case_write_read_compare(void)
     return test_flag;
 }
 
-static dword_t sub_case_fua_write_read_compare(void)
+static uint32_t sub_case_fua_write_read_compare(void)
 {
     for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / g_wr_nlb)); i++)
     {
@@ -186,7 +186,7 @@ static dword_t sub_case_fua_write_read_compare(void)
     return test_flag;
 }
 
-static dword_t sub_case_write_read_fua_compare(void)
+static uint32_t sub_case_write_read_fua_compare(void)
 {
     for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / g_wr_nlb)); i++)
     {

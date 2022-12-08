@@ -19,8 +19,8 @@ static int test_flag = SUCCEED;
 static uint32_t test_loop = 0;
 static void *boot_buffer;
 
-static dword_t rd_wr_boot_part_ccen_0(void);
-static dword_t rd_wr_boot_part_ccen_1(void);
+static uint32_t rd_wr_boot_part_ccen_0(void);
+static uint32_t rd_wr_boot_part_ccen_1(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_nvme_boot_partition",
@@ -191,7 +191,7 @@ int writeing_boot_partition(void)
     memset((void *)boot_buffer, BYTE_RAND(), 128 * 1024);
     pr_color(LOG_COLOR_GREEN, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
 
-    if (SUCCEED == nvme_firmware_download(file_desc, (128 * 1024 / 4) - 1, 0, (byte_t *)boot_buffer))
+    if (SUCCEED == nvme_firmware_download(file_desc, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
     {
         ioctl_tst_ring_dbl(file_desc, 0);
         cq_gain(0, 1, &reap_num);
@@ -217,7 +217,7 @@ int writeing_boot_partition(void)
     return test_flag;
 }
 
-static dword_t rd_wr_boot_part_ccen_0(void)
+static uint32_t rd_wr_boot_part_ccen_0(void)
 {
     int ret_val;
     uint32_t u32_tmp_data = 0;
@@ -256,7 +256,7 @@ skip_out:
     return test_flag;
 }
 
-static dword_t rd_wr_boot_part_ccen_1(void)
+static uint32_t rd_wr_boot_part_ccen_1(void)
 {
     int ret_val;
     uint32_t u32_tmp_data = 0;

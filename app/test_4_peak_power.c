@@ -38,7 +38,7 @@ static struct timeval curr_time;
 static uint64_t perf_ms = 0;
 static uint64_t perf_speed = 0;
 
-static byte_t test_sub(void);
+static uint8_t test_sub(void);
 int test_4_peak_power(void)
 {
     uint32_t round_idx = 0;
@@ -65,7 +65,7 @@ int test_4_peak_power(void)
     return test_flag;
 }
 
-static byte_t test_sub(void)
+static uint8_t test_sub(void)
 {
     uint32_t index = 0;
     uint32_t cmd_cnt = 0;

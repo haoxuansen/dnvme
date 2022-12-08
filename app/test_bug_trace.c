@@ -37,7 +37,7 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
@@ -46,7 +46,7 @@ static dword_t sub_case_pre(void)
     return test_flag;
 }
 
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
@@ -57,11 +57,11 @@ static dword_t sub_case_end(void)
 /**
  * @brief tests iocmd read csts.rdy will hang at pcie gen1/gen2
  * 
- * @return dword_t 
+ * @return uint32_t 
  */
-dword_t iocmd_cstc_rdy_test(void)
+uint32_t iocmd_cstc_rdy_test(void)
 {
-    dword_t loop;
+    uint32_t loop;
     cq_size = sq_size = 1024;
     io_sq_id = io_cq_id = 1;
     wr_nsid = 1;
@@ -74,7 +74,7 @@ dword_t iocmd_cstc_rdy_test(void)
     fflush(stdout);
     scanf("%d", &loop);
     sub_case_pre();
-    for (dword_t cnt = 0; cnt < loop; cnt++)
+    for (uint32_t cnt = 0; cnt < loop; cnt++)
     {
         if (cnt % 100 == 0)
             pr_info("cnt:%d %d%%\n\r", cnt, cnt * 100 / loop);
@@ -106,13 +106,13 @@ dword_t iocmd_cstc_rdy_test(void)
 /**
  * @brief test for device's dbl will error bug
  * 
- * @return dword_t 
+ * @return uint32_t 
  */
-dword_t reg_bug_trace(void)
+uint32_t reg_bug_trace(void)
 {
     pr_color(LOG_COLOR_RED, "tests device's dbl will error bug \r\n");
 
-    dword_t u32_tmp_data = ioctl_read_data(file_desc, 0x1620, 4);
+    uint32_t u32_tmp_data = ioctl_read_data(file_desc, 0x1620, 4);
     pr_color(LOG_COLOR_PURPLE, "read 0x1620: %x\n", u32_tmp_data);
     u32_tmp_data = 0xffffffff;
     for (int i = (0x1000 + (8 * 20)); i < 0x3000; i += 4)

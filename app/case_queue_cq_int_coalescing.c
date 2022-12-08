@@ -21,7 +21,7 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static dword_t sub_case_cq_int_coalescing(void);
+static uint32_t sub_case_cq_int_coalescing(void);
 
 static SubCaseHeader_t sub_case_header = {
     "this case will tests CQ interrupt int_coalescing",
@@ -97,10 +97,10 @@ int case_queue_cq_int_coalescing(void)
     return test_flag;
 }
 
-static dword_t sub_case_cq_int_coalescing(void)
+static uint32_t sub_case_cq_int_coalescing(void)
 {
     uint32_t index = 0;
-    byte_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
+    uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
     wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
 
@@ -113,7 +113,7 @@ static dword_t sub_case_cq_int_coalescing(void)
     test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
     test_flag |= cq_gain(0, 1, &reap_num);
     /**********************************************************************/
-    for (word_t i = 0; i < queue_num; i++)
+    for (uint16_t i = 0; i < queue_num; i++)
     {
         int_vertor = ctrl_sq_info[i].cq_id;
         coals_disable = 0;
@@ -123,7 +123,7 @@ static dword_t sub_case_cq_int_coalescing(void)
     test_flag |= cq_gain(0, queue_num, &reap_num);
     /**********************************************************************/
 
-    for (word_t i = 0; i < queue_num; i++)
+    for (uint16_t i = 0; i < queue_num; i++)
     {
         ctrl_sq_info[i].cmd_cnt = 0;
 
@@ -136,15 +136,15 @@ static dword_t sub_case_cq_int_coalescing(void)
             }
         }
     }
-    for (word_t i = 0; i < queue_num; i++)
+    for (uint16_t i = 0; i < queue_num; i++)
     {
         test_flag |= ioctl_tst_ring_dbl(file_desc, ctrl_sq_info[i].sq_id);
     }
-    for (word_t i = 0; i < queue_num; i++)
+    for (uint16_t i = 0; i < queue_num; i++)
     {
         // io_cq_id = ctrl_sq_info[i].cq_id;
         // test_flag |= cq_gain(io_cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num);
-        test_flag |= cq_gain_disp_cq(ctrl_sq_info[i].cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num, FALSE);
+        test_flag |= cq_gain_disp_cq(ctrl_sq_info[i].cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num, false);
     }
     delete_all_io_queue();
     return test_flag;

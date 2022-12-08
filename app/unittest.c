@@ -19,12 +19,12 @@
  * @param arr 
  * @param cnt 
  */
-void random_list(TestCase_t *arr, dword_t cnt)
+void random_list(TestCase_t *arr, uint32_t cnt)
 {
-    dword_t num = 0;
+    uint32_t num = 0;
     TestCase_t temp;
-    srand((dword_t)time(NULL));
-    for (dword_t i = 0; i < (cnt - 1); i++)
+    srand((uint32_t)time(NULL));
+    for (uint32_t i = 0; i < (cnt - 1); i++)
     {
         num = i + rand() % (cnt - i);
         temp = arr[i];
@@ -37,11 +37,11 @@ void random_list(TestCase_t *arr, dword_t cnt)
  * 
  * @param CaseList 
  * @param NumOfCase 
- * @return dword_t 
+ * @return uint32_t 
  */
-dword_t test_list_exe(TestCase_t *CaseList, dword_t NumOfCase)
+uint32_t test_list_exe(TestCase_t *CaseList, uint32_t NumOfCase)
 {
-    dword_t idx;
+    uint32_t idx;
     TestReport_t test_report;
     TestSuite_t test_suite =
         {
@@ -123,11 +123,11 @@ dword_t test_list_exe(TestCase_t *CaseList, dword_t NumOfCase)
  * @param SubCaseHeader 
  * @param SubCaseList 
  * @param SubCaseNum 
- * @return dword_t means no failed sub case cnt
+ * @return uint32_t means no failed sub case cnt
  */
-dword_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseList, dword_t SubCaseNum)
+uint32_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseList, uint32_t SubCaseNum)
 {
-    dword_t idx;
+    uint32_t idx;
     TestReport_t test_report;
 
     memset((void *)&test_report, 0, sizeof(TestReport_t));
@@ -196,11 +196,11 @@ dword_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseList
  * @param mem_addr 
  * @param data_size display size
  */
-void mem_disp(void *mem_addr, dword_t data_size)
+void mem_disp(void *mem_addr, uint32_t data_size)
 {
-    dword_t columns, rows;
-    dword_t column_cnt, row_cnt;
-    dword_t *ptr = NULL;
+    uint32_t columns, rows;
+    uint32_t column_cnt, row_cnt;
+    uint32_t *ptr = NULL;
     column_cnt = 8;
     row_cnt = data_size / column_cnt / 4;
     if (column_cnt == 16)
@@ -209,12 +209,12 @@ void mem_disp(void *mem_addr, dword_t data_size)
     else
         pr_info("<--addr---dword-->: 03----00 07----04 11----08 15----12 19----16 23----20 27----24 31----28\n");
 
-    ptr = (dword_t *)mem_addr;
+    ptr = (uint32_t *)mem_addr;
     for (rows = 0; rows < row_cnt; rows++)
     {
         // pr_info("%p: ", mem_addr + rows * 4 * column_cnt);
-        pr_info("0x%016lx: ", (qword_t)(mem_addr + rows * 4 * column_cnt));
-        // pr_info("0x%-16lx: ", (qword_t)(+ rows * 4 * column_cnt));
+        pr_info("0x%016lx: ", (uint64_t)(mem_addr + rows * 4 * column_cnt));
+        // pr_info("0x%-16lx: ", (uint64_t)(+ rows * 4 * column_cnt));
         for (columns = 0; columns < column_cnt; columns++)
         {
             pr_info("%08x ", ptr[columns]);
@@ -229,11 +229,11 @@ void mem_disp(void *mem_addr, dword_t data_size)
  * @param mem_addr1 
  * @param mem_addr2 
  * @param data_size 
- * @return int_t 
+ * @return int 
  */
-int_t mem_cmp(dword_t *mem_addr1, dword_t *mem_addr2, dword_t data_size)
+int mem_cmp(uint32_t *mem_addr1, uint32_t *mem_addr2, uint32_t data_size)
 {
-    int_t idx = 0;
+    int idx = 0;
     idx = memcmp(mem_addr1, mem_addr2, data_size);
     if (idx)
         pr_err("Compare ERROR!!! idx:%d\n", idx);
@@ -247,11 +247,11 @@ int_t mem_cmp(dword_t *mem_addr1, dword_t *mem_addr2, dword_t data_size)
  * @param mem_addr1 
  * @param pattern 
  * @param data_size 
- * @return int_t 
+ * @return int 
  */
-int_t mem_set(dword_t *mem_addr1, dword_t pattern, dword_t data_size)
+int mem_set(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size)
 {
-    dword_t idx = 0;
+    uint32_t idx = 0;
     if (mem_addr1 == NULL)
         return idx;
     for (idx = 0; idx < (data_size / 4); idx++)
@@ -266,12 +266,12 @@ int_t mem_set(dword_t *mem_addr1, dword_t pattern, dword_t data_size)
  * @param mem_addr1 
  * @param pattern 
  * @param data_size 
- * @return int_t 
+ * @return int 
  */
-int_t pat_cmp(dword_t *mem_addr1, dword_t pattern, dword_t data_size)
+int pat_cmp(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size)
 {
-    dword_t idx = 0;
-    byte_t flg = 0;
+    uint32_t idx = 0;
+    uint8_t flg = 0;
     if (mem_addr1 == NULL)
         return idx;
     for (idx = 0; idx < (data_size / 4); idx++)
@@ -292,9 +292,9 @@ int_t pat_cmp(dword_t *mem_addr1, dword_t pattern, dword_t data_size)
  * @param mem_addr1 
  * @param pattern 
  * @param data_size 
- * @return int_t 
+ * @return int 
  */
-int_t dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size)
+int dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size)
 {
     uint32_t idx = 0;
     int flg = SUCCEED;

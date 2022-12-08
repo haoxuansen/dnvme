@@ -20,7 +20,6 @@
 // #include <sys/types.h>
 // #include <malloc.h>
 
-#include "common_types.h"
 #include "common_define.h"
 #include "log.h"
 

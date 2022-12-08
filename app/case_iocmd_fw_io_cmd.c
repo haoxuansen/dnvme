@@ -25,13 +25,13 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static dword_t sub_case_pre(void);
-static dword_t sub_case_end(void);
+static uint32_t sub_case_pre(void);
+static uint32_t sub_case_end(void);
 
-static dword_t sub_case_fwio_flush(void);
-static dword_t sub_case_fwio_write_unc(void);
-static dword_t sub_case_fwio_write_zero(void);
-static dword_t sub_case_trim_cmd(void);
+static uint32_t sub_case_fwio_flush(void);
+static uint32_t sub_case_fwio_write_unc(void);
+static uint32_t sub_case_fwio_write_zero(void);
+static uint32_t sub_case_trim_cmd(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_iocmd_fw_io_cmd",
@@ -71,7 +71,7 @@ int case_iocmd_fw_io_cmd(void)
     return test_flag;
 }
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -82,14 +82,14 @@ static dword_t sub_case_pre(void)
     return test_flag;
 }
 
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
 }
-static dword_t sub_case_trim_cmd(void)
+static uint32_t sub_case_trim_cmd(void)
 {
     pr_info("1.1 host send io_write cmd\n");
     uint32_t index;
@@ -156,7 +156,7 @@ static dword_t sub_case_trim_cmd(void)
     mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
     return test_flag;
 }
-static dword_t sub_case_fwio_flush(void)
+static uint32_t sub_case_fwio_flush(void)
 {
     uint32_t index = 0;
     pr_info("send io cmd\n");
@@ -182,7 +182,7 @@ static dword_t sub_case_fwio_flush(void)
     return test_flag;
 }
 
-static dword_t sub_case_fwio_write_unc(void)
+static uint32_t sub_case_fwio_write_unc(void)
 {
     pr_info("write start...");
     wr_slba = 0;
@@ -237,7 +237,7 @@ static dword_t sub_case_fwio_write_unc(void)
     return test_flag;
 }
 
-static dword_t sub_case_fwio_write_zero(void)
+static uint32_t sub_case_fwio_write_zero(void)
 {
     uint32_t index = 0;
     pr_info("write start...\n");

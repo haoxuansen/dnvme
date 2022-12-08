@@ -96,12 +96,12 @@ int nvme_create_discontig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, ui
                                uint8_t const *discontg_sq_buf, uint32_t discontig_sq_size);
 int nvme_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
 
-int nvme_firmware_commit(int file_desc, byte_t bpid, byte_t ca, byte_t fs);
-int nvme_firmware_download(int file_desc, dword_t numd, dword_t ofst, byte_t *addr);
+int nvme_firmware_commit(int file_desc, uint8_t bpid, uint8_t ca, uint8_t fs);
+int nvme_firmware_download(int file_desc, uint32_t numd, uint32_t ofst, uint8_t *addr);
 
-dword_t nvme_msi_register_test(void);
-dword_t create_all_io_queue(byte_t flags);
-dword_t delete_all_io_queue(void);
+uint32_t nvme_msi_register_test(void);
+uint32_t create_all_io_queue(uint8_t flags);
+uint32_t delete_all_io_queue(void);
 int nvme_send_iocmd(int file_desc, uint8_t cmp_dis, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb, void *data_addr);
 
 

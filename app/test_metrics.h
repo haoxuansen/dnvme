@@ -81,11 +81,11 @@ struct fwdma_parameter
 
 struct nvme_ctrl
 {
-	dword_t max_sq_num; // 1'base
-	dword_t max_cq_num; // 1'base
-	dword_t link_speed; //
-	dword_t link_width; //
-	dword_t irq_type;   //
+	uint32_t max_sq_num; // 1'base
+	uint32_t max_cq_num; // 1'base
+	uint32_t link_speed; //
+	uint32_t link_width; //
+	uint32_t irq_type;   //
 	uint8_t pmcap_ofst;
 	uint8_t msicap_ofst;
 	uint8_t pxcap_ofst;
@@ -222,8 +222,8 @@ void pcie_retrain_link(void);
 void pcie_RC_cfg_speed(int speed);
 void pcie_set_width(int width);
 void pcie_random_speed_width(void);
-dword_t pcie_link_down(void);
-dword_t pcie_hot_reset(void);
+uint32_t pcie_link_down(void);
+uint32_t pcie_hot_reset(void);
 
 void test_encrypt_decrypt(void);
 

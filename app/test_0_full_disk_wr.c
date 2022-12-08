@@ -30,16 +30,16 @@ static uint32_t sq_size = 4096;
 static uint16_t wr_nlb = 8;
 static uint64_t wr_slba = 0;
 static uint32_t wr_nsid = 1;
-static byte_t cmp_fg = 0;
+static uint8_t cmp_fg = 0;
 
-static dword_t sub_case_pre(void);
-static dword_t sub_case_end(void);
-static dword_t sub_case_write_order(void);
-static dword_t sub_case_write_random(void);
-static dword_t sub_case_read_order(void);
-static dword_t sub_case_read_random(void);
-static dword_t sub_case_write_read_verify(void);
-static dword_t sub_case_sgl_write_read_verify(void);
+static uint32_t sub_case_pre(void);
+static uint32_t sub_case_end(void);
+static uint32_t sub_case_write_order(void);
+static uint32_t sub_case_write_random(void);
+static uint32_t sub_case_read_order(void);
+static uint32_t sub_case_read_random(void);
+static uint32_t sub_case_write_read_verify(void);
+static uint32_t sub_case_sgl_write_read_verify(void);
 
 static SubCaseHeader_t sub_case_header = {
     "test_0_full_disk_wr",
@@ -85,7 +85,7 @@ int test_0_full_disk_wr(void)
     return SUCCEED;
 }
 
-static dword_t sub_case_pre(void)
+static uint32_t sub_case_pre(void)
 {
     int test_flag = SUCCEED;
     pr_info("==>QID:%d\n", io_sq_id);
@@ -96,7 +96,7 @@ static dword_t sub_case_pre(void)
     test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
-static dword_t sub_case_end(void)
+static uint32_t sub_case_end(void)
 {
     int test_flag = SUCCEED;
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
@@ -105,7 +105,7 @@ static dword_t sub_case_end(void)
     return test_flag;
 }
 
-static dword_t sub_case_write_order(void)
+static uint32_t sub_case_write_order(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -132,7 +132,7 @@ static dword_t sub_case_write_order(void)
     return test_flag;
 }
 
-static dword_t sub_case_write_random(void)
+static uint32_t sub_case_write_random(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -154,7 +154,7 @@ static dword_t sub_case_write_random(void)
     return test_flag;
 }
 
-static dword_t sub_case_read_order(void)
+static uint32_t sub_case_read_order(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -178,7 +178,7 @@ static dword_t sub_case_read_order(void)
     return test_flag;
 }
 
-static dword_t sub_case_read_random(void)
+static uint32_t sub_case_read_random(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -200,8 +200,8 @@ static dword_t sub_case_read_random(void)
     return test_flag;
 }
 
-static dword_t sub_case_write_read_verify_1(void);
-static dword_t sub_case_write_read_verify(void)
+static uint32_t sub_case_write_read_verify_1(void);
+static uint32_t sub_case_write_read_verify(void)
 {
     int test_flag = SUCCEED;
     for (uint32_t i = 0; i < 100; i++)
@@ -209,19 +209,19 @@ static dword_t sub_case_write_read_verify(void)
     return test_flag;
 }
 
-static dword_t sub_case_write_read_verify_1(void)
+static uint32_t sub_case_write_read_verify_1(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     #if 1
-    static dword_t patcnt;
+    static uint32_t patcnt;
     // memset(write_buffer, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
     // memset(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
     for (uint32_t i = 0; i < 16; i++)
     {
-        for (dword_t idx = 0; idx < (16*1024); idx += 4)
+        for (uint32_t idx = 0; idx < (16*1024); idx += 4)
         {
-            *((dword_t *)(write_buffer + idx + (16*1024*i))) = ((idx<<16)|patcnt);//DWORD_RAND();
+            *((uint32_t *)(write_buffer + idx + (16*1024*i))) = ((idx<<16)|patcnt);//DWORD_RAND();
         }
         patcnt++;
     }
@@ -311,9 +311,9 @@ static dword_t sub_case_write_read_verify_1(void)
     return test_flag;
 }
 
-static dword_t sub_case_sgl_write_read_verify(void)
+static uint32_t sub_case_sgl_write_read_verify(void)
 {
-    byte_t flags = 0;
+    uint8_t flags = 0;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     pr_info("ctrl.sgls:%#x\n", g_nvme_dev.id_ctrl.sgls);

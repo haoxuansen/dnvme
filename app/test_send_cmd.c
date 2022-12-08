@@ -345,14 +345,14 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
     1 to slot 7) to use for the operation.
  * @return int 
  */
-int nvme_firmware_commit(int file_desc, byte_t bpid, byte_t ca, byte_t fs)
+int nvme_firmware_commit(int file_desc, uint8_t bpid, uint8_t ca, uint8_t fs)
 {
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
     struct nvme_common_command firmware_commit = {
         .opcode = nvme_admin_activate_fw,
         .nsid = 1,
-        .cdw10 = ((dword_t)bpid << 31) | ((dword_t)((ca & 0x7) << 3)) | ((dword_t)(fs & 0x7)),
+        .cdw10 = ((uint32_t)bpid << 31) | ((uint32_t)((ca & 0x7) << 3)) | ((uint32_t)(fs & 0x7)),
     };
 
     /* Fill the user command */
@@ -388,7 +388,7 @@ int nvme_firmware_commit(int file_desc, byte_t bpid, byte_t ca, byte_t fs)
  * @param dptr Data Pointer (DPTR): This field specifies the location where data should be transferred from.
  * @return int 
  */
-int nvme_firmware_download(int file_desc, dword_t numd, dword_t ofst, byte_t *dptr)
+int nvme_firmware_download(int file_desc, uint32_t numd, uint32_t ofst, uint8_t *dptr)
 {
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
@@ -1590,7 +1590,7 @@ void pcie_retrain_link(void)
 }
 
 /********** PCIe hot reset **********/
-dword_t pcie_hot_reset(void)
+uint32_t pcie_hot_reset(void)
 {
     int ret_val = FAILED;
     uint8_t idx = 0;
@@ -1623,7 +1623,7 @@ dword_t pcie_hot_reset(void)
 }
 
 /********** PCIe link down **********/
-dword_t pcie_link_down(void)
+uint32_t pcie_link_down(void)
 {
     uint32_t u32_tmp_data = 0;
     uint32_t bar_reg[6];
@@ -1736,9 +1736,9 @@ void pcie_random_speed_width(void)
 /**
  * @brief INTMS/INTMC
  * 
- * @return dword_t 
+ * @return uint32_t 
  */
-dword_t nvme_msi_register_test(void)
+uint32_t nvme_msi_register_test(void)
 {
     uint32_t u32_tmp_data = 0;
 
@@ -1764,12 +1764,12 @@ dword_t nvme_msi_register_test(void)
  * @brief Create a all io queue object
  * 
  * @param flags 
- * @return dword_t 
+ * @return uint32_t 
  */
-dword_t create_all_io_queue(byte_t flags)
+uint32_t create_all_io_queue(uint8_t flags)
 {
-    byte_t int_type = 0;
-    byte_t rdm_irq_no = 0;
+    uint8_t int_type = 0;
+    uint8_t rdm_irq_no = 0;
     uint16_t num_irqs;
     uint32_t reap_num = 0;
 
@@ -1796,7 +1796,7 @@ dword_t create_all_io_queue(byte_t flags)
 
     random_sq_cq_info();
     /**********************************************************************/
-    for (dword_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
+    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         cq_parameter.cq_id = ctrl_sq_info[sqidx].cq_id;
         cq_parameter.cq_size = ctrl_sq_info[sqidx].cq_size;
@@ -1824,7 +1824,7 @@ dword_t create_all_io_queue(byte_t flags)
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
-    for (dword_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
+    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         sq_parameter.cq_id = ctrl_sq_info[sqidx].cq_id;
         sq_parameter.sq_id = ctrl_sq_info[sqidx].sq_id;
@@ -1841,10 +1841,10 @@ dword_t create_all_io_queue(byte_t flags)
     return SUCCEED;
 }
 
-dword_t delete_all_io_queue(void)
+uint32_t delete_all_io_queue(void)
 {
     uint32_t reap_num = 0;
-    for (dword_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
+    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, ctrl_sq_info[sqidx].sq_id);
     }
@@ -1852,7 +1852,7 @@ dword_t delete_all_io_queue(void)
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
-    for (dword_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
+    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, ctrl_sq_info[sqidx].cq_id);
     }
@@ -1864,8 +1864,8 @@ dword_t delete_all_io_queue(void)
 
 int nvme_send_iocmd(int file_desc, uint8_t cmp_dis, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb, void *data_addr)
 {
-    byte_t iocmd_type = BYTE_RAND() % 3;
-    word_t fua_en = ((BYTE_RAND() % 2) ? NVME_RW_FUA : 0);
+    uint8_t iocmd_type = BYTE_RAND() % 3;
+    uint16_t fua_en = ((BYTE_RAND() % 2) ? NVME_RW_FUA : 0);
     if (cmp_dis)
     {
         iocmd_type = 1;
