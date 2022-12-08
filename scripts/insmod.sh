@@ -8,6 +8,10 @@ NVME_CORE=nvme_core
 
 source $TOP_DIR/scripts/log.sh
 
+# --------------------------------------------------------------------------- #
+# Function
+# --------------------------------------------------------------------------- #
+
 nvme_install_module()
 {
 	local find
@@ -48,5 +52,30 @@ nvme_remove_module()
 	done
 }
 
-nvme_remove_module $NVME $NVME_CORE $DNVME
+# $1: module name
+nvme_check_mod_exist()
+{
+	local find
+
+	NOTICE "Check whether the module named \"$1\" exist?"
+	find=`lsmod | grep "$1" | awk '{print $1}'`
+	if [ "$find" == "" ]; then
+		return 0 # mod not exist
+	else
+		return 1 # mod exist
+	fi
+}
+
+# --------------------------------------------------------------------------- #
+# Execute
+# --------------------------------------------------------------------------- #
+nvme_check_mod_exist $DNVME
+if [ "$?" == "0" ]; then
+	INFO "The driver is loaded for the first time."
+	nvme_remove_module $NVME $NVME_CORE
+else
+	INFO "Reload the driver."
+	nvme_remove_module $DNVME
+fi
+
 nvme_install_module $DNVME
