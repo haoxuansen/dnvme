@@ -236,62 +236,6 @@ extern struct nvme_ctrl g_nvme_dev;
 extern struct nvme_sq_info *ctrl_sq_info;
 extern struct nvme_ns *g_nvme_ns_info;
 
-#define DISP_HELP "\n******  Maxio dnvme unittest test  ******\n"                 \
-                  "\033[32mtest case list:\033[0m\n"                              \
-                  "case  0: Display this help\n"                                  \
-                  "case  1: Disabling the controller completely\n"                \
-                  "case  2: Initializing the device to Run tests.\n"              \
-                  "case  3: Create discontiguous IOSQ and IOCQ \n"                \
-                  "case  4: Create contiguous IOSQ and IOCQ \n"                   \
-                  "case  5: Delete IOSQ && IOCQ which is create in case 4\n"      \
-                  "case  6: Send IO Write cmd which create in case 4\n"           \
-                  "case  7: Send IO Read cmd which create in case 4\n"            \
-                  "case  8: Send IO Compare cmd which process in case 6 case 7\n" \
-                  "case  9: Disp Write_buffer Read_buffer Data\n"                 \
-                  "case 10: Compare Write_buffer Read_buffer Data\n"              \
-                  "case 20: maxio_cmd_fwdma_write\n"                              \
-                  "case 21: maxio_cmd_fwdma_read\n"                               \
-                  "case 29: hc peak power test\n"                                 \
-                  "case 30: case_queue_create_q_size\n"                           \
-                  "case 31: case_queue_delete_q\n"                                \
-                  "case 32: case_queue_sq_cq_match\n"                             \
-                  "case 33: case_iocmd_write_read\n"                              \
-                  "case 36: case_queue_abort\n"                                   \
-                  "case 37: case_fw_io_cmd\n"                                     \
-                  "case 40: case_queue_cq_int_all\n"                              \
-                  "case 41: case_queue_cq_int_all mask\n"                         \
-                  "case 42: case_queue_cq_int_msi_multi_mask\n"                   \
-                  "case 43: case_queue_cq_int_msix mask\n"                        \
-                  "case 47: case_queue_cq_int_coalescing\n"                       \
-                  "case 48: case_queue_command_arbitration\n"                     \
-                  "case 49: case_resets_link_down test\n"                         \
-                  "case 50: case_resets_random_all test\n"                        \
-                  "case 52: case_queue_admin\n"                                   \
-                  "case 53: case_nvme_boot_partition\n"                           \
-                  "case 54: register test\n"                                      \
-                  "case 55: test_0_full_disk_wr test\n"                           \
-                  "case 56: test_1_fused loop test\n"                             \
-                  "case 57: test_2_mix_case\n"                                    \
-                  "case 58: test_3_adm_wr_cache_fua test\n"                       \
-                  "case 59: test_5_fua_wr_rd_cmp test\n"                          \
-                  "case 60: test_6_all_ns_lbads_test\n"                           \
-                  "case 78: set LTR disable\n"                                    \
-                  "case 78: set to D0 state\n"                                    \
-                  "case 79: set to D3 state\n"                                    \
-                  "case 80: pcie_link_speed_width step\n"                         \
-                  "case 81: pcie_link_speed_width cyc\n"                          \
-                  "case 82: pcie_reset single\n"                                  \
-                  "case 83: pcie_reset cycle\n"                                   \
-                  "case 84: pcie_low_power L0s&L1 step\n"                         \
-                  "case 85: pcie_low_power L0s&L1 cycle\n"                        \
-                  "case 86: pcie_low_power L1sub step\n"                          \
-                  "case 87: pcie_PM\n"                                            \
-                  "case 88: pcie_low_power_measure\n"                             \
-                  "case 89: pcie_low_power_pcipm_l1sub\n"                         \
-                  "case 90: pcie_MPS\n"                                           \
-                  "case 91: pcie_MRRS\n"                                          \
-                  "case255: test case list exe\n"
-
 #define TEST_PASS "\nppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
                   "pp       pp     aa       aa     ss              ss          \n"   \
                   "pp       pp     aa       aa     ss              ss          \n"   \

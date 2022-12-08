@@ -2,6 +2,8 @@
 #ifndef _TEST_INIT_H_
 #define _TEST_INIT_H_
 
+#include "dnvme_ioctl.h"
+
 void random_sq_cq_info(void);
 
 void test_init(int file_desc);

@@ -12,6 +12,8 @@
 #ifndef _UAPI_DEFS_H_
 #define _UAPI_DEFS_H_
 
+#define ARRAY_SIZE(x)			(sizeof(x) / sizeof(x[0]))
+
 #define DIV_ROUND_UP(n,d)		(((n) + (d) - 1) / (d))
 
 #endif /* !_UAPI_DEFS_H_ */
