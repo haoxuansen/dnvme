@@ -50,7 +50,7 @@ int case_nvme_boot_partition(void)
         }
     }
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     return test_flag;
 }
@@ -64,14 +64,14 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     u32_tmp_data |= bpid << 31;  //Boot Partition Identifier (BPID)
     u32_tmp_data |= bprof << 10; //Boot Partition Read Offset (BPROF)
     u32_tmp_data |= bprsz << 0;  //Boot Partition Read Size (BPRSZ) in multiples of 4KB
-    ret_val = ioctl_write_data(file_desc, NVME_REG_BPRSEL_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = ioctl_write_data(g_fd, NVME_REG_BPRSEL_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPRSEL_OFST ret_val:%d!\n", ret_val);
         goto error_out;
     }
     //7. writing to the Boot Partition Read Select(BPRSEL) register.
-    ret_val = read_nvme_register(file_desc, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = read_nvme_register(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPINFO_OFST1 ret_val:%d! %x\n", ret_val, u32_tmp_data);
@@ -81,7 +81,7 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     try_max = (WORD_MASK << 4);
     while (((u32_tmp_data >> 24) & 0x3) != 0x2)
     {
-        ret_val = read_nvme_register(file_desc, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+        ret_val = read_nvme_register(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
         if (ret_val < 0)
         {
             pr_err("[E] NVME_REG_BPINFO_OFST2 ret_val:%d! %x\n", ret_val, u32_tmp_data);
@@ -116,7 +116,7 @@ int reading_boot_partition(void)
     unsigned long phys_addr;
 
     //3. Get BPINFO.ABPID BPINFO.BPSZ
-    ret_val = read_nvme_register(file_desc, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = read_nvme_register(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPINFO_OFST ret_val:%d!\n", ret_val);
@@ -140,7 +140,7 @@ int reading_boot_partition(void)
     for (idx = 0; idx < boot_read_cnt; idx++)
     {
         BMBBA = phys_addr + idx * 4096;
-        ret_val = ioctl_write_data(file_desc, NVME_REG_BPMBL_OFST, sizeof(uint64_t), (uint8_t *)&BMBBA);
+        ret_val = ioctl_write_data(g_fd, NVME_REG_BPMBL_OFST, sizeof(uint64_t), (uint8_t *)&BMBBA);
         if (ret_val < 0)
         {
             pr_err("[E] NVME_REG_BPMBL_OFST ret_val:%d!\n", ret_val);
@@ -175,7 +175,7 @@ int writeing_boot_partition(void)
 {
     uint32_t reap_num = 0;
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     // 1. The host issues a Firmware Image Download command to download the contents of the Boot
     // Partition to the controller. There may be multiple portions of the Boot Partition to download, thus
     // the offset for each portion of the Boot Partition being downloaded is specified in the Firmware Image
@@ -191,9 +191,9 @@ int writeing_boot_partition(void)
     memset((void *)boot_buffer, BYTE_RAND(), 128 * 1024);
     pr_color(LOG_COLOR_GREEN, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
 
-    if (SUCCEED == nvme_firmware_download(file_desc, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
+    if (SUCCEED == nvme_firmware_download(g_fd, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
     {
-        ioctl_tst_ring_dbl(file_desc, 0);
+        ioctl_tst_ring_dbl(g_fd, 0);
         cq_gain(0, 1, &reap_num);
     }
 
@@ -201,7 +201,7 @@ int writeing_boot_partition(void)
 
     // 3. The host submits a Firmware Commit command with a Commit Action of 110b which specifies that
     // the downloaded image replaces the contents of the Boot Partition specified in the Boot Partition ID field;
-    // nvme_firmware_commit(file_desc, 0, 0x7, 1);
+    // nvme_firmware_commit(g_fd, 0, 0x7, 1);
 
     // 4. The controller completes the Firmware Commit command. The following actions are taken in
     // certain error scenarios:
@@ -223,8 +223,8 @@ static uint32_t rd_wr_boot_part_ccen_0(void)
     uint32_t u32_tmp_data = 0;
     // if(test_flag == FAILED)
     //     return test_flag;
-    ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
-    ret_val = read_nvme_register(file_desc, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+    ret_val = read_nvme_register(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
@@ -262,8 +262,8 @@ static uint32_t rd_wr_boot_part_ccen_1(void)
     uint32_t u32_tmp_data = 0;
     // if(test_flag == FAILED)
     //     return test_flag;
-    ioctl_enable_ctrl(file_desc);
-    ret_val = read_nvme_register(file_desc, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ioctl_enable_ctrl(g_fd);
+    ret_val = read_nvme_register(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);

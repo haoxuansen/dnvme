@@ -30,7 +30,7 @@ static void test_sub(void)
     pcie_hot_reset();
 
     // check status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -49,7 +49,7 @@ static void test_sub(void)
     pcie_link_down();
 
     // check status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -65,18 +65,18 @@ static void test_sub(void)
 
     /************************** Issue FLR reset *********************/
     pr_info("\nIssue FLR reset\n");
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data |= 0x00008000;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
-    u32_tmp_data = pci_read_dword(file_desc, 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, 0x4);
     u32_tmp_data |= 0x06; // bus master and memory space enable
-    ioctl_pci_write_data(file_desc, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -100,7 +100,7 @@ int case_pcie_reset_single(void)
     /**********************************************************************/
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

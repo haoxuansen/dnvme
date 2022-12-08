@@ -24,7 +24,6 @@
 #define MEM16_GET(n) (*(volatile uint16_t *)(n))
 #define MEM8_GET(n) (*(volatile uint8_t *)(n))
 
-#define RAND_INIT() (srand(time(NULL)))
 #define BYTE_RAND() ((uint8_t)rand())
 #define WORD_RAND() ((uint16_t)rand())
 #define DWORD_RAND() ((uint32_t)rand())

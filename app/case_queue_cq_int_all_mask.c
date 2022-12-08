@@ -56,7 +56,7 @@ int case_queue_cq_int_all_mask(void)
             break;
         }
     }
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -79,7 +79,7 @@ static uint32_t sub_case_int_queue_mask(void)
         {
             if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(file_desc, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
+                test_flag |= nvme_send_iocmd(g_fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 ctrl_sq_info[i].cmd_cnt++;
             }
         }
@@ -88,14 +88,14 @@ static uint32_t sub_case_int_queue_mask(void)
     {
         io_sq_id = ctrl_sq_info[i].sq_id;
         io_cq_id = ctrl_sq_info[i].cq_id;
-        test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
-        mask_irqs(file_desc, io_cq_id);  /////////////////////////////////////////////////mask_irqs
+        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        mask_irqs(g_fd, io_cq_id);  /////////////////////////////////////////////////mask_irqs
     }
     usleep(10000);
     for (uint16_t i = 0; i < queue_num; i++)
     {
         io_cq_id = ctrl_sq_info[i].cq_id;
-        umask_irqs(file_desc, io_cq_id); /////////////////////////////////////////////////umask_irqs
+        umask_irqs(g_fd, io_cq_id); /////////////////////////////////////////////////umask_irqs
         test_flag |= cq_gain(io_cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
     delete_all_io_queue();
@@ -106,7 +106,7 @@ int msi_cap_access(void)
 {
     int ret_val = FAILED;
     struct pcie_msi_cap msi_cap;
-	ret_val = read_pcie_register(file_desc, g_nvme_dev.msicap_ofst, sizeof(struct pcie_msi_cap), NVME_ACCESS_BYTE, (uint8_t *)&msi_cap);
+	ret_val = read_pcie_register(g_fd, g_nvme_dev.msicap_ofst, sizeof(struct pcie_msi_cap), NVME_ACCESS_BYTE, (uint8_t *)&msi_cap);
 
     pr_info("\nmsi_cap_id: %#x\n",msi_cap.cap_id);
     pr_info("msg_ctrl: %#x\n",msi_cap.msg_ctrl);
@@ -136,7 +136,7 @@ static uint32_t sub_case_pending_bit(void)
         {
             if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(file_desc, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
+                test_flag |= nvme_send_iocmd(g_fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 ctrl_sq_info[i].cmd_cnt++;
             }
         }
@@ -144,8 +144,8 @@ static uint32_t sub_case_pending_bit(void)
     for (uint16_t i = 0; i < queue_num; i++)
     {
         io_sq_id = ctrl_sq_info[i].sq_id;
-        test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
-        mask_irqs(file_desc, io_cq_id);  /////////////////////////////////////////////////mask_irqs
+        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        mask_irqs(g_fd, io_cq_id);  /////////////////////////////////////////////////mask_irqs
     }
     sleep(10);
     for (uint16_t i = 0; i < queue_num; i++)
@@ -155,7 +155,7 @@ static uint32_t sub_case_pending_bit(void)
         {
             msi_cap_access();
         }
-        umask_irqs(file_desc, io_cq_id); /////////////////////////////////////////////////umask_irqs
+        umask_irqs(g_fd, io_cq_id); /////////////////////////////////////////////////umask_irqs
         test_flag |= cq_gain(io_cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
     delete_all_io_queue();

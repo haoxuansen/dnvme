@@ -62,13 +62,13 @@ static TestCase_t TestCaseList[] = {
 
 static int case_disable_ctrl_complete(void)
 {
-	return ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
+	return ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
 }
 
 static int case_reinit_device(void)
 {
 	/* !TODO: Check return value! */
-	test_init(file_desc);
+	test_init(g_fd);
 	return 0;
 }
 
@@ -81,13 +81,13 @@ static int case_create_discontig_queue(void)
 
 	/* !TODO: Check return value! */
 	pr_notice("Create discontig cq_id:%d, cq_size = %d\n", cq_id, cq_size);
-	nvme_create_discontig_iocq(file_desc, cq_id, cq_size, true, 
-		cq_id, discontg_cq_buf, DISCONTIG_IO_CQ_SIZE);
+	nvme_create_discontig_iocq(g_fd, cq_id, cq_size, true, 
+		cq_id, g_discontig_cq_buf, DISCONTIG_IO_CQ_SIZE);
 
 	pr_notice("Create discontig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", 
 		sq_id, cq_id, sq_size);
-	nvme_create_discontig_iosq(file_desc, sq_id, cq_id, sq_size, 
-		MEDIUM_PRIO, discontg_sq_buf, DISCONTIG_IO_SQ_SIZE);
+	nvme_create_discontig_iosq(g_fd, sq_id, cq_id, sq_size, 
+		MEDIUM_PRIO, g_discontig_sq_buf, DISCONTIG_IO_SQ_SIZE);
 	return 0;
 }
 
@@ -100,11 +100,11 @@ static int case_create_contig_queue(void)
 
 	/* !TODO: Check return value! */
 	pr_notice("Create contig cq_id:%d, cq_size = %d\n", cq_id, cq_size);
-	nvme_create_contig_iocq(file_desc, cq_id, cq_size, true, cq_id);
+	nvme_create_contig_iocq(g_fd, cq_id, cq_size, true, cq_id);
 
 	pr_notice("Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", 
 		sq_id, cq_id, sq_size);
-	nvme_create_contig_iosq(file_desc, sq_id, cq_id, sq_size, MEDIUM_PRIO);
+	nvme_create_contig_iosq(g_fd, sq_id, cq_id, sq_size, MEDIUM_PRIO);
 	return 0;
 }
 
@@ -115,8 +115,8 @@ static int case_delete_queue(void)
 
 	/* !TODO: Check return value! */
 	pr_notice("Deleting SQID:%d,CQID:%d\n", sq_id, cq_id);
-	nvme_delete_ioq(file_desc, nvme_admin_delete_sq, sq_id);
-	nvme_delete_ioq(file_desc, nvme_admin_delete_cq, cq_id);
+	nvme_delete_ioq(g_fd, nvme_admin_delete_sq, sq_id);
+	nvme_delete_ioq(g_fd, nvme_admin_delete_cq, cq_id);
 	return 0;
 }
 
@@ -134,17 +134,17 @@ static int case_send_io_write_cmd(void)
 
 	pr_notice("\nTest: Sending IO Write Command through sq_id %u\n", sq_id);
 	for (i = 0; i < RW_BUFFER_SIZE / 4; i += 4) {
-		*(uint32_t *)(write_buffer + i) = i;
+		*(uint32_t *)(g_write_buf + i) = i;
 	}
 
 	pr_info("slba:%ld nlb:%d\n", wr_slba, wr_nlb);
 
-	ret = nvme_io_write_cmd(file_desc, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 
-		0, write_buffer);
+	ret = nvme_io_write_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 
+		0, g_write_buf);
 	cmd_cnt++;
 	if (ret == 0) {
 		/* !TODO: Check return value! */
-		ioctl_tst_ring_dbl(file_desc, sq_id);
+		ioctl_tst_ring_dbl(g_fd, sq_id);
 		pr_info("Ringing Doorbell for sq_id %d\n", sq_id);
 		cq_gain(cq_id, cmd_cnt, &reap_num);
 		pr_info("cq reaped ok! reap_num:%d\n", reap_num);
@@ -165,25 +165,25 @@ static int case_send_io_read_cmd(void)
 
 	pr_info("\nTest: Sending IO Read Command through sq_id %u\n", sq_id);
 
-	memset(read_buffer, 0, wr_nlb * LBA_DAT_SIZE);
+	memset(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
 	// for (index = 0; index < 150; index++)
 	{
 		// wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
 		// wr_nlb = WORD_RAND() % 255 + 1;
 		if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
 		{
-			// nvme_io_write_cmd(file_desc, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+			// nvme_io_write_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			// cmd_cnt++;
-			nvme_io_read_cmd(file_desc, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
-			//nvme_io_read_cmd(file_desc, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+			nvme_io_read_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+			//nvme_io_read_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
 			cmd_cnt++;
 		}
 	}
 	pr_info("Ringing Doorbell for sq_id %u\n", sq_id);
-	ioctl_tst_ring_dbl(file_desc, sq_id);
+	ioctl_tst_ring_dbl(g_fd, sq_id);
 	cq_gain(cq_id, cmd_cnt, &reap_num);
 	pr_info("cq reaped ok! reap_num:%d\n", reap_num);
-	// ioctl_tst_ring_dbl(file_desc, 0);
+	// ioctl_tst_ring_dbl(g_fd, 0);
 	return 0;
 }
 
@@ -197,15 +197,15 @@ static int case_send_io_compare_cmd(void)
 	uint32_t reap_num;
 
 	pr_info("Send IO cmp cmd slba=%ld, this shouldn't be output warning!(FPGA-06 may not work!)\n", wr_slba);
-	ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
+	ioctl_send_nvme_compare(g_fd, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, g_read_buf, wr_nlb * LBA_DAT_SIZE);
 
-	ioctl_tst_ring_dbl(file_desc, io_sq_id);
+	ioctl_tst_ring_dbl(g_fd, io_sq_id);
 	cq_gain(io_cq_id, 1, &reap_num);
 	pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
 	pr_info("Send IO cmp cmd slba=%ld, this should be output warning!\n", wr_slba + 3);
-	ioctl_send_nvme_compare(file_desc, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, read_buffer, wr_nlb * LBA_DAT_SIZE);
-	ioctl_tst_ring_dbl(file_desc, io_sq_id);
+	ioctl_send_nvme_compare(g_fd, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, g_read_buf, wr_nlb * LBA_DAT_SIZE);
+	ioctl_tst_ring_dbl(g_fd, io_sq_id);
 	cq_gain(io_cq_id, 1, &reap_num);
 	pr_info("cq reaped ok! reap_num:%d\n", reap_num);
 	return 0;
@@ -216,9 +216,9 @@ static int case_display_rw_buffer(void)
 	uint16_t wr_nlb = 8;
 
 	pr_info("\nwrite_buffer Data:\n");
-	mem_disp(write_buffer, wr_nlb * LBA_DAT_SIZE);
+	mem_disp(g_write_buf, wr_nlb * LBA_DAT_SIZE);
 	pr_info("\nRead_buffer Data:\n");
-	mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
+	mem_disp(g_read_buf, wr_nlb * LBA_DAT_SIZE);
 	return 0;
 }
 
@@ -226,7 +226,7 @@ static int case_compare_rw_buffer(void)
 {
 	uint16_t wr_nlb = 8;
 
-	dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DAT_SIZE);
+	dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE);
 	return 0;
 }
 
@@ -238,7 +238,7 @@ static int case_encrypt_decrypt(void)
 
 static int case_test_meta(void)
 {
-	test_meta(file_desc);
+	test_meta(g_fd);
 	return 0;
 }
 
@@ -256,19 +256,19 @@ static int case_unknown1(void)
 	pr_color(LOG_COLOR_CYAN, "pls enter wr_nlb:");
 	fflush(stdout);
 	scanf("%d", (int *)&wr_nlb);
-	memset(write_buffer, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-	create_meta_buf(file_desc, 0);
+	memset(g_write_buf, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+	create_meta_buf(g_fd, 0);
 
-	if(SUCCEED == send_nvme_write_using_metabuff(file_desc, 0, io_sq_id, 
-		wr_nsid, wr_slba, wr_nlb, 0, 0, write_buffer))
+	if(SUCCEED == send_nvme_write_using_metabuff(g_fd, 0, io_sq_id, 
+		wr_nsid, wr_slba, wr_nlb, 0, 0, g_write_buf))
 	{
-		if (SUCCEED == nvme_ring_dbl_and_reap_cq(file_desc, 
+		if (SUCCEED == nvme_ring_dbl_and_reap_cq(g_fd, 
 			io_sq_id, io_cq_id, 1))
 		{
 			pr_info("io write succeed\n");
 		}
 	}
-	ioctl_meta_node_delete(file_desc, 0);
+	ioctl_meta_node_delete(g_fd, 0);
 	return 0;
 }
 
@@ -280,19 +280,19 @@ static int case_unknown2(void)
 	uint32_t wr_nsid = 1;
 	uint16_t wr_nlb = 8;
 
-	memset(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
-	create_meta_buf(file_desc, 0);
+	memset(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+	create_meta_buf(g_fd, 0);
 
-	if (SUCCEED == send_nvme_read_using_metabuff(file_desc, 0, io_sq_id, 
-		wr_nsid, wr_slba, wr_nlb, 0, 0,read_buffer))
+	if (SUCCEED == send_nvme_read_using_metabuff(g_fd, 0, io_sq_id, 
+		wr_nsid, wr_slba, wr_nlb, 0, 0,g_read_buf))
 	{
-		if (SUCCEED == nvme_ring_dbl_and_reap_cq(file_desc, io_sq_id,
+		if (SUCCEED == nvme_ring_dbl_and_reap_cq(g_fd, io_sq_id,
 			io_cq_id, 1))
 		{
 			pr_info("io read succeed\n");
 		}
 	}
-	ioctl_meta_node_delete(file_desc, 0);
+	ioctl_meta_node_delete(g_fd, 0);
 	return 0;
 }
 
@@ -320,15 +320,15 @@ static int case_unknown3(void)
 			wr_nsid = ns_idx + 1;
 			wr_slba = 0;
 			wr_nlb = BYTE_RAND() % 32;
-			memset(read_buffer, 0, RW_BUFFER_SIZE);
-			memset(write_buffer, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+			memset(g_read_buf, 0, RW_BUFFER_SIZE);
+			memset(g_write_buf, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
 			pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 			cmd_cnt = 0;
-			ret = nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+			ret = nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			cmd_cnt++;
 			if (ret == SUCCEED)
 			{
-				ioctl_tst_ring_dbl(file_desc, io_sq_id);
+				ioctl_tst_ring_dbl(g_fd, io_sq_id);
 				cq_gain(io_cq_id, cmd_cnt, &reap_num);
 				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 			}
@@ -336,24 +336,24 @@ static int case_unknown3(void)
 			
 			data_len = 40 * 4;
 			pr_info("send_maxio_fwdma_wr\n");
-			//memset((uint8_t *)write_buffer, rand() % 0xff, data_len);
-			fwdma_parameter.addr = write_buffer;
+			//memset((uint8_t *)g_write_buf, rand() % 0xff, data_len);
+			fwdma_parameter.addr = g_write_buf;
 			fwdma_parameter.cdw10 = data_len;  //data_len
 			fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
-			nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
-			ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+			nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
+			ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 			cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 			pr_info("\nfwdma wr cmd send done!\n");
 
-			ret = nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+			ret = nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
 			cmd_cnt++;
 			if (ret == SUCCEED)
 			{
-				ioctl_tst_ring_dbl(file_desc, io_sq_id);
+				ioctl_tst_ring_dbl(g_fd, io_sq_id);
 				cq_gain(io_cq_id, cmd_cnt, &reap_num);
 				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 			}
-			if (SUCCEED == dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+			if (SUCCEED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
 			{
 				pr_color(LOG_COLOR_GREEN, "dw_cmp pass!\n");
 			}
@@ -370,26 +370,26 @@ static int case_unknown4(void)
 
 	pr_info("host2reg tets send_maxio_fwdma_rd\n");
 	data_len = 4 * 4;
-	fwdma_parameter.addr = read_buffer;
+	fwdma_parameter.addr = g_read_buf;
 	fwdma_parameter.cdw10 = data_len;  //data_len
 	fwdma_parameter.cdw11 = 0x4055500; //axi_addr
 	//fwdma_parameter.cdw12 |= (1<<0);               //flag bit[0] crc chk,
 	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
 	fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] dec chk,
-	nvme_maxio_fwdma_rd(file_desc, &fwdma_parameter);
-	ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+	nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
+	ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 	cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	pr_info("host2reg tets send_maxio_fwdma_rd\n");
-	//memset((uint8_t *)write_buffer, rand() % 0xff, data_len);
-	fwdma_parameter.addr = read_buffer;
+	//memset((uint8_t *)g_write_buf, rand() % 0xff, data_len);
+	fwdma_parameter.addr = g_read_buf;
 	fwdma_parameter.cdw10 = data_len;  //data_len
 	fwdma_parameter.cdw11 = 0x4055500; //axi_addr
 	//fwdma_parameter.cdw12 |= (1<<0);              //flag bit[0] crc chk,
 	fwdma_parameter.cdw12 &= ~(1 << 2); //flag bit[2] enc chk,
 
-	nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
-	ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+	nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
+	ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 	cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	return 0;
@@ -411,15 +411,15 @@ static int case_write_fwdma(void)
 	{
 		for (index = 0; index < 3000; index++)
 		{
-			fwdma_parameter.addr = write_buffer;
+			fwdma_parameter.addr = g_write_buf;
 			fwdma_parameter.cdw10 = 4096; //data_len
 			// fwdma_parameter.cdw11 = 0x4078000;              //axi_addr
 			// fwdma_parameter.cdw12 |= (1<<0);                //flag bit[0] crc chk,
 			// fwdma_parameter.cdw12 &= ~(1<<1);             //flag bit[1] hw data chk(only read)
 			// fwdma_parameter.cdw12 |= (1<<2);                //flag bit[2] enc chk,
-			nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
+			nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
 		}
-		ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+		ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 		cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 		pr_info("\nfwdma wr cmd send done!\n");
 	}
@@ -434,18 +434,18 @@ static int case_read_fwdma(void)
 
 	pr_info("send_maxio_fwdma_rd\n");
 	data_len = 40 * 4;
-	fwdma_parameter.addr = read_buffer;
+	fwdma_parameter.addr = g_read_buf;
 	fwdma_parameter.cdw10 = data_len;  //data_len
 	fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
 	//fwdma_parameter.cdw12 |= (1<<0);               //flag bit[0] crc chk,
 	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
 	// fwdma_parameter.cdw12 |= (1<<2);                 //flag bit[2] dec chk,
-	nvme_maxio_fwdma_rd(file_desc, &fwdma_parameter);
-	ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+	nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
+	ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 	cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 	pr_info("\nfwdma wr cmd send done!\n");
 
-	dw_cmp(write_buffer, read_buffer, data_len);
+	dw_cmp(g_write_buf, g_read_buf, data_len);
 	return 0;
 }
 
@@ -461,29 +461,29 @@ static int case_unknown5(void)
 		pr_info("send_fwdma_wr/rd test cnt:%d\n", index);
 		wr_nlb = (BYTE_RAND() % 8) + 1;
 		pr_info("nlb:%d\n", wr_nlb);
-		memset((uint8_t *)write_buffer, rand() % 0xff, wr_nlb * LBA_DAT_SIZE);
+		memset((uint8_t *)g_write_buf, rand() % 0xff, wr_nlb * LBA_DAT_SIZE);
 		fwdma_parameter.cdw10 = wr_nlb * LBA_DAT_SIZE; //data_len
 		fwdma_parameter.cdw11 = 0x40754C0;             //axi_addr
 		fwdma_parameter.cdw12 |= (1 << 0);             //flag bit[0] crc chk,
 		fwdma_parameter.cdw12 |= (1 << 1);             //flag bit[1] hw data chk(only read)
 		fwdma_parameter.cdw12 |= (1 << 2);             //flag bit[2] enc/dec chk,
 
-		fwdma_parameter.addr = write_buffer;
-		nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
-		ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+		fwdma_parameter.addr = g_write_buf;
+		nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
+		ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 		cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-		fwdma_parameter.addr = read_buffer;
-		nvme_maxio_fwdma_rd(file_desc, &fwdma_parameter);
-		ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+		fwdma_parameter.addr = g_read_buf;
+		nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
+		ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 		cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
 
-		if (FAILED == dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DAT_SIZE))
+		if (FAILED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE))
 		{
 			pr_info("\nwrite_buffer Data:\n");
-			mem_disp(write_buffer, wr_nlb * LBA_DAT_SIZE);
+			mem_disp(g_write_buf, wr_nlb * LBA_DAT_SIZE);
 			pr_info("\nRead_buffer Data:\n");
-			mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
+			mem_disp(g_read_buf, wr_nlb * LBA_DAT_SIZE);
 			break;
 		}
 	}
@@ -576,7 +576,7 @@ static int case_all_cases(void)
 	{
 		loop++;
 		pr_color(LOG_COLOR_CYAN, "auto_case_loop_cnt:%d\r\n",loop);
-		u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+		u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
 		pr_color(LOG_COLOR_CYAN, "\nCurrent link status: Gen%d, X%d\n", u32_tmp_data & 0x0F, (u32_tmp_data >> 4) & 0x3F);
 		if(test_list_exe(TestCaseList, ARRAY_SIZE(TestCaseList)))
 		{

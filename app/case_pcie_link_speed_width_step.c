@@ -26,15 +26,15 @@ static void test_sub(void)
 
     /************************** Set PCIe lane width: X1 *********************/
     pr_info("\nSet PCIe lane width: X1\n");
-    u32_tmp_data = pci_read_dword(file_desc, 0x8C0); // SPHY beagle spec 5.7.156(p366),
+    u32_tmp_data = pci_read_dword(g_fd, 0x8C0); // SPHY beagle spec 5.7.156(p366),
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= 0x000000041;
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = (u32_tmp_data >> 4) & 0x3F;
     if (u32_tmp_data == 1)
     {
@@ -48,15 +48,15 @@ static void test_sub(void)
 
     /************************** Set PCIe lane width: X2 *********************/
     pr_info("\nSet PCIe lane width: X2\n");
-    u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
+    u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= 0x000000042;
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = (u32_tmp_data >> 4) & 0x3F;
     if (u32_tmp_data == 2)
     {
@@ -70,15 +70,15 @@ static void test_sub(void)
 
     /************************** Set PCIe lane width: X4 *********************/
     pr_info("\nSet PCIe lane width: X4\n");
-    u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
+    u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= 0x000000044;
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = (u32_tmp_data >> 4) & 0x3F;
     if (u32_tmp_data == 4)
     {
@@ -92,15 +92,15 @@ static void test_sub(void)
 
     /************************** Set PCIe lane width: X2 *********************/
     pr_info("\nSet PCIe lane width: X2\n");
-    u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
+    u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= 0x000000042;
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = (u32_tmp_data >> 4) & 0x3F;
     if (u32_tmp_data == 2)
     {
@@ -114,15 +114,15 @@ static void test_sub(void)
 
     /************************** Set PCIe lane width: X1 *********************/
     pr_info("\nSet PCIe lane width: X1\n");
-    u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
+    u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= 0x000000041;
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = (u32_tmp_data >> 4) & 0x3F;
     if (u32_tmp_data == 1)
     {
@@ -136,15 +136,15 @@ static void test_sub(void)
 
     /************************** Set PCIe lane width: X4 *********************/
     pr_info("\nSet PCIe lane width: X4\n");
-    u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
+    u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= 0x000000044;
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = (u32_tmp_data >> 4) & 0x3F;
     if (u32_tmp_data == 4)
     {
@@ -158,16 +158,16 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen1 *********************/
     pr_info("\nSet PCIe link speed: Gen1\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000001;
-    // ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(1); // RC cfg gen1
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = u32_tmp_data & 0x0F;
     if (u32_tmp_data == 1)
     {
@@ -181,16 +181,16 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen2 *********************/
     pr_info("\nSet PCIe link speed: Gen2\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000002;
-    // ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(2); // RC cfg gen2
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = u32_tmp_data & 0x0F;
     if (u32_tmp_data == 2)
     {
@@ -204,16 +204,16 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen3 *********************/
     pr_info("\nSet PCIe link speed: Gen3\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000003;
-    // ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(3); // RC cfg gen3
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = u32_tmp_data & 0x0F;
     if (u32_tmp_data == 3)
     {
@@ -227,16 +227,16 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen2 *********************/
     pr_info("\nSet PCIe link speed: Gen2\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000002;
-    // ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(2); // RC cfg gen2
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = u32_tmp_data & 0x0F;
     if (u32_tmp_data == 2)
     {
@@ -250,16 +250,16 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen1 *********************/
     pr_info("\nSet PCIe link speed: Gen1\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000001;
-    // ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(1); // RC cfg gen1
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = u32_tmp_data & 0x0F;
     if (u32_tmp_data == 1)
     {
@@ -273,16 +273,16 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen3 *********************/
     pr_info("\nSet PCIe link speed: Gen3\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000003;
-    // ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(3); // RC cfg gen3
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     u32_tmp_data = u32_tmp_data & 0x0F;
     if (u32_tmp_data == 3)
     {
@@ -303,7 +303,7 @@ int case_pcie_link_speed_width_step(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

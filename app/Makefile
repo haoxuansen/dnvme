@@ -1,5 +1,7 @@
-CUR_DIR := $(shell pwd)
-TOP_DIR ?= $(CUR_DIR)/..
+TOP_DIR ?= $(shell pwd)/..
+include $(TOP_DIR)/.config
+
+CUR_DIR := $(TOP_DIR)/app
 OUTPUT_DIR := $(TOP_DIR)/output
 
 srcs := $(wildcard *.c)
@@ -8,7 +10,9 @@ target := nvmetool
 
 CC ?= gcc
 CFLAGS := -g -Wall
+CFLAGS += -I$(TOP_DIR)/include/generated
 CFLAGS += -I$(TOP_DIR)/include/uapi
+CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
 
 .DEFAULT_GOAL := build
 

@@ -27,11 +27,11 @@
 #include "common.h"
 #include "test_metrics.h"
 
-int ioctl_tst_ring_dbl(int file_desc, int sq_id)
+int ioctl_tst_ring_dbl(int g_fd, int sq_id)
 {
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_RING_SQ_DOORBELL, sq_id);
+    ret_val = ioctl(g_fd, NVME_IOCTL_RING_SQ_DOORBELL, sq_id);
     if (ret_val < 0)
     {
         pr_err("\t\tRing Doorbell of SQ ID = %d Failed!\n", sq_id);

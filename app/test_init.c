@@ -29,21 +29,21 @@
 /**
  * @brief Set the queue num object
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param iosq_num 
  * @param iocq_num 
  * @return int 
  */
-static int set_queue_num(int file_desc, uint16_t *iosq_num, uint16_t *iocq_num)
+static int set_queue_num(int g_fd, uint16_t *iosq_num, uint16_t *iocq_num)
 {
 	struct nvme_completion *cq_entry = NULL;
-	int ret_val = nvme_set_feature_cmd(file_desc, 1, NVME_FEAT_NUM_QUEUES, 0xFF, 0xFF);
+	int ret_val = nvme_set_feature_cmd(g_fd, 1, NVME_FEAT_NUM_QUEUES, 0xFF, 0xFF);
 	if (SUCCEED != ret_val)
 	{
 		pr_err("set queue num failed!\n");
 		return ret_val;
 	}
-	ret_val |= nvme_admin_ring_dbl_reap_cq(file_desc);
+	ret_val |= nvme_admin_ring_dbl_reap_cq(g_fd);
 
 	//get cq entry
 	cq_entry = get_cq_entry();
@@ -65,38 +65,38 @@ static int set_queue_num(int file_desc, uint16_t *iosq_num, uint16_t *iocq_num)
 /**
  * @brief identify control
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param addr 
  * @return int 
  */
-int identify_control(int file_desc, void *addr)
+int identify_control(int g_fd, void *addr)
 {
-	int ret_val = nvme_idfy_ctrl(file_desc, addr);
+	int ret_val = nvme_idfy_ctrl(g_fd, addr);
 	if (ret_val != SUCCEED)
 	{
 		pr_err("[E]nvme_idfy_ctrl\n");
 		return ret_val;
 	}
-	return nvme_admin_ring_dbl_reap_cq(file_desc);
+	return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
 /**
  * @brief identify namespace
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param nsid 
  * @param addr 
  * @return int 
  */
-int identify_ns(int file_desc, uint32_t nsid, void *addr)
+int identify_ns(int g_fd, uint32_t nsid, void *addr)
 {
-	int ret_val = nvme_idfy_ns(file_desc, nsid, false, addr);
+	int ret_val = nvme_idfy_ns(g_fd, nsid, false, addr);
 	if (ret_val != SUCCEED)
 	{
 		pr_err("[E]nvme_idfy_ns\n");
 		return ret_val;
 	}
-	return nvme_admin_ring_dbl_reap_cq(file_desc);
+	return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
 /**
@@ -132,7 +132,7 @@ void random_sq_cq_info(void)
 	pr_info("\n");
 }
 
-void test_init(int file_desc)
+void test_init(int g_fd)
 {
 	int ret_val = FAILED;
 	uint16_t iosq_num, iocq_num;
@@ -142,16 +142,16 @@ void test_init(int file_desc)
 	uint8_t cqes = 0;
 	pr_info("--->[%s]\n", __FUNCTION__);
 	int ret = FAILED;
-	ret = ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
+	ret = ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
 	assert(ret == SUCCEED);
-	ioctl_create_acq(file_desc, MAX_ADMIN_QUEUE_SIZE);
-	ioctl_create_asq(file_desc, MAX_ADMIN_QUEUE_SIZE);
-	set_irqs(file_desc, NVME_INT_PIN, 1);
-	ioctl_enable_ctrl(file_desc);
+	ioctl_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	ioctl_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	set_irqs(g_fd, NVME_INT_PIN, 1);
+	ioctl_enable_ctrl(g_fd);
 
 	//step4: send get feature cmd (get queue number)
 	pr_info("Send set feature cmd (get queue number)\n");
-	set_queue_num(file_desc, &iosq_num, &iocq_num);
+	set_queue_num(g_fd, &iosq_num, &iocq_num);
 	pr_info("\tDevice support: %d iosq, %d iocq\n", iosq_num + 1, iocq_num + 1);
 
 	g_nvme_dev.max_sq_num = (iosq_num + 1);
@@ -175,7 +175,7 @@ void test_init(int file_desc)
 	}
 	/**********************************************************************/
 	// step6: send identify cmd
-	identify_control(file_desc, &g_nvme_dev.id_ctrl);
+	identify_control(g_fd, &g_nvme_dev.id_ctrl);
 
 	pr_color(LOG_COLOR_GREEN, "identify ctrl info:\n");
 	pr_info("PCI Vendor ID (VID): %#x\n", g_nvme_dev.id_ctrl.vid);
@@ -191,32 +191,32 @@ void test_init(int file_desc)
 	pr_info("SGL support (SGLS): %#x\n", g_nvme_dev.id_ctrl.sgls);
 
 	//step1: disable control
-	ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
+	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
 	//step 2.1: configure Admin queue
 	pr_info("Init Admin cq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
-	ioctl_create_acq(file_desc, MAX_ADMIN_QUEUE_SIZE);
+	ioctl_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 	pr_info("Init Admin sq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
-	ioctl_create_asq(file_desc, MAX_ADMIN_QUEUE_SIZE);
+	ioctl_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 
 	//step 2.2: configure Admin queue
-	//set_irqs(file_desc, NVME_INT_NONE, 0);
-	// set_irqs(file_desc, NVME_INT_PIN, 1);
-	// set_irqs(file_desc, NVME_INT_MSI_SINGLE, 1);
+	//set_irqs(g_fd, NVME_INT_NONE, 0);
+	// set_irqs(g_fd, NVME_INT_PIN, 1);
+	// set_irqs(g_fd, NVME_INT_MSI_SINGLE, 1);
 	if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-		set_irqs(file_desc, NVME_INT_PIN, 1);
+		set_irqs(g_fd, NVME_INT_PIN, 1);
 	else
-		set_irqs(file_desc, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
+		set_irqs(g_fd, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
 
 	//step3: enable control
-	ioctl_enable_ctrl(file_desc);
+	ioctl_enable_ctrl(g_fd);
 
 	//step7: set cq/sq entry size
 	sqes = g_nvme_dev.id_ctrl.sqes & 0x0f;
 	cqes = g_nvme_dev.id_ctrl.cqes & 0x0f;
-	u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_CC_OFST, 4);
+	u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_CC_OFST, 4);
 	u32_tmp_data &= ~((0xf << 20) | (0xf << 16) | (1 << 0));
 	u32_tmp_data |= ((cqes << 20) | sqes << 16) | (1 << 0);
-	ioctl_write_data(file_desc, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+	ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
 
 	/**********************************************************************/
 	g_nvme_ns_info = (struct nvme_ns *)malloc(g_nvme_dev.id_ctrl.nn * sizeof(struct nvme_ns));
@@ -229,7 +229,7 @@ void test_init(int file_desc)
 	for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
 	{
 		pr_color(LOG_COLOR_GREEN, "identify nsid:%d info:\n", ns_idx + 1);
-		identify_ns(file_desc, (ns_idx + 1), (void *)&g_nvme_ns_info[ns_idx].id_ns);
+		identify_ns(g_fd, (ns_idx + 1), (void *)&g_nvme_ns_info[ns_idx].id_ns);
 		flbas = g_nvme_ns_info[ns_idx].id_ns.flbas & 0xf;
 		g_nvme_ns_info[ns_idx].nsze = g_nvme_ns_info[ns_idx].id_ns.nsze;
 		g_nvme_ns_info[ns_idx].lbads = (1 << g_nvme_ns_info[ns_idx].id_ns.lbaf[flbas].ds);
@@ -245,15 +245,15 @@ void test_init(int file_desc)
 
 	pr_color(LOG_COLOR_GREEN, "ns 0 disk_max_lba: %#lx \n", g_nvme_ns_info[0].nsze);
 
-	g_nvme_dev.pmcap_ofst = pci_find_cap_ofst(file_desc, PCI_PMCAP_ID);
-	g_nvme_dev.msicap_ofst = pci_find_cap_ofst(file_desc, PCI_MSICAP_ID);
-	g_nvme_dev.pxcap_ofst = pci_find_cap_ofst(file_desc, PCI_PXCAP_ID);
+	g_nvme_dev.pmcap_ofst = pci_find_cap_ofst(g_fd, PCI_PMCAP_ID);
+	g_nvme_dev.msicap_ofst = pci_find_cap_ofst(g_fd, PCI_MSICAP_ID);
+	g_nvme_dev.pxcap_ofst = pci_find_cap_ofst(g_fd, PCI_PXCAP_ID);
 	pr_color(LOG_COLOR_GREEN, "pcie_regs_info:\n");
 	pr_info("pmcap_ofst: %#x\n", g_nvme_dev.pmcap_ofst);
 	pr_info("msicap_ofst: %#x\n", g_nvme_dev.msicap_ofst);
 	pr_info("pxcap_ofst: %#x\n", g_nvme_dev.pxcap_ofst);
 
-	ret_val = read_nvme_register(file_desc, 0, sizeof(struct reg_nvme_ctrl), (uint8_t *)&g_nvme_dev.ctrl_reg);
+	ret_val = read_nvme_register(g_fd, 0, sizeof(struct reg_nvme_ctrl), (uint8_t *)&g_nvme_dev.ctrl_reg);
 	if (ret_val < 0)
 	{
 		pr_err("[E] read ctrlr register ret_val:%d!\n", ret_val);
@@ -282,38 +282,38 @@ void test_init(int file_desc)
 	pr_info("<---[%s]\n", __FUNCTION__);
 
     //displaly power up link status
-    u32_tmp_data = pci_read_byte(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_byte(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     g_nvme_dev.link_speed = u32_tmp_data & 0x0F;
     g_nvme_dev.link_width = (u32_tmp_data >> 4) & 0x3F;
     pr_color(LOG_COLOR_CYAN, "\nCurrent link status: Gen%d, X%d\n", g_nvme_dev.link_speed, g_nvme_dev.link_width);
 }
 
-void test_change_init(int file_desc, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type irq_type, uint16_t num_irqs)
+void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type irq_type, uint16_t num_irqs)
 {
 	uint32_t u32_tmp_data = 0;
 	int ret = FAILED;
-	ret = ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
+	ret = ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
 	assert(ret == SUCCEED);
-	ioctl_create_asq(file_desc, asqsz);
-	ioctl_create_acq(file_desc, acqsz);
-	set_irqs(file_desc, irq_type, num_irqs);
-	ioctl_enable_ctrl(file_desc);
+	ioctl_create_asq(g_fd, asqsz);
+	ioctl_create_acq(g_fd, acqsz);
+	set_irqs(g_fd, irq_type, num_irqs);
+	ioctl_enable_ctrl(g_fd);
 
 	u32_tmp_data = 0x00460001;
-	ioctl_write_data(file_desc, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+	ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
 }
 
-void test_change_irqs(int file_desc, enum nvme_irq_type irq_type, uint16_t num_irqs)
+void test_change_irqs(int g_fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
 {
-	ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE);
-	set_irqs(file_desc, irq_type, num_irqs);
-	ioctl_enable_ctrl(file_desc);
+	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE);
+	set_irqs(g_fd, irq_type, num_irqs);
+	ioctl_enable_ctrl(g_fd);
 }
 
-void test_set_admn(int file_desc, uint32_t asqsz, uint32_t acqsz)
+void test_set_admn(int g_fd, uint32_t asqsz, uint32_t acqsz)
 {
-	ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE);
-	ioctl_create_acq(file_desc, acqsz);
-	ioctl_create_asq(file_desc, asqsz);
-	ioctl_enable_ctrl(file_desc);
+	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE);
+	ioctl_create_acq(g_fd, acqsz);
+	ioctl_create_asq(g_fd, asqsz);
+	ioctl_enable_ctrl(g_fd);
 }

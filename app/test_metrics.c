@@ -34,7 +34,7 @@
 /*
  * Functions for the ioctl calls
 */
-void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
+void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size)
 {
     int ret_val = -1;
     uint16_t tmp;
@@ -61,7 +61,7 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
         pr_err("Malloc Failed");
         return;
     }
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_QUEUE, &get_q_metrics);
+    ret_val = ioctl(g_fd, NVME_IOCTL_GET_QUEUE, &get_q_metrics);
 
     if (ret_val < 0)
     {
@@ -101,18 +101,18 @@ void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size)
     free(get_q_metrics.buf);
 }
 
-void admin_queue_config(int file_desc)
+void admin_queue_config(int g_fd)
 {
-    ioctl_create_acq(file_desc, MAX_ADMIN_QUEUE_SIZE);
-    ioctl_create_asq(file_desc, MAX_ADMIN_QUEUE_SIZE);
+    ioctl_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+    ioctl_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 }
 
-void test_drv_metrics(int file_desc)
+void test_drv_metrics(int g_fd)
 {
     struct nvme_driver get_drv_metrics = {0};
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DRIVER_INFO, &get_drv_metrics);
+    ret_val = ioctl(g_fd, NVME_IOCTL_GET_DRIVER_INFO, &get_drv_metrics);
     if (ret_val < 0)
     {
         pr_err("\tDrv metrics Failed!\n");
@@ -121,12 +121,12 @@ void test_drv_metrics(int file_desc)
     pr_debug("Api Version = 0x%X\n", get_drv_metrics.api_version);
 }
 
-void test_dev_metrics(int file_desc)
+void test_dev_metrics(int g_fd)
 {
     struct nvme_dev_public get_dev_metrics = {0};
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_GET_DEV_INFO, &get_dev_metrics);
+    ret_val = ioctl(g_fd, NVME_IOCTL_GET_DEV_INFO, &get_dev_metrics);
     if (ret_val < 0)
     {
         pr_err("\tDev metrics Failed!\n");
@@ -138,12 +138,12 @@ void test_dev_metrics(int file_desc)
 /**
  * @brief ioctl_read_data, nvme layer
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param offset 
  * @param bytes 
  * @return uint32_t 
  */
-uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t bytes)
+uint32_t ioctl_read_data(int g_fd, uint32_t offset, uint32_t bytes)
 {
     int ret_val = 0;
     uint32_t u32_data = 0;
@@ -160,7 +160,7 @@ uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t bytes)
         pr_err("Malloc Failed");
         exit(-1);
     }
-    ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_set_msg failed:%d\n", ret_val);
@@ -190,13 +190,13 @@ uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t bytes)
 }
 /*
  * @brief read_nvme_register nvme layer
- * @param[in] file_desc  
+ * @param[in] g_fd  
  * @param[in] offset 
  * @param[in] bytes 
  * @param[out] buffer output register data
  * @return depends on REQUEST. Usually -1 indicates error.
 */
-int read_nvme_register(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
+int read_nvme_register(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
 {
     int ret_val = 0;
     struct nvme_access test_data = {0};
@@ -206,7 +206,7 @@ int read_nvme_register(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *
     test_data.bytes = bytes;
     test_data.type = NVME_ACCESS_BYTE;
     test_data.buffer = byte_buffer;
-    ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_set_msg failed:%d\n", ret_val);
@@ -218,13 +218,13 @@ int read_nvme_register(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *
 /**
  * @brief ioctl_write_data, nvme layer
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param offset 
  * @param bytes 
  * @param byte_buffer 
  * @return int 
  */
-int ioctl_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
+int ioctl_write_data(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
 {
     int ret_val = 0;
     //int message;
@@ -247,7 +247,7 @@ int ioctl_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *by
 #if 0
     pr_info("NVME Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
 #endif
-    ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_WRITE_GENERIC, &test_data);
 
     if (ret_val < 0)
     {
@@ -263,10 +263,10 @@ err:
 /**
  * @brief ioctl_create_acq
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param queue_size 
  */
-void ioctl_create_acq(int file_desc, uint32_t queue_size)
+void ioctl_create_acq(int g_fd, uint32_t queue_size)
 {
     int ret_val = -1;
     struct nvme_admin_queue aq_data = {0};
@@ -282,7 +282,7 @@ void ioctl_create_acq(int file_desc, uint32_t queue_size)
 
     pr_debug("\tAdmin CQ No. of Elements = %d\n", aq_data.elements);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
     if (ret_val < 0)
     {
         pr_err("\tCreation of ACQ Failed!  ret_val=%d\n", ret_val);
@@ -295,10 +295,10 @@ void ioctl_create_acq(int file_desc, uint32_t queue_size)
 /**
  * @brief ioctl_create_asq
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param queue_size 
  */
-void ioctl_create_asq(int file_desc, uint32_t queue_size)
+void ioctl_create_asq(int g_fd, uint32_t queue_size)
 {
     int ret_val = -1;
     struct nvme_admin_queue aq_data = {0};
@@ -314,7 +314,7 @@ void ioctl_create_asq(int file_desc, uint32_t queue_size)
 
     pr_debug("\tAdmin SQ No. of Elements = %d\n", aq_data.elements);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
     if (ret_val < 0)
     {
         pr_err("\tCreation of ASQ Failed! ret_val=%d\n", ret_val);
@@ -327,14 +327,14 @@ void ioctl_create_asq(int file_desc, uint32_t queue_size)
 /**
  * @brief ioctl_enable_ctrl
  * 
- * @param file_desc 
+ * @param g_fd 
  */
-void ioctl_enable_ctrl(int file_desc)
+void ioctl_enable_ctrl(int g_fd)
 {
     int ret_val = -1;
     enum nvme_state new_state = NVME_ST_ENABLE;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, new_state);
+    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, new_state);
     if (ret_val < 0)
     {
         pr_err("Enable Ctrlr: Failed!\n");
@@ -347,14 +347,14 @@ void ioctl_enable_ctrl(int file_desc)
 /**
  * @brief ioctl_disable_ctrl
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param new_state 
  */
-int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
+int ioctl_disable_ctrl(int g_fd, enum nvme_state new_state)
 {
     int ret_val = -1;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, new_state);
+    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, new_state);
     if (ret_val < 0)
     {
         pr_err("User Call to Disable Ctrlr: Failed!\n");
@@ -366,7 +366,7 @@ int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state)
     return ret_val;
 }
 
-void ioctl_dump(int file_desc, char *tmpfile)
+void ioctl_dump(int g_fd, char *tmpfile)
 {
     int ret_val = -1;
     struct nvme_log_file pfile = {0};
@@ -378,7 +378,7 @@ void ioctl_dump(int file_desc, char *tmpfile)
 
     pr_info("File name = %s\n", pfile.name);
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_DUMP_LOG_FILE, &pfile);
+    ret_val = ioctl(g_fd, NVME_IOCTL_DUMP_LOG_FILE, &pfile);
     if (ret_val < 0)
     {
         pr_err("Dump Metrics Failed!\n");
@@ -389,33 +389,33 @@ void ioctl_dump(int file_desc, char *tmpfile)
     }
 }
 
-int test_create_contig_iocq(int file_desc, uint16_t io_cq_id, uint16_t cq_size)
+int test_create_contig_iocq(int g_fd, uint16_t io_cq_id, uint16_t cq_size)
 {
-    return nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, 1, 1);
+    return nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, 1, 1);
 }
 
-int test_create_contig_iosq(int file_desc, uint16_t io_sq_id, uint16_t io_cq_id, uint16_t sq_size)
+int test_create_contig_iosq(int g_fd, uint16_t io_sq_id, uint16_t io_cq_id, uint16_t sq_size)
 {
-    return nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, 1);
+    return nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, 1);
 }
 
-int test_reap_cq(int file_desc, int cq_id, uint32_t cmd_cnt, int disp_flag)
+int test_reap_cq(int g_fd, int cq_id, uint32_t cmd_cnt, int disp_flag)
 {
-    while (ioctl_reap_inquiry(file_desc, cq_id) != cmd_cnt)
+    while (ioctl_reap_inquiry(g_fd, cq_id) != cmd_cnt)
         usleep(50);
-    return (ioctl_reap_cq(file_desc, cq_id, cmd_cnt, 16, disp_flag));
+    return (ioctl_reap_cq(g_fd, cq_id, cmd_cnt, 16, disp_flag));
 }
 
-struct nvme_completion *send_get_feature(int file_desc, uint8_t feature_id)
+struct nvme_completion *send_get_feature(int g_fd, uint8_t feature_id)
 {
     uint32_t reap_num = 0;
     //send command
-    if (nvme_get_feature_cmd(file_desc, 1, feature_id))
+    if (nvme_get_feature_cmd(g_fd, 1, feature_id))
     {
         pr_err("send get feature cmd Failed!\n");
     }
     // ring doorbell
-    if (ioctl_tst_ring_dbl(file_desc, 0))
+    if (ioctl_tst_ring_dbl(g_fd, 0))
     {
         pr_err("DBL ERR!");
     }
@@ -430,11 +430,11 @@ struct nvme_completion *send_get_feature(int file_desc, uint8_t feature_id)
 /**
  * @brief pci_read_dword, pcie layer
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param offset 
  * @return uint32_t 
  */
-uint32_t pci_read_dword(int file_desc, uint32_t offset)
+uint32_t pci_read_dword(int g_fd, uint32_t offset)
 {
     int ret_val = FAILED;
     uint32_t data = 0;
@@ -446,7 +446,7 @@ uint32_t pci_read_dword(int file_desc, uint32_t offset)
     test_data.bytes = sizeof(data);
     test_data.type = NVME_ACCESS_DWORD;
     test_data.buffer = (uint8_t *)&data;
-    ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_set_msg failed:%d\n", ret_val);
@@ -458,11 +458,11 @@ uint32_t pci_read_dword(int file_desc, uint32_t offset)
 /**
  * @brief pci_read_word, pcie layer
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param offset 
  * @return uint16_t 
  */
-uint16_t pci_read_word(int file_desc, uint32_t offset)
+uint16_t pci_read_word(int g_fd, uint32_t offset)
 {
     int ret_val = FAILED;
     uint16_t data = 0;
@@ -474,7 +474,7 @@ uint16_t pci_read_word(int file_desc, uint32_t offset)
     test_data.bytes = sizeof(data);
     test_data.type = NVME_ACCESS_WORD;
     test_data.buffer = (uint8_t *)&data;
-    ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_set_msg failed:%d\n", ret_val);
@@ -486,11 +486,11 @@ uint16_t pci_read_word(int file_desc, uint32_t offset)
 /**
  * @brief pci_read_byte, pcie layer
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param offset 
  * @return uint8_t 
  */
-uint8_t pci_read_byte(int file_desc, uint32_t offset)
+uint8_t pci_read_byte(int g_fd, uint32_t offset)
 {
     int ret_val = FAILED;
     uint8_t data = 0;
@@ -500,7 +500,7 @@ uint8_t pci_read_byte(int file_desc, uint32_t offset)
     test_data.bytes = sizeof(data);
     test_data.type = NVME_ACCESS_BYTE;
     test_data.buffer = (uint8_t *)&data;
-    ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_set_msg failed:%d\n", ret_val);
@@ -511,14 +511,14 @@ uint8_t pci_read_byte(int file_desc, uint32_t offset)
 
 /*
  * @brief read_pcie_register layer
- * @param[in] file_desc  
+ * @param[in] g_fd  
  * @param[in] offset 
  * @param[in] bytes 
  * @param[in] acc_type
  * @param[out] buffer output register data
  * @return depends on REQUEST. Usually -1 indicates error.
 */
-int read_pcie_register(int file_desc, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer)
+int read_pcie_register(int g_fd, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer)
 {
     int ret_val = FAILED;
     struct nvme_access test_data = {0};
@@ -528,7 +528,7 @@ int read_pcie_register(int file_desc, uint32_t offset, uint32_t bytes, enum nvme
     test_data.bytes = bytes;
     test_data.type = acc_type;
     test_data.buffer = byte_buffer;
-    ret_val = ioctl(file_desc, NVME_IOCTL_READ_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_READ_GENERIC, &test_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_set_msg failed:%d\n", ret_val);
@@ -540,13 +540,13 @@ int read_pcie_register(int file_desc, uint32_t offset, uint32_t bytes, enum nvme
 /**
  * @brief ioctl_pci_write_data, pcie layer
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param offset 
  * @param bytes 
  * @param byte_buffer 
  * @return uint32_t 
  */
-int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
+int ioctl_pci_write_data(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer)
 {
     int ret_val = FAILED;
     struct nvme_access test_data = {0};
@@ -567,7 +567,7 @@ int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t
 #if 0
     pr_info("PCIe Writing DWORD at offset:0x%02x Val:0x%08x\n", test_data.offset, *(uint32_t *)test_data.buffer);
 #endif
-    ret_val = ioctl(file_desc, NVME_IOCTL_WRITE_GENERIC, &test_data);
+    ret_val = ioctl(g_fd, NVME_IOCTL_WRITE_GENERIC, &test_data);
 
     if (ret_val < 0)
     {
@@ -624,131 +624,131 @@ void test_encrypt_decrypt(void)
         for (i = 0, j = 0, k = 0; i < 16; i++)
         {
             k = i * 4 + 3;
-            *((uint32_t *)write_buffer + k) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)write_buffer + 64 + k) = *((uint32_t *)write_buffer + k);
+            *((uint32_t *)g_write_buf + k) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)g_write_buf + 64 + k) = *((uint32_t *)g_write_buf + k);
             j += 4;
-            *((uint32_t *)write_buffer + k - 1) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)write_buffer + 64 + k - 1) = *((uint32_t *)write_buffer + k - 1);
+            *((uint32_t *)g_write_buf + k - 1) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)g_write_buf + 64 + k - 1) = *((uint32_t *)g_write_buf + k - 1);
             j += 4;
-            *((uint32_t *)write_buffer + k - 2) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)write_buffer + 64 + k - 2) = *((uint32_t *)write_buffer + k - 2);
+            *((uint32_t *)g_write_buf + k - 2) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)g_write_buf + 64 + k - 2) = *((uint32_t *)g_write_buf + k - 2);
             j += 4;
-            *((uint32_t *)write_buffer + k - 3) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)write_buffer + 64 + k - 3) = *((uint32_t *)write_buffer + k - 3);
+            *((uint32_t *)g_write_buf + k - 3) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)g_write_buf + 64 + k - 3) = *((uint32_t *)g_write_buf + k - 3);
             j += 4;
-            //pr_info("k:%d,j:%d,i:%d,write_buffer[%d]:0x%08x\n",k,j,i,i,((uint32_t *)write_buffer)[i]);
+            //pr_info("k:%d,j:%d,i:%d,g_write_buf[%d]:0x%08x\n",k,j,i,i,((uint32_t *)g_write_buf)[i]);
         }
     // for(i=0; i<128; i++)
     // {
-    //     pr_info("write_buffer[%d]:0x%08x\n",i,((uint32_t *)write_buffer)[i]);
+    //     pr_info("g_write_buf[%d]:0x%08x\n",i,((uint32_t *)g_write_buf)[i]);
     // }
     #else
     // //ECB-AES128/256
-    // *((uint32_t *)write_buffer) = 0x7393172a;
-    // *((uint32_t *)write_buffer+1) = 0xe93d7e11;
-    // *((uint32_t *)write_buffer+2) = 0x2e409f96;
-    // *((uint32_t *)write_buffer+3) = 0x6bc1bee2;
+    // *((uint32_t *)g_write_buf) = 0x7393172a;
+    // *((uint32_t *)g_write_buf+1) = 0xe93d7e11;
+    // *((uint32_t *)g_write_buf+2) = 0x2e409f96;
+    // *((uint32_t *)g_write_buf+3) = 0x6bc1bee2;
 
     // //SM4-ECB128
-    // *((uint32_t *)write_buffer) = 0xd468cdc9;
-    // *((uint32_t *)write_buffer+1) = 0xc2d02d76;
-    // *((uint32_t *)write_buffer+2) = 0x598a2797;
-    // *((uint32_t *)write_buffer+3) = 0x115960c5;
+    // *((uint32_t *)g_write_buf) = 0xd468cdc9;
+    // *((uint32_t *)g_write_buf+1) = 0xc2d02d76;
+    // *((uint32_t *)g_write_buf+2) = 0x598a2797;
+    // *((uint32_t *)g_write_buf+3) = 0x115960c5;
     #endif
 
     wr_slba = 0xff;
     wr_nlb = 1;
     for (i = 0; i < (wr_nlb * LBA_DAT_SIZE); i++)
     {
-        // *(char *)(write_buffer + i) = 0;
-        *(char *)(read_buffer + i) = 0;
+        // *(char *)(g_write_buf + i) = 0;
+        *(char *)(g_read_buf + i) = 0;
     }
     cmd_cnt = 0;
-    nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+    nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
     cmd_cnt++;
-    ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    ioctl_tst_ring_dbl(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     cmd_cnt = 0;
-    nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+    nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    ioctl_tst_ring_dbl(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
     err_flg = 0;
 #if 0
     // // ECB-AES128.Encrypt
-    // if(*((uint32_t *)read_buffer) != 0x2466ef97)
+    // if(*((uint32_t *)g_read_buf) != 0x2466ef97)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+1) != 0xa89ecaf3)
+    // if(*((uint32_t *)g_read_buf+1) != 0xa89ecaf3)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+2) != 0x0d7a3660)
+    // if(*((uint32_t *)g_read_buf+2) != 0x0d7a3660)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+3) != 0x3ad77bb4)
+    // if(*((uint32_t *)g_read_buf+3) != 0x3ad77bb4)
     //     err_flg = 1;
 
     // //SM4-ECB128.Encrypt
-    // if(*((uint32_t *)read_buffer) != 0x4dd7c50b)
+    // if(*((uint32_t *)g_read_buf) != 0x4dd7c50b)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+1) != 0x00ce6c9a)
+    // if(*((uint32_t *)g_read_buf+1) != 0x00ce6c9a)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+2) != 0x9b327396)
+    // if(*((uint32_t *)g_read_buf+2) != 0x9b327396)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+3) != 0xa52485ce)
+    // if(*((uint32_t *)g_read_buf+3) != 0xa52485ce)
     //     err_flg = 1;
 
     // //ECB-AES256.Encrypt
-    // if(*((uint32_t *)read_buffer) != 0x3db181f8)
+    // if(*((uint32_t *)g_read_buf) != 0x3db181f8)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+1) != 0x064b5a7e)
+    // if(*((uint32_t *)g_read_buf+1) != 0x064b5a7e)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+2) != 0xb5d2a03c)
+    // if(*((uint32_t *)g_read_buf+2) != 0xb5d2a03c)
     //     err_flg = 1;
-    // if(*((uint32_t *)read_buffer+3) != 0xf3eed1bd)
+    // if(*((uint32_t *)g_read_buf+3) != 0xf3eed1bd)
     //     err_flg = 1;
 
     // XTS-AES128.Encrypt
-    // if (*((uint32_t *)read_buffer) != 0xd4cfa6e2)
+    // if (*((uint32_t *)g_read_buf) != 0xd4cfa6e2)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 1) != 0x489f308c)
+    // if (*((uint32_t *)g_read_buf + 1) != 0x489f308c)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 2) != 0xefa1d476)
+    // if (*((uint32_t *)g_read_buf + 2) != 0xefa1d476)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 3) != 0x27a7479b)
+    // if (*((uint32_t *)g_read_buf + 3) != 0x27a7479b)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 124) != 0x319d0568)
+    // if (*((uint32_t *)g_read_buf + 124) != 0x319d0568)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 125) != 0xbe421ee5)
+    // if (*((uint32_t *)g_read_buf + 125) != 0xbe421ee5)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 126) != 0x20147bea)
+    // if (*((uint32_t *)g_read_buf + 126) != 0x20147bea)
     //     err_flg = 1;
-    // if (*((uint32_t *)read_buffer + 127) != 0x0a282df9)
+    // if (*((uint32_t *)g_read_buf + 127) != 0x0a282df9)
     //     err_flg = 1;
 
     // XTS-AES256.Encrypt
-    if (*((uint32_t *)read_buffer) != 0xe370cf9b)
+    if (*((uint32_t *)g_read_buf) != 0xe370cf9b)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 1) != 0xe4836c99)
+    if (*((uint32_t *)g_read_buf + 1) != 0xe4836c99)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 2) != 0x2f770386)
+    if (*((uint32_t *)g_read_buf + 2) != 0x2f770386)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 3) != 0x1c3b3a10)
+    if (*((uint32_t *)g_read_buf + 3) != 0x1c3b3a10)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 124) != 0xe148c151)
+    if (*((uint32_t *)g_read_buf + 124) != 0xe148c151)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 125) != 0xb9c6e693)
+    if (*((uint32_t *)g_read_buf + 125) != 0xb9c6e693)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 126) != 0xa9fcea70)
+    if (*((uint32_t *)g_read_buf + 126) != 0xa9fcea70)
         err_flg = 1;
-    if (*((uint32_t *)read_buffer + 127) != 0xc4f36ffd)
+    if (*((uint32_t *)g_read_buf + 127) != 0xc4f36ffd)
         err_flg = 1;
 
 #else
-    if (FAILED == dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DAT_SIZE))
+    if (FAILED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE))
     {
         pr_info("\nwrite_buffer Data:\n");
-        mem_disp(write_buffer, LBA_DAT_SIZE);
+        mem_disp(g_write_buf, LBA_DAT_SIZE);
         pr_info("\nRead_buffer Data:\n");
-        mem_disp(read_buffer, LBA_DAT_SIZE);
+        mem_disp(g_read_buf, LBA_DAT_SIZE);
     }
 #endif
     if (err_flg)

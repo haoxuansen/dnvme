@@ -40,14 +40,14 @@ static void set_pcie_mps_128(void)
     //system("setpci -s 0:1b.4 48.b=0f");
 
     // EP set MPS 128
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data &= 0xFFFFFF1F;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
     //pr_info("\nread g_nvme_dev.pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
-    //u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x4);
+    //u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x4);
     //u32_tmp_data &= 0x07;
     pr_info("\nEP Max Payload Size support 128 byte, 0x%x\n", u32_tmp_data);
 }
@@ -60,12 +60,12 @@ static void set_pcie_mps_256(void)
     //system("setpci -s 0:1b.4 48.b=2f");
 
     // EP set MPS 256
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data &= 0xFFFFFF1F;
     u32_tmp_data |= 0x20;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
     pr_info("\nEP Max Payload Size support 256 byte, 0x%x\n", u32_tmp_data);
 }
@@ -78,11 +78,11 @@ static void pcie_packet(void)
     cmd_cnt = 0;
     for (i = 0; i < 10; i++)
     {
-        nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         cmd_cnt++;
     }
     pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
-    ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    ioctl_tst_ring_dbl(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 }
@@ -120,9 +120,9 @@ int case_pcie_MPS(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    test_flag |= create_iocq(file_desc, &cq_parameter);
+    test_flag |= create_iocq(g_fd, &cq_parameter);
     pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
@@ -132,14 +132,14 @@ int case_pcie_MPS(void)
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
-    test_flag |= create_iosq(file_desc, &sq_parameter);
+    test_flag |= create_iosq(g_fd, &sq_parameter);
     pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Payload Size support
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x4);
     u32_tmp_data &= 0x07;
     if (u32_tmp_data == 0)
     {

@@ -23,7 +23,6 @@
 #include "test_irq.h"
 #include "test_cq_gain.h"
 
-void *buffer_cq_entry;
 char *tmpfile_dump = "/tmp/dump_cq.txt";
 
 int disp_cq_data(unsigned char *cq_buffer, int reap_num)
@@ -41,7 +40,7 @@ int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 			ret_val = FAILED;
 			/*for debug*/
-			// ioctl_dump(file_desc, tmpfile_dump);
+			// ioctl_dump(g_fd, tmpfile_dump);
 			// exit(-1);
 			/*for debug*/
 		}
@@ -76,11 +75,11 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 	rp_cq.q_id = cq_id;
 	rp_cq.elements = expect_num;
 	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)buffer_cq_entry;
+	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
 
 	while (*reaped_num < expect_num)
 	{
-		ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
+		ret_val = ioctl(g_fd, NVME_IOCTL_REAP_CQE, &rp_cq);
 		if (ret_val)
 		{
 			pr_err("Call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
@@ -111,7 +110,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 			break;
 		}
 	}
-	if (disp_cq_data(buffer_cq_entry, *reaped_num))
+	if (disp_cq_data(g_cq_entry_buf, *reaped_num))
 	{
 		ret_val = FAILED;
 	}
@@ -135,11 +134,11 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 	rp_cq.q_id = cq_id;
 	rp_cq.elements = expect_num;
 	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)buffer_cq_entry;
+	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
 
 	while (*reaped_num < expect_num)
 	{
-		ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
+		ret_val = ioctl(g_fd, NVME_IOCTL_REAP_CQE, &rp_cq);
 		if (ret_val)
 		{
 			pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
@@ -171,7 +170,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 	}
 	if(disp_cq)
 	{
-		ret_val = disp_cq_data(buffer_cq_entry, *reaped_num);
+		ret_val = disp_cq_data(g_cq_entry_buf, *reaped_num);
 	}
 	return ret_val;
 }
@@ -179,7 +178,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 
 struct nvme_completion *get_cq_entry(void)
 {
-	return (struct nvme_completion *)buffer_cq_entry;
+	return (struct nvme_completion *)g_cq_entry_buf;
 }
 
 /***********************/
@@ -224,14 +223,14 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 
 	rp_cq.elements = 0; //
 	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)buffer_cq_entry;
+	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
 	while (reaped_num < arb_parameter->expect_num)
 	{
 		for (i = 1; i <= 8; i++)
 		{
 			cq_id = i;
 			rp_cq.q_id = cq_id;
-			ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
+			ret_val = ioctl(g_fd, NVME_IOCTL_REAP_CQE, &rp_cq);
 			if (ret_val)
 			{
 				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, arb_parameter->expect_num);
@@ -265,7 +264,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 	// cmd_sum_num = arb_parameter->hight_prio_cmd_num + arb_parameter->medium_prio_cmd_num + arb_parameter->low_prio_cmd_num;
 
 	loop = 0;
-	cq_buffer = buffer_cq_entry;
+	cq_buffer = g_cq_entry_buf;
 	for (cq_cmd_cnt = 1; cq_cmd_cnt <= reaped_num; cq_cmd_cnt++)
 	{
 		cq_entry = (struct nvme_completion *)cq_buffer;
@@ -502,14 +501,14 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 
 	rp_cq.elements = 0; //
 	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)buffer_cq_entry;
+	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
 	while (reaped_num < arb_parameter->expect_num)
 	{
 		for (i = 1; i <= qnum; i++)
 		{
 			cq_id = i;
 			rp_cq.q_id = cq_id;
-			ret_val = ioctl(file_desc, NVME_IOCTL_REAP_CQE, &rp_cq);
+			ret_val = ioctl(g_fd, NVME_IOCTL_REAP_CQE, &rp_cq);
 			if (ret_val)
 			{
 				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, arb_parameter->expect_num);
@@ -542,7 +541,7 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 	// loop_data = arb_parameter->Arbit_HPW + 1 + arb_parameter->Arbit_MPW + 1 + arb_parameter->Arbit_LPW + 1;
 	// cmd_sum_num = arb_parameter->hight_prio_cmd_num + arb_parameter->medium_prio_cmd_num + arb_parameter->low_prio_cmd_num;
 
-	cq_buffer = buffer_cq_entry;
+	cq_buffer = g_cq_entry_buf;
 	for (cq_cmd_cnt = 1; cq_cmd_cnt <= reaped_num; cq_cmd_cnt++)
 	{
 		cq_entry = (struct nvme_completion *)cq_buffer;

@@ -25,20 +25,20 @@ void int_mask_bit(uint32_t msi_mask_flag)
     uint32_t index_max = 9;
     uint32_t mask_bit = 0;
     uint32_t u32_tmp_data = 0;
-    ioctl_disable_ctrl(file_desc, NVME_ST_DISABLE_COMPLETE);
-    admin_queue_config(file_desc);
+    ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+    admin_queue_config(g_fd);
 
-    set_irqs(file_desc, NVME_INT_MSI_MULTI, 9);
+    set_irqs(g_fd, NVME_INT_MSI_MULTI, 9);
 
     /*
-    mask_irqs(file_desc, 1);
-    mask_irqs(file_desc, 2);
-    mask_irqs(file_desc, 3);
-    mask_irqs(file_desc, 4);
-    mask_irqs(file_desc, 5);
-    mask_irqs(file_desc, 6);
-    mask_irqs(file_desc, 7);
-    mask_irqs(file_desc, 8);
+    mask_irqs(g_fd, 1);
+    mask_irqs(g_fd, 2);
+    mask_irqs(g_fd, 3);
+    mask_irqs(g_fd, 4);
+    mask_irqs(g_fd, 5);
+    mask_irqs(g_fd, 6);
+    mask_irqs(g_fd, 7);
+    mask_irqs(g_fd, 8);
 */
     //msi_mask_flag = 0x1ff;
     pr_info("msi_mask_flag is %d\n", msi_mask_flag);
@@ -47,19 +47,19 @@ void int_mask_bit(uint32_t msi_mask_flag)
         mask_bit = (msi_mask_flag >> mask_index) & 0x1;
         if (mask_bit == 0x1)
         {
-            mask_irqs(file_desc, mask_index);
+            mask_irqs(g_fd, mask_index);
             pr_info("-------mask interrupt %d\n", mask_index);
         }
         else
         {
-            umask_irqs(file_desc, mask_index);
+            umask_irqs(g_fd, mask_index);
             //pr_info("-------unmask interrupt %d\n", mask_index);
         }
     }
-    ioctl_enable_ctrl(file_desc);
+    ioctl_enable_ctrl(g_fd);
 
     u32_tmp_data = 0x00460001;
-    ioctl_write_data(file_desc, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
     //while(1);
 }
 void test_all_cq_cmd(uint32_t msi_mask_flag)
@@ -109,8 +109,8 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = irq_no_arr[q_index - 1];
         //pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
-        test_flag |= create_iocq(file_desc, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= create_iocq(g_fd, &cq_parameter);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         //admin error(mask bit0)
         if (check_admin_status == 1)
         {
@@ -138,8 +138,8 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         sq_parameter.sq_size = sq_size;
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
-        test_flag |= create_iosq(file_desc, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= create_iosq(g_fd, &sq_parameter);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
 
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
@@ -151,13 +151,13 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         cmd_cnt = 0;
         for (index = 0; index < 5; index++)
         {
-            test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
             wr_slba += wr_nlb;
         }
-        test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
         //check msi int bit error
         if (check_status == 1)
         {
@@ -179,12 +179,12 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
             test_flag |= cq_gain(io_sq_id, cmd_cnt, &reap_num);
         }
         /**********************************************************************/
-        test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
-        test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         /**********************************************************************/
@@ -267,7 +267,7 @@ int case_queue_cq_int_msi_multi_mask(void)
 
     test_sub();
     
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     if (test_flag != SUCCEED)
     {

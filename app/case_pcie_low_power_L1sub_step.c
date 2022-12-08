@@ -35,7 +35,7 @@ void pcie_L11_enable(void)
 
     // EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_L11_disable(void)
@@ -44,7 +44,7 @@ void pcie_L11_disable(void)
 
     // EP disable L1
     u32_tmp_data = reg_value;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     // EP disable L1.1
     system("setpci -s 2:0.0 1d8.b=00");
@@ -61,9 +61,9 @@ void pcie_L12_enable(void)
     uint32_t u32_tmp_data = 0;
     uint32_t reg_data = 0;
     // get register value
-    reg_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x28);
+    reg_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x28);
     u32_tmp_data = reg_data | 0x400; // bit[10] LTR enable
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x28, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x28, 4, (uint8_t *)&u32_tmp_data);
 
     // RC enable L1
     system("setpci -s 0:1b.4 50.b=42");
@@ -76,7 +76,7 @@ void pcie_L12_enable(void)
 
     // EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_L12_disable(void)
@@ -85,7 +85,7 @@ void pcie_L12_disable(void)
 
     // EP disable L1
     u32_tmp_data = reg_value;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     // EP disable L1.2
     system("setpci -s 2:0.0 188.b=00");
@@ -117,7 +117,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -141,7 +141,7 @@ static void test_sub(void)
 
     // //clkreq# rise
     // pr_info("\nL1.1 exit then enter\n");
-    //pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x10);       //access EP
+    //pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x10);       //access EP
 
     // scanf("%d", &cmds);
     // //clkreq# fall
@@ -160,7 +160,7 @@ static void test_sub(void)
 
     //clkreq# rise
     pr_info("\nL1.2 exit then enter\n");
-    pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10); //access EP
+    pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10); //access EP
     scanf("%d", &cmds);
     //clkreq# fall
 
@@ -177,13 +177,13 @@ int case_pcie_low_power_L1sub_step(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
 
     // get register value
-    reg_value = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
+    reg_value = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
     reg_value &= 0xFFFFFFFC;
 
     usleep(200000);

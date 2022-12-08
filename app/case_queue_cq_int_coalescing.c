@@ -51,7 +51,7 @@ int case_queue_cq_int_coalescing(void)
     // struct nvme_completion *cq_entry;
     // uint32_t reap_num;
     // /**********************************************************************/
-    // cq_entry = send_get_feature(file_desc, NVME_FEAT_IRQ_COALESCE);
+    // cq_entry = send_get_feature(g_fd, NVME_FEAT_IRQ_COALESCE);
     // // must be admin queue
     // if (0 == cq_entry->sq_identifier)
     // {
@@ -64,7 +64,7 @@ int case_queue_cq_int_coalescing(void)
     // }
 
     // /**********************************************************************/
-    // cq_entry = send_get_feature(file_desc, NVME_FEAT_IRQ_CONFIG);
+    // cq_entry = send_get_feature(g_fd, NVME_FEAT_IRQ_CONFIG);
     // // must be admin queue
     // if (0 == cq_entry->sq_identifier)
     // {
@@ -93,7 +93,7 @@ int case_queue_cq_int_coalescing(void)
             break;
         }
     }
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -109,17 +109,17 @@ static uint32_t sub_case_cq_int_coalescing(void)
     /**********************************************************************/
     aggr_time = 255; // max
     aggr_thr = 5;    // 0' beaed
-    test_flag |= nvme_set_feature_cmd(file_desc, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+    test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
     test_flag |= cq_gain(0, 1, &reap_num);
     /**********************************************************************/
     for (uint16_t i = 0; i < queue_num; i++)
     {
         int_vertor = ctrl_sq_info[i].cq_id;
         coals_disable = 0;
-        test_flag |= nvme_set_feature_cmd(file_desc, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
+        test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
     }
-    test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
     test_flag |= cq_gain(0, queue_num, &reap_num);
     /**********************************************************************/
 
@@ -131,14 +131,14 @@ static uint32_t sub_case_cq_int_coalescing(void)
         {
             if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(file_desc, 0, ctrl_sq_info[i].sq_id, wr_nsid, wr_slba, wr_nlb, write_buffer);
+                test_flag |= nvme_send_iocmd(g_fd, 0, ctrl_sq_info[i].sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 ctrl_sq_info[i].cmd_cnt++;
             }
         }
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ctrl_sq_info[i].sq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ctrl_sq_info[i].sq_id);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {

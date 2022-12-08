@@ -27,13 +27,13 @@ static void test_sub(void)
     /************************** D0 to D3 *********************/
     pr_info("\nD0 to D3\n");
 
-    u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     u32_tmp_data |= 0x03;
-    ioctl_pci_write_data(file_desc, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 3)
     {
@@ -51,13 +51,13 @@ static void test_sub(void)
     /************************** D3 to D0 *********************/
     pr_info("\nD3 to D0\n");
 
-    u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     u32_tmp_data &= 0xFFFFFFFC;
-    ioctl_pci_write_data(file_desc, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 0)
     {
@@ -83,9 +83,9 @@ int case_pcie_PM(void)
     /**********************************************************************/
 
     //find PM CAP
-    offset = pci_read_dword(file_desc, 0x34);
+    offset = pci_read_dword(g_fd, 0x34);
     offset &= 0xFF;
-    u32_tmp_data = pci_read_dword(file_desc, offset);
+    u32_tmp_data = pci_read_dword(g_fd, offset);
     if ((u32_tmp_data & 0xFF) == 0x01)
     {
         pmcap = offset;
@@ -95,12 +95,12 @@ int case_pcie_PM(void)
         while (0x01 != (u32_tmp_data & 0xFF))
         {
             pmcap = (u32_tmp_data >> 8) & 0xFF;
-            u32_tmp_data = pci_read_dword(file_desc, pmcap);
+            u32_tmp_data = pci_read_dword(g_fd, pmcap);
         }
     }
 
     // first displaly power up PM status
-    u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     u32_tmp_data &= 0x03;
     pr_info("\nPower up PM status: D%d\n", u32_tmp_data);
     usleep(200000);

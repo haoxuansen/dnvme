@@ -75,18 +75,18 @@ static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
     pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
-    test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
+    test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 
 static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
-    test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
+    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
+    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
 }
 static uint32_t sub_case_trim_cmd(void)
@@ -97,18 +97,18 @@ static uint32_t sub_case_trim_cmd(void)
     wr_nlb = 8;
     cmd_cnt = 0;
     pr_info("LBA_DATA_SIZE:%dB\n", LBA_DAT_SIZE);
-    memset(write_buffer, 0x11, RW_BUFFER_SIZE);
-    mem_disp(write_buffer, wr_nlb * LBA_DAT_SIZE);
-    //memset(read_buffer, 0xff, RW_BUFFER_SIZE);
-    //mem_disp(read_buffer,wr_nlb*LBA_DAT_SIZE);
+    memset(g_write_buf, 0x11, RW_BUFFER_SIZE);
+    mem_disp(g_write_buf, wr_nlb * LBA_DAT_SIZE);
+    //memset(g_read_buf, 0xff, RW_BUFFER_SIZE);
+    //mem_disp(g_read_buf,wr_nlb*LBA_DAT_SIZE);
     for (index = 0; index < 1; index++)
     {
-        nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+        nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
     pr_info("host prepare %d io_write cmd\n", cmd_cnt);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
     pr_info("1.2 host send io_read cmd\n");
@@ -117,14 +117,14 @@ static uint32_t sub_case_trim_cmd(void)
     cmd_cnt = 0;
     for (index = 0; index < 1; index++)
     {
-        nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
     pr_info("host prepare %d io_read cmd\n", cmd_cnt);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
+    mem_disp(g_read_buf, wr_nlb * LBA_DAT_SIZE);
 
     pr_info("2.host send io_write_zero cmd\n");
     wr_slba = 3;
@@ -132,12 +132,12 @@ static uint32_t sub_case_trim_cmd(void)
     cmd_cnt = 0;
     for (index = 0; index < 1; index++)
     {
-        ioctl_send_write_zero(file_desc, io_sq_id, wr_slba, wr_nlb, 0);
+        ioctl_send_write_zero(g_fd, io_sq_id, wr_slba, wr_nlb, 0);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
     pr_info("host prepare how manay:%d io_write_zero cmd\n", cmd_cnt);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
     pr_info("3.host send io_read cmd\n");
@@ -146,14 +146,14 @@ static uint32_t sub_case_trim_cmd(void)
     cmd_cnt = 0;
     for (index = 0; index < 1; index++)
     {
-        nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
     pr_info("host prepare %d io_read cmd\n", cmd_cnt);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-    mem_disp(read_buffer, wr_nlb * LBA_DAT_SIZE);
+    mem_disp(g_read_buf, wr_nlb * LBA_DAT_SIZE);
     return test_flag;
 }
 static uint32_t sub_case_fwio_flush(void)
@@ -165,17 +165,17 @@ static uint32_t sub_case_fwio_flush(void)
     cmd_cnt = 0;
     for (index = 0; index < 200; index++)
     {
-        test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+        test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
         //wr_slba += wr_nlb;
     }
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d io cmd reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
     pr_info("send flush cmd\n");
-    ioctl_send_flush(file_desc, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    ioctl_send_flush(g_fd, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, 1, &reap_num);
     pr_info("  cq:%d flush cmd reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -187,9 +187,9 @@ static uint32_t sub_case_fwio_write_unc(void)
     pr_info("write start...");
     wr_slba = 0;
     cmd_cnt = 0;
-    test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+    test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d write reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -197,9 +197,9 @@ static uint32_t sub_case_fwio_write_unc(void)
     pr_info("read start...");
     wr_slba = 0;
     cmd_cnt = 0;
-    test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+    test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d read reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -207,9 +207,9 @@ static uint32_t sub_case_fwio_write_unc(void)
     pr_info("write uncorrectable start...");
     wr_slba = 0;
     cmd_cnt = 0;
-    test_flag |= ioctl_send_write_unc(file_desc, io_sq_id, wr_slba, RW_BUFFER_SIZE / 512);
+    test_flag |= ioctl_send_write_unc(g_fd, io_sq_id, wr_slba, RW_BUFFER_SIZE / 512);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d write uncorrectable reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -218,9 +218,9 @@ static uint32_t sub_case_fwio_write_unc(void)
     pr_info("After write_unc read the same blk\n");
     wr_slba = 0;
     cmd_cnt = 0;
-    test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+    test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     /*test_flag |= */ cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d After write_unc read reaped ok! reap_num:%d\n", io_cq_id, reap_num); //add test_flag=0
 
@@ -228,9 +228,9 @@ static uint32_t sub_case_fwio_write_unc(void)
     pr_info("After write_unc write the same blk");
     wr_slba = 0;
     cmd_cnt = 0;
-    test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+    test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d After write_unc write reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -246,11 +246,11 @@ static uint32_t sub_case_fwio_write_zero(void)
     cmd_cnt = 0;
     for (index = 0; index < 2; index++)
     {
-        test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+        test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d write reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -259,10 +259,10 @@ static uint32_t sub_case_fwio_write_zero(void)
     wr_slba = 0;
     wr_nlb = 8;
     cmd_cnt = 0;
-    test_flag |= ioctl_send_write_zero(file_desc, io_sq_id, wr_slba, wr_nlb, 0);
+    test_flag |= ioctl_send_write_zero(g_fd, io_sq_id, wr_slba, wr_nlb, 0);
     cmd_cnt++;
 
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d write_zero reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
@@ -271,19 +271,19 @@ static uint32_t sub_case_fwio_write_zero(void)
     wr_slba = 0;
     wr_nlb = 8;
     cmd_cnt = 0;
-    test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+    test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d read reaped ok! reap_num:%d\n", io_cq_id, reap_num);
-    //mem_disp(read_buffer,wr_nlb*LBA_DAT_SIZE);
+    //mem_disp(g_read_buf,wr_nlb*LBA_DAT_SIZE);
     wr_slba += wr_nlb;
     cmd_cnt = 0;
-    test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+    test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d read reaped ok! reap_num:%d\n", io_cq_id, reap_num);
-    //mem_disp(read_buffer,wr_nlb*LBA_DAT_SIZE);
+    //mem_disp(g_read_buf,wr_nlb*LBA_DAT_SIZE);
     return test_flag;
 }

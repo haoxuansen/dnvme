@@ -9,5 +9,7 @@ endmenu
 
 menu "Application Configuration"
 
+source "app/Kconfig"
+
 endmenu
 

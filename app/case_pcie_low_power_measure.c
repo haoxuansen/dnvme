@@ -47,8 +47,8 @@ static void test_sub(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_no = io_cq_id;
     cq_parameter.cq_id = io_cq_id;
-    test_flag |= create_iocq(file_desc, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    test_flag |= create_iocq(g_fd, &cq_parameter);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         
     pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
@@ -59,8 +59,8 @@ static void test_sub(void)
     sq_parameter.sq_prio = MEDIUM_PRIO;
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
-    test_flag |= create_iosq(file_desc, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    test_flag |= create_iosq(g_fd, &sq_parameter);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_info("\tcq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
@@ -77,7 +77,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -94,7 +94,7 @@ static void test_sub(void)
     pr_color(LOG_COLOR_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
-    reg_value = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
+    reg_value = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
     reg_value &= 0xFFFFFFFC;
 
     pr_info("\n/************************** L0 --> L1 --> L0 --> L1 *********************/\n");
@@ -105,23 +105,23 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=42");          //RC enable L1
     //EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
     pr_info("\nL1 --> L0 --> L1\n");
-    // u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst+0x10);       //access EP
+    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x10);       //access EP
 
     /**********************************************************************/
     cmd_cnt = 0;
     //for (uint32_t index = 1; index < (sq_size/2); index++)
     {
-        test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+        test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
-        test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         cmd_cnt++;
     }
     /**********************************************************************/
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
         
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         
@@ -134,14 +134,14 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=40");          //RC disable L1
     //EP disable L1
     u32_tmp_data = reg_value;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
     pr_debug("\nTest: Delete sq_id %d, cq_id %d\n", io_sq_id, io_cq_id);
-    ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
-    ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
+    ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
+    ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
     pr_debug("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 2, &reap_num);
     pr_debug("\tcq reaped ok! reap_num:%d\n", reap_num);
 }
@@ -155,7 +155,7 @@ int case_pcie_low_power_measure(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

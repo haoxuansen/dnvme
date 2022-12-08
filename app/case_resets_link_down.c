@@ -44,8 +44,8 @@ static void test_sub(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    test_flag |= create_iocq(file_desc, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    test_flag |= create_iocq(g_fd, &cq_parameter);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
@@ -54,8 +54,8 @@ static void test_sub(void)
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
-    test_flag |= create_iosq(file_desc, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    test_flag |= create_iosq(g_fd, &sq_parameter);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
@@ -69,15 +69,15 @@ static void test_sub(void)
         wr_nlb = WORD_RAND() % 255 + 1;
         if (wr_slba + wr_nlb < g_nvme_ns_info[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
     }
     pr_info("send cmd num: %d\n", cmd_cnt);
     /**********************************************************************/
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     /**********************************************************************/
     //reap cq
     test_flag |= cq_gain(io_cq_id, (DWORD_RAND() % (cmd_cnt + 1)), &reap_num);
@@ -90,7 +90,7 @@ static void test_sub(void)
 
     sleep(1);
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     /*******************************************************************************************************************************/
 }

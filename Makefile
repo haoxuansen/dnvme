@@ -49,7 +49,9 @@ endif
 PHONY += modules
 
 build: pre modules
+ifneq ($(CONFIG_UNVME),)
 	$(Q)make -C app
+endif
 PHONY += build
 
 clean:

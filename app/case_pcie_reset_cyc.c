@@ -29,24 +29,24 @@ static void test_sub(void)
     pr_info("\nIssue hot reset\n");
     pcie_hot_reset();
 
-    // u32_tmp_data = pci_read_dword(file_desc, 0);
+    // u32_tmp_data = pci_read_dword(g_fd, 0);
     // if ((u32_tmp_data >> 16) != 0x100)
     // {
     //     pr_err("device id error: %x\n", u32_tmp_data >> 16);
     // }
-    // u32_tmp_data = pci_read_dword(file_desc, 0x2c);
+    // u32_tmp_data = pci_read_dword(g_fd, 0x2c);
     // if ((u32_tmp_data) != 0x01020304)
     // {
     //     pr_err("sub_sys id error: %x\n", u32_tmp_data);
     // }
-    // u32_tmp_data = pci_read_dword(file_desc, 0x8);
+    // u32_tmp_data = pci_read_dword(g_fd, 0x8);
     // if ((u32_tmp_data) != 0x01080200)
     // {
     //     pr_err("class code id error: %d\n", u32_tmp_data);
     // }
 
     // check status after re-link
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -64,7 +64,7 @@ static void test_sub(void)
     pcie_link_down();
 
     // check status after re-link
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -87,7 +87,7 @@ int case_pcie_reset_cyc(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
@@ -105,7 +105,7 @@ int case_pcie_reset_cyc(void)
     }
     sleep(1);
     
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     if (test_flag != SUCCEED)
     {

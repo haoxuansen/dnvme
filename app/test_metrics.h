@@ -32,8 +32,6 @@
 #define RW_BUFFER_SIZE (2 * 1024 * 1024)
 #define LBA_DAT_SIZE (512)
 
-// #define RW_BUF_4K_ALN_EN
-
 #define DISCONTIG_IO_SQ_SIZE (1023 * 4096)
 #define DISCONTIG_IO_CQ_SIZE (255 * 4096)
 
@@ -146,72 +144,72 @@ struct nvme_cq_info
 
 //--------------------------------------------------------------------------------
 
-void ioctl_get_q_metrics(int file_desc, int q_id, int q_type, int size);
-void test_drv_metrics(int file_desc);
-int ioctl_prep_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint16_t elem, uint8_t contig);
-int ioctl_prep_cq(int file_desc, uint16_t cq_id, uint16_t elem, uint8_t contig);
-int ioctl_tst_ring_dbl(int file_desc, int sq_id);
+void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size);
+void test_drv_metrics(int g_fd);
+int ioctl_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint16_t elem, uint8_t contig);
+int ioctl_prep_cq(int g_fd, uint16_t cq_id, uint16_t elem, uint8_t contig);
+int ioctl_tst_ring_dbl(int g_fd, int sq_id);
 
-int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid);
+int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);
 
-int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb,
+int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                           enum fua_sts fua_sts, void *addr, uint32_t buf_size);
-int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb,
+int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                          enum fua_sts fua_sts, void *addr, uint32_t buf_size);
-int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb,
+int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                             enum fua_sts fua_sts, void *addr, uint32_t buf_size);
 
-uint32_t ioctl_reap_inquiry(int file_desc, int cq_id);
-int ioctl_reap_cq(int file_desc, int cq_id, int elements, int size, int display);
-void ioctl_enable_ctrl(int file_desc);
-int ioctl_disable_ctrl(int file_desc, enum nvme_state new_state);
+uint32_t ioctl_reap_inquiry(int g_fd, int cq_id);
+int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display);
+void ioctl_enable_ctrl(int g_fd);
+int ioctl_disable_ctrl(int g_fd, enum nvme_state new_state);
 
-void ioctl_create_acq(int file_desc, uint32_t queue_size);
-void ioctl_create_asq(int file_desc, uint32_t queue_size);
-void test_meta(int file_desc);
-uint32_t create_meta_buf(int file_desc, uint32_t id);
-int ioctl_meta_node_delete(int file_desc, uint32_t id);
+void ioctl_create_acq(int g_fd, uint32_t queue_size);
+void ioctl_create_asq(int g_fd, uint32_t queue_size);
+void test_meta(int g_fd);
+uint32_t create_meta_buf(int g_fd, uint32_t id);
+int ioctl_meta_node_delete(int g_fd, uint32_t id);
 
-void ioctl_dump(int file_desc, char *tmpfile);
+void ioctl_dump(int g_fd, char *tmpfile);
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
-void admin_queue_config(int file_desc);
+void admin_queue_config(int g_fd);
 void test_irq_review568(int fd);
-void test_dev_metrics(int file_desc);
+void test_dev_metrics(int g_fd);
 
-uint32_t ioctl_read_data(int file_desc, uint32_t offset, uint32_t bytes);
-int read_nvme_register(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
-int ioctl_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
+uint32_t ioctl_read_data(int g_fd, uint32_t offset, uint32_t bytes);
+int read_nvme_register(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
+int ioctl_write_data(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
 
 uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length);
 
-int test_create_contig_iocq(int file_desc, uint16_t io_cq_id, uint16_t cq_size);
-int test_create_contig_iosq(int file_desc, uint16_t io_sq_id, uint16_t io_cq_id, uint16_t sq_size);
-int test_reap_cq(int file_desc, int cq_id, uint32_t cmd_cnt, int disp_flag);
+int test_create_contig_iocq(int g_fd, uint16_t io_cq_id, uint16_t cq_size);
+int test_create_contig_iosq(int g_fd, uint16_t io_sq_id, uint16_t io_cq_id, uint16_t sq_size);
+int test_reap_cq(int g_fd, int cq_id, uint32_t cmd_cnt, int disp_flag);
 
-struct nvme_completion *send_get_feature(int file_desc, uint8_t feature_id);
+struct nvme_completion *send_get_feature(int g_fd, uint8_t feature_id);
 
-int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter);
-int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter);
-int keep_alive_cmd(int file_desc);
-int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode);
+int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter);
+int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter);
+int keep_alive_cmd(int g_fd);
+int admin_illegal_opcode_cmd(int g_fd, uint8_t opcode);
 
-int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter);
-int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter);
+int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter);
+int nvme_maxio_fwdma_wr(int g_fd, struct fwdma_parameter *fwdma_parameter);
 
-int ioctl_send_abort(int file_desc, uint16_t sq_id, uint16_t cmd_id);
-int ioctl_send_flush(int file_desc, uint16_t sq_id);
-int ioctl_send_write_zero(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb, uint16_t control);
-int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb);
-int ioctl_send_format(int file_desc, uint8_t lbaf);
+int ioctl_send_abort(int g_fd, uint16_t sq_id, uint16_t cmd_id);
+int ioctl_send_flush(int g_fd, uint16_t sq_id);
+int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb, uint16_t control);
+int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb);
+int ioctl_send_format(int g_fd, uint8_t lbaf);
 
-uint32_t pci_read_dword(int file_desc, uint32_t offset);
-uint16_t pci_read_word(int file_desc, uint32_t offset);
-uint8_t pci_read_byte(int file_desc, uint32_t offset);
+uint32_t pci_read_dword(int g_fd, uint32_t offset);
+uint16_t pci_read_word(int g_fd, uint32_t offset);
+uint8_t pci_read_byte(int g_fd, uint32_t offset);
 
-int read_pcie_register(int file_desc, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer);
-int ioctl_pci_write_data(int file_desc, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
+int read_pcie_register(int g_fd, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer);
+int ioctl_pci_write_data(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
 
-uint8_t pci_find_cap_ofst(int file_desc, uint8_t cap_id);
+uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
 
 int subsys_reset(void);
 int ctrl_disable(void);
@@ -227,11 +225,12 @@ uint32_t pcie_hot_reset(void);
 
 void test_encrypt_decrypt(void);
 
-extern int file_desc;
-extern void *read_buffer;
-extern void *write_buffer;
-extern void *discontg_sq_buf;
-extern void *discontg_cq_buf;
+extern int g_fd;
+extern void *g_cq_entry_buf;
+extern void *g_read_buf;
+extern void *g_write_buf;
+extern void *g_discontig_sq_buf;
+extern void *g_discontig_cq_buf;
 extern struct nvme_ctrl g_nvme_dev;
 extern struct nvme_sq_info *ctrl_sq_info;
 extern struct nvme_ns *g_nvme_ns_info;

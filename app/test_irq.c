@@ -102,7 +102,7 @@ void test_irq_review568(int fd)
         set_irqs(fd, NVME_INT_MSIX, 2);
         i--;
     }
-    set_irqs(file_desc, NVME_INT_NONE, 0);
+    set_irqs(g_fd, NVME_INT_NONE, 0);
     pr_info("\nCalling Dump Metrics to irq_loop_test\n");
     ioctl_dump(fd, "/tmp/test_rev568.txt");
     pr_info("\nPressAny key..\n");
@@ -137,7 +137,7 @@ void test_loop_irq(int fd)
     free(rd_buffer);
 }
 
-int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
+int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
                          uint16_t elem, void *addr)
 {
     int ret_val = -1;
@@ -162,7 +162,7 @@ int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -174,7 +174,7 @@ int irq_for_io_discontig(int file_desc, int cq_id, int irq_no, int cq_flags,
     return ret_val;
 }
 
-int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
+int irq_for_io_contig(int g_fd, int cq_id, int irq_no,
                       int cq_flags, uint16_t elems)
 {
     int ret_val = -1;
@@ -199,7 +199,7 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -211,7 +211,7 @@ int irq_for_io_contig(int file_desc, int cq_id, int irq_no,
     return ret_val;
 }
 
-void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
+void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
 {
     int ret_val = -1;
     struct nvme_64b_cmd user_cmd = {0};
@@ -236,7 +236,7 @@ void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -247,7 +247,7 @@ void test_irq_send_nvme_read(int file_desc, int sq_id, void *addr)
     }
 }
 
-void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t id)
+void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
 {
     int ret_val = -1;
     struct nvme_64b_cmd user_cmd = {0};
@@ -273,7 +273,7 @@ void send_nvme_read_mb(int file_desc, int sq_id, void *addr, uint32_t id)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");

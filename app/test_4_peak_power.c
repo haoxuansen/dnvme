@@ -79,8 +79,8 @@ static uint8_t test_sub(void)
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
     uint32_t reap_num = 0;
-    mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
-    mem_set(read_buffer, 0, wr_nlb * LBA_DAT_SIZE);
+    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
+    mem_set(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
     sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
     cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
 
@@ -96,8 +96,8 @@ static uint8_t test_sub(void)
         cq_parameter.contig = 1;
         cq_parameter.irq_no = io_cq_id;
         cq_parameter.cq_id = io_cq_id;
-        test_flag |= create_iocq(file_desc, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= create_iocq(g_fd, &cq_parameter);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         /**********************************************************************/
@@ -108,8 +108,8 @@ static uint8_t test_sub(void)
         sq_parameter.sq_prio = MEDIUM_PRIO;
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
-        test_flag |= create_iosq(file_desc, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= create_iosq(g_fd, &sq_parameter);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         /**********************************************************************/
@@ -123,14 +123,14 @@ static uint8_t test_sub(void)
         wr_nlb = 4096;
         for (uint32_t i = 0; i < 1000; i++)
         {
-            test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
     }
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         io_sq_id = index;
-        test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
     }
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
@@ -147,13 +147,13 @@ static uint8_t test_sub(void)
         io_sq_id = index;
         io_cq_id = index;
         //pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%x\n", io_sq_id);
-        test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
         //pr_color(LOG_COLOR_PURPLE, "  Deleting CQID:%x\n", io_cq_id);
-        test_flag |= ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
-        test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
         test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     }

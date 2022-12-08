@@ -80,17 +80,17 @@ static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
     pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
-    test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
+    test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
-    test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
+    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
+    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
 }
 
@@ -102,8 +102,8 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         wr_slba = 0;
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 
@@ -111,11 +111,11 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         wr_nlb = 64;
 
         cmd_cnt = 0;
-        test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+        test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         }
         else
@@ -124,11 +124,11 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         }
 
         cmd_cnt = 0;
-        test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         }
         else
@@ -138,11 +138,11 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         pr_info("write read done!\n");
 
         pr_info("start send cmpare & write fused cmd\n");
-        test_flag |= nvme_io_compare_cmd(file_desc, NVME_CMD_FUSE_FIRST, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
-        test_flag |= nvme_io_write_cmd(file_desc, NVME_CMD_FUSE_SECOND, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        test_flag |= nvme_io_compare_cmd(g_fd, NVME_CMD_FUSE_FIRST, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_write_cmd(g_fd, NVME_CMD_FUSE_SECOND, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, 2, &reap_num);
         }
         else

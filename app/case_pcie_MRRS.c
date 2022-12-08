@@ -37,9 +37,9 @@ static void set_pcie_mrrs_128(void)
 {
     uint32_t u32_tmp_data = 0;
     // EP set MRRS 128
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data &= 0xFFFF8FFF;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
@@ -47,10 +47,10 @@ static void set_pcie_mrrs_256(void)
 {
     uint32_t u32_tmp_data = 0;
     // EP set MRRS 256
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x1000;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
@@ -58,10 +58,10 @@ static void set_pcie_mrrs_512(void)
 {
     uint32_t u32_tmp_data = 0;
     // EP set MRRS 512
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x2000;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
@@ -73,13 +73,13 @@ static void pcie_packet(void)
     cmd_cnt = 0;
     for (i = 0; i < 1; i++)
     {
-        nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+        nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
-        //nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+        //nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         //cmd_cnt++;
     }
     pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
-    ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    ioctl_tst_ring_dbl(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 }
@@ -92,11 +92,11 @@ static void set_pcie_rcb_64(void)
     //system("setpci -s 0:1b.4 50.b=40");
 
     // EP set RCB 64
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
     u32_tmp_data &= 0xFFFFFFF7;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
     u32_tmp_data = (u32_tmp_data & 0x8) >> 3;
     pr_info("\nRCB: 64 boundary 0x%x\n", u32_tmp_data);
 }
@@ -109,12 +109,12 @@ static void set_pcie_rcb_128(void)
     //system("setpci -s 0:1b.4 50.b=48");
 
     // EP set RCB 128
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
     u32_tmp_data &= 0xFFFFFFF7;
     u32_tmp_data |= 0x08;
-    ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x10);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
     u32_tmp_data = (u32_tmp_data & 0x8) >> 3;
     pr_info("\nRCB: 128 boundary 0x%x\n", u32_tmp_data);
 }
@@ -174,9 +174,9 @@ int case_pcie_MRRS(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    test_flag |= create_iocq(file_desc, &cq_parameter);
+    test_flag |= create_iocq(g_fd, &cq_parameter);
     pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
@@ -186,14 +186,14 @@ int case_pcie_MRRS(void)
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
-    test_flag |= create_iosq(file_desc, &sq_parameter);
+    test_flag |= create_iosq(g_fd, &sq_parameter);
     pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Read Request Size
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data = (u32_tmp_data >> 12) & 0x7;
     if (u32_tmp_data == 0)
     {

@@ -22,7 +22,6 @@ struct arbitration_parameter
     uint32_t low_prio_cmd_num;
 };
 
-extern void *buffer_cq_entry;
 int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reap_num);
 int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , uint32_t disp_cq);
 struct nvme_completion *get_cq_entry(void);

@@ -141,11 +141,11 @@ void scan_control_reister(void)
 {
     for (uint32_t i = 0; i < ARRAY_SIZE(nvme_ctrl_reg); i++)
     {
-        nvme_ctrl_reg[i].def_val = ioctl_read_data(file_desc, nvme_ctrl_reg[i].addr, 4);
+        nvme_ctrl_reg[i].def_val = ioctl_read_data(g_fd, nvme_ctrl_reg[i].addr, 4);
     }
     for (uint32_t i = 0; i < ARRAY_SIZE(pcie_ids_reg); i++)
     {
-        pcie_ids_reg[i].def_val = pci_read_dword(file_desc, pcie_ids_reg[i].addr);
+        pcie_ids_reg[i].def_val = pci_read_dword(g_fd, pcie_ids_reg[i].addr);
     }
 }
 
@@ -173,10 +173,10 @@ static uint32_t sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(file_desc, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
     pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
-    test_flag |= nvme_create_contig_iosq(file_desc, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
+    test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
 
     return test_flag;
 }
@@ -184,8 +184,8 @@ static uint32_t sub_case_pre(void)
 static uint32_t sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
-    test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= nvme_delete_ioq(file_desc, nvme_admin_delete_cq, io_cq_id);
+    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
+    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
 }
 
@@ -198,7 +198,7 @@ static uint32_t sub_case_nvme_reg_normal(void)
     {
         if (nvme_ctrl_reg[i].type == RO)
         {
-            u32_tmp_data = ioctl_read_data(file_desc, nvme_ctrl_reg[i].addr, 4);
+            u32_tmp_data = ioctl_read_data(g_fd, nvme_ctrl_reg[i].addr, 4);
             u32_tmp_data &= nvme_ctrl_reg[i].mark;
             if ((nvme_ctrl_reg[i].def_val&nvme_ctrl_reg[i].mark) != u32_tmp_data)
             {
@@ -214,9 +214,9 @@ static uint32_t sub_case_nvme_reg_normal(void)
             u32_tmp_data = (rand_data & nvme_ctrl_reg[i].mark);
             // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          nvme_ctrl_reg[i].addr,rand_data, nvme_ctrl_reg[i].mark, u32_tmp_data);
-            ioctl_write_data(file_desc, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
+            ioctl_write_data(g_fd, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
-            u32_tmp_data = ioctl_read_data(file_desc, nvme_ctrl_reg[i].addr, 4);
+            u32_tmp_data = ioctl_read_data(g_fd, nvme_ctrl_reg[i].addr, 4);
             u32_tmp_data &= nvme_ctrl_reg[i].mark;
             if ((nvme_ctrl_reg[i].def_val&nvme_ctrl_reg[i].mark) != u32_tmp_data)
             {
@@ -232,7 +232,7 @@ static uint32_t sub_case_nvme_reg_normal(void)
     }
     pr_color(LOG_COLOR_GREEN, "nvme ctrl reg tests done!\n\n");
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     return test_flag;
 }
@@ -246,7 +246,7 @@ static uint32_t sub_case_pcie_reg_normal(void)
     {
         if (pcie_ids_reg[i].type == RO)
         {
-            u32_tmp_data = pci_read_dword(file_desc, pcie_ids_reg[i].addr);
+            u32_tmp_data = pci_read_dword(g_fd, pcie_ids_reg[i].addr);
             u32_tmp_data &= pcie_ids_reg[i].mark;
             if (pcie_ids_reg[i].def_val != u32_tmp_data)
             {
@@ -262,9 +262,9 @@ static uint32_t sub_case_pcie_reg_normal(void)
             u32_tmp_data = (rand_data & pcie_ids_reg[i].mark);
             // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          pcie_ids_reg[i].addr,rand_data, pcie_ids_reg[i].mark, u32_tmp_data);
-            ioctl_pci_write_data(file_desc, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
+            ioctl_pci_write_data(g_fd, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
-            u32_tmp_data = pci_read_dword(file_desc, pcie_ids_reg[i].addr);
+            u32_tmp_data = pci_read_dword(g_fd, pcie_ids_reg[i].addr);
             u32_tmp_data &= pcie_ids_reg[i].mark;
             if (pcie_ids_reg[i].def_val != u32_tmp_data)
             {
@@ -280,7 +280,7 @@ static uint32_t sub_case_pcie_reg_normal(void)
     }
     pr_color(LOG_COLOR_GREEN, "pcie ids reg tests done!\n\n");
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -306,20 +306,20 @@ static uint32_t sub_case_iocmd_nvme_reg(void)
         // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -334,12 +334,12 @@ static uint32_t sub_case_iocmd_nvme_reg(void)
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -349,7 +349,7 @@ static uint32_t sub_case_iocmd_nvme_reg(void)
             pr_err("nvme_io_read_cmd");
             goto out;
         }
-        if (dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
         {
             test_flag |= FAILED;
             pr_err("dw_cmp");
@@ -380,20 +380,20 @@ static uint32_t sub_case_iocmd_nvme_reg_normal(void)
         // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(write_buffer, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(read_buffer, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, write_buffer);
+            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -408,12 +408,12 @@ static uint32_t sub_case_iocmd_nvme_reg_normal(void)
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -423,7 +423,7 @@ static uint32_t sub_case_iocmd_nvme_reg_normal(void)
             pr_err("nvme_io_read_cmd");
             goto out;
         }
-        if (dw_cmp(write_buffer, read_buffer, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
         {
             test_flag |= FAILED;
             pr_err("dw_cmp");

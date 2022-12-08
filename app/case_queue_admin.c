@@ -54,7 +54,7 @@ int case_queue_admin(void)
             break;
         }
     }
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -87,15 +87,15 @@ static uint32_t sub_case_asq_size_loop_array(void)
             admin_sq_size = asq_size[sq_size_idx];
             pr_color(LOG_COLOR_GREEN, "\ncfg admin_cq_size:%d, admin_sq_size:%d\n", acq_size[cq_size_idx], asq_size[sq_size_idx]);
 
-            test_change_init(file_desc, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+            test_change_init(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
             cmd_cnt = 0;
             for (index = 0; index < (admin_sq_size - 1); index++)
             {
-                test_flag |= keep_alive_cmd(file_desc);
+                test_flag |= keep_alive_cmd(g_fd);
                 cmd_cnt++;
             }
-            test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+            test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
             // usleep(500000);
             nvme_msi_register_test();
             test_flag |= cq_gain(0, cmd_cnt, &reap_num);
@@ -110,16 +110,16 @@ static uint32_t sub_case_asq_size_loop_array(void)
         admin_cq_size = test2_asq_size[sq_size_idx];
         pr_color(LOG_COLOR_GREEN, "\ncfg acq_size:%d, asq_size:%d\n",
                   test2_asq_size[sq_size_idx], test2_asq_size[sq_size_idx]);
-        test_change_init(file_desc, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+        test_change_init(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
         /**********************************************************************/
         cmd_cnt = 0;
         for (index = 0; index < test2_asq_1_send[sq_size_idx]; index++)
         {
-            test_flag |= keep_alive_cmd(file_desc);
+            test_flag |= keep_alive_cmd(g_fd);
             cmd_cnt++;
         }
-        test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
         pr_color(LOG_COLOR_PURPLE, "first send, admin q reaped ok! reap_num:%d\n", reap_num);
 
@@ -127,17 +127,17 @@ static uint32_t sub_case_asq_size_loop_array(void)
         cmd_cnt = 0;
         for (index = 0; index < test2_asq_2_send[sq_size_idx]; index++)
         {
-            test_flag |= keep_alive_cmd(file_desc);
+            test_flag |= keep_alive_cmd(g_fd);
             cmd_cnt++;
         }
-        test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
         pr_color(LOG_COLOR_PURPLE, "second send, admin q reaped ok! reap_num:%d\n", reap_num);
     }
     /*******************************************************************************************************************************/
     pr_info("\n3. issue illegal admin cmd opcodes\n");
-    test_flag |= admin_illegal_opcode_cmd(file_desc, 0xff);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+    test_flag |= admin_illegal_opcode_cmd(g_fd, 0xff);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
     cq_gain(0, 1, &reap_num);
     pr_color(LOG_COLOR_PURPLE, "send illegal admin cmd reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
@@ -166,15 +166,15 @@ static uint32_t sub_case_asq_size_random(void)
         asqsz = rand() % (MAX_ADMIN_QUEUE_SIZE - 2) + 2;
         acqsz = rand() % (MAX_ADMIN_QUEUE_SIZE - 2) + 2;
 
-        test_change_init(file_desc, asqsz, acqsz, int_type, num_irqs);
+        test_change_init(g_fd, asqsz, acqsz, int_type, num_irqs);
 
         cmd_cnt = 0;
         for (uint32_t index = 0; index < (asqsz - 1); index++)
         {
-            test_flag |= keep_alive_cmd(file_desc);
+            test_flag |= keep_alive_cmd(g_fd);
             cmd_cnt ++;
         }
-        test_flag |= ioctl_tst_ring_dbl(file_desc, 0);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
         // usleep(500000);
         nvme_msi_register_test();
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);

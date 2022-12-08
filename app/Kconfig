@@ -1,0 +1,16 @@
+menuconfig UNVME
+	bool "NVMe Application"
+	default y
+	help
+	  Say Y here to compile nvme application.
+
+if UNVME
+
+config UNVME_RW_BUF_ALIGN
+	hex "NVMe R&W Buffer Alignment"
+	default 0x8
+	help
+	  Config NVMe read and write buffer alignment.
+
+endif # UNVME
+

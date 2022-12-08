@@ -55,8 +55,8 @@ static void test_sub(void)
         cq_parameter.irq_no = 0;
     else
         cq_parameter.irq_no = io_cq_id;
-    test_flag |= create_iocq(file_desc, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    test_flag |= create_iocq(g_fd, &cq_parameter);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
 
@@ -65,8 +65,8 @@ static void test_sub(void)
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
-    test_flag |= create_iosq(file_desc, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    test_flag |= create_iosq(g_fd, &sq_parameter);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
     /**********************************************************************/
@@ -89,11 +89,11 @@ static void test_sub(void)
 
         if (wr_slba + wr_nlb < g_nvme_ns_info[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, write_buffer);
+            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, read_buffer);
+            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
-            test_flag |= nvme_io_compare_cmd(file_desc, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, write_buffer);
+            test_flag |= nvme_io_compare_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
             cmd_cnt++;
         }
     }
@@ -106,16 +106,16 @@ static void test_sub(void)
         fwdma_parameter.cdw12 |= (1 << 1); //flag bit[1] hw data chk(only read)
         fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] enc/dec chk,
         fwdma_parameter.addr = fwdma_wr_buffer;
-        test_flag |= nvme_maxio_fwdma_wr(file_desc, &fwdma_parameter);
+        test_flag |= nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
         fwdma_parameter.addr = fwdma_rd_buffer;
-        test_flag |= nvme_maxio_fwdma_rd(file_desc, &fwdma_parameter);
+        test_flag |= nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
     }
     #endif
 
     /**********************************************************************/
-    test_flag |= ioctl_tst_ring_dbl(file_desc, io_sq_id);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
 #ifdef FWDMA_RST_OPEN
-    test_flag |= ioctl_tst_ring_dbl(file_desc, NVME_ADMIN_SQ);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_ADMIN_SQ);
 #endif
     /**********************************************************************/
     //reap cq
@@ -168,9 +168,9 @@ static void test_sub(void)
 
     usleep(10000);
     if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-        test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_PIN, 1);
+        test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_PIN, 1);
     else
-        test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+        test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 }
 
 int case_resets_random_all(void)
@@ -178,22 +178,15 @@ int case_resets_random_all(void)
     int test_round = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
-#if 0 //def RW_BUF_4K_ALN_EN
-    if ((posix_memalign(&fwdma_wr_buffer, 4096, 8192)) ||
-        (posix_memalign(&fwdma_rd_buffer, 4096, 8192)))
+
+    /* !FIXME: release memory after alloc fail! */
+    if ((posix_memalign(&fwdma_wr_buffer, CONFIG_UNVME_RW_BUF_ALIGN, 8192)) ||
+        (posix_memalign(&fwdma_rd_buffer, CONFIG_UNVME_RW_BUF_ALIGN, 8192)))
     {
         pr_err("Memalign Failed\n");
         return FAILED;
     }
-#else
-    fwdma_wr_buffer = malloc(8192);
-    fwdma_rd_buffer = malloc(8192);
-    if ((write_buffer == NULL) || (read_buffer == NULL))
-    {
-        pr_err("Malloc Failed\n");
-        return FAILED;
-    }
-#endif
+
     memset((uint8_t *)fwdma_wr_buffer, rand() % 0xff, 8192);
     memset((uint8_t *)fwdma_rd_buffer, 0, 8192);
 

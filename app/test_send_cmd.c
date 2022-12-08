@@ -36,17 +36,17 @@
 /**
  * @brief nvme admin & io cmds use this api send to device
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param user_cmd 
  * @return int 
  */
-int nvme_64b_cmd(int file_desc, struct nvme_64b_cmd *user_cmd)
+int nvme_64b_cmd(int g_fd, struct nvme_64b_cmd *user_cmd)
 {
-    return ioctl(file_desc, NVME_IOCTL_SEND_64B_CMD, user_cmd);
+    return ioctl(g_fd, NVME_IOCTL_SEND_64B_CMD, user_cmd);
 }
 
 /* CMD to delete IO Queue */
-int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
+int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid)
 {
 
     int ret_val = FAILED;
@@ -62,7 +62,7 @@ int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
         .data_buf_ptr = NULL,
         .data_dir = DMA_FROM_DEVICE,
     };
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
         if (opcode == nvme_admin_delete_sq)
@@ -79,7 +79,7 @@ int ioctl_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
 }
 
 /* CMD to send NVME IO write command */
-int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb,
+int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                           enum fua_sts fua_sts, void *addr, uint32_t buf_size)
 {
     int ret_val = FAILED;
@@ -109,7 +109,7 @@ int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 2;
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -125,7 +125,7 @@ int ioctl_send_nvme_write(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
 }
 
 /* CMD to send nvme_read command */
-int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb,
+int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                          enum fua_sts fua_sts, void *addr, uint32_t buf_size)
 {
     int ret_val = FAILED;
@@ -156,7 +156,7 @@ int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -175,7 +175,7 @@ int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
 /**
  * @brief   CMD to send nvme_compare command
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  sq_id: 
  * @param  slba: 
  * @param  nlb: 
@@ -184,7 +184,7 @@ int ioctl_send_nvme_read(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
  * @param  buf_size: 
  * @retval 
  */
-int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb,
+int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                             enum fua_sts fua_sts, void *addr, uint32_t buf_size)
 {
     int ret_val = FAILED;
@@ -213,7 +213,7 @@ int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -231,14 +231,14 @@ int ioctl_send_nvme_compare(int file_desc, uint16_t sq_id, uint64_t slba, uint16
 /**
  * @brief  send maxio vendor cmd: fw dma read
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  *addr: 
  * @param  size: 
  * @param  crcc_len: 
  * @param  axi_addr: 
  * @retval 
  */
-int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter)
+int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter)
 {
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
@@ -263,7 +263,7 @@ int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter)
         .data_dir = 0,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_RD Sending Command Failed!\n");
@@ -278,11 +278,11 @@ int nvme_maxio_fwdma_rd(int file_desc, struct fwdma_parameter *fwdma_parameter)
 /**
  * @brief  send maxio vendor cmd: fw dma write
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  fwdma_parameter: 
  * @retval 
  */
-int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
+int nvme_maxio_fwdma_wr(int g_fd, struct fwdma_parameter *fwdma_parameter)
 {
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
@@ -307,7 +307,7 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
         .data_dir = 2,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
@@ -323,7 +323,7 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
 /**
  * @brief send nvme_firmware_commit cmd
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param bpid Boot Partition ID (BPID):
     Specifies the Boot Partition that shall be used for the Commit Action, if applicable.
  * @param ca Commit Action:
@@ -345,7 +345,7 @@ int nvme_maxio_fwdma_wr(int file_desc, struct fwdma_parameter *fwdma_parameter)
     1 to slot 7) to use for the operation.
  * @return int 
  */
-int nvme_firmware_commit(int file_desc, uint8_t bpid, uint8_t ca, uint8_t fs)
+int nvme_firmware_commit(int g_fd, uint8_t bpid, uint8_t ca, uint8_t fs)
 {
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
@@ -365,7 +365,7 @@ int nvme_firmware_commit(int file_desc, uint8_t bpid, uint8_t ca, uint8_t fs)
         .data_dir = 2,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
@@ -381,14 +381,14 @@ int nvme_firmware_commit(int file_desc, uint8_t bpid, uint8_t ca, uint8_t fs)
 /**
  * @brief send nvme_firmware_download cmd
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param numd Number of Dwords (NUMD):0'base This field specifies the number of dwords to transfer for this portion of the firmware.
  * @param ofst Offset (OFST): This field specifies the number of dwords offset from the 
  *             start of the firmware image being downloaded to the controller.
  * @param dptr Data Pointer (DPTR): This field specifies the location where data should be transferred from.
  * @return int 
  */
-int nvme_firmware_download(int file_desc, uint32_t numd, uint32_t ofst, uint8_t *dptr)
+int nvme_firmware_download(int g_fd, uint32_t numd, uint32_t ofst, uint8_t *dptr)
 {
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
@@ -409,7 +409,7 @@ int nvme_firmware_download(int file_desc, uint32_t numd, uint32_t ofst, uint8_t 
         .data_dir = 2,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("firmware_download Sending Command Failed!\n");
@@ -425,11 +425,11 @@ int nvme_firmware_download(int file_desc, uint32_t numd, uint32_t ofst, uint8_t 
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  cq_parameter: 
  * @retval 
  */
-int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
+int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
 {
     int ret_val = FAILED;
 
@@ -445,7 +445,7 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
         .cq_irq_no = cq_parameter->irq_no,
     };
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
+    ret_val = ioctl(g_fd, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
     if (ret_val < 0)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", prep_cq.cq_id, ret_val);
@@ -478,10 +478,10 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
     {
         user_cmd.bit_mask = (NVME_MASK_PRP1_LIST);
         user_cmd.data_buf_size = DISCONTIG_IO_CQ_SIZE;
-        user_cmd.data_buf_ptr = discontg_cq_buf;
+        user_cmd.data_buf_ptr = g_discontig_cq_buf;
     }
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -496,11 +496,11 @@ int create_iocq(int file_desc, struct create_cq_parameter *cq_parameter)
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  sq_parameter: 
  * @retval 
  */
-int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
+int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
 {
     int ret_val = FAILED;
     struct nvme_prep_sq prep_sq = {0};
@@ -515,7 +515,7 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
     prep_sq.contig = sq_parameter->contig;
     prep_sq.sq_prio = sq_parameter->sq_prio;
 
-    ret_val = ioctl(file_desc, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
+    ret_val = ioctl(g_fd, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
 
     if (ret_val < 0)
     {
@@ -551,11 +551,11 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
     {
         user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
         user_cmd.data_buf_size = DISCONTIG_IO_SQ_SIZE;
-        user_cmd.data_buf_ptr = discontg_sq_buf;
+        user_cmd.data_buf_ptr = g_discontig_sq_buf;
         user_cmd.data_dir = 2;
     }
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -571,10 +571,10 @@ int create_iosq(int file_desc, struct create_sq_parameter *sq_parameter)
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @retval 
  */
-int keep_alive_cmd(int file_desc)
+int keep_alive_cmd(int g_fd)
 {
     int ret_val = FAILED;
     struct nvme_common_command keep_alive_cmd = {
@@ -590,7 +590,7 @@ int keep_alive_cmd(int file_desc)
         .data_dir = 0,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
@@ -605,11 +605,11 @@ int keep_alive_cmd(int file_desc)
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  opcode: 
  * @retval 
  */
-int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode)
+int admin_illegal_opcode_cmd(int g_fd, uint8_t opcode)
 {
     int ret_val = FAILED;
     struct nvme_common_command nvme_cmd = {
@@ -625,7 +625,7 @@ int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode)
         .data_dir = 0,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
@@ -641,12 +641,12 @@ int admin_illegal_opcode_cmd(int file_desc, uint8_t opcode)
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  sq_id: 
  * @param  cmd_id: 
  * @retval 
  */
-int ioctl_send_abort(int file_desc, uint16_t sq_id, uint16_t cmd_id)
+int ioctl_send_abort(int g_fd, uint16_t sq_id, uint16_t cmd_id)
 {
     int ret_val = FAILED;
     struct nvme_abort_cmd abort_cmd = {
@@ -664,7 +664,7 @@ int ioctl_send_abort(int file_desc, uint16_t sq_id, uint16_t cmd_id)
         .data_dir = 0,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -680,11 +680,11 @@ int ioctl_send_abort(int file_desc, uint16_t sq_id, uint16_t cmd_id)
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  sq_id: 
  * @retval 
  */
-int ioctl_send_flush(int file_desc, uint16_t sq_id)
+int ioctl_send_flush(int g_fd, uint16_t sq_id)
 {
     int ret_val = FAILED;
     struct nvme_common_command flush_cmd = {
@@ -702,7 +702,7 @@ int ioctl_send_flush(int file_desc, uint16_t sq_id)
         .data_dir = 0,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -718,14 +718,14 @@ int ioctl_send_flush(int file_desc, uint16_t sq_id)
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  sq_id: 
  * @param  slba: 
  * @param  nlb: 
  * @param  fua_sts: 
  * @retval 
  */
-int ioctl_send_write_zero(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb, uint16_t control)
+int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb, uint16_t control)
 {
     int ret_val = FAILED;
 
@@ -753,7 +753,7 @@ int ioctl_send_write_zero(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
         .data_dir = 2,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -770,13 +770,13 @@ int ioctl_send_write_zero(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  sq_id: 
  * @param  slba: 
  * @param  nlb: 
  * @retval 
  */
-int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t nlb)
+int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb)
 {
     int ret_val = FAILED;
 
@@ -802,7 +802,7 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
         .data_dir = 2,
     };
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -820,7 +820,7 @@ int ioctl_send_write_unc(int file_desc, uint16_t sq_id, uint64_t slba, uint16_t 
 int subsys_reset(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, NVME_ST_RESET_SUBSYSTEM);
+    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, NVME_ST_RESET_SUBSYSTEM);
     if (ret_val < 0)
     {
         pr_err("User Call to subsys_reset: Failed!\n");
@@ -834,7 +834,7 @@ int subsys_reset(void)
 
     // uint32_t u32_tmp_data = 0;
     // u32_tmp_data = 0x4E564D65; //“NVMe”
-    // if (ioctl_write_data(file_desc, NVME_REG_NSSR_OFST, 4, (uint8_t *)&u32_tmp_data))
+    // if (ioctl_write_data(g_fd, NVME_REG_NSSR_OFST, 4, (uint8_t *)&u32_tmp_data))
     //     return FAILED;
     // else
     //     return SUCCEED;
@@ -843,7 +843,7 @@ int subsys_reset(void)
 int ctrl_disable(void)
 {
     int ret_val = -1;
-    ret_val = ioctl(file_desc, NVME_IOCTL_SET_DEV_STATE, NVME_ST_DISABLE_COMPLETE);
+    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, NVME_ST_DISABLE_COMPLETE);
     if (ret_val < 0)
     {
         pr_err("User Call to Disable Ctrlr: Failed!\n");
@@ -856,26 +856,26 @@ int ctrl_disable(void)
     }
 
     // uint32_t u32_tmp_data = 0;
-    // u32_tmp_data = ioctl_read_data(file_desc, 0x14, 4);
+    // u32_tmp_data = ioctl_read_data(g_fd, 0x14, 4);
     // u32_tmp_data &= ~0x1; //CC.EN = 0
-    // if (ioctl_write_data(file_desc, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data))
+    // if (ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data))
     //     return FAILED;
     // else
     //     return SUCCEED;
 }
 
-uint8_t pci_find_cap_ofst(int file_desc, uint8_t cap_id)
+uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id)
 {
     uint16_t data = 0;
     uint8_t pci_cap = 0;
     uint32_t to_cnt = 0;
-    data = pci_read_byte(file_desc, 0x34);
+    data = pci_read_byte(g_fd, 0x34);
     pci_cap = (uint8_t)data;
-    data = pci_read_word(file_desc, data);
+    data = pci_read_word(g_fd, data);
     while (cap_id != (data & 0xFF))
     {
         pci_cap = (uint8_t)(data >> 8);
-        data = pci_read_word(file_desc, pci_cap);
+        data = pci_read_word(g_fd, pci_cap);
         if (++to_cnt > 100)
         {
             pr_err("can't find cap_id:%x\n", cap_id);
@@ -893,24 +893,24 @@ int ctrl_pci_flr(void)
     int ret_val = FAILED;
     for (idx = 0; idx < 6; idx++)
     {
-        bar_reg[idx] = pci_read_dword(file_desc, 0x10 + idx * 4);
+        bar_reg[idx] = pci_read_dword(g_fd, 0x10 + idx * 4);
     }
-    u32_tmp_data = pci_read_dword(file_desc, g_nvme_dev.pxcap_ofst + 0x8);
+    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
     u32_tmp_data |= 0x1 << 15; //Initiate Function Level Reset
-    ret_val = ioctl_pci_write_data(file_desc, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     usleep(2000);
 
     u32_tmp_data = ((uint32_t)(7)); // bus master/memory space/io space enable
-    ret_val = ioctl_pci_write_data(file_desc, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     for (idx = 0; idx < 6; idx++)
     {
-        ioctl_pci_write_data(file_desc, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
+        ioctl_pci_write_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
     }
 
     return SUCCEED;
@@ -921,13 +921,13 @@ int set_power_state(uint8_t pmcap, uint8_t dstate)
     uint32_t u32_tmp_data = 0;
     int ret_val = FAILED;
     uint32_t retry_cnt = 0, retry_cnt1 = 0;
-    // u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    // u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     // if ((u32_tmp_data & 0x3) == dstate)
     //     return SUCCEED;
     u32_tmp_data &= ~0x3;
     u32_tmp_data |= dstate;
 write_again:
-    ret_val = ioctl_pci_write_data(file_desc, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("ioctl_pci_write_data failed:%d\n", ret_val);
@@ -938,7 +938,7 @@ write_again:
             return FAILED;
     }
     usleep(10000); //spec define min 10ms wait ctrlr ready
-    u32_tmp_data = pci_read_dword(file_desc, pmcap + 0x4);
+    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     if ((u32_tmp_data & 0x3) != dstate)
     {
         pr_err("set_state:%#x,but read:%#x\r\n", dstate, u32_tmp_data & 0x3);
@@ -954,11 +954,11 @@ write_again:
 /**
  * @brief  
  * @note   
- * @param  file_desc: 
+ * @param  g_fd: 
  * @param  lbaf: 
  * @retval 
  */
-int ioctl_send_format(int file_desc, uint8_t lbaf)
+int ioctl_send_format(int g_fd, uint8_t lbaf)
 {
     int ret_val = FAILED;
     struct nvme_64b_cmd user_cmd = {0};
@@ -979,7 +979,7 @@ int ioctl_send_format(int file_desc, uint8_t lbaf)
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -999,7 +999,7 @@ int ioctl_send_format(int file_desc, uint8_t lbaf)
 /**
  * @brief io cmds use this common interface send to device
  * @note not include meta data 
- * @param file_desc 
+ * @param g_fd 
  * @param sq_id 
  * @param data_addr 
  * @param buf_size 
@@ -1007,7 +1007,7 @@ int ioctl_send_format(int file_desc, uint8_t lbaf)
  * @param io_cmd 
  * @return int 
  */
-static int nvme_io_cmd(int file_desc, uint16_t sq_id, uint8_t const *data_addr, uint32_t buf_size,
+static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t const *data_addr, uint32_t buf_size,
                        uint8_t data_dir, struct nvme_rw_command *io_cmd)
 {
     struct nvme_64b_cmd user_cmd = {
@@ -1018,12 +1018,12 @@ static int nvme_io_cmd(int file_desc, uint16_t sq_id, uint8_t const *data_addr, 
         .data_buf_ptr = data_addr,
         .data_dir = data_dir,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 /**
  * @brief can refer struct nvme_rw_command for detail
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param flags NVME_CMD_FUSE_FIRST;NVME_CMD_FUSE_SECOND;
  * @param sq_id 
  * @param nsid 
@@ -1033,7 +1033,7 @@ static int nvme_io_cmd(int file_desc, uint16_t sq_id, uint8_t const *data_addr, 
  * @param data_addr 
  * @return int 
  */
-int nvme_io_write_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
+int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                       uint16_t control, void *data_addr)
 {
     uint32_t data_size;
@@ -1046,13 +1046,13 @@ int nvme_io_write_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsi
         .control = control,
     };
     data_size = nlb * LBA_DATA_SIZE(nsid);
-    return nvme_io_cmd(file_desc, sq_id, data_addr, data_size, DMA_FROM_DEVICE, &io_cmd);
+    return nvme_io_cmd(g_fd, sq_id, data_addr, data_size, DMA_FROM_DEVICE, &io_cmd);
 }
 
 /**
  * @brief can refer struct nvme_rw_command for detail
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param flags NVME_CMD_FUSE_FIRST;NVME_CMD_FUSE_SECOND;
  * @param sq_id 
  * @param nsid 
@@ -1062,7 +1062,7 @@ int nvme_io_write_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsi
  * @param data_addr 
  * @return int 
  */
-int nvme_io_read_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
+int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                      uint16_t control, void *data_addr)
 {
     uint32_t data_size;
@@ -1077,13 +1077,13 @@ int nvme_io_read_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid
     data_size = nlb * LBA_DATA_SIZE(nsid);
     // data_size = nlb * LBA_DAT_SIZE;
     //pr_info("### %d,%d %d,%d\n", nlb * LBA_DAT_SIZE, nlb * LBA_DATA_SIZE(nsid), LBA_DAT_SIZE, g_nvme_ns_info[nsid - 1].lbads);
-    return nvme_io_cmd(file_desc, sq_id, data_addr, data_size, DMA_BIDIRECTIONAL, &io_cmd);
+    return nvme_io_cmd(g_fd, sq_id, data_addr, data_size, DMA_BIDIRECTIONAL, &io_cmd);
 }
 
 /**
  * @brief can refer struct nvme_rw_command for detail
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param flags NVME_CMD_FUSE_FIRST;NVME_CMD_FUSE_SECOND;
  * @param sq_id 
  * @param nsid 
@@ -1093,7 +1093,7 @@ int nvme_io_read_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid
  * @param data_addr 
  * @return int 
  */
-int nvme_io_compare_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
+int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                         uint16_t control, void *data_addr)
 {
     uint32_t data_size;
@@ -1106,11 +1106,11 @@ int nvme_io_compare_cmd(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t n
         .control = control,
     };
     data_size = nlb * LBA_DATA_SIZE(nsid);
-    return nvme_io_cmd(file_desc, sq_id, data_addr, data_size, DMA_FROM_DEVICE, &io_cmd);
+    return nvme_io_cmd(g_fd, sq_id, data_addr, data_size, DMA_FROM_DEVICE, &io_cmd);
 }
 
 /* CMD to send NVME IO write command using metabuff*/
-int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
+int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                                    uint16_t control, uint32_t id, void *data_addr)
 {
     uint32_t data_size;
@@ -1133,11 +1133,11 @@ int send_nvme_write_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id,
         .meta_buf_id = id,
         .data_dir = DMA_FROM_DEVICE,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 
 /* CMD to send NVME IO read command using metabuff through contig Queue */
-int send_nvme_read_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
+int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                                   uint16_t control, uint32_t id, void *data_addr)
 {
     uint32_t data_size;
@@ -1160,14 +1160,14 @@ int send_nvme_read_using_metabuff(int file_desc, uint8_t flags, uint16_t sq_id, 
         .meta_buf_id = id,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 
-int nvme_ring_dbl_and_reap_cq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num)
+int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num)
 {
     uint32_t reap_num = 0;
     int ret_val = SUCCEED;
-    ret_val |= ioctl_tst_ring_dbl(file_desc, sq_id);
+    ret_val |= ioctl_tst_ring_dbl(g_fd, sq_id);
     ret_val |= cq_gain(cq_id, expect_num, &reap_num);
     return ret_val;
 }
@@ -1175,13 +1175,13 @@ int nvme_ring_dbl_and_reap_cq(int file_desc, uint16_t sq_id, uint16_t cq_id, uin
 /**
  * @brief identify cmds use this common interface send to device
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param nsid 
  * @param data_addr 
  * @param idfy_cmd 
  * @return int 
  */
-static int nvme_idfy_cmd(int file_desc, uint32_t nsid, uint32_t cns, uint8_t const *data_addr)
+static int nvme_idfy_cmd(int g_fd, uint32_t nsid, uint32_t cns, uint8_t const *data_addr)
 {
     struct nvme_identify idfy_cmd = {
         .opcode = nvme_admin_identify,
@@ -1196,13 +1196,13 @@ static int nvme_idfy_cmd(int file_desc, uint32_t nsid, uint32_t cns, uint8_t con
         .data_buf_ptr = data_addr,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 
-int nvme_idfy_ctrl(int file_desc, void *data)
+int nvme_idfy_ctrl(int g_fd, void *data)
 {
     memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(file_desc, 0, NVME_ID_CNS_CTRL, data);
+    return nvme_idfy_cmd(g_fd, 0, NVME_ID_CNS_CTRL, data);
 }
 
 int nvme_idfy_ns(int fd, uint32_t nsid, uint8_t present, void *data)
@@ -1240,14 +1240,14 @@ int nvme_idfy_ns_descs(int fd, uint32_t nsid, void *data)
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param nsid 
  * @param feat_id 
  * @param dw11l 
  * @param dw11h 
  * @return int 
  */
-int nvme_set_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id, uint16_t dw11l, uint16_t dw11h)
+int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, uint16_t dw11l, uint16_t dw11h)
 {
     struct nvme_features feat_cmd = {
         .opcode = nvme_admin_set_features,
@@ -1263,12 +1263,12 @@ int nvme_set_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id, uint16_t
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param nsid 
  * @param ehm 
  * @param hsize 
@@ -1277,7 +1277,7 @@ int nvme_set_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id, uint16_t
  * @param hmdlec 
  * @return int 
  */
-int nvme_set_feature_hmb_cmd(int file_desc, uint32_t nsid, uint16_t ehm, uint32_t hsize,
+int nvme_set_feature_hmb_cmd(int g_fd, uint32_t nsid, uint16_t ehm, uint32_t hsize,
                              uint32_t hmdlla, uint32_t hmdlua, uint32_t hmdlec)
 {
     struct nvme_features feat_cmd = {
@@ -1298,17 +1298,17 @@ int nvme_set_feature_hmb_cmd(int file_desc, uint32_t nsid, uint16_t ehm, uint32_
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param nsid 
  * @param feat_id 
  * @return int 
  */
-int nvme_get_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id)
+int nvme_get_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id)
 {
     struct nvme_features feat_cmd = {
         .opcode = nvme_admin_get_features,
@@ -1323,13 +1323,13 @@ int nvme_get_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id)
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_64b_cmd(file_desc, &user_cmd);
+    return nvme_64b_cmd(g_fd, &user_cmd);
 }
 
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param cq_id Existing or non-existing CQ ID.
  * @param cq_size Total number of entries that need kernal mem
  * @param contig Indicates if SQ is contig or not, 1 = contig
@@ -1337,7 +1337,7 @@ int nvme_get_feature_cmd(int file_desc, uint32_t nsid, uint8_t feat_id)
  * @param irq_no 
  * @return int 
  */
-static int nvme_prep_cq(int file_desc, uint16_t cq_id, uint32_t cq_size, uint8_t contig,
+static int nvme_prep_cq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t contig,
                         uint8_t irq_en, uint16_t irq_no)
 {
     struct nvme_prep_cq prep_cq = {
@@ -1347,35 +1347,35 @@ static int nvme_prep_cq(int file_desc, uint16_t cq_id, uint32_t cq_size, uint8_t
         .cq_irq_en = irq_en,
         .cq_irq_no = irq_no,
     };
-    return ioctl(file_desc, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
+    return ioctl(g_fd, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
 }
 /**
  * @brief 
  * 
  * @return int 
  */
-int nvme_admin_ring_dbl_reap_cq(int file_desc)
+int nvme_admin_ring_dbl_reap_cq(int g_fd)
 {
     uint32_t reap_num = 0;
     int ret_val = SUCCEED;
-    ret_val |= ioctl_tst_ring_dbl(file_desc, 0);
+    ret_val |= ioctl_tst_ring_dbl(g_fd, 0);
     ret_val |= cq_gain(0, 1, &reap_num);
     return ret_val;
 }
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param cq_id 
  * @param cq_size 
  * @param irq_en 
  * @param irq_no 
  * @return int 
  */
-int nvme_create_contig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no)
+int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no)
 {
     int ret_val = SUCCEED;
-    ret_val = nvme_prep_cq(file_desc, cq_id, cq_size, 1, irq_en, irq_no);
+    ret_val = nvme_prep_cq(g_fd, cq_id, cq_size, 1, irq_en, irq_no);
     if (SUCCEED != ret_val)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1398,32 +1398,32 @@ int nvme_create_contig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, uin
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
         pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
-    return nvme_admin_ring_dbl_reap_cq(file_desc);
+    return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param cq_id 
  * @param cq_size 
  * @param irq_en 
  * @param irq_no 
- * @param discontg_cq_buf 
+ * @param g_discontig_cq_buf 
  * @param discontig_cq_size 
  * @return int 
  */
-int nvme_create_discontig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no,
-                               uint8_t const *discontg_cq_buf, uint32_t discontig_cq_size)
+int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no,
+                               uint8_t const *g_discontig_cq_buf, uint32_t discontig_cq_size)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prep_cq(file_desc, cq_id, cq_size, 0, irq_en, irq_no);
+    ret_val = nvme_prep_cq(g_fd, cq_id, cq_size, 0, irq_en, irq_no);
     if (SUCCEED != ret_val)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1443,22 +1443,22 @@ int nvme_create_discontig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, 
         .bit_mask = (NVME_MASK_PRP1_LIST),
         .cmd_buf_ptr = (u_int8_t *)&create_cq_cmd,
         .data_buf_size = discontig_cq_size,
-        .data_buf_ptr = discontg_cq_buf,
+        .data_buf_ptr = g_discontig_cq_buf,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
         pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
-    return nvme_admin_ring_dbl_reap_cq(file_desc);
+    return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param cq_id Existing or non-existing SQ ID.
  * @param cq_size Total number of entries that need kernal mem
  * @param contig Indicates if SQ is contig or not, 1 = contig
@@ -1466,7 +1466,7 @@ int nvme_create_discontig_iocq(int file_desc, uint16_t cq_id, uint32_t cq_size, 
  * @param irq_no 
  * @return int 
  */
-static int nvme_prep_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t contig, uint8_t sq_prio)
+static int nvme_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t contig, uint8_t sq_prio)
 {
     struct nvme_prep_sq prep_sq = {
         .sq_id = sq_id,
@@ -1475,23 +1475,23 @@ static int nvme_prep_sq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint32_t 
         .contig = contig,
         .sq_prio = sq_prio,
     };
-    return ioctl(file_desc, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
+    return ioctl(g_fd, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
 }
 
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param sq_id Existing or non-existing SQ ID.
  * @param cq_id assoc CQ ID.
  * @param sq_size Total number of entries that need kernal mem
  * @param sq_prio 
  * @return int 
  */
-int nvme_create_contig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio)
+int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prep_sq(file_desc, sq_id, cq_id, sq_size, 1, sq_prio);
+    ret_val = nvme_prep_sq(g_fd, sq_id, cq_id, sq_size, 1, sq_prio);
     if (SUCCEED != ret_val)
     {
         pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1514,32 +1514,32 @@ int nvme_create_contig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint3
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
         pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
-    return nvme_admin_ring_dbl_reap_cq(file_desc);
+    return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
 /**
  * @brief 
  * 
- * @param file_desc 
+ * @param g_fd 
  * @param sq_id Existing or non-existing SQ ID.
  * @param cq_id assoc CQ ID.
  * @param sq_size Total number of entries that need kernal mem
  * @param sq_prio 
- * @param discontg_sq_buf 
+ * @param g_discontig_sq_buf 
  * @param discontig_sq_size 
  * @return int 
  */
-int nvme_create_discontig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio,
-                               uint8_t const *discontg_sq_buf, uint32_t discontig_sq_size)
+int nvme_create_discontig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio,
+                               uint8_t const *g_discontig_sq_buf, uint32_t discontig_sq_size)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prep_sq(file_desc, sq_id, cq_id, sq_size, 0, sq_prio);
+    ret_val = nvme_prep_sq(g_fd, sq_id, cq_id, sq_size, 0, sq_prio);
     if (SUCCEED != ret_val)
     {
         pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1558,28 +1558,28 @@ int nvme_create_discontig_iosq(int file_desc, uint16_t sq_id, uint16_t cq_id, ui
         .bit_mask = (NVME_MASK_PRP1_LIST),
         .cmd_buf_ptr = (u_int8_t *)&create_sq_cmd,
         .data_buf_size = discontig_sq_size,
-        .data_buf_ptr = discontg_sq_buf,
+        .data_buf_ptr = g_discontig_sq_buf,
         .data_dir = DMA_FROM_DEVICE,
     };
-    ret_val = nvme_64b_cmd(file_desc, &user_cmd);
+    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
         pr_err("\tcq_id %d nvme_64b_cmd failed %d\n", cq_id, ret_val);
         return FAILED;
     }
-    return nvme_admin_ring_dbl_reap_cq(file_desc);
+    return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
-int nvme_delete_ioq(int file_desc, uint8_t opcode, uint16_t qid)
+int nvme_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid)
 {
     int ret_val = FAILED;
-    ret_val = ioctl_delete_ioq(file_desc, opcode, qid);
+    ret_val = ioctl_delete_ioq(g_fd, opcode, qid);
     if (SUCCEED != ret_val)
     {
         pr_err("\tdel qid:%d Failed! %d\n", qid, ret_val);
         return FAILED;
     }
-    return nvme_admin_ring_dbl_reap_cq(file_desc);
+    return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
 /********** PCIe RC retrain link **********/
@@ -1599,7 +1599,7 @@ uint32_t pcie_hot_reset(void)
 
     for (idx = 0; idx < 6; idx++)
     {
-        bar_reg[idx] = pci_read_dword(file_desc, 0x10 + idx * 4);
+        bar_reg[idx] = pci_read_dword(g_fd, 0x10 + idx * 4);
     }
 
     system("setpci -s " RC_BRIDGE_CONTROL ".b=40:40");
@@ -1609,13 +1609,13 @@ uint32_t pcie_hot_reset(void)
     usleep(50000); // 100 ms
 
     u32_tmp_data = ((uint32_t)(0x7)); // bus master/memory space/io space enable
-    ret_val = ioctl_pci_write_data(file_desc, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     for (idx = 0; idx < 6; idx++)
     {
-        ioctl_pci_write_data(file_desc, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
+        ioctl_pci_write_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
     }
 
     pcie_retrain_link();
@@ -1631,7 +1631,7 @@ uint32_t pcie_link_down(void)
     int ret_val = FAILED;
     for (idx = 0; idx < 6; idx++)
     {
-        bar_reg[idx] = pci_read_dword(file_desc, 0x10 + idx * 4);
+        bar_reg[idx] = pci_read_dword(g_fd, 0x10 + idx * 4);
     }
 
     system("setpci -s " RC_CAP_LINK_CONTROL ".b=10:10");
@@ -1640,13 +1640,13 @@ uint32_t pcie_link_down(void)
     usleep(100000); // 100 ms
 
     u32_tmp_data = ((uint32_t)(0x7)); // bus master/memory space/io space enable
-    ret_val = ioctl_pci_write_data(file_desc, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     for (idx = 0; idx < 6; idx++)
     {
-        ioctl_pci_write_data(file_desc, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
+        ioctl_pci_write_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
     }
 
     pcie_retrain_link();
@@ -1686,10 +1686,10 @@ void pcie_set_width(int width)
         assert(0);
     }
     //beagle;cougar;eagle;falcon
-    uint32_t u32_tmp_data = pci_read_dword(file_desc, 0x8C0);
+    uint32_t u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= (0x000000040 + width);
-    ioctl_pci_write_data(file_desc, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_random_speed_width(void)
@@ -1719,7 +1719,7 @@ void pcie_random_speed_width(void)
 
     pcie_retrain_link();
     // check Link status register
-    u32_tmp_data = pci_read_word(file_desc, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -1742,20 +1742,20 @@ uint32_t nvme_msi_register_test(void)
 {
     uint32_t u32_tmp_data = 0;
 
-    u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMS_OFST, 4);
+    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMS_OFST, 4);
     pr_info("NVME_REG_INTMS_OFST:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
-    if (ioctl_write_data(file_desc, NVME_REG_INTMS_OFST, 4, (uint8_t *)&u32_tmp_data))
+    if (ioctl_write_data(g_fd, NVME_REG_INTMS_OFST, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
-    u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMS_OFST, 4);
+    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMS_OFST, 4);
     pr_info("set NVME_REG_INTMS_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
-    u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMC_OFST, 4);
+    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMC_OFST, 4);
     pr_info("NVME_REG_INTMC_OFST:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
-    if (ioctl_write_data(file_desc, NVME_REG_INTMC_OFST, 4, (uint8_t *)&u32_tmp_data))
+    if (ioctl_write_data(g_fd, NVME_REG_INTMC_OFST, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
-    u32_tmp_data = ioctl_read_data(file_desc, NVME_REG_INTMC_OFST, 4);
+    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMC_OFST, 4);
     pr_info("set NVME_REG_INTMC_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
     return SUCCEED;
@@ -1792,7 +1792,7 @@ uint32_t create_all_io_queue(uint8_t flags)
     rdm_irq_no = BYTE_RAND() % num_irqs;
     pr_debug("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
 
-    test_change_init(file_desc, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, int_type, num_irqs);
+    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, int_type, num_irqs);
 
     random_sq_cq_info();
     /**********************************************************************/
@@ -1818,9 +1818,9 @@ uint32_t create_all_io_queue(uint8_t flags)
             }
         }
         pr_debug("create cq: %d\n", cq_parameter.cq_id);
-        create_iocq(file_desc, &cq_parameter);
+        create_iocq(g_fd, &cq_parameter);
     }
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
@@ -1833,9 +1833,9 @@ uint32_t create_all_io_queue(uint8_t flags)
         sq_parameter.sq_prio = MEDIUM_PRIO;
         pr_debug("create sq: %d, assoc cq: %d\n", sq_parameter.sq_id, 
             sq_parameter.cq_id);
-        create_iosq(file_desc, &sq_parameter);
+        create_iosq(g_fd, &sq_parameter);
     }
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
@@ -1846,23 +1846,23 @@ uint32_t delete_all_io_queue(void)
     uint32_t reap_num = 0;
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        ioctl_delete_ioq(file_desc, nvme_admin_delete_sq, ctrl_sq_info[sqidx].sq_id);
+        ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, ctrl_sq_info[sqidx].sq_id);
     }
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        ioctl_delete_ioq(file_desc, nvme_admin_delete_cq, ctrl_sq_info[sqidx].cq_id);
+        ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[sqidx].cq_id);
     }
-    ioctl_tst_ring_dbl(file_desc, ADMIN_QUEUE_ID);
+    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
     cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
 
-int nvme_send_iocmd(int file_desc, uint8_t cmp_dis, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb, void *data_addr)
+int nvme_send_iocmd(int g_fd, uint8_t cmp_dis, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb, void *data_addr)
 {
     uint8_t iocmd_type = BYTE_RAND() % 3;
     uint16_t fua_en = ((BYTE_RAND() % 2) ? NVME_RW_FUA : 0);
@@ -1872,14 +1872,14 @@ int nvme_send_iocmd(int file_desc, uint8_t cmp_dis, uint16_t sq_id, uint32_t nsi
     }
     if (iocmd_type == 0)
     {
-        return nvme_io_read_cmd(file_desc, 0, sq_id, nsid, slba, nlb, fua_en, data_addr);
+        return nvme_io_read_cmd(g_fd, 0, sq_id, nsid, slba, nlb, fua_en, data_addr);
     }
     else if (iocmd_type == 1)
     {
-        return nvme_io_write_cmd(file_desc, 0, sq_id, nsid, slba, nlb, fua_en, data_addr);
+        return nvme_io_write_cmd(g_fd, 0, sq_id, nsid, slba, nlb, fua_en, data_addr);
     }
     else
     {
-        return nvme_io_compare_cmd(file_desc, 0, sq_id, nsid, slba, nlb, fua_en, data_addr);
+        return nvme_io_compare_cmd(g_fd, 0, sq_id, nsid, slba, nlb, fua_en, data_addr);
     }
 }
