@@ -9,8 +9,8 @@
 
 #include <stdbool.h>
 #include <linux/types.h>
+#include <linux/uuid.h>
 
-#include "uuid.h"
 #include "compiler.h"
 
 /* NQN names in commands fields specified one size */
@@ -1379,7 +1379,7 @@ struct nvmf_connect_command {
 };
 
 struct nvmf_connect_data {
-	uuid_t		hostid;
+	guid_t		hostid;
 	__le16		cntlid;
 	char		resv4[238];
 	char		subsysnqn[NVMF_NQN_FIELD_LEN];
