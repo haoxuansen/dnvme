@@ -70,8 +70,7 @@ enum nvme_queue_type {
 	NVME_SQ,
 };
 
-enum nvme_sq_prio
-{
+enum nvme_sq_prio {
 	URGENT_PRIO = 0x0,
 	HIGH_PRIO = 0x1,
 	MEDIUM_PRIO = 0x2,

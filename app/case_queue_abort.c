@@ -105,13 +105,13 @@ static uint32_t sub_case_abort_1_wrd_cmd(void)
     ioctl_send_abort(g_fd, io_sq_id, 0);
 
     test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
     /*test_flag |= */ cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
 
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     return test_flag;
 }
 
@@ -129,10 +129,10 @@ static uint32_t sub_case_random_abort_1_wrd_cmd(void)
     test_flag |= ioctl_send_abort(g_fd, io_sq_id, WORD_RAND() % 4 + 9);
 
     test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     /*test_flag |= */ cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
@@ -156,10 +156,10 @@ static uint32_t sub_case_abort_2_wrd_cmd(void)
             ioctl_send_abort(g_fd, io_sq_id, index);
     }
     test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 2, &reap_num);
-    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= cq_gain(NVME_AQ_ID, 2, &reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     /*test_flag |=*/cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
@@ -184,10 +184,10 @@ static uint32_t sub_case_abort_3_wrd_cmd(void)
         ioctl_send_abort(g_fd, io_sq_id, index);
     }
     test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 3, &reap_num);
-    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= cq_gain(NVME_AQ_ID, 3, &reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     /*test_flag |=*/cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!
@@ -212,10 +212,10 @@ static uint32_t sub_case_abort_4_wrd_cmd(void)
         ioctl_send_abort(g_fd, io_sq_id, index);
     }
     test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 4, &reap_num);
-    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= cq_gain(NVME_AQ_ID, 4, &reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     /*test_flag |=*/cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num); // ststus shouldn't be 0!

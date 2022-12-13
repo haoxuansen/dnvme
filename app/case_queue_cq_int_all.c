@@ -86,9 +86,9 @@ static uint32_t sub_case_int_pin(void)
     cq_parameter.irq_no = 0; // 0's based
     pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
@@ -97,9 +97,9 @@ static uint32_t sub_case_int_pin(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     /**********************************************************************/
     wr_slba = 0;
@@ -122,14 +122,14 @@ static uint32_t sub_case_int_pin(void)
 
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
     return test_flag;
 }
@@ -149,9 +149,9 @@ static uint32_t sub_case_int_msi_single(void)
     cq_parameter.irq_no = 0; // 0's based
     pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
@@ -160,9 +160,9 @@ static uint32_t sub_case_int_msi_single(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     /**********************************************************************/
     wr_slba = 0;
@@ -188,14 +188,14 @@ static uint32_t sub_case_int_msi_single(void)
 
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
     return test_flag;
 }
@@ -219,9 +219,9 @@ static uint32_t sub_case_int_msi_multi(void)
     cq_parameter.irq_no = io_cq_id;
     pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
@@ -230,9 +230,9 @@ static uint32_t sub_case_int_msi_multi(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 128;
@@ -258,14 +258,14 @@ static uint32_t sub_case_int_msi_multi(void)
 
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     return test_flag;
 }
 
@@ -287,9 +287,9 @@ static uint32_t sub_case_int_msix(void)
     cq_parameter.irq_no = io_cq_id;
     pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
     sq_parameter.cq_id = io_cq_id;
@@ -298,9 +298,9 @@ static uint32_t sub_case_int_msix(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
     wr_slba = 0;
     wr_nlb = 128;
@@ -324,14 +324,14 @@ static uint32_t sub_case_int_msix(void)
     }
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     return test_flag;
 }
 

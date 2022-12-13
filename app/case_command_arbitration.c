@@ -286,10 +286,10 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         test_flag |= create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -297,10 +297,10 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = LOW_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
     pr_info("create SQ2 prio = MEDIUM_PRIO\n");
@@ -315,10 +315,10 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -326,10 +326,10 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
     pr_info("create SQ3 prio = URGENT_PRIO\n");
@@ -344,10 +344,10 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -355,10 +355,10 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = URGENT_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
     pr_info("create SQ4 prio = HIGH_PRIO\n");
@@ -373,11 +373,11 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -385,10 +385,10 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = HIGH_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
 
@@ -503,16 +503,16 @@ static void test_sub(void)
         io_sq_id = q_index;
         /**********************************************************************/
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
     }
     /****************************************************************************

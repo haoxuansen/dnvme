@@ -1820,8 +1820,8 @@ uint32_t create_all_io_queue(uint8_t flags)
         pr_debug("create cq: %d\n", cq_parameter.cq_id);
         create_iocq(g_fd, &cq_parameter);
     }
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
@@ -1835,8 +1835,8 @@ uint32_t create_all_io_queue(uint8_t flags)
             sq_parameter.cq_id);
         create_iosq(g_fd, &sq_parameter);
     }
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
@@ -1848,16 +1848,16 @@ uint32_t delete_all_io_queue(void)
     {
         ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, ctrl_sq_info[sqidx].sq_id);
     }
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
 
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[sqidx].cq_id);
     }
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, g_nvme_dev.max_sq_num, &reap_num);
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
     pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }

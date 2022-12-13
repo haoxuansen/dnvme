@@ -48,10 +48,10 @@ static void test_sub(void)
     cq_parameter.irq_no = io_cq_id;
     cq_parameter.cq_id = io_cq_id;
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         
-    pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
     pr_info("\tPreparing io_sq_id %d, sq_size = %d\n", io_sq_id, sq_size);
     sq_parameter.sq_size = sq_size;
@@ -60,9 +60,9 @@ static void test_sub(void)
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-    pr_info("\tcq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    pr_info("\tcq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     set_speed = 3; // gen1 gen2 gen3
     set_width = 4; // x1 x2 x4
@@ -140,9 +140,9 @@ static void test_sub(void)
     pr_debug("\nTest: Delete sq_id %d, cq_id %d\n", io_sq_id, io_cq_id);
     ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
     ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    pr_debug("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, 2, &reap_num);
+    pr_debug("Ringing Doorbell for NVME_AQ_ID\n");
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, 2, &reap_num);
     pr_debug("\tcq reaped ok! reap_num:%d\n", reap_num);
 }
 

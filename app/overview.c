@@ -317,6 +317,9 @@ static int case_unknown3(void)
 	{
 		for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
 		{
+			/* !FIXME: nsid may not be continuous! It's better to 
+			 * get nsid list by send Identify Command with CNS(0x02)
+			 */
 			wr_nsid = ns_idx + 1;
 			wr_slba = 0;
 			wr_nlb = BYTE_RAND() % 32;
@@ -341,8 +344,8 @@ static int case_unknown3(void)
 			fwdma_parameter.cdw10 = data_len;  //data_len
 			fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
 			nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
-			ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-			cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+			ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+			cq_gain(NVME_AQ_ID, 1, &reap_num);
 			pr_info("\nfwdma wr cmd send done!\n");
 
 			ret = nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
@@ -377,8 +380,8 @@ static int case_unknown4(void)
 	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
 	fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] dec chk,
 	nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
-	ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-	cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+	ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	pr_info("host2reg tets send_maxio_fwdma_rd\n");
 	//memset((uint8_t *)g_write_buf, rand() % 0xff, data_len);
@@ -389,8 +392,8 @@ static int case_unknown4(void)
 	fwdma_parameter.cdw12 &= ~(1 << 2); //flag bit[2] enc chk,
 
 	nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
-	ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-	cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+	ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	return 0;
 }
@@ -419,8 +422,8 @@ static int case_write_fwdma(void)
 			// fwdma_parameter.cdw12 |= (1<<2);                //flag bit[2] enc chk,
 			nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
 		}
-		ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-		cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+		ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+		cq_gain(NVME_AQ_ID, 1, &reap_num);
 		pr_info("\nfwdma wr cmd send done!\n");
 	}
 	return 0;
@@ -441,8 +444,8 @@ static int case_read_fwdma(void)
 	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
 	// fwdma_parameter.cdw12 |= (1<<2);                 //flag bit[2] dec chk,
 	nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
-	ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-	cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+	ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\nfwdma wr cmd send done!\n");
 
 	dw_cmp(g_write_buf, g_read_buf, data_len);
@@ -470,13 +473,13 @@ static int case_unknown5(void)
 
 		fwdma_parameter.addr = g_write_buf;
 		nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
-		ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-		cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+		ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+		cq_gain(NVME_AQ_ID, 1, &reap_num);
 
 		fwdma_parameter.addr = g_read_buf;
 		nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
-		ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-		cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+		ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+		cq_gain(NVME_AQ_ID, 1, &reap_num);
 
 		if (FAILED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE))
 		{
@@ -506,6 +509,9 @@ static int case_test_full_disk_wr(void)
 
 static int case_disable_ltr(void)
 {
+	/* !FIXME: The BDF of NVMe device cannot be fixed. It's better to use
+	 * device ID and vendor ID instead! 
+	 */
 	system("setpci -s 2:0.0  99.b=00");
 	return 0;
 }

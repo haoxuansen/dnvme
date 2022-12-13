@@ -89,8 +89,8 @@ static uint32_t sub_case_use_1_q_del_it(void)
 
     test_flag |= create_iocq(g_fd, &cq_parameter);
     assert(!test_flag);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
     pr_info("Preparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d, cq_size = %d\n", io_sq_id, io_cq_id, sq_size, cq_size);
     sq_parameter.cq_id = io_cq_id;
@@ -99,8 +99,8 @@ static uint32_t sub_case_use_1_q_del_it(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     /**********************************************************************/
     cmd_cnt = 0;
     send_num = (WORD_RAND() % 200) + 100;
@@ -119,12 +119,12 @@ static uint32_t sub_case_use_1_q_del_it(void)
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     /**********************************************************************/
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     return test_flag;
 }
 
@@ -144,8 +144,8 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= create_iocq(g_fd, &cq_parameter);
         cmd_cnt++;
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, cmd_cnt, &reap_num);
 
     /**********************************************************************/
     sq_parameter.sq_size = sq_size;
@@ -160,8 +160,8 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= create_iosq(g_fd, &sq_parameter);
         cmd_cnt++;
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, cmd_cnt, &reap_num);
 
     /**********************************************************************/
     pr_info("use 3 sq\n");
@@ -192,8 +192,8 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
         cmd_cnt++;
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, cmd_cnt, &reap_num);
 
     /**********************************************************************/
     cmd_cnt = 0;
@@ -203,8 +203,8 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
         cmd_cnt++;
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, cmd_cnt, &reap_num);
     /**********************************************************************/
     /**********************************************************************/
     pr_info("use remian 1 sq\n");
@@ -235,8 +235,8 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
         cmd_cnt++;
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, cmd_cnt, &reap_num);
 
     /**********************************************************************/
     cmd_cnt = 0;
@@ -246,8 +246,8 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
         cmd_cnt++;
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, cmd_cnt, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, cmd_cnt, &reap_num);
 
     return test_flag;
 }
@@ -267,8 +267,8 @@ static uint32_t sub_case_del_cq_before_sq(void)
     cq_parameter.irq_no = io_cq_id;
 
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
     pr_info("Preparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d, cq_size = %d\n", io_sq_id, io_cq_id, sq_size, cq_size);
     sq_parameter.cq_id = io_cq_id;
@@ -277,8 +277,8 @@ static uint32_t sub_case_del_cq_before_sq(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     /**********************************************************************/
     cmd_cnt = 0;
     for (uint32_t i = 0; i < 5; i++)
@@ -298,17 +298,17 @@ static uint32_t sub_case_del_cq_before_sq(void)
     /**********************************************************************/
     pr_info("delete_iocq:%d\n", io_cq_id);
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    /*test_flag |= */ cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    /*test_flag |= */ cq_gain(NVME_AQ_ID, 1, &reap_num);
 
     pr_info("delete_iosq:%d\n", io_sq_id);
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
     test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     return test_flag;
 }
 
@@ -347,15 +347,15 @@ static uint32_t delete_runing_cmd_queue(void)
         }
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, ctrl_sq_info[qid - 1].sq_id);
         test_flag |= ioctl_tst_ring_dbl(g_fd, ctrl_sq_info[qid - 1].sq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
         test_flag |= cq_gain_disp_cq(ctrl_sq_info[qid - 1].cq_id, cmd_cnt, &reap_num, false);
 
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[qid - 1].cq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     }
     return test_flag;
 }
@@ -394,15 +394,15 @@ static uint32_t delete_runing_fua_cmd_queue(void)
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, ctrl_sq_info[qid - 1].sq_id);
 
         test_flag |= ioctl_tst_ring_dbl(g_fd, ctrl_sq_info[qid - 1].sq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
         test_flag |= cq_gain_disp_cq(ctrl_sq_info[qid - 1].cq_id, cmd_cnt, &reap_num, false);
 
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[qid - 1].cq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     }
     return test_flag;
 }
@@ -443,35 +443,35 @@ static uint32_t delete_runing_iocmd_queue(void)
     {
         test_flag |= ioctl_tst_ring_dbl(g_fd, ctrl_sq_info[i].sq_id);
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
     for (uint16_t i = 0; i < queue_num; i++)
     {
         test_flag |= cq_gain_disp_cq(ctrl_sq_info[i].cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num, false);
     }
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, queue_num, &reap_num);
+    test_flag |= cq_gain(NVME_AQ_ID, queue_num, &reap_num);
     pr_info("delete %d sq done\n", queue_num);
 
     for (uint16_t i = 0; i < queue_num; i++)
     {
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[i].cq_id);
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    test_flag |= cq_gain(ADMIN_QUEUE_ID, queue_num, &reap_num);
+    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= cq_gain(NVME_AQ_ID, queue_num, &reap_num);
     //***delete remain queue**************************************************************************************
     for (uint32_t sqidx = queue_num; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, ctrl_sq_info[sqidx].sq_id);
     }
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, (g_nvme_dev.max_sq_num - queue_num), &reap_num);
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, (g_nvme_dev.max_sq_num - queue_num), &reap_num);
 
     for (uint32_t sqidx = queue_num; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
         ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[sqidx].cq_id);
     }
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, (g_nvme_dev.max_sq_num - queue_num), &reap_num);
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, (g_nvme_dev.max_sq_num - queue_num), &reap_num);
     pr_info("delete remain sq done\n");
 
     // delete_all_io_queue();

@@ -175,9 +175,9 @@ int case_pcie_MRRS(void)
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    pr_info("Ringing Doorbell for NVME_AQ_ID\n");
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     pr_info("\nPreparing contig sq_id = %d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
@@ -187,9 +187,9 @@ int case_pcie_MRRS(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    pr_info("Ringing Doorbell for ADMIN_QUEUE_ID\n");
-    ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-    cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+    pr_info("Ringing Doorbell for NVME_AQ_ID\n");
+    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Read Request Size

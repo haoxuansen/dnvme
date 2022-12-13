@@ -110,11 +110,11 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         cq_parameter.irq_no = irq_no_arr[q_index - 1];
         //pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
         test_flag |= create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
         //admin error(mask bit0)
         if (check_admin_status == 1)
         {
-            if (cq_gain(ADMIN_QUEUE_ID, 1, &reap_num))
+            if (cq_gain(NVME_AQ_ID, 1, &reap_num))
             {
                 test_flag = SUCCEED;
                 pr_info("int msi admin mask ok\n");
@@ -128,9 +128,9 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         }
         else
         {
-            test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
+            test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         }
-        //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         //pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
         sq_parameter.cq_id = io_cq_id;
@@ -139,10 +139,10 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
         test_flag |= create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
 
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+        //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
         /**********************************************************************/
         //pr_info("send io cmd\n");
@@ -180,13 +180,13 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         }
         /**********************************************************************/
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+        //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ADMIN_QUEUE_ID);
-        test_flag |= cq_gain(ADMIN_QUEUE_ID, 1, &reap_num);
-        //pr_info("  cq:%d reaped ok! reap_num:%d\n", ADMIN_QUEUE_ID, reap_num);
+        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+        //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
     }
 }

@@ -18,7 +18,6 @@
 // #define AMD_MB_EN //Warning: AMD MB may not support msi-multi, create by shell script in auto_heater.h
 // #define FWDMA_RST_OPEN
 
-#define ADMIN_QUEUE_ID (0)
 #define MAX_ADMIN_QUEUE_SIZE (4096)
 #define DEFAULT_IO_QUEUE_SIZE (65535)
 #define NSIDX(n) (n - 1)
