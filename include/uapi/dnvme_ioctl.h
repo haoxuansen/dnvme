@@ -19,6 +19,7 @@
 #ifndef _UAPI_DNVME_IOCTLS_H_
 #define _UAPI_DNVME_IOCTLS_H_
 
+#include <linux/pci_regs.h>
 #include "bitops.h"
 #include "nvme.h"
 
@@ -121,8 +122,23 @@ struct nvme_access {
 	uint32_t		offset;
 };
 
+struct pci_capability {
+	uint8_t			id;
+	uint8_t			offset;
+};
+
+struct pcie_capability {
+	uint16_t		id;
+	uint8_t			version;
+	uint16_t		offset;
+};
+
 struct nvme_capability {
-	unsigned long	pci_cap_support[BITS_TO_LONGS(32)];
+	struct pci_capability	pci[PCI_CAP_ID_MAX];
+	struct pcie_capability	pcie[PCI_EXT_CAP_ID_MAX];
+
+
+	unsigned long	pci_cap_support[BITS_TO_LONGS(PCI_CAP_ID_MAX)];
 /* PCI Power Management Capability */
 #define PCI_CAP_SUPPORT_PM		0
 /* Message Signaled Interrupts Capability */

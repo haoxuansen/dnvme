@@ -32,6 +32,7 @@
 
 #include "dnvme_ioctl.h"
 #include "core.h"
+#include "pci.h"
 #include "io.h"
 #include "cmb.h"
 #include "cmd.h"
@@ -292,7 +293,10 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_GET_CAPABILITY:
-		ret = dnvme_get_capability(ctx, argp);
+		if (copy_to_user(argp, &ndev->cap, sizeof(ndev->cap))) {
+			dnvme_err("failed to copy to user space!\n");
+			ret = -EFAULT;
+		}
 		break;
 
 	case NVME_IOCTL_CREATE_ADMIN_QUEUE:
@@ -606,7 +610,6 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 
 	/* 1. Initialize nvme device first. */
 	ndev->priv.pdev = pdev;
-	ndev->priv.dmadev = &pdev->dev;
 
 	/* Used to create Coherent DMA mapping for PRP List */
 	pool = dma_pool_create("prp page", &pdev->dev, PAGE_SIZE, PAGE_SIZE, 0);
@@ -722,6 +725,34 @@ static void dnvme_pci_disable(struct nvme_context *ctx)
 		pci_disable_device(pdev);
 }
 
+/**
+ * @brief Abstract important info from the capability of NVMe device.
+ * 
+ * @param ndev NVMe device
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int dnvme_abstract_capability(struct nvme_device *ndev)
+{
+	struct pci_dev *pdev = ndev->priv.pdev;
+	struct nvme_capability *cap = &ndev->cap;
+	int ret;
+
+	ret = pci_get_caps(pdev, cap->pci);
+	if (ret < 0)
+		return ret;
+
+	if (!cap->pci[PCI_CAP_ID_EXP - 1].id) {
+		dnvme_err("Not support pci express capability!\n");
+		return -EPERM;
+	}
+
+	ret = pci_get_ext_caps(pdev, cap->pcie);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int ret;
@@ -748,6 +779,10 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ret = dnvme_pci_enable(ctx);
 	if (ret < 0)
 		goto out2;
+
+	ret = dnvme_abstract_capability(ctx->dev);
+	if (ret < 0)
+		goto out3;
 
 	ret = dnvme_map_cmb(ctx->dev);
 	if (ret < 0)

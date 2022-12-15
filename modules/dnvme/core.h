@@ -203,7 +203,6 @@ struct nvme_dev_private {
 	void __iomem	*bar2; /* 64 bit BAR2 memory mapped MSIX table */
 	u32 __iomem	*dbs;
 	struct dma_pool	*prp_page_pool; /* Mem for PRP List */
-	struct device	*dmadev; /* Pointer to the dma device from pdev */
 	int	minor; /* Minor no. of the device being used */
 	u8	opened; /* Allows device opening only once */
 };
@@ -232,6 +231,7 @@ struct nvme_device {
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
+	struct nvme_capability	cap;
 	struct nvme_context	*ctx;
 	u32	q_depth;
 	u32	db_stride;

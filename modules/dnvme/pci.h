@@ -118,7 +118,8 @@ int pci_read_class_code(const struct pci_dev *dev, struct pci_class_code *data);
 int pci_enable_int_pin(struct pci_dev *pdev);
 int pci_disable_int_pin(struct pci_dev *pdev);
 
-int pci_get_capability(struct pci_dev *pdev, struct nvme_capability *cap);
+int pci_get_caps(struct pci_dev *pdev, struct pci_capability *caps);
+int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_capability *caps);
 
 void pci_parse_status(struct pci_dev *pdev, u16 status);
 

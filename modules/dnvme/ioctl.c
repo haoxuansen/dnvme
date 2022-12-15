@@ -129,33 +129,6 @@ int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
 	return ret;
 }
 
-int dnvme_get_capability(struct nvme_context *ctx, struct nvme_capability __user *ucap)
-{
-	struct nvme_capability *cap; /* we may extend this struct later */
-	struct pci_dev *pdev = ctx->dev->priv.pdev;
-	int ret = 0;
-
-	cap = kzalloc(sizeof(*cap), GFP_KERNEL);
-	if (!cap) {
-		dnvme_err("failed to alloc nvme_capability!\n");
-		return -ENOMEM;
-	}
-
-	ret = pci_get_capability(pdev, cap);
-	if (ret < 0)
-		goto out;
-	
-	if (copy_to_user(ucap, cap, sizeof(*ucap))) {
-		dnvme_err("failed to copy to user space!\n");
-		ret = -EFAULT;
-		goto out;
-	}
-
-out:
-	kfree(cap);
-	return ret;
-}
-
 /**
  * @brief Check access offset and size is align with access type.
  * 

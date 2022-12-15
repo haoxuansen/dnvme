@@ -53,6 +53,14 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(delete_runing_iocmd_queue, "delete a queue when iocmd is runing"),
 };
 
+/* !BUG: Incorrect judgment of test passing conditions
+ * 
+ * When deleting a queue, EP only replies to commands that have been obtained.
+ * EP won't reponse CQ Entry to the reamining commands. 
+ *
+ * It's incorrect to compare the number of CQ Entries with the total number
+ * of commands sent.
+ */
 int case_queue_delete_q(void)
 {
     uint32_t round_idx = 0;

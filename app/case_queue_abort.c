@@ -94,6 +94,14 @@ static uint32_t sub_case_end(void)
     return test_flag;
 }
 
+/* !FIXME: The command ID assigned by the driver is not used when sending 
+ * abort command! In addition, unless the SQ is recreated, the command ID
+ * is always increamented!
+ *
+ * Required to fix this bug in function: sub_case_abort_1_wrd_cmd,
+ * sub_case_random_abort_1_wrd_cmd, sub_case_abort_2_wrd_cmd,
+ * sub_case_abort_3_wrd_cmd, sub_case_abort_4_wrd_cmd
+ */
 static uint32_t sub_case_abort_1_wrd_cmd(void)
 {
     wr_slba = 0;
