@@ -16,4 +16,7 @@
 
 #define DIV_ROUND_UP(n,d)		(((n) + (d) - 1) / (d))
 
+#define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
+
 #endif /* !_UAPI_DEFS_H_ */
+

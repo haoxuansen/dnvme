@@ -7,6 +7,8 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -139,13 +141,20 @@ static SubCase_t sub_case_list[] = {
 
 void scan_control_reister(void)
 {
+    int ret;
+
     for (uint32_t i = 0; i < ARRAY_SIZE(nvme_ctrl_reg); i++)
     {
-        nvme_ctrl_reg[i].def_val = ioctl_read_data(g_fd, nvme_ctrl_reg[i].addr, 4);
+    	ret = nvme_read_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, 
+		&nvme_ctrl_reg[i].def_val);
+	if (ret < 0)
+		exit(-1);
     }
     for (uint32_t i = 0; i < ARRAY_SIZE(pcie_ids_reg); i++)
     {
-        pcie_ids_reg[i].def_val = pci_read_dword(g_fd, pcie_ids_reg[i].addr);
+        ret = pci_read_config_dword(g_fd, pcie_ids_reg[i].addr, &pcie_ids_reg[i].def_val);
+	if (ret < 0)
+		exit(-1);
     }
 }
 
@@ -193,12 +202,16 @@ static uint32_t sub_case_nvme_reg_normal(void)
 {
     uint32_t u32_tmp_data = 0, rand_data = 0;
     uint32_t i = 0;
+    int ret;
     //nvme_ctrl_reg
     for (i = 0; i < sizeof(nvme_ctrl_reg) / sizeof(reg_desc); i++)
     {
         if (nvme_ctrl_reg[i].type == RO)
         {
-            u32_tmp_data = ioctl_read_data(g_fd, nvme_ctrl_reg[i].addr, 4);
+            ret = nvme_read_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, &u32_tmp_data);
+	    if (ret < 0)
+	    	exit(-1);
+
             u32_tmp_data &= nvme_ctrl_reg[i].mark;
             if ((nvme_ctrl_reg[i].def_val&nvme_ctrl_reg[i].mark) != u32_tmp_data)
             {
@@ -214,9 +227,12 @@ static uint32_t sub_case_nvme_reg_normal(void)
             u32_tmp_data = (rand_data & nvme_ctrl_reg[i].mark);
             // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          nvme_ctrl_reg[i].addr,rand_data, nvme_ctrl_reg[i].mark, u32_tmp_data);
-            ioctl_write_data(g_fd, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
+            nvme_write_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
-            u32_tmp_data = ioctl_read_data(g_fd, nvme_ctrl_reg[i].addr, 4);
+            ret = nvme_read_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, &u32_tmp_data);
+	    if (ret < 0)
+	    	exit(-1);
+
             u32_tmp_data &= nvme_ctrl_reg[i].mark;
             if ((nvme_ctrl_reg[i].def_val&nvme_ctrl_reg[i].mark) != u32_tmp_data)
             {
@@ -241,12 +257,16 @@ static uint32_t sub_case_pcie_reg_normal(void)
 {
     uint32_t u32_tmp_data = 0, rand_data = 0;
     uint32_t i = 0;
+    int ret;
     //pcie_ids_reg
     for (i = 0; i < sizeof(pcie_ids_reg) / sizeof(reg_desc); i++)
     {
         if (pcie_ids_reg[i].type == RO)
         {
-            u32_tmp_data = pci_read_dword(g_fd, pcie_ids_reg[i].addr);
+            ret = pci_read_config_dword(g_fd, pcie_ids_reg[i].addr, &u32_tmp_data);
+	    if (ret < 0)
+	    	exit(-1);
+	    
             u32_tmp_data &= pcie_ids_reg[i].mark;
             if (pcie_ids_reg[i].def_val != u32_tmp_data)
             {
@@ -262,9 +282,12 @@ static uint32_t sub_case_pcie_reg_normal(void)
             u32_tmp_data = (rand_data & pcie_ids_reg[i].mark);
             // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          pcie_ids_reg[i].addr,rand_data, pcie_ids_reg[i].mark, u32_tmp_data);
-            ioctl_pci_write_data(g_fd, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
+            pci_write_config_data(g_fd, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
-            u32_tmp_data = pci_read_dword(g_fd, pcie_ids_reg[i].addr);
+            ret = pci_read_config_dword(g_fd, pcie_ids_reg[i].addr, &u32_tmp_data);
+	    if (ret < 0)
+	    	exit(-1);
+	    
             u32_tmp_data &= pcie_ids_reg[i].mark;
             if (pcie_ids_reg[i].def_val != u32_tmp_data)
             {

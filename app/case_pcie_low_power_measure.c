@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -24,6 +25,7 @@ static char *disp_this_case = "this case for PCIe low power measure\n";
 static void test_sub(void)
 {
     int cmds = 0;
+    int ret;
     uint32_t reg_value = 0;
     uint32_t u32_tmp_data = 0;
     uint8_t set_speed = 0, set_width = 0, cur_speed = 0, cur_width = 0;
@@ -77,7 +79,10 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -94,7 +99,10 @@ static void test_sub(void)
     pr_color(LOG_COLOR_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
-    reg_value = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &reg_value);
+    if (ret < 0)
+    	exit(-1);
+
     reg_value &= 0xFFFFFFFC;
 
     pr_info("\n/************************** L0 --> L1 --> L0 --> L1 *********************/\n");
@@ -105,7 +113,7 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=42");          //RC enable L1
     //EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
     pr_info("\nL1 --> L0 --> L1\n");
@@ -134,7 +142,7 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=40");          //RC disable L1
     //EP disable L1
     u32_tmp_data = reg_value;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
     pr_debug("\nTest: Delete sq_id %d, cq_id %d\n", io_sq_id, io_cq_id);
@@ -150,12 +158,16 @@ int case_pcie_low_power_measure(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

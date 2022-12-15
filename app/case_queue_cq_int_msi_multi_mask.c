@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -59,7 +60,7 @@ void int_mask_bit(uint32_t msi_mask_flag)
     ioctl_enable_ctrl(g_fd);
 
     u32_tmp_data = 0x00460001;
-    ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+    nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
     //while(1);
 }
 void test_all_cq_cmd(uint32_t msi_mask_flag)

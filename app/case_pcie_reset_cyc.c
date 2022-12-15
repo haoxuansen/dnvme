@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -23,6 +24,7 @@ static void test_sub(void)
 {
     uint32_t u32_tmp_data = 0;
     uint8_t cur_speed, cur_width;
+    int ret;
     // int cmds;
 
     /************************** Issue hot reset *********************/
@@ -46,7 +48,10 @@ static void test_sub(void)
     // }
 
     // check status after re-link
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -64,7 +69,10 @@ static void test_sub(void)
     pcie_link_down();
 
     // check status after re-link
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -82,12 +90,16 @@ int case_pcie_reset_cyc(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

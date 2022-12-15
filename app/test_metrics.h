@@ -175,10 +175,6 @@ void admin_queue_config(int g_fd);
 void test_irq_review568(int fd);
 void test_dev_metrics(int g_fd);
 
-uint32_t ioctl_read_data(int g_fd, uint32_t offset, uint32_t bytes);
-int read_nvme_register(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
-int ioctl_write_data(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
-
 uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length);
 
 int test_create_contig_iocq(int g_fd, uint16_t io_cq_id, uint16_t cq_size);
@@ -200,13 +196,6 @@ int ioctl_send_flush(int g_fd, uint16_t sq_id);
 int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb, uint16_t control);
 int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb);
 int ioctl_send_format(int g_fd, uint8_t lbaf);
-
-uint32_t pci_read_dword(int g_fd, uint32_t offset);
-uint16_t pci_read_word(int g_fd, uint32_t offset);
-uint8_t pci_read_byte(int g_fd, uint32_t offset);
-
-int read_pcie_register(int g_fd, uint32_t offset, uint32_t bytes, enum nvme_access_type acc_type, uint8_t *byte_buffer);
-int ioctl_pci_write_data(int g_fd, uint32_t offset, uint32_t bytes, uint8_t *byte_buffer);
 
 uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
 

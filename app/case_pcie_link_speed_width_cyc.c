@@ -8,6 +8,7 @@
 #include <time.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -22,8 +23,9 @@ static char *disp_this_case = "this case will tests PCIe Link Speed and Width cy
 
 static void test_sub(void)
 {
-    uint32_t u32_tmp_data = 0;
+    uint16_t data;
     uint8_t set_speed, set_width, cur_speed, cur_width;
+    int ret;
     // int cmds;
 
     // get speed and width random
@@ -43,9 +45,12 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
-    cur_speed = u32_tmp_data & 0x0F;
-    cur_width = (u32_tmp_data >> 4) & 0x3F;
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, &data);
+    if (ret < 0)
+    	exit(-1);
+    
+    cur_speed = data & 0x0F;
+    cur_width = (data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
     {
         //pr_info("Successful linked\n");
@@ -60,14 +65,18 @@ static void test_sub(void)
 int case_pcie_link_speed_width_cyc(void)
 {
     int test_round = 0;
-    uint32_t u32_tmp_data = 0;
+    uint16_t u32_tmp_data = 0;
+    int ret;
     srand(time(0));
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

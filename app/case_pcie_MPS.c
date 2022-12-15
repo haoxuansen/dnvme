@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -35,16 +36,24 @@ static char *disp_this_case = "this case will tests PCIe Max Payload Size\n";
 static void set_pcie_mps_128(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // RC set MPS 128
     //system("setpci -s 0:1b.4 48.b=0f");
 
     // EP set MPS 128
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFFFF1F;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
     //pr_info("\nread g_nvme_dev.pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
     //u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x4);
@@ -55,17 +64,25 @@ static void set_pcie_mps_128(void)
 static void set_pcie_mps_256(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // RC set MPS 256
     //system("setpci -s 0:1b.4 48.b=2f");
 
     // EP set MPS 256
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFFFF1F;
     u32_tmp_data |= 0x20;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
     pr_info("\nEP Max Payload Size support 256 byte, 0x%x\n", u32_tmp_data);
 }
@@ -108,6 +125,7 @@ int case_pcie_MPS(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
+    int ret;
     cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
     sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
@@ -139,7 +157,10 @@ int case_pcie_MPS(void)
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Payload Size support
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x4);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0x07;
     if (u32_tmp_data == 0)
     {

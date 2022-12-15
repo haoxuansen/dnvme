@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -64,14 +65,14 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     u32_tmp_data |= bpid << 31;  //Boot Partition Identifier (BPID)
     u32_tmp_data |= bprof << 10; //Boot Partition Read Offset (BPROF)
     u32_tmp_data |= bprsz << 0;  //Boot Partition Read Size (BPRSZ) in multiples of 4KB
-    ret_val = ioctl_write_data(g_fd, NVME_REG_BPRSEL_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_write_ctrl_property(g_fd, NVME_REG_BPRSEL_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPRSEL_OFST ret_val:%d!\n", ret_val);
         goto error_out;
     }
     //7. writing to the Boot Partition Read Select(BPRSEL) register.
-    ret_val = read_nvme_register(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPINFO_OFST1 ret_val:%d! %x\n", ret_val, u32_tmp_data);
@@ -81,7 +82,7 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     try_max = (WORD_MASK << 4);
     while (((u32_tmp_data >> 24) & 0x3) != 0x2)
     {
-        ret_val = read_nvme_register(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+        ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
         if (ret_val < 0)
         {
             pr_err("[E] NVME_REG_BPINFO_OFST2 ret_val:%d! %x\n", ret_val, u32_tmp_data);
@@ -116,7 +117,7 @@ int reading_boot_partition(void)
     unsigned long phys_addr;
 
     //3. Get BPINFO.ABPID BPINFO.BPSZ
-    ret_val = read_nvme_register(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPINFO_OFST ret_val:%d!\n", ret_val);
@@ -140,7 +141,7 @@ int reading_boot_partition(void)
     for (idx = 0; idx < boot_read_cnt; idx++)
     {
         BMBBA = phys_addr + idx * 4096;
-        ret_val = ioctl_write_data(g_fd, NVME_REG_BPMBL_OFST, sizeof(uint64_t), (uint8_t *)&BMBBA);
+        ret_val = nvme_write_ctrl_property(g_fd, NVME_REG_BPMBL_OFST, sizeof(uint64_t), (uint8_t *)&BMBBA);
         if (ret_val < 0)
         {
             pr_err("[E] NVME_REG_BPMBL_OFST ret_val:%d!\n", ret_val);
@@ -224,7 +225,7 @@ static uint32_t rd_wr_boot_part_ccen_0(void)
     // if(test_flag == FAILED)
     //     return test_flag;
     ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
-    ret_val = read_nvme_register(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
@@ -263,7 +264,7 @@ static uint32_t rd_wr_boot_part_ccen_1(void)
     // if(test_flag == FAILED)
     //     return test_flag;
     ioctl_enable_ctrl(g_fd);
-    ret_val = read_nvme_register(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);

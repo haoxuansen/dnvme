@@ -23,7 +23,8 @@
 #include <stdlib.h>
 
 #include "dnvme_ioctl.h"
-#include "dnvme_ioctl.h"
+#include "ioctl.h"
+#include "pci.h"
 #include "reg_nvme_ctrl.h"
 
 #include "common.h"
@@ -834,7 +835,7 @@ int subsys_reset(void)
 
     // uint32_t u32_tmp_data = 0;
     // u32_tmp_data = 0x4E564D65; //“NVMe”
-    // if (ioctl_write_data(g_fd, NVME_REG_NSSR_OFST, 4, (uint8_t *)&u32_tmp_data))
+    // if (nvme_write_ctrl_property(g_fd, NVME_REG_NSSR_OFST, 4, (uint8_t *)&u32_tmp_data))
     //     return FAILED;
     // else
     //     return SUCCEED;
@@ -858,7 +859,7 @@ int ctrl_disable(void)
     // uint32_t u32_tmp_data = 0;
     // u32_tmp_data = ioctl_read_data(g_fd, 0x14, 4);
     // u32_tmp_data &= ~0x1; //CC.EN = 0
-    // if (ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data))
+    // if (nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data))
     //     return FAILED;
     // else
     //     return SUCCEED;
@@ -869,13 +870,23 @@ uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id)
     uint16_t data = 0;
     uint8_t pci_cap = 0;
     uint32_t to_cnt = 0;
-    data = pci_read_byte(g_fd, 0x34);
-    pci_cap = (uint8_t)data;
-    data = pci_read_word(g_fd, data);
+    int ret;
+    
+    ret = pci_read_config_byte(g_fd, 0x34, &pci_cap);
+    if (ret < 0)
+    	exit(-1);
+
+    ret = pci_read_config_word(g_fd, pci_cap, &data);
+    if (ret < 0)
+    	exit(-1);
+    
     while (cap_id != (data & 0xFF))
     {
         pci_cap = (uint8_t)(data >> 8);
-        data = pci_read_word(g_fd, pci_cap);
+        ret = pci_read_config_word(g_fd, pci_cap, &data);
+	if (ret < 0)
+		exit(-1);
+	
         if (++to_cnt > 100)
         {
             pr_err("can't find cap_id:%x\n", cap_id);
@@ -891,26 +902,34 @@ int ctrl_pci_flr(void)
     uint32_t bar_reg[6];
     uint8_t idx = 0;
     int ret_val = FAILED;
+    int ret;
+    
     for (idx = 0; idx < 6; idx++)
     {
-        bar_reg[idx] = pci_read_dword(g_fd, 0x10 + idx * 4);
+    	ret = pci_read_config_dword(g_fd, 0x10 + idx * 4, &bar_reg[idx]);
+	if (ret < 0)
+		exit(-1);
     }
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data |= 0x1 << 15; //Initiate Function Level Reset
-    ret_val = ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     usleep(2000);
 
     u32_tmp_data = ((uint32_t)(7)); // bus master/memory space/io space enable
-    ret_val = ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = pci_write_config_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     for (idx = 0; idx < 6; idx++)
     {
-        ioctl_pci_write_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
+        pci_write_config_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
     }
 
     return SUCCEED;
@@ -921,16 +940,17 @@ int set_power_state(uint8_t pmcap, uint8_t dstate)
     uint32_t u32_tmp_data = 0;
     int ret_val = FAILED;
     uint32_t retry_cnt = 0, retry_cnt1 = 0;
+    int ret;
     // u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
     // if ((u32_tmp_data & 0x3) == dstate)
     //     return SUCCEED;
     u32_tmp_data &= ~0x3;
     u32_tmp_data |= dstate;
 write_again:
-    ret_val = ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = pci_write_config_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        pr_err("ioctl_pci_write_data failed:%d\n", ret_val);
+        pr_err("pci_write_config_data failed:%d\n", ret_val);
         usleep(10000);
         if (++retry_cnt < 10)
             goto write_again;
@@ -938,7 +958,10 @@ write_again:
             return FAILED;
     }
     usleep(10000); //spec define min 10ms wait ctrlr ready
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     if ((u32_tmp_data & 0x3) != dstate)
     {
         pr_err("set_state:%#x,but read:%#x\r\n", dstate, u32_tmp_data & 0x3);
@@ -1596,10 +1619,13 @@ uint32_t pcie_hot_reset(void)
     uint8_t idx = 0;
     uint32_t u32_tmp_data = 0;
     uint32_t bar_reg[6];
+    int ret;
 
     for (idx = 0; idx < 6; idx++)
     {
-        bar_reg[idx] = pci_read_dword(g_fd, 0x10 + idx * 4);
+        ret = pci_read_config_dword(g_fd, 0x10 + idx * 4, &bar_reg[idx]);
+	if (ret < 0)
+		exit(-1);
     }
 
     system("setpci -s " RC_BRIDGE_CONTROL ".b=40:40");
@@ -1609,13 +1635,13 @@ uint32_t pcie_hot_reset(void)
     usleep(50000); // 100 ms
 
     u32_tmp_data = ((uint32_t)(0x7)); // bus master/memory space/io space enable
-    ret_val = ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = pci_write_config_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     for (idx = 0; idx < 6; idx++)
     {
-        ioctl_pci_write_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
+        pci_write_config_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
     }
 
     pcie_retrain_link();
@@ -1629,9 +1655,13 @@ uint32_t pcie_link_down(void)
     uint32_t bar_reg[6];
     uint8_t idx = 0;
     int ret_val = FAILED;
+    int ret;
+    
     for (idx = 0; idx < 6; idx++)
     {
-        bar_reg[idx] = pci_read_dword(g_fd, 0x10 + idx * 4);
+        ret = pci_read_config_dword(g_fd, 0x10 + idx * 4, &bar_reg[idx]);
+	if (ret < 0)
+		exit(-1);
     }
 
     system("setpci -s " RC_CAP_LINK_CONTROL ".b=10:10");
@@ -1640,13 +1670,13 @@ uint32_t pcie_link_down(void)
     usleep(100000); // 100 ms
 
     u32_tmp_data = ((uint32_t)(0x7)); // bus master/memory space/io space enable
-    ret_val = ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    ret_val = pci_write_config_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
         return FAILED;
 
     for (idx = 0; idx < 6; idx++)
     {
-        ioctl_pci_write_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
+        pci_write_config_data(g_fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
     }
 
     pcie_retrain_link();
@@ -1680,16 +1710,22 @@ void pcie_RC_cfg_speed(int speed)
  */
 void pcie_set_width(int width)
 {
+    int ret;
+    uint32_t u32_tmp_data;
+    
     if (!((1 == width) || (2 == width) || (4 == width)))
     {
         pr_err("width error\r\n");
         assert(0);
     }
     //beagle;cougar;eagle;falcon
-    uint32_t u32_tmp_data = pci_read_dword(g_fd, 0x8C0);
+    ret = pci_read_config_dword(g_fd, 0x8C0, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data &= 0xFFFFFF80;
     u32_tmp_data |= (0x000000040 + width);
-    ioctl_pci_write_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_random_speed_width(void)
@@ -1698,6 +1734,7 @@ void pcie_random_speed_width(void)
     uint8_t set_speed, set_width, cur_speed, cur_width;
     uint8_t speed_arr[] = {1, 2, 3};
     uint8_t width_arr[] = {1, 2, 4};
+    int ret;
 
     // get speed and width random
     set_speed = speed_arr[BYTE_RAND() % ARRAY_SIZE(speed_arr)];
@@ -1719,7 +1756,10 @@ void pcie_random_speed_width(void)
 
     pcie_retrain_link();
     // check Link status register
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -1740,22 +1780,36 @@ void pcie_random_speed_width(void)
  */
 uint32_t nvme_msi_register_test(void)
 {
+    int ret;
     uint32_t u32_tmp_data = 0;
 
-    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMS_OFST, 4);
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMS_OFST, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return FAILED;
+
     pr_info("NVME_REG_INTMS_OFST:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
-    if (ioctl_write_data(g_fd, NVME_REG_INTMS_OFST, 4, (uint8_t *)&u32_tmp_data))
+    if (nvme_write_ctrl_property(g_fd, NVME_REG_INTMS_OFST, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
-    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMS_OFST, 4);
+
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMS_OFST, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return FAILED;
     pr_info("set NVME_REG_INTMS_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
-    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMC_OFST, 4);
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMC_OFST, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return FAILED;
+
     pr_info("NVME_REG_INTMC_OFST:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
-    if (ioctl_write_data(g_fd, NVME_REG_INTMC_OFST, 4, (uint8_t *)&u32_tmp_data))
+    if (nvme_write_ctrl_property(g_fd, NVME_REG_INTMC_OFST, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
-    u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_INTMC_OFST, 4);
+
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMC_OFST, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return FAILED;
+
     pr_info("set NVME_REG_INTMC_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
     return SUCCEED;

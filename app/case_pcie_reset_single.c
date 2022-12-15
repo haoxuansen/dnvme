@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -24,13 +25,17 @@ static void test_sub(void)
     uint32_t u32_tmp_data = 0;
     uint8_t cur_speed, cur_width;
     int cmds;
+    int ret;
 
     /************************** Issue hot reset *********************/
     pr_info("\nIssue hot reset\n");
     pcie_hot_reset();
 
     // check status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -49,7 +54,10 @@ static void test_sub(void)
     pcie_link_down();
 
     // check status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -65,18 +73,27 @@ static void test_sub(void)
 
     /************************** Issue FLR reset *********************/
     pr_info("\nIssue FLR reset\n");
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data |= 0x00008000;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
-    u32_tmp_data = pci_read_dword(g_fd, 0x4);
+    ret = pci_read_config_dword(g_fd, 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data |= 0x06; // bus master and memory space enable
-    ioctl_pci_write_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == speed && cur_width == width)
@@ -94,13 +111,17 @@ int case_pcie_reset_single(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
     /**********************************************************************/
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);

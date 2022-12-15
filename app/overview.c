@@ -20,6 +20,7 @@
 
 #include "common_define.h"
 #include "overview.h"
+#include "pci.h"
 #include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -572,6 +573,7 @@ static int case_unknown9(void)
 static int case_all_cases(void)
 {
 	int loop = 0;
+	int ret;
 	uint32_t test_loop = 1;
 	uint32_t u32_tmp_data = 0;
 
@@ -582,7 +584,10 @@ static int case_all_cases(void)
 	{
 		loop++;
 		pr_color(LOG_COLOR_CYAN, "auto_case_loop_cnt:%d\r\n",loop);
-		u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+		ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+		if (ret < 0)
+			exit(-1);
+
 		pr_color(LOG_COLOR_CYAN, "\nCurrent link status: Gen%d, X%d\n", u32_tmp_data & 0x0F, (u32_tmp_data >> 4) & 0x3F);
 		if(test_list_exe(TestCaseList, ARRAY_SIZE(TestCaseList)))
 		{

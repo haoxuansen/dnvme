@@ -16,7 +16,8 @@
 #include <malloc.h>
 
 #include "dnvme_ioctl.h"
-#include "dnvme_ioctl.h"
+#include "ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -213,10 +214,14 @@ void test_init(int g_fd)
 	//step7: set cq/sq entry size
 	sqes = g_nvme_dev.id_ctrl.sqes & 0x0f;
 	cqes = g_nvme_dev.id_ctrl.cqes & 0x0f;
-	u32_tmp_data = ioctl_read_data(g_fd, NVME_REG_CC_OFST, 4);
+
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, &u32_tmp_data);
+	if (ret < 0)
+		exit(-1);
+
 	u32_tmp_data &= ~((0xf << 20) | (0xf << 16) | (1 << 0));
 	u32_tmp_data |= ((cqes << 20) | sqes << 16) | (1 << 0);
-	ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+	nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
 
 	/**********************************************************************/
 	g_nvme_ns_info = (struct nvme_ns *)malloc(g_nvme_dev.id_ctrl.nn * sizeof(struct nvme_ns));
@@ -253,7 +258,7 @@ void test_init(int g_fd)
 	pr_info("msicap_ofst: %#x\n", g_nvme_dev.msicap_ofst);
 	pr_info("pxcap_ofst: %#x\n", g_nvme_dev.pxcap_ofst);
 
-	ret_val = read_nvme_register(g_fd, 0, sizeof(struct reg_nvme_ctrl), (uint8_t *)&g_nvme_dev.ctrl_reg);
+	ret_val = nvme_read_ctrl_property(g_fd, 0, sizeof(struct reg_nvme_ctrl), (uint8_t *)&g_nvme_dev.ctrl_reg);
 	if (ret_val < 0)
 	{
 		pr_err("[E] read ctrlr register ret_val:%d!\n", ret_val);
@@ -282,7 +287,10 @@ void test_init(int g_fd)
 	pr_info("<---[%s]\n", __FUNCTION__);
 
     //displaly power up link status
-    u32_tmp_data = pci_read_byte(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_byte(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint8_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     g_nvme_dev.link_speed = u32_tmp_data & 0x0F;
     g_nvme_dev.link_width = (u32_tmp_data >> 4) & 0x3F;
     pr_color(LOG_COLOR_CYAN, "\nCurrent link status: Gen%d, X%d\n", g_nvme_dev.link_speed, g_nvme_dev.link_width);
@@ -300,7 +308,7 @@ void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_ty
 	ioctl_enable_ctrl(g_fd);
 
 	u32_tmp_data = 0x00460001;
-	ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+	nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void test_change_irqs(int g_fd, enum nvme_irq_type irq_type, uint16_t num_irqs)

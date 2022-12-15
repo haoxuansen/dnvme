@@ -205,7 +205,7 @@ int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uacc
 	}
 
 	switch (access.region) {
-	case NVME_PCI_HEADER:
+	case NVME_PCI_CONFIG:
 		dnvme_dbg("READ PCI Header Space: 0x%x+0x%x\n", 
 			access.offset, access.bytes);
 		ret = dnvme_read_from_config(pdev, &access, buf);
@@ -279,7 +279,7 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 	}
 
 	switch (access.region) {
-	case NVME_PCI_HEADER:
+	case NVME_PCI_CONFIG:
 		dnvme_dbg("WRITE PCI Header Space: 0x%x+0x%x\n",
 			access.offset, access.bytes);
 		ret = dnvme_write_to_config(pdev, &access, buf);

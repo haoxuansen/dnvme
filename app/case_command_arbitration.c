@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -524,20 +525,28 @@ int case_command_arbitration(void)
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     uint32_t reap_num = 0;
+    int ret;
 
     struct nvme_completion *cq_entry = get_cq_entry();
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s", disp_this_case);
 
-    u32_tmp_data = ioctl_read_data(g_fd, 0x0, 4); // bit 18:17 Arbitration Mechanism Supported (AMS):
+    ret = nvme_read_ctrl_property(g_fd, 0x0, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return ret;
 
     //open W R-R Urgent Prio Class
-    u32_tmp_data = ioctl_read_data(g_fd, 0x14, 4);
-    u32_tmp_data |= (1 << 11); // bit 13:11, 000:R-R, 001:W R-R Urgent prio
-    ioctl_write_data(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+    ret = nvme_read_ctrl_property(g_fd, 0x14, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return ret;
 
-    u32_tmp_data = ioctl_read_data(g_fd, 0x14, 4);
+    u32_tmp_data |= (1 << 11); // bit 13:11, 000:R-R, 001:W R-R Urgent prio
+    nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+
+    ret = nvme_read_ctrl_property(g_fd, 0x14, 4, &u32_tmp_data);
+    if (ret < 0)
+    	return ret;
 
     /**********************************************************************/
 

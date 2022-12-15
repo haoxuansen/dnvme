@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -61,6 +62,8 @@ static uint32_t sub_case_end(void)
  */
 uint32_t iocmd_cstc_rdy_test(void)
 {
+    int ret;
+    uint32_t csts;
     uint32_t loop;
     cq_size = sq_size = 1024;
     io_sq_id = io_cq_id = 1;
@@ -85,9 +88,17 @@ uint32_t iocmd_cstc_rdy_test(void)
             cmd_cnt++;
         }
         test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-        ioctl_read_data(g_fd, NVME_REG_CSTS_OFST, 4);
+
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	if (ret < 0)
+		exit(-1);
+ 
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-        ioctl_read_data(g_fd, NVME_REG_CSTS_OFST, 4);
+
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	if (ret < 0)
+		exit(-1);
+
         cmd_cnt = 0;
         for (int iocnt = 0; iocnt < 1000; iocnt++)
         {
@@ -95,9 +106,16 @@ uint32_t iocmd_cstc_rdy_test(void)
             cmd_cnt++;
         }
         test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
-        ioctl_read_data(g_fd, NVME_REG_CSTS_OFST, 4);
+
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	if (ret < 0)
+		exit(-1);
+
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-        ioctl_read_data(g_fd, NVME_REG_CSTS_OFST, 4);
+
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	if (ret < 0)
+		exit(-1);
     }
     sub_case_end();
     return SUCCEED;
@@ -110,21 +128,32 @@ uint32_t iocmd_cstc_rdy_test(void)
  */
 uint32_t reg_bug_trace(void)
 {
+    int ret;
+    uint32_t u32_tmp_data;
     pr_color(LOG_COLOR_RED, "tests device's dbl will error bug \r\n");
 
-    uint32_t u32_tmp_data = ioctl_read_data(g_fd, 0x1620, 4);
+    ret = nvme_read_ctrl_property(g_fd, 0x1620, 4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     pr_color(LOG_COLOR_PURPLE, "read 0x1620: %x\n", u32_tmp_data);
     u32_tmp_data = 0xffffffff;
     for (int i = (0x1000 + (8 * 20)); i < 0x3000; i += 4)
     {
-        ioctl_write_data(g_fd, i, 4, (uint8_t *)&u32_tmp_data);
+        nvme_write_ctrl_property(g_fd, i, 4, (uint8_t *)&u32_tmp_data);
     }
 
-    u32_tmp_data = ioctl_read_data(g_fd, 0x1620, 4);
+    ret = nvme_read_ctrl_property(g_fd, 0x1620, 4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     pr_color(LOG_COLOR_PURPLE, "after write,read 0x1620: %x\n", u32_tmp_data);
     for (int i = 0; i < 0x3000; i += 4)
     {
-        u32_tmp_data = ioctl_read_data(g_fd, i, 4);
+        ret = nvme_read_ctrl_property(g_fd, i, 4, &u32_tmp_data);
+	if (ret < 0)
+		exit(-1);
+
         pr_color(LOG_COLOR_PURPLE, "r ofst %x=%x\n", i, u32_tmp_data);
     }
     return SUCCEED;

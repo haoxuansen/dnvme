@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -36,32 +37,44 @@ static char *disp_this_case = "this case will tests PCIe Max Read Request Size\n
 static void set_pcie_mrrs_128(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
     // EP set MRRS 128
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFF8FFF;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
 static void set_pcie_mrrs_256(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
     // EP set MRRS 256
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x1000;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
 static void set_pcie_mrrs_512(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
     // EP set MRRS 512
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x2000;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
@@ -87,16 +100,24 @@ static void pcie_packet(void)
 static void set_pcie_rcb_64(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // RC set RCB 64
     //system("setpci -s 0:1b.4 50.b=40");
 
     // EP set RCB 64
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFFFFF7;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data = (u32_tmp_data & 0x8) >> 3;
     pr_info("\nRCB: 64 boundary 0x%x\n", u32_tmp_data);
 }
@@ -104,17 +125,25 @@ static void set_pcie_rcb_64(void)
 static void set_pcie_rcb_128(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // RC set RCB 128
     //system("setpci -s 0:1b.4 50.b=48");
 
     // EP set RCB 128
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFFFFF7;
     u32_tmp_data |= 0x08;
-    ioctl_pci_write_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+    
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data = (u32_tmp_data & 0x8) >> 3;
     pr_info("\nRCB: 128 boundary 0x%x\n", u32_tmp_data);
 }
@@ -161,6 +190,7 @@ int case_pcie_MRRS(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
+    int ret;
     cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
     sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
 
@@ -193,7 +223,10 @@ int case_pcie_MRRS(void)
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Read Request Size
-    u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data = (u32_tmp_data >> 12) & 0x7;
     if (u32_tmp_data == 0)
     {

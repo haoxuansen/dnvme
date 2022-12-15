@@ -50,7 +50,7 @@ enum {
 };
 
 enum nvme_region {
-	NVME_PCI_HEADER,
+	NVME_PCI_CONFIG,
 	NVME_BAR0_BAR1,
 };
 

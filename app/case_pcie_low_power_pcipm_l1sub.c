@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -27,6 +28,7 @@ static char *disp_this_case = "this case for PCIe PCIPM low power l1.1/l1.2 flow
 static void pcipm_l11_enable(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // // RC enable PCIPML1.1
     system("setpci -s 0:1b.4 208.b=02");
@@ -36,13 +38,19 @@ static void pcipm_l11_enable(void)
     /************************** D0 to D3 *********************/
     pr_info("\nD0 to D3\n");
 
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data |= 0x03;
-    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 3)
     {
@@ -58,6 +66,7 @@ static void pcipm_l11_enable(void)
 static void pcipm_l12_enable(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // RC enable PCIPML1.1
     system("setpci -s 0:1b.4 208.b=01");
@@ -67,13 +76,19 @@ static void pcipm_l12_enable(void)
     /************************** D0 to D3 *********************/
     pr_info("\nD0 to D3\n");
 
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data |= 0x03;
-    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 3)
     {
@@ -89,6 +104,7 @@ static void pcipm_l12_enable(void)
 static void pcipm_l1sub_disable(void)
 {
     uint32_t u32_tmp_data = 0;
+    int ret;
 
     // EP disable L1.1
     system("setpci -s 2:0.0 188.b=00");
@@ -98,13 +114,19 @@ static void pcipm_l1sub_disable(void)
     /************************** D3 to D0 *********************/
     pr_info("\nD3 to D0\n");
 
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0xFFFFFFFC;
-    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 0)
     {
@@ -120,6 +142,7 @@ static void pcipm_l1sub_disable(void)
 static void test_sub(void)
 {
     int cmds = 0;
+    int ret;
     uint32_t u32_tmp_data = 0;
     uint8_t set_speed = 0, set_width = 0, cur_speed = 0, cur_width = 0;
 
@@ -136,7 +159,10 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -154,7 +180,10 @@ static void test_sub(void)
     pr_color(LOG_COLOR_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
-    reg_value = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &reg_value);
+    if (ret < 0)
+    	exit(-1);
+
     reg_value &= 0xFFFFFFFC;
 
     pr_info("\nenable PCIPM L1.1\n");
@@ -186,20 +215,31 @@ int case_pcie_low_power_pcipm_l1sub(void)
 {
     int test_round = 0;
     uint32_t offset, u32_tmp_data = 0;
+    int ret;
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     speed = u32_tmp_data & 0x0F;
     width = (u32_tmp_data >> 4) & 0x3F;
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
 
     //find PM CAP
-    offset = pci_read_dword(g_fd, 0x34);
+    ret = pci_read_config_dword(g_fd, 0x34, &offset);
+    if (ret < 0)
+    	exit(-1);
+
     offset &= 0xFF;
-    u32_tmp_data = pci_read_dword(g_fd, offset);
+
+    ret = pci_read_config_dword(g_fd, offset, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     if ((u32_tmp_data & 0xFF) == 0x01)
     {
         pmcap = offset;
@@ -209,12 +249,17 @@ int case_pcie_low_power_pcipm_l1sub(void)
         while (0x01 != (u32_tmp_data & 0xFF))
         {
             pmcap = (u32_tmp_data >> 8) & 0xFF;
-            u32_tmp_data = pci_read_dword(g_fd, pmcap);
+	    ret = pci_read_config_dword(g_fd, pmcap, &u32_tmp_data);
+	    if (ret < 0)
+	    	exit(-1);
         }
     }
 
     // first displaly power up PM status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0x03;
     pr_info("\nPower up PM status: D%d\n", u32_tmp_data);
     usleep(200000);

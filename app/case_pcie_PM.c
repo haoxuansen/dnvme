@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "pci.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -23,17 +24,24 @@ static void test_sub(void)
 {
     uint32_t u32_tmp_data = 0;
     int cmds;
+    int ret;
 
     /************************** D0 to D3 *********************/
     pr_info("\nD0 to D3\n");
 
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data |= 0x03;
-    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 3)
     {
@@ -51,13 +59,19 @@ static void test_sub(void)
     /************************** D3 to D0 *********************/
     pr_info("\nD3 to D0\n");
 
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data &= 0xFFFFFFFC;
-    ioctl_pci_write_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(g_fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+    
     u32_tmp_data &= 0x03;
     if (u32_tmp_data == 0)
     {
@@ -77,15 +91,22 @@ int case_pcie_PM(void)
 {
     int test_round = 0;
     uint32_t offset, u32_tmp_data = 0;
+    int ret;
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);
     /**********************************************************************/
 
     //find PM CAP
-    offset = pci_read_dword(g_fd, 0x34);
+    ret = pci_read_config_dword(g_fd, 0x34, &offset);
+    if (ret < 0)
+    	exit(-1);
+
     offset &= 0xFF;
-    u32_tmp_data = pci_read_dword(g_fd, offset);
+    ret = pci_read_config_dword(g_fd, offset, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     if ((u32_tmp_data & 0xFF) == 0x01)
     {
         pmcap = offset;
@@ -95,12 +116,17 @@ int case_pcie_PM(void)
         while (0x01 != (u32_tmp_data & 0xFF))
         {
             pmcap = (u32_tmp_data >> 8) & 0xFF;
-            u32_tmp_data = pci_read_dword(g_fd, pmcap);
+            ret = pci_read_config_dword(g_fd, pmcap, &u32_tmp_data);
+	    if (ret < 0)
+	    	exit(-1);
         }
     }
 
     // first displaly power up PM status
-    u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
+    ret = pci_read_config_dword(g_fd, pmcap + 0x4, &u32_tmp_data);
+    if (ret < 0)
+    	exit(-1);
+
     u32_tmp_data &= 0x03;
     pr_info("\nPower up PM status: D%d\n", u32_tmp_data);
     usleep(200000);
