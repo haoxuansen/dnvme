@@ -311,37 +311,34 @@ static int log_irq_work_node(struct nvme_work *node, int idx,
 	return 0;
 }
 
-static int log_irq_process(struct nvme_context *ctx, struct file *fp, 
+static int log_irq_set(struct nvme_context *ctx, struct file *fp, 
 	loff_t *pos, int indent)
 {
 	struct nvme_irq *irq_node;
-	struct nvme_irq_set *irq_proc = &ctx->irq_set;
+	struct nvme_irq_set *irq_set = &ctx->irq_set;
 	struct nvme_work *work_node;  /* Current wk item in the list */
 	char *buf = log_buf;
 	int oft, i;
 
-	mutex_lock(&irq_proc->mtx_lock);
+	mutex_lock(&irq_set->mtx_lock);
 
-	oft = snprintf(buf, LOG_BUF_SIZE, "%s irq_set->mask_ptr: 0x%lx\n", 
-		log_indent_level(indent), (unsigned long)irq_proc->mask_ptr);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, 
-		"%s irq_set->irq_type: %u\n", 
-		log_indent_level(indent), irq_proc->irq_type);
+	oft = snprintf(buf, LOG_BUF_SIZE, "%s irq_set->irq_type: %u\n", 
+		log_indent_level(indent), irq_set->irq_type);
 	__kernel_write(fp, buf, oft, pos);
 
 	i = 0;
-	list_for_each_entry(irq_node, &irq_proc->irq_list, irq_entry) {
+	list_for_each_entry(irq_node, &irq_set->irq_list, irq_entry) {
 		log_irq_node(irq_node, i, fp, pos, indent + 1);
 		i++;
 	}
 
 	i = 0;
-	list_for_each_entry(work_node, &irq_proc->work_list, entry) {
+	list_for_each_entry(work_node, &irq_set->work_list, entry) {
 		log_irq_work_node(work_node, i, fp, pos, indent + 1);
 		i++;
 	}
 
-	mutex_unlock(&irq_proc->mtx_lock);
+	mutex_unlock(&irq_set->mtx_lock);
 	return 0;
 }
 
@@ -400,7 +397,7 @@ static int log_context(struct nvme_context *ctx, int idx, struct file *fp,
 	}
 
 	log_meta_list(ctx, fp, pos, indent);
-	log_irq_process(ctx, fp, pos, indent);
+	log_irq_set(ctx, fp, pos, indent);
 	return 0;
 }
 

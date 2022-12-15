@@ -21,12 +21,12 @@
  * @param dev pci device
  * @return 0 on success, otherwise a negative errno.
  */
-int pci_read_class_code(const struct pci_dev *dev, struct pci_class_code *data)
+int pci_read_class_code(struct pci_dev *pdev, struct pci_class_code *data)
 {
 	int ret;
 	u32 reg;
 
-	ret = pci_read_config_dword(dev, PCI_CLASS_REVISION, &reg);
+	ret = pci_read_config_dword(pdev, PCI_CLASS_REVISION, &reg);
 	if (ret == PCIBIOS_SUCCESSFUL) {
 		data->base = (reg >> 24) & 0xff;
 		data->sub = (reg >> 16) & 0xff;
@@ -184,7 +184,49 @@ static const char *pci_ext_cap_string(u16 cap_id)
 	}
 }
 
-int pci_get_caps(struct pci_dev *pdev, struct pci_capability *caps)
+static int pci_parse_msix_cap(struct pci_dev *pdev, struct pci_cap *cap)
+{
+	struct device *dev = &pdev->dev;
+	struct pci_msix_cap *msix;
+	int ret;
+
+	msix = kzalloc(sizeof(*msix), GFP_KERNEL);
+	if (!msix) {
+		dev_err(dev, "failed to alloc pci_msi_cap!\n");
+		return -ENOMEM;
+	}
+
+	ret = pci_msix_read_mc(pdev, cap->offset, &msix->mc);
+	ret |= pci_msix_read_table(pdev, cap->offset, &msix->table);
+	ret |= pci_msix_read_pba(pdev, cap->offset, &msix->pba);
+	if (ret < 0) {
+		dev_err(dev, "failed to read msix capability!\n");
+		goto out;
+	}
+
+	cap->data = msix;
+	return 0;
+out:
+	kfree(msix);
+	return ret;
+}
+
+static int pci_parse_cap(struct pci_dev *pdev, struct pci_cap *cap)
+{
+	int ret = 0;
+
+	switch (cap->id) {
+	case PCI_CAP_ID_MSIX:
+		ret = pci_parse_msix_cap(pdev, cap);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+int pci_get_caps(struct pci_dev *pdev, struct pci_cap *caps)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
@@ -218,14 +260,30 @@ int pci_get_caps(struct pci_dev *pdev, struct pci_capability *caps)
 			pci_cap_string(id));
 		caps[id - 1].id = id;
 		caps[id - 1].offset = now;
-		now = next;
 
+		ret = pci_parse_cap(pdev, &caps[id - 1]);
+		if (ret < 0)
+			return ret;
+
+		now = next;
 	} while (next < PCI_CFG_SPACE_SIZE);
 
 	return 0;
 }
 
-int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_capability *caps)
+void pci_put_caps(struct pci_dev *pdev, struct pci_cap *caps)
+{
+	int i;
+
+	for (i = 0; i < PCI_CAP_ID_MAX; i++) {
+		if (caps[i].id && caps[i].data) {
+			kfree(caps[i].data);
+			caps[i].data = NULL;
+		}
+	}
+}
+
+int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps)
 {
 	struct device *dev = &pdev->dev;
 	u32 header;
@@ -265,6 +323,18 @@ int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_capability *caps)
 	} while (next > PCI_CFG_SPACE_SIZE && next < PCI_CFG_SPACE_EXP_SIZE);
 
 	return 0;
+}
+
+void pci_put_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps)
+{
+	int i;
+
+	for (i = 0; i < PCI_EXT_CAP_ID_MAX; i++) {
+		if (caps[i].id && caps[i].data) {
+			kfree(caps[i].data);
+			caps[i].data = NULL;
+		}
+	}
 }
 
 void pci_parse_status(struct pci_dev *pdev, u16 status)

@@ -35,91 +35,123 @@ struct pci_class_code {
 	u8	prog;
 };
 
-static inline int pci_read_vendor_id(const struct pci_dev *dev, u16 *data)
+struct pci_msix_cap {
+	u16	mc;
+	u32	table;
+	u32	pba;
+};
+
+static inline int pci_read_vendor_id(struct pci_dev *pdev, u16 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_word(dev, PCI_VENDOR_ID, data));
+		pci_read_config_word(pdev, PCI_VENDOR_ID, data));
 }
 
-static inline int pci_read_device_id(const struct pci_dev *dev, u16 *data)
+static inline int pci_read_device_id(struct pci_dev *pdev, u16 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_word(dev, PCI_DEVICE_ID, data));
+		pci_read_config_word(pdev, PCI_DEVICE_ID, data));
 }
 
-static inline int pci_read_command(const struct pci_dev *dev, u16 *data)
+static inline int pci_read_command(struct pci_dev *pdev, u16 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_word(dev, PCI_COMMAND, data));
+		pci_read_config_word(pdev, PCI_COMMAND, data));
 }
 
-static inline int pci_read_status(const struct pci_dev *dev, u16 *data)
+static inline int pci_read_status(struct pci_dev *pdev, u16 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_word(dev, PCI_STATUS, data));
+		pci_read_config_word(pdev, PCI_STATUS, data));
 }
 
-static inline int pci_read_revision_id(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_revision_id(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_REVISION_ID, data));
+		pci_read_config_byte(pdev, PCI_REVISION_ID, data));
 }
 
-static inline int pci_read_cache_line_size(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_cache_line_size(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_CACHE_LINE_SIZE, data));
+		pci_read_config_byte(pdev, PCI_CACHE_LINE_SIZE, data));
 }
 
-static inline int pci_read_latency_timer(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_latency_timer(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_LATENCY_TIMER, data));
+		pci_read_config_byte(pdev, PCI_LATENCY_TIMER, data));
 }
 
-static inline int pci_read_header_type(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_header_type(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_HEADER_TYPE, data));
+		pci_read_config_byte(pdev, PCI_HEADER_TYPE, data));
 }
 
 /**
  * @brief Read BIST(Built-In Self Test)
  */
-static inline int pci_read_bist(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_bist(struct pci_dev *pdev, u8 *data)
 {
-	return pcibios_err_to_errno(pci_read_config_byte(dev, PCI_BIST, data));
+	return pcibios_err_to_errno(pci_read_config_byte(pdev, PCI_BIST, data));
 }
 
 /**
  * @brief Read Capabilities Pointer
  */
-static inline int pci_read_cap_ptr(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_cap_ptr(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_CAPABILITY_LIST, data));
+		pci_read_config_byte(pdev, PCI_CAPABILITY_LIST, data));
 }
 
-static inline int pci_read_int_line(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_int_line(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_INTERRUPT_LINE, data));
+		pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, data));
 }
 
-static inline int pci_read_int_pin(const struct pci_dev *dev, u8 *data)
+static inline int pci_read_int_pin(struct pci_dev *pdev, u8 *data)
 {
 	return pcibios_err_to_errno(
-		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, data));
+		pci_read_config_byte(pdev, PCI_INTERRUPT_PIN, data));
 }
 
+static inline int pci_msi_read_mc(struct pci_dev *pdev, u32 oft, u16 *data)
+{
+	return pcibios_err_to_errno(
+		pci_read_config_word(pdev, oft + PCI_MSI_FLAGS, data));
+}
 
-int pci_read_class_code(const struct pci_dev *dev, struct pci_class_code *data);
+static inline int pci_msix_read_mc(struct pci_dev *pdev, u32 oft, u16 *data)
+{
+	return pcibios_err_to_errno(
+		pci_read_config_word(pdev, oft + PCI_MSIX_FLAGS, data));
+}
+
+static inline int pci_msix_read_table(struct pci_dev *pdev, u32 oft, u32 *data)
+{
+	return pcibios_err_to_errno(
+		pci_read_config_dword(pdev, oft + PCI_MSIX_TABLE, data));
+}
+
+static inline int pci_msix_read_pba(struct pci_dev *pdev, u32 oft, u32 *data)
+{
+	return pcibios_err_to_errno(
+		pci_read_config_dword(pdev, oft + PCI_MSIX_PBA, data));
+}
+
+int pci_read_class_code(struct pci_dev *pdev, struct pci_class_code *data);
 
 int pci_enable_int_pin(struct pci_dev *pdev);
 int pci_disable_int_pin(struct pci_dev *pdev);
 
-int pci_get_caps(struct pci_dev *pdev, struct pci_capability *caps);
-int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_capability *caps);
+int pci_get_caps(struct pci_dev *pdev, struct pci_cap *caps);
+void pci_put_caps(struct pci_dev *pdev, struct pci_cap *caps);
+
+int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps);
+void pci_put_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps);
 
 void pci_parse_status(struct pci_dev *pdev, u16 status);
 

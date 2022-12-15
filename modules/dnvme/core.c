@@ -731,10 +731,10 @@ static void dnvme_pci_disable(struct nvme_context *ctx)
  * @param ndev NVMe device
  * @return 0 on success, otherwise a negative errno.
  */
-static int dnvme_abstract_capability(struct nvme_device *ndev)
+static int dnvme_get_capability(struct nvme_device *ndev)
 {
 	struct pci_dev *pdev = ndev->priv.pdev;
-	struct nvme_capability *cap = &ndev->cap;
+	struct nvme_cap *cap = &ndev->cap;
 	int ret;
 
 	ret = pci_get_caps(pdev, cap->pci);
@@ -751,6 +751,15 @@ static int dnvme_abstract_capability(struct nvme_device *ndev)
 		return ret;
 
 	return 0;
+}
+
+static void dnvme_put_capability(struct nvme_device *ndev)
+{
+	struct pci_dev *pdev = ndev->priv.pdev;
+	struct nvme_cap *cap = &ndev->cap;
+
+	pci_put_caps(pdev, cap->pci);
+	pci_put_ext_caps(pdev, cap->pcie);
 }
 
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -780,7 +789,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		goto out2;
 
-	ret = dnvme_abstract_capability(ctx->dev);
+	ret = dnvme_get_capability(ctx->dev);
 	if (ret < 0)
 		goto out3;
 
@@ -835,6 +844,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_unmap_cmb(ctx->dev);
+	dnvme_put_capability(ctx->dev);
 	pci_disable_device(pdev);
 
 	dnvme_unmap_resource(ctx);

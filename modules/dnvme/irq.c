@@ -34,24 +34,6 @@
 #include "irq.h"
 
 /**
- * @ts: Table Size
- * @msix_tbl: MSI-X Table structure position
- * @pba_tbl: MSI-X PBA(Pending Bit Array) structure position
- */
-struct msix_info {
-	u16		ts;
-	u8 __iomem	*msix_tbl;
-	u8 __iomem	*pba_tbl;
-};
-
-/* Static function declarations used for setting interrupt schemes. */
-static int validate_irq_inputs(struct nvme_context
-    *pmetrics_device_elem, struct nvme_interrupt *irq_new,
-        struct msix_info *pmsix_tbl_info);
-static int update_msixptr(struct  nvme_context
-    *pmetrics_device_elem, u16 offset, struct msix_info *pmsix_tbl_info);
-
-/**
  * @brief This property is used to mask nvme_interrupt when using pin-based
  *  interrupts, single message MSI, or multiple message MSI.
  * @attention Host software shall not access this property when configured
@@ -158,7 +140,7 @@ int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 		break;
 
 	case NVME_INT_MSIX:
-		set_msix_single_mask(irq->mask_ptr, irq_no);
+		set_msix_single_mask(irq->msix.tb, irq_no);
 		break;
 
 	case NVME_INT_NONE:
@@ -190,7 +172,7 @@ int dnvme_unmask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 		break;
 
 	case NVME_INT_MSIX:
-		clear_msix_single_mask(irq->mask_ptr, irq_no);
+		clear_msix_single_mask(irq->msix.tb, irq_no);
 		break;
 
 	case NVME_INT_NONE:
@@ -745,10 +727,10 @@ out:
  *
  * @return 0 on success, otherwise a negative errno
  */
-static int set_int_msix(struct nvme_context *ctx, u16 num_irqs, 
-	struct msix_info *msix)
+static int set_int_msix(struct nvme_context *ctx, u16 num_irqs)
 {
 	struct nvme_device *ndev = ctx->dev;
+	struct nvme_irq_set *irq = &ctx->irq_set;
 	struct pci_dev *pdev = ndev->priv.pdev;
 	struct msix_entry *entries;
 	int ret, i, j;
@@ -789,13 +771,13 @@ static int set_int_msix(struct nvme_context *ctx, u16 num_irqs,
 		}
 	}
 
-	if (pba_bits_is_set(msix->pba_tbl, entries, num_irqs)) {
+	if (pba_bits_is_set(irq->msix.pba, entries, num_irqs)) {
 		dnvme_err("PBA bit is set at IRQ init, shall set none!\n");
 		ret = -EINVAL;
 		goto out3;
 	}
 
-	set_msix_mask(msix->msix_tbl, entries, num_irqs);
+	set_msix_mask(irq->msix.tb, entries, num_irqs);
 
 	kfree(entries);
 	return 0;
@@ -812,6 +794,164 @@ out:
 	kfree(entries);
 	return ret;
 }
+
+static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap *cap)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_irq_set *irq_set = &ctx->irq_set;
+	struct pci_msix_cap *msix = cap->data;
+	u32 msix_to; /* MSIXCAP.MTAB.TO */
+	u32 msix_tbir; /* MSIXCAP.MTAB.TBIR */
+	u32 msix_pbir; /* MSIXCAP.MPBA.PBIR */
+	u32 msix_pbao; /* MSIXCAP.MPBA.PBAO */
+
+	if (irq_set->msix.irqs)
+		return 0; /* already initialized */
+
+	/* Table Size is 0's based */
+	irq_set->msix.irqs = (msix->mc & PCI_MSIX_FLAGS_QSIZE) + 1;
+
+	msix_tbir = msix->table & PCI_MSIX_TABLE_BIR;
+	msix_to = msix->table & PCI_MSIX_TABLE_OFFSET;
+	msix_pbir = msix->pba & PCI_MSIX_PBA_BIR;
+	msix_pbao = msix->pba & PCI_MSIX_PBA_OFFSET;
+
+	switch (msix_tbir) {
+	case 0x00:  /* BAR0 (64-bit) */
+		irq_set->msix.tb = ndev->priv.bar0 + msix_to;
+		break;
+	case 0x04:  /* BAR2 (64-bit) */
+		if (ndev->priv.bar2 == NULL) {
+			dnvme_err("Not support BAR2!\n\n");
+			return -EINVAL;
+		}
+		irq_set->msix.tb = ndev->priv.bar2 + msix_to;
+		break;
+	case 0x05:
+		dnvme_err("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
+		return -EINVAL;
+	default:
+		dnvme_err("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
+		return -EINVAL;
+	}
+
+	switch (msix_pbir) {
+	case 0x00:  /* BAR0 (64-bit) */
+		irq_set->msix.pba = ndev->priv.bar0 + msix_pbao;
+		break;
+	case 0x04:  /* BAR2 (64-bit) */
+		if (ndev->priv.bar2 == NULL) {
+			dnvme_err("BAR2 not implemented by DUT");
+			return -EINVAL;
+		}
+		irq_set->msix.pba = ndev->priv.bar2 + msix_pbao;
+		break;
+	case 0x05:
+		dnvme_err("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
+		return -EINVAL;
+	default:
+		dnvme_err("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
+		return -EINVAL;
+	}
+	
+	return 0;
+}
+
+/**
+ * @brief Check whether nvme_interrupt is prperly populated
+ * 
+ * @param ctx NVMe device context
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
+{
+	int ret = 0;
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_cap *cap = &ndev->cap;
+	struct nvme_irq_set *irq_set = &ctx->irq_set;
+	struct pci_dev *pdev = ctx->dev->priv.pdev;
+	void __iomem *bar0 = ndev->priv.bar0;
+	u32 offset;
+	u16 mc; /* Message Control */
+
+	if (dnvme_readl(bar0, NVME_REG_CC) & NVME_CC_ENABLE) {
+		dnvme_err("CC.EN is set! Please set irq before CC.EN set!\n");
+		return -EINVAL;
+	}
+
+	switch (irq->irq_type) {
+	case NVME_INT_MSI_SINGLE:
+		if (irq->num_irqs != 1) {
+			dnvme_err("MSI Single: num_irqs(%u) = 1\n", irq->num_irqs);
+			return -EINVAL;
+		}
+
+		if (!cap->pci[PCI_CAP_ID_MSI - 1].id) {
+			dnvme_err("Not support MSI capability!\n");
+			return -EINVAL;
+		}
+		break;
+
+	case NVME_INT_MSI_MULTI:
+		if (irq->num_irqs > PCI_MSI_VEC_MAX || irq->num_irqs == 0) {
+			dnvme_err("MSI Multi: num_irqs(%u) <= %u\n", 
+				irq->num_irqs, PCI_MSI_VEC_MAX);
+			return -EINVAL;
+		}
+
+		if (!cap->pci[PCI_CAP_ID_MSI - 1].id) {
+			dnvme_err("Not support MSI capability!\n");
+			return -EINVAL;
+		}
+		offset = cap->pci[PCI_CAP_ID_MSI - 1].offset;
+
+		ret = pci_msi_read_mc(pdev, offset, &mc);
+		if (ret < 0) {
+			dnvme_err("failed to read msi mc!(%d)\n", ret);
+			return ret;
+		}
+
+		if(irq->num_irqs > (1 << ((mc & PCI_MSI_FLAGS_QMASK) >> 1))) { 
+			dnvme_err("IRQs(%u) > MSI MMC(%u)\n", irq->num_irqs,
+				(1 << ((mc & PCI_MSI_FLAGS_QMASK) >> 1)));
+			return -EINVAL;
+		}
+		break;
+
+	case NVME_INT_MSIX:
+		if (irq->num_irqs > PCI_MSIX_VEC_MAX || irq->num_irqs == 0) {
+			dnvme_err("MSI-X: num_irqs(%u) <= %u\n", 
+				irq->num_irqs, PCI_MSIX_VEC_MAX);
+			return -EINVAL;
+		}
+
+		if (!cap->pci[PCI_CAP_ID_MSIX - 1].id) {
+			dnvme_err("Not support MSI-X capability!\n");
+			return -EINVAL;
+		}
+
+		ret = init_msix_ptr(ctx, &cap->pci[PCI_CAP_ID_MSIX - 1]);
+		if (ret < 0)
+			return ret;
+		
+		if (irq->num_irqs > irq_set->msix.irqs) {
+			dnvme_err("IRQ(%u) > MSI-X irqs(%u)\n", 
+				irq->num_irqs, irq_set->msix.irqs);
+			return -EINVAL;
+		}
+		break;
+
+	case NVME_INT_PIN:
+	case NVME_INT_NONE:
+		/* nothing required to do */
+		break;
+	default:
+		dnvme_err("irq_type(%d) is unknonw!\n", irq->irq_type);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 
 void dnvme_clear_interrupt(struct nvme_context *ctx)
 {
@@ -871,14 +1011,11 @@ void dnvme_clear_interrupt(struct nvme_context *ctx)
  */
 int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *uirq)
 {
-	struct msix_info msix;
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
 	struct nvme_interrupt irq;
 	enum nvme_irq_type act_irq = ndev->pub.irq_active.irq_type;
 	int ret;
-
-	memset(&msix, 0, sizeof(struct msix_info));
 
 	if (copy_from_user(&irq, uirq, sizeof(irq))) {
 		dnvme_err("failed to copy from user space!\n");
@@ -886,8 +1023,7 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 	}
 	dnvme_vdbg("Set irq_type:%d, num_irqs:%u\n", irq.irq_type, irq.num_irqs);
 
-	/* First validate if the inputs given are correct */
-	ret = validate_irq_inputs(ctx, &irq, &msix);
+	ret = check_interrupt(ctx, &irq);
 	if (ret < 0) {
 		dnvme_err("Invalid inputs set or device is not disabled");
 		return ret;
@@ -913,7 +1049,7 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 		ret = set_int_msi_multi(ctx, irq.num_irqs);
 		break;
 	case NVME_INT_MSIX:
-		ret = set_int_msix(ctx, irq.num_irqs, &msix);
+		ret = set_int_msix(ctx, irq.num_irqs);
 		break;
 	case NVME_INT_PIN:
 		ret = set_int_pin(ctx);
@@ -943,312 +1079,6 @@ out2:
 out:
 	mutex_unlock(&irq_set->mtx_lock);
 	return ret;
-}
-
-/*
- * Check if the controller supports the interrupt type requested. If it
- * supports returns the offset, otherwise it will return invalid for the
- * caller to indicate that the controller does not support the capability
- * type.
- */
-static int check_cntlr_cap(struct pci_dev *pdev, enum nvme_irq_type cap_type,
-    u16 *offset)
-{
-	u16 val = 0;
-	u16 pci_offset = 0;
-	int ret_val = -EINVAL;
-
-	if (pci_read_config_word(pdev, PCI_STATUS, &val) < 0) {
-		dnvme_err("pci_read_config failed...");
-		return -EINVAL;
-	}
-	dnvme_vdbg("PCI_DEVICE_STATUS = 0x%X", val);
-	if (!(val & PCI_STATUS_CAP_LIST)) {
-		dnvme_err("Controller does not support Capability list...");
-		return -EINVAL;
-	} else {
-		if (pci_read_config_word(pdev, PCI_CAPABILITY_LIST, &pci_offset) < 0) {
-			dnvme_err("pci_read_config failed...");
-			return -EINVAL;
-		}
-	}
-	/* Interrupt Type MSI-X*/
-	if (cap_type == NVME_INT_MSIX) {
-		/* Loop through Capability list */
-		while (pci_offset) {
-			if (pci_read_config_word(pdev, pci_offset, &val) < 0) {
-				dnvme_err("pci_read_config failed...");
-				return -EINVAL;
-			}
-			/* exit when we find MSIX_capbility offset */
-			if ((val & PCI_CAP_ID_MASK) == PCI_CAP_ID_MSIX) {
-				/* write msix cap offset */
-				*offset = pci_offset;
-				ret_val = 0;
-				/* break from while loop */
-				break;
-			}
-			/* Next Capability offset. */
-			pci_offset = (val & PCI_CAP_NEXT_MASK) >> 8;
-		} /* end of while loop */
-
-	} else if (cap_type == NVME_INT_MSI_SINGLE || cap_type == NVME_INT_MSI_MULTI) {
-		/* Loop through Capability list */
-		while (pci_offset) {
-			if (pci_read_config_word(pdev, pci_offset, &val) < 0) {
-				dnvme_err("pci_read_config failed...");
-				return -EINVAL;
-			}
-			/* exit when we find MSIX_capbility offset */
-			if ((val & PCI_CAP_ID_MASK) == PCI_CAP_ID_MSI) {
-				/* write the msi offset */
-				*offset = pci_offset;
-				ret_val = 0;
-				/* break from while loop */
-				break;
-			}
-			/* Next Capability offset. */
-			pci_offset = (val & PCI_CAP_NEXT_MASK) >> 8;
-		} /* end of while loop */
-
-	} else {
-		dnvme_err("Invalid capability type specified...");
-		ret_val = -EINVAL;
-	}
-
-	return ret_val;
-}
-
-
-/*
- * Validates the IRQ inputs for MSI-X, MSI-Single and MSI-Mutli.
- * If the CC.EN bit is set or the number of irqs are invalid then
- * return failure otherwise success.
- */
-static int validate_irq_inputs(struct nvme_context *ctx, 
-	struct nvme_interrupt *irq_new,
-	struct msix_info *pmsix_tbl_info)
-{
-	int ret_val = 0;
-	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ctx->dev->priv.pdev;
-	void __iomem *bar0 = ndev->priv.bar0;
-	u16 msi_offset;
-	u16 mc_val;
-
-	/* Check if the EN bit is set and return failure if set */
-	if (dnvme_readl(bar0, NVME_REG_CC) & NVME_CC_ENABLE) {
-		dnvme_err("IRQ Scheme cannot change when CC.EN bit is set!!");
-		dnvme_err("Call Disable or Disable completely first...");
-		return -EINVAL;
-	}
-
-	/* Switch based on new irq type desired */
-	switch (irq_new->irq_type) {
-
-	case NVME_INT_MSI_SINGLE: /* MSI Single interrupt settings */
-		if (irq_new->num_irqs != 1) {
-			dnvme_err("MSI Single: num_irqs(%u) = 1\n", irq_new->num_irqs);
-			return -EINVAL;
-		}
-		/* Check if the card Supports MSI capability */
-		if (check_cntlr_cap(pdev, NVME_INT_MSI_SINGLE, &msi_offset) < 0) {
-			dnvme_err("Controller does not support for MSI capability!\n");
-			return -EINVAL;
-		}
-		/* Update interrupt vector Mask Set and Mask Clear offsets */
-		ctx->irq_set.mask_ptr = ctx->dev->priv.bar0 + NVME_REG_INTMS;
-		break;
-
-	case NVME_INT_MSI_MULTI: /* MSI Multi interrupt settings */
-		if (irq_new->num_irqs > PCI_MSI_VEC_MAX || irq_new->num_irqs == 0) {
-			dnvme_err("MSI Multi: num_irqs(%u) <= %u\n", 
-				irq_new->num_irqs, PCI_MSI_VEC_MAX);
-			return -EINVAL;
-		}
-		/* Check if the card Supports MSI capability */
-		if (check_cntlr_cap(pdev, NVME_INT_MSI_MULTI, &msi_offset) < 0) {
-			dnvme_err("Controller does not support for MSI capability!\n");
-			return -EINVAL;
-		}
-		/* compute MSI MC offset if MSI is supported */
-		msi_offset += 2;
-		/* Read MSI-MC value */
-		pci_read_config_word(pdev, msi_offset, &mc_val);
-
-		if(irq_new->num_irqs > (1 << ((mc_val & PCI_MSI_FLAGS_QMASK) >> 1))) { 
-			dnvme_err("IRQs = %d exceed MSI MMC = %d", irq_new->num_irqs,
-				(1 << ((mc_val & PCI_MSI_FLAGS_QMASK) >> 1)));
-			return -EINVAL;
-		}
-		/* Update interrupt vector Mask Set and Mask Clear offsets */
-		ctx->irq_set.mask_ptr = ctx->dev->priv.bar0 + NVME_REG_INTMS;
-		break;
-
-	case NVME_INT_PIN: 	/* NVME_INT_PIN  */
-		/* Update interrupt vector Mask Set and Mask Clear offsets */
-		ctx->irq_set.mask_ptr = ctx->dev->priv.bar0 + NVME_REG_INTMS;
-		break;
-
-	case NVME_INT_MSIX: /* MSI-X interrupt settings */
-		/* First check if num irqs req are greater than MAX MSIX SUPPORTED */
-		if (irq_new->num_irqs > PCI_MSIX_VEC_MAX || irq_new->num_irqs == 0) {
-			dnvme_err("MSI-X: num_irqs(%u) <= %u\n", 
-				irq_new->num_irqs, PCI_MSIX_VEC_MAX);
-			return -EINVAL;
-		}
-		/* Check if the card Supports MSIX capability */
-		if (check_cntlr_cap(pdev, NVME_INT_MSIX, &msi_offset) < 0) {
-			dnvme_err("Controller does not support for MSI-X capability!!");
-			return -EINVAL;
-		}
-		/* if msix exists then update the msix pointer for this device */
-		if (update_msixptr(ctx, msi_offset, pmsix_tbl_info) < 0) {
-			return -EINVAL;
-		}
-		/* compute MSI-X MXC offset if MSI-X is supported */
-		msi_offset += 2;
-		/* Read MSIX-MXC value */
-		pci_read_config_word(pdev, msi_offset, &mc_val);
-		pmsix_tbl_info->ts = (mc_val & PCI_MSIX_FLAGS_QSIZE);
-		/* check if Table size of MSIXCAP supports requested irqs.
-		* as TS is 0 based and num_irq is 1 based, so we add 1 */
-		if (irq_new->num_irqs > (pmsix_tbl_info->ts + 1)) {
-			dnvme_err("IRQs = %d exceed MSI-X table size = %d", 
-				irq_new->num_irqs, pmsix_tbl_info->ts);
-			/* does not support the requested irq's*/
-			return -EINVAL;
-		} /* if table size */
-		break;
-	case NVME_INT_NONE: /* NVME_INT_NONE validation always returns success */
-		/* no validation for NVME_INT_NONE schemes return success. */
-		break;
-	default:
-		/* invalidate other type of IRQ schemes */
-		dnvme_err("No validation for default case..");
-		ret_val = -EINVAL;
-		break;
-	}
-	return ret_val;
-}
-
-// 2021/05/15 meng_yu https://github.com/nvmecompliance/dnvme/pull/11
-#if 0
-/**
- * Calls a pci_enable_msi function.  Support for pci_enable_msi_block was
- * dropped in 3.16 in favor of pci_enable_msi_range which was implemented in
- * 3.13.x kernels (but not 3.13.0).  Calls pci_enable_msi_block for 3.13.x
- * kernels and earlier or otherwise calls pci_enable_msi_range.
- * @param dev the pci device structure
- * @param nvec the number of interrupt vectors to allocate
- * @return 0 on success, <0 on error, >0 if fewer than nvec interrupts could
- * be allocated.
- */
-static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec)
-{
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(3,14,0)
-    return pci_enable_msi_block(dev, nvec);
-#else 
-    int ret;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(4,11,0)
-    ret = pci_enable_msi_range(dev, nvec, nvec);
-#else
-    ret = pci_enable_msi(dev);
-#endif
-    if (ret < nvec)
-        return ret;
-    else
-        return 0;
-#endif
-}
-
-static int dnvme_pci_enable_msi(struct pci_dev * dev, unsigned int nvec)
-{
-	int ret;
-
-	ret = pci_alloc_irq_vectors(dev, nvec, nvec, PCI_IRQ_MSI);
-
-	if(ret < nvec)
-		return ret;
-	else
-		return 0;
-}
-#endif
-
-
-/*
- * Update MSIX pointer in the irq process structure.
- */
-static int update_msixptr(struct nvme_context *ctx,
-    u16 offset, struct msix_info *pmsix_tbl_info)
-{
-	u8 __iomem *msix_ptr = NULL;
-	u8 __iomem *pba_ptr = NULL;
-	u32 msix_mtab;          /* MSIXCAP.MTAB register */
-	u32 msix_to;            /* MSIXCAP.MTAB.TO field */
-	u32 msix_tbir;          /* MSIXCAP.MTAB.TBIR field */
-	u32 msix_mpba;          /* MSIXCAP.MPBA register */
-	u32 msix_pbir;          /* MSIXCAP.MPBA.PBIR field */
-	u32 msix_pbao;          /* MSIXCAP.MPBA.PBAO field */
-	struct nvme_device *dev = ctx->dev;
-	struct pci_dev *pdev = dev->priv.pdev;
-
-
-	/* Compute & read offset for MSIXCAP.MTAB register */
-	offset += 0x4;
-	pci_read_config_dword(pdev, offset, &msix_mtab);
-	msix_tbir = (msix_mtab & PCI_MSIX_TABLE_BIR);
-	msix_to =   (msix_mtab & ~PCI_MSIX_TABLE_BIR);
-
-	/* Compute & read offset for MSIXCAP.MPBA register */
-	offset += 0x4;
-	pci_read_config_dword(pdev, offset, &msix_mpba);
-	msix_pbir = (msix_mpba & PCI_MSIX_PBA_BIR);
-	msix_pbao = (msix_mpba & ~PCI_MSIX_PBA_BIR);
-
-	switch (msix_tbir) {
-	case 0x00:  /* BAR0 (64-bit) */
-		msix_ptr = (dev->priv.bar0 + msix_to);
-		break;
-	case 0x04:  /* BAR2 (64-bit) */
-		if (dev->priv.bar2 == NULL) {
-			dnvme_err("BAR2 not implemented by DUT");
-			return -EINVAL;
-		}
-		msix_ptr = (dev->priv.bar2 + msix_to);
-		break;
-	case 0x05:
-		dnvme_err("BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
-		return -EINVAL;
-	default:
-		dnvme_err("BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
-		return -EINVAL;
-	}
-
-	switch (msix_pbir) {
-	case 0x00:  /* BAR0 (64-bit) */
-		pba_ptr = (dev->priv.bar0 + msix_pbao);
-		break;
-	case 0x04:  /* BAR2 (64-bit) */
-		if (dev->priv.bar2 == NULL) {
-			dnvme_err("BAR2 not implemented by DUT");
-			return -EINVAL;
-		}
-		pba_ptr = (dev->priv.bar2 + msix_pbao);
-		break;
-	case 0x05:
-		dnvme_err("BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
-		return -EINVAL;
-	default:
-		dnvme_err("BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
-		return -EINVAL;
-	}
-
-	/* Update the msix pointer in the device metrics */
-	ctx->irq_set.mask_ptr = msix_ptr;
-	pmsix_tbl_info->msix_tbl = msix_ptr;
-	pmsix_tbl_info->pba_tbl = pba_ptr;
-	return 0;
 }
 
 /*

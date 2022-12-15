@@ -231,7 +231,7 @@ struct nvme_device {
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
-	struct nvme_capability	cap;
+	struct nvme_cap	cap;
 	struct nvme_context	*ctx;
 	u32	q_depth;
 	u32	db_stride;
@@ -265,9 +265,12 @@ struct nvme_irq_set {
 	/* To resolve contention for ISR's getting scheduled on different cores */
 	spinlock_t	spin_lock;
 
-	/* Mask pointer for ISR (read both in ISR and BH) */
-	/* Pointer to MSI-X table offset or INTMS register */
-	u8 __iomem	*mask_ptr;
+	struct {
+		u16		irqs;
+		void __iomem	*tb; /* Pointer to MSI-X table */
+		void __iomem	*pba; /* Pointer to MSI-X PBA */
+	} msix;
+
 	/* Will only be read by ISR and set once per SET/DISABLE of IRQ scheme */
 	u8		irq_type; /* Type of IRQ set */
 
