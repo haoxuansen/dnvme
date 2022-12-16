@@ -21,6 +21,7 @@
 #include <sys/time.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "overview.h"
 #include "common.h"
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
 
 	/* Exit gracefully */
 	pr_info("\nNow Exiting gracefully....\n");
-	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+	nvme_disable_controller_complete(g_fd);
 	set_irqs(g_fd, NVME_INT_NONE, 0);
 	test_mem_free();
 	pr_info("\n\n****** END OF TEST ******\n\n");

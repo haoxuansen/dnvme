@@ -15,6 +15,9 @@
 #include <stdint.h>
 #include "dnvme_ioctl.h"
 
+int nvme_get_driver_info(int fd, struct nvme_driver *drv);
+int nvme_get_device_info(int fd, struct nvme_dev_public *dev);
+
 int nvme_read_generic(int fd, enum nvme_region region, uint32_t oft, 
 	uint32_t len, void *buf);
 int nvme_write_generic(int fd, enum nvme_region region, uint32_t oft, 
@@ -31,5 +34,30 @@ static inline int nvme_write_ctrl_property(int fd, uint32_t oft, uint32_t len,
 {
 	return nvme_write_generic(fd, NVME_BAR0_BAR1, oft, len, buf);
 }
+
+int nvme_set_device_state(int fd, enum nvme_state state);
+
+static inline int nvme_enable_controller(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_ENABLE);
+}
+
+static inline int nvme_disable_controller(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_DISABLE);
+}
+
+static inline int nvme_disable_controller_complete(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_DISABLE_COMPLETE);
+}
+
+static inline int nvme_reset_subsystem(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_RESET_SUBSYSTEM);
+}
+
+int nvme_create_asq(int fd, uint32_t elements);
+int nvme_create_acq(int fd, uint32_t elements);
 
 #endif /* !_APP_IOCTL_H_ */

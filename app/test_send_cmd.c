@@ -818,53 +818,6 @@ int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb)
     return SUCCEED;
 }
 
-int subsys_reset(void)
-{
-    int ret_val = -1;
-    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, NVME_ST_RESET_SUBSYSTEM);
-    if (ret_val < 0)
-    {
-        pr_err("User Call to subsys_reset: Failed!\n");
-        return FAILED;
-    }
-    else
-    {
-        pr_debug("User Call to subsys_reset: SUCCESS\n");
-        return SUCCEED;
-    }
-
-    // uint32_t u32_tmp_data = 0;
-    // u32_tmp_data = 0x4E564D65; //“NVMe”
-    // if (nvme_write_ctrl_property(g_fd, NVME_REG_NSSR_OFST, 4, (uint8_t *)&u32_tmp_data))
-    //     return FAILED;
-    // else
-    //     return SUCCEED;
-}
-
-int ctrl_disable(void)
-{
-    int ret_val = -1;
-    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, NVME_ST_DISABLE_COMPLETE);
-    if (ret_val < 0)
-    {
-        pr_err("User Call to Disable Ctrlr: Failed!\n");
-        return FAILED;
-    }
-    else
-    {
-        pr_debug("User Call to Disable Ctrlr: success\n");
-        return SUCCEED;
-    }
-
-    // uint32_t u32_tmp_data = 0;
-    // u32_tmp_data = ioctl_read_data(g_fd, 0x14, 4);
-    // u32_tmp_data &= ~0x1; //CC.EN = 0
-    // if (nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data))
-    //     return FAILED;
-    // else
-    //     return SUCCEED;
-}
-
 uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id)
 {
     uint16_t data = 0;

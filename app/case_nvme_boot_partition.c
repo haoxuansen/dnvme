@@ -224,7 +224,7 @@ static uint32_t rd_wr_boot_part_ccen_0(void)
     uint32_t u32_tmp_data = 0;
     // if(test_flag == FAILED)
     //     return test_flag;
-    ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+    nvme_disable_controller_complete(g_fd);
     ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
@@ -263,7 +263,7 @@ static uint32_t rd_wr_boot_part_ccen_1(void)
     uint32_t u32_tmp_data = 0;
     // if(test_flag == FAILED)
     //     return test_flag;
-    ioctl_enable_ctrl(g_fd);
+    nvme_enable_controller(g_fd);
     ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {

@@ -63,7 +63,7 @@ static TestCase_t TestCaseList[] = {
 
 static int case_disable_ctrl_complete(void)
 {
-	return ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+	return nvme_disable_controller_complete(g_fd);
 }
 
 static int case_reinit_device(void)

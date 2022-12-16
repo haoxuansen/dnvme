@@ -95,8 +95,8 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 	switch (cmd) {
 	case NVME_IOCTL_GET_DRIVER_INFO:
 		return "NVME_GET_DRIVER_INFO";
-	case NVME_GET_DEV_INFO:
-		return "NVME_GET_DEV_INFO";
+	case NVME_IOCTL_GET_DEVICE_INFO:
+		return "NVME_GET_DEVICE_INFO";
 	case NVME_IOCTL_GET_CAPABILITY:
 		return "NVME_GET_CAPABILITY";
 

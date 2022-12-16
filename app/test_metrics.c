@@ -22,7 +22,7 @@
 #include <stdint.h>
 
 #include "dnvme_ioctl.h"
-#include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "common.h"
 #include "test_send_cmd.h"
@@ -103,142 +103,8 @@ void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size)
 
 void admin_queue_config(int g_fd)
 {
-    ioctl_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-    ioctl_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-}
-
-void test_drv_metrics(int g_fd)
-{
-    struct nvme_driver get_drv_metrics = {0};
-    int ret_val = -1;
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_GET_DRIVER_INFO, &get_drv_metrics);
-    if (ret_val < 0)
-    {
-        pr_err("\tDrv metrics Failed!\n");
-    }
-    pr_debug("Drv Version = 0x%X\n", get_drv_metrics.drv_version);
-    pr_debug("Api Version = 0x%X\n", get_drv_metrics.api_version);
-}
-
-void test_dev_metrics(int g_fd)
-{
-    struct nvme_dev_public get_dev_metrics = {0};
-    int ret_val = -1;
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_GET_DEV_INFO, &get_dev_metrics);
-    if (ret_val < 0)
-    {
-        pr_err("\tDev metrics Failed!\n");
-    }
-    pr_debug("IRQ Type = %d (0=S/1=M/2=X/3=N)\n", get_dev_metrics.irq_active.irq_type);
-    pr_debug("IRQ No's = %d\n", get_dev_metrics.irq_active.num_irqs);
-}
-
-/**
- * @brief ioctl_create_acq
- * 
- * @param g_fd 
- * @param queue_size 
- */
-void ioctl_create_acq(int g_fd, uint32_t queue_size)
-{
-    int ret_val = -1;
-    struct nvme_admin_queue aq_data = {0};
-
-    // check queue size
-    if (queue_size > MAX_ADMIN_QUEUE_SIZE)
-    {
-        pr_err("\tadmin cq size \033[32mexceed\033[0m\n");
-    }
-
-    aq_data.elements = queue_size;
-    aq_data.type = NVME_ADMIN_CQ;
-
-    pr_debug("\tAdmin CQ No. of Elements = %d\n", aq_data.elements);
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
-    if (ret_val < 0)
-    {
-        pr_err("\tCreation of ACQ Failed!  ret_val=%d\n", ret_val);
-    }
-    else
-    {
-        pr_debug("\tACQ Creation success\n");
-    }
-}
-/**
- * @brief ioctl_create_asq
- * 
- * @param g_fd 
- * @param queue_size 
- */
-void ioctl_create_asq(int g_fd, uint32_t queue_size)
-{
-    int ret_val = -1;
-    struct nvme_admin_queue aq_data = {0};
-
-    // check queue size
-    if (queue_size > MAX_ADMIN_QUEUE_SIZE)
-    {
-        pr_err("\tadmin sq size \033[32mexceed\033[0m\n");
-    }
-
-    aq_data.elements = queue_size;
-    aq_data.type = NVME_ADMIN_SQ;
-
-    pr_debug("\tAdmin SQ No. of Elements = %d\n", aq_data.elements);
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &aq_data);
-    if (ret_val < 0)
-    {
-        pr_err("\tCreation of ASQ Failed! ret_val=%d\n", ret_val);
-    }
-    else
-    {
-        pr_debug("\tASQ Creation success\n");
-    }
-}
-/**
- * @brief ioctl_enable_ctrl
- * 
- * @param g_fd 
- */
-void ioctl_enable_ctrl(int g_fd)
-{
-    int ret_val = -1;
-    enum nvme_state new_state = NVME_ST_ENABLE;
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, new_state);
-    if (ret_val < 0)
-    {
-        pr_err("Enable Ctrlr: Failed!\n");
-    }
-    else
-    {
-        pr_debug("Enable Ctrlr: success\n");
-    }
-}
-/**
- * @brief ioctl_disable_ctrl
- * 
- * @param g_fd 
- * @param new_state 
- */
-int ioctl_disable_ctrl(int g_fd, enum nvme_state new_state)
-{
-    int ret_val = -1;
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_SET_DEV_STATE, new_state);
-    if (ret_val < 0)
-    {
-        pr_err("User Call to Disable Ctrlr: Failed!\n");
-    }
-    else
-    {
-        pr_debug("User Call to Disable Ctrlr: success\n");
-    }
-    return ret_val;
+    nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+    nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 }
 
 void ioctl_dump(int g_fd, char *tmpfile)

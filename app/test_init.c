@@ -143,12 +143,12 @@ void test_init(int g_fd)
 	uint8_t cqes = 0;
 	pr_info("--->[%s]\n", __FUNCTION__);
 	int ret = FAILED;
-	ret = ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+	ret = nvme_disable_controller_complete(g_fd);
 	assert(ret == SUCCEED);
-	ioctl_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-	ioctl_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 	set_irqs(g_fd, NVME_INT_PIN, 1);
-	ioctl_enable_ctrl(g_fd);
+	nvme_enable_controller(g_fd);
 
 	//step4: send get feature cmd (get queue number)
 	pr_info("Send set feature cmd (get queue number)\n");
@@ -192,12 +192,12 @@ void test_init(int g_fd)
 	pr_info("SGL support (SGLS): %#x\n", g_nvme_dev.id_ctrl.sgls);
 
 	//step1: disable control
-	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+	nvme_disable_controller_complete(g_fd);
 	//step 2.1: configure Admin queue
 	pr_info("Init Admin cq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
-	ioctl_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 	pr_info("Init Admin sq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
-	ioctl_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 
 	//step 2.2: configure Admin queue
 	//set_irqs(g_fd, NVME_INT_NONE, 0);
@@ -209,7 +209,7 @@ void test_init(int g_fd)
 		set_irqs(g_fd, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
 
 	//step3: enable control
-	ioctl_enable_ctrl(g_fd);
+	nvme_enable_controller(g_fd);
 
 	//step7: set cq/sq entry size
 	sqes = g_nvme_dev.id_ctrl.sqes & 0x0f;
@@ -300,12 +300,12 @@ void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_ty
 {
 	uint32_t u32_tmp_data = 0;
 	int ret = FAILED;
-	ret = ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+	ret = nvme_disable_controller_complete(g_fd);
 	assert(ret == SUCCEED);
-	ioctl_create_asq(g_fd, asqsz);
-	ioctl_create_acq(g_fd, acqsz);
+	nvme_create_asq(g_fd, asqsz);
+	nvme_create_acq(g_fd, acqsz);
 	set_irqs(g_fd, irq_type, num_irqs);
-	ioctl_enable_ctrl(g_fd);
+	nvme_enable_controller(g_fd);
 
 	u32_tmp_data = 0x00460001;
 	nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
@@ -313,15 +313,15 @@ void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_ty
 
 void test_change_irqs(int g_fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
 {
-	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE);
+	nvme_disable_controller(g_fd);
 	set_irqs(g_fd, irq_type, num_irqs);
-	ioctl_enable_ctrl(g_fd);
+	nvme_enable_controller(g_fd);
 }
 
 void test_set_admn(int g_fd, uint32_t asqsz, uint32_t acqsz)
 {
-	ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE);
-	ioctl_create_acq(g_fd, acqsz);
-	ioctl_create_asq(g_fd, asqsz);
-	ioctl_enable_ctrl(g_fd);
+	nvme_disable_controller(g_fd);
+	nvme_create_acq(g_fd, acqsz);
+	nvme_create_asq(g_fd, asqsz);
+	nvme_enable_controller(g_fd);
 }

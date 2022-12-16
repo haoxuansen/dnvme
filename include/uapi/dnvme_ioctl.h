@@ -46,7 +46,7 @@ enum {
 	NVME_SET_IRQ,
 	NVME_MASK_IRQ,
 	NVME_UNMASK_IRQ,
-	NVME_GET_DEV_INFO,
+	NVME_GET_DEVICE_INFO,
 };
 
 enum nvme_region {
@@ -296,8 +296,8 @@ struct nvme_log_file {
 
 #define NVME_IOCTL_GET_DRIVER_INFO \
 	_IOR('N', NVME_GET_DRIVER_INFO, struct nvme_driver)
-#define NVME_IOCTL_GET_DEV_INFO \
-	_IOR('N', NVME_GET_DEV_INFO, struct nvme_dev_public)
+#define NVME_IOCTL_GET_DEVICE_INFO \
+	_IOR('N', NVME_GET_DEVICE_INFO, struct nvme_dev_public)
 #define NVME_IOCTL_GET_CAPABILITY \
 	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_cap)
 

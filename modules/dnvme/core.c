@@ -374,7 +374,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_unmask_interrupt(&ctx->irq_set, (u16)arg);
 		break;
 
-	case NVME_IOCTL_GET_DEV_INFO:
+	case NVME_IOCTL_GET_DEVICE_INFO:
 		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
 			dnvme_err("failed to copy to user space!\n");
 			ret = -EFAULT;

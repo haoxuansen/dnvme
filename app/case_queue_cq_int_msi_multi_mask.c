@@ -26,7 +26,7 @@ void int_mask_bit(uint32_t msi_mask_flag)
     uint32_t index_max = 9;
     uint32_t mask_bit = 0;
     uint32_t u32_tmp_data = 0;
-    ioctl_disable_ctrl(g_fd, NVME_ST_DISABLE_COMPLETE);
+    nvme_disable_controller_complete(g_fd);
     admin_queue_config(g_fd);
 
     set_irqs(g_fd, NVME_INT_MSI_MULTI, 9);
@@ -57,7 +57,7 @@ void int_mask_bit(uint32_t msi_mask_flag)
             //pr_info("-------unmask interrupt %d\n", mask_index);
         }
     }
-    ioctl_enable_ctrl(g_fd);
+    nvme_enable_controller(g_fd);
 
     u32_tmp_data = 0x00460001;
     nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);

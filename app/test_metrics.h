@@ -144,7 +144,6 @@ struct nvme_cq_info
 //--------------------------------------------------------------------------------
 
 void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size);
-void test_drv_metrics(int g_fd);
 int ioctl_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint16_t elem, uint8_t contig);
 int ioctl_prep_cq(int g_fd, uint16_t cq_id, uint16_t elem, uint8_t contig);
 int ioctl_tst_ring_dbl(int g_fd, int sq_id);
@@ -160,11 +159,7 @@ int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nl
 
 uint32_t ioctl_reap_inquiry(int g_fd, int cq_id);
 int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display);
-void ioctl_enable_ctrl(int g_fd);
-int ioctl_disable_ctrl(int g_fd, enum nvme_state new_state);
 
-void ioctl_create_acq(int g_fd, uint32_t queue_size);
-void ioctl_create_asq(int g_fd, uint32_t queue_size);
 void test_meta(int g_fd);
 uint32_t create_meta_buf(int g_fd, uint32_t id);
 int ioctl_meta_node_delete(int g_fd, uint32_t id);
@@ -173,7 +168,6 @@ void ioctl_dump(int g_fd, char *tmpfile);
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
 void admin_queue_config(int g_fd);
 void test_irq_review568(int fd);
-void test_dev_metrics(int g_fd);
 
 uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length);
 
@@ -199,8 +193,6 @@ int ioctl_send_format(int g_fd, uint8_t lbaf);
 
 uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
 
-int subsys_reset(void);
-int ctrl_disable(void);
 int ctrl_pci_flr(void);
 int set_power_state(uint8_t pmcap, uint8_t dstate);
 

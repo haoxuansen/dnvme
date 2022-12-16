@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -129,13 +130,13 @@ static void test_sub(void)
     if (test_type == 1)
     {
         pr_color(LOG_COLOR_YELLOW, "controller disable Reset ...\n");
-        test_flag |= ctrl_disable();
+        test_flag |= nvme_disable_controller_complete(g_fd);
         pr_color(LOG_COLOR_YELLOW, "controller disable Reset Done\n");
     }
     else if (test_type == 2)
     {
         pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset ...\n");
-        test_flag |= subsys_reset();
+        test_flag |= nvme_reset_subsystem(g_fd);
         pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset Done\n");
     }
     else if (test_type == 3)
