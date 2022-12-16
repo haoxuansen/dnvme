@@ -4,7 +4,7 @@ include $(TOP_DIR)/.config
 CUR_DIR := $(TOP_DIR)/app
 OUTPUT_DIR := $(TOP_DIR)/output
 
-srcs := $(wildcard *.c)
+srcs := $(foreach dir,$(CUR_DIR) $(CUR_DIR)/common,$(wildcard $(dir)/*.c))
 objs := $(srcs:.c=.o)
 target := nvmetool
 
@@ -12,12 +12,13 @@ CC ?= gcc
 CFLAGS := -g -Wall
 CFLAGS += -I$(TOP_DIR)/include/generated
 CFLAGS += -I$(TOP_DIR)/include/uapi
+CFLAGS += -I$(CUR_DIR)/common
 CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
 
 .DEFAULT_GOAL := build
 
 %.o: %.c
-	$(Q)$(CC) $(CFLAGS) -c $^
+	$(Q)$(CC) $(CFLAGS) -c $^ -o $@
 
 pre:
 	$(Q)bash $(CUR_DIR)/prepare.sh
