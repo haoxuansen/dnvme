@@ -23,6 +23,7 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "test_send_cmd.h"
@@ -105,29 +106,6 @@ void admin_queue_config(int g_fd)
 {
     nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
     nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-}
-
-void ioctl_dump(int g_fd, char *tmpfile)
-{
-    int ret_val = -1;
-    struct nvme_log_file pfile = {0};
-
-    pfile.len = strlen(tmpfile);
-    //pr_info("size = %d\n", pfile.flen);
-    pfile.name = malloc(pfile.len);
-    strcpy((char *)pfile.name, tmpfile);
-
-    pr_info("File name = %s\n", pfile.name);
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_DUMP_LOG_FILE, &pfile);
-    if (ret_val < 0)
-    {
-        pr_err("Dump Metrics Failed!\n");
-    }
-    else
-    {
-        pr_debug("Dump Metrics success\n");
-    }
 }
 
 int test_create_contig_iocq(int g_fd, uint16_t io_cq_id, uint16_t cq_size)

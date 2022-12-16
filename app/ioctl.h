@@ -57,7 +57,6 @@ static inline int nvme_reset_subsystem(int fd)
 	return nvme_set_device_state(fd, NVME_ST_RESET_SUBSYSTEM);
 }
 
-int nvme_create_asq(int fd, uint32_t elements);
-int nvme_create_acq(int fd, uint32_t elements);
+int nvme_dump_log(int fd, char *file);
 
 #endif /* !_APP_IOCTL_H_ */

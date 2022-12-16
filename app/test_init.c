@@ -18,7 +18,10 @@
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
 #include "pci.h"
+#include "irq.h"
+#include "queue.h"
 
+#include "auto_header.h"
 #include "common.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -147,7 +150,8 @@ void test_init(int g_fd)
 	assert(ret == SUCCEED);
 	nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
 	nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-	set_irqs(g_fd, NVME_INT_PIN, 1);
+	nvme_set_irq(g_fd, NVME_INT_PIN, 1);
+	g_nvme_dev.irq_type = NVME_INT_PIN;
 	nvme_enable_controller(g_fd);
 
 	//step4: send get feature cmd (get queue number)
@@ -203,10 +207,13 @@ void test_init(int g_fd)
 	//set_irqs(g_fd, NVME_INT_NONE, 0);
 	// set_irqs(g_fd, NVME_INT_PIN, 1);
 	// set_irqs(g_fd, NVME_INT_MSI_SINGLE, 1);
-	if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-		set_irqs(g_fd, NVME_INT_PIN, 1);
-	else
-		set_irqs(g_fd, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
+	if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID) {
+		nvme_set_irq(g_fd, NVME_INT_PIN, 1);
+		g_nvme_dev.irq_type = NVME_INT_PIN;
+	} else {
+		nvme_set_irq(g_fd, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1); // min 1, max g_nvme_dev.max_sq_num
+		g_nvme_dev.irq_type = NVME_INT_MSIX;
+	}
 
 	//step3: enable control
 	nvme_enable_controller(g_fd);
@@ -304,7 +311,17 @@ void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_ty
 	assert(ret == SUCCEED);
 	nvme_create_asq(g_fd, asqsz);
 	nvme_create_acq(g_fd, acqsz);
-	set_irqs(g_fd, irq_type, num_irqs);
+
+#ifdef AMD_MB_EN
+	//Warning: AMD MB may not support msi-multi
+	if (irq_type == NVME_INT_MSI_MULTI)
+	{
+		irq_type = NVME_INT_MSIX;
+		pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
+	}
+#endif
+	nvme_set_irq(g_fd, irq_type, num_irqs);
+	g_nvme_dev.irq_type = irq_type;
 	nvme_enable_controller(g_fd);
 
 	u32_tmp_data = 0x00460001;
@@ -314,7 +331,16 @@ void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_ty
 void test_change_irqs(int g_fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
 {
 	nvme_disable_controller(g_fd);
-	set_irqs(g_fd, irq_type, num_irqs);
+#ifdef AMD_MB_EN
+	//Warning: AMD MB may not support msi-multi
+	if (irq_type == NVME_INT_MSI_MULTI)
+	{
+		irq_type = NVME_INT_MSIX;
+		pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
+	}
+#endif
+	nvme_set_irq(g_fd, irq_type, num_irqs);
+	g_nvme_dev.irq_type = irq_type;
 	nvme_enable_controller(g_fd);
 }
 

@@ -22,6 +22,7 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "irq.h"
 
 #include "overview.h"
 #include "common.h"
@@ -169,12 +170,13 @@ int main(int argc, char *argv[])
 	nvme_select_case_to_execute();
 
 	pr_info("Dump NVMe device info to %s\n", log_file);
-	ioctl_dump(g_fd, log_file);
+	nvme_dump_log(g_fd, log_file);
 
 	/* Exit gracefully */
 	pr_info("\nNow Exiting gracefully....\n");
 	nvme_disable_controller_complete(g_fd);
-	set_irqs(g_fd, NVME_INT_NONE, 0);
+	nvme_set_irq(g_fd, NVME_INT_NONE, 0);
+	g_nvme_dev.irq_type = NVME_INT_NONE;
 	test_mem_free();
 	pr_info("\n\n****** END OF TEST ******\n\n");
 	close(g_fd);

@@ -10,6 +10,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <sys/ioctl.h>
 
 #include "defs.h"
@@ -145,33 +146,17 @@ int nvme_set_device_state(int fd, enum nvme_state state)
 	return 0;
 }
 
-int nvme_create_asq(int fd, uint32_t elements)
+int nvme_dump_log(int fd, char *file)
 {
-	struct nvme_admin_queue asq;
+	struct nvme_log_file log;
 	int ret;
 
-	asq.type = NVME_ADMIN_SQ;
-	asq.elements = elements;
+	log.name = file;
+	log.len = strlen(file);
 
-	ret = ioctl(fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &asq);
+	ret = ioctl(fd, NVME_IOCTL_DUMP_LOG_FILE, &log);
 	if (ret < 0) {
-		pr_err("failed to create asq!(%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-int nvme_create_acq(int fd, uint32_t elements)
-{
-	struct nvme_admin_queue acq;
-	int ret;
-
-	acq.type = NVME_ADMIN_CQ;
-	acq.elements = elements;
-
-	ret = ioctl(fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &acq);
-	if (ret < 0) {
-		pr_err("failed to create acq!(%d)\n", ret);
+		pr_err("failed to dump log!(%d)\n", ret);
 		return ret;
 	}
 	return 0;

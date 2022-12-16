@@ -40,7 +40,7 @@ int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 			ret_val = FAILED;
 			/*for debug*/
-			// ioctl_dump(g_fd, tmpfile_dump);
+			// nvme_dump_log(g_fd, tmpfile_dump);
 			// exit(-1);
 			/*for debug*/
 		}

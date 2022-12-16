@@ -6,7 +6,9 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "irq.h"
 
+#include "auto_header.h"
 #include "common.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -26,20 +28,30 @@ void int_mask_bit(uint32_t msi_mask_flag)
     uint32_t index_max = 9;
     uint32_t mask_bit = 0;
     uint32_t u32_tmp_data = 0;
+    enum nvme_irq_type irq_type = NVME_INT_MSI_MULTI;
+
     nvme_disable_controller_complete(g_fd);
     admin_queue_config(g_fd);
 
-    set_irqs(g_fd, NVME_INT_MSI_MULTI, 9);
+#ifdef AMD_MB_EN
+    if (irq_type == NVME_INT_MSI_MULTI)
+    {
+        irq_type = NVME_INT_MSIX;
+        pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
+    }
+#endif
+    nvme_set_irq(g_fd, irq_type, 9);
+    g_nvme_dev.irq_type = irq_type;
 
     /*
-    mask_irqs(g_fd, 1);
-    mask_irqs(g_fd, 2);
-    mask_irqs(g_fd, 3);
-    mask_irqs(g_fd, 4);
-    mask_irqs(g_fd, 5);
-    mask_irqs(g_fd, 6);
-    mask_irqs(g_fd, 7);
-    mask_irqs(g_fd, 8);
+    nvme_mask_irq(g_fd, 1);
+    nvme_mask_irq(g_fd, 2);
+    nvme_mask_irq(g_fd, 3);
+    nvme_mask_irq(g_fd, 4);
+    nvme_mask_irq(g_fd, 5);
+    nvme_mask_irq(g_fd, 6);
+    nvme_mask_irq(g_fd, 7);
+    nvme_mask_irq(g_fd, 8);
 */
     //msi_mask_flag = 0x1ff;
     pr_info("msi_mask_flag is %d\n", msi_mask_flag);
@@ -48,12 +60,12 @@ void int_mask_bit(uint32_t msi_mask_flag)
         mask_bit = (msi_mask_flag >> mask_index) & 0x1;
         if (mask_bit == 0x1)
         {
-            mask_irqs(g_fd, mask_index);
+            nvme_mask_irq(g_fd, mask_index);
             pr_info("-------mask interrupt %d\n", mask_index);
         }
         else
         {
-            umask_irqs(g_fd, mask_index);
+            nvme_unmask_irq(g_fd, mask_index);
             //pr_info("-------unmask interrupt %d\n", mask_index);
         }
     }

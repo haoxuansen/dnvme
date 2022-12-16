@@ -6,6 +6,7 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "irq.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -29,17 +30,18 @@ static void int_mask_bit(uint32_t msi_mask_flag)
     nvme_disable_controller_complete(g_fd);
     admin_queue_config(g_fd);
 
-    set_irqs(g_fd, NVME_INT_MSIX, 9);
+    nvme_set_irq(g_fd, NVME_INT_MSIX, 9);
+    g_nvme_dev.irq_type = NVME_INT_MSIX;
 
     /*
-    mask_irqs(g_fd, 1);
-    mask_irqs(g_fd, 2);
-    mask_irqs(g_fd, 3);
-    mask_irqs(g_fd, 4);
-    mask_irqs(g_fd, 5);
-    mask_irqs(g_fd, 6);
-    mask_irqs(g_fd, 7);
-    mask_irqs(g_fd, 8);
+    nvme_mask_irq(g_fd, 1);
+    nvme_mask_irq(g_fd, 2);
+    nvme_mask_irq(g_fd, 3);
+    nvme_mask_irq(g_fd, 4);
+    nvme_mask_irq(g_fd, 5);
+    nvme_mask_irq(g_fd, 6);
+    nvme_mask_irq(g_fd, 7);
+    nvme_mask_irq(g_fd, 8);
 */
     //msi_mask_flag = 0x1ff;
     pr_info("msix_mask_flag is %d\n", msi_mask_flag);
@@ -48,12 +50,12 @@ static void int_mask_bit(uint32_t msi_mask_flag)
         mask_bit = (msi_mask_flag >> mask_index) & 0x1;
         if (mask_bit == 0x1)
         {
-            mask_irqs(g_fd, mask_index);
+            nvme_mask_irq(g_fd, mask_index);
             pr_info("-------mask interrupt %d\n", mask_index);
         }
         else
         {
-            umask_irqs(g_fd, mask_index);
+            nvme_unmask_irq(g_fd, mask_index);
             //pr_info("-------unmask interrupt %d\n", mask_index);
         }
     }

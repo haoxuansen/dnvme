@@ -15,82 +15,14 @@
 #include <stdlib.h>
 
 #include "dnvme_ioctl.h"
-#include "dnvme_ioctl.h"
+#include "ioctl.h"
+#include "irq.h"
 
 #include "common.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_irq.h"
 #include "test_cq_gain.h"
-
-static char * int_type[] = {
-    "NVME_INT_MSI_SINGLE",
-    "NVME_INT_MSI_MULTI",
-    "NVME_INT_MSIX",
-    "NVME_INT_PIN",
-    "NVME_INT_NONE",
-    "INT_FENCE"};
-
-void set_irqs(int fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
-{
-    int ret_val;
-    struct nvme_interrupt new_irq = {0};
-
-    pr_info("Set interrupts, Type: %s, num_irqs:%d\n", int_type[irq_type], num_irqs);
-    #ifdef AMD_MB_EN
-    //Warning: AMD MB may not support msi-multi
-    if (irq_type == NVME_INT_MSI_MULTI)
-    {
-        irq_type = NVME_INT_MSIX;
-        pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
-    }
-    #endif
-
-    g_nvme_dev.irq_type = irq_type;
-
-    new_irq.irq_type = irq_type;
-    new_irq.num_irqs = num_irqs;
-
-    ret_val = ioctl(fd, NVME_IOCTL_SET_IRQ, &new_irq);
-    if (ret_val < 0)
-    {
-        pr_err("Set interrupts ioctl \033[31mfailed!\033[0m\n");
-    }
-    else
-    {
-        pr_debug("Set interrupts ioctl success!\n");
-    }
-}
-
-void mask_irqs(int fd, uint16_t irq_no)
-{
-    int ret_val;
-
-    ret_val = ioctl(fd, NVME_IOCTL_MASK_IRQ, irq_no);
-    if (ret_val < 0)
-    {
-        pr_err("mask interrupts ioctl \033[31mfailed!\033[0m\n");
-    }
-    else
-    {
-        pr_debug("mask interrupts ioctl success!\n");
-    }
-}
-
-void umask_irqs(int fd, uint16_t irq_no)
-{
-    int ret_val;
-
-    ret_val = ioctl(fd, NVME_IOCTL_UNMASK_IRQ, irq_no);
-    if (ret_val < 0)
-    {
-        pr_err("unmask interrupts ioctl \033[31mfailed!\033[0m\n");
-    }
-    else
-    {
-        pr_debug("unmask interrupts ioctl success!\n");
-    }
-}
 
 void test_irq_review568(int fd)
 {
@@ -99,12 +31,14 @@ void test_irq_review568(int fd)
     while (i)
     {
         pr_info("\nIRQ Loop Test = %d\n", i + 1);
-        set_irqs(fd, NVME_INT_MSIX, 2);
+        nvme_set_irq(fd, NVME_INT_MSIX, 2);
+        g_nvme_dev.irq_type = NVME_INT_MSIX;
         i--;
     }
-    set_irqs(g_fd, NVME_INT_NONE, 0);
+    nvme_set_irq(g_fd, NVME_INT_NONE, 0);
+    g_nvme_dev.irq_type = NVME_INT_NONE;
     pr_info("\nCalling Dump Metrics to irq_loop_test\n");
-    ioctl_dump(fd, "/tmp/test_rev568.txt");
+    nvme_dump_log(fd, "/tmp/test_rev568.txt");
     pr_info("\nPressAny key..\n");
     getchar();
 }
@@ -133,7 +67,7 @@ void test_loop_irq(int fd)
     while (ioctl_reap_inquiry(fd, 0) != (num + cmds))
         ;
 
-    ioctl_dump(fd, "/tmp/irq_loop_test.txt");
+    nvme_dump_log(fd, "/tmp/irq_loop_test.txt");
     free(rd_buffer);
 }
 

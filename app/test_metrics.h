@@ -164,7 +164,6 @@ void test_meta(int g_fd);
 uint32_t create_meta_buf(int g_fd, uint32_t id);
 int ioctl_meta_node_delete(int g_fd, uint32_t id);
 
-void ioctl_dump(int g_fd, char *tmpfile);
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
 void admin_queue_config(int g_fd);
 void test_irq_review568(int fd);
