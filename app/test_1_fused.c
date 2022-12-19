@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -115,7 +116,7 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         }
         else
@@ -128,7 +129,7 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         }
         else
@@ -142,7 +143,7 @@ static uint32_t sub_case_cmpare_write_fused_cmd(void)
         test_flag |= nvme_io_write_cmd(g_fd, NVME_CMD_FUSE_SECOND, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, 2, &reap_num);
         }
         else

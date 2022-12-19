@@ -97,6 +97,10 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 		return "NVME_GET_DRIVER_INFO";
 	case NVME_IOCTL_GET_DEVICE_INFO:
 		return "NVME_GET_DEVICE_INFO";
+	case NVME_IOCTL_GET_SQ_INFO:
+		return "NVME_GET_SQ_INFO";
+	case NVME_IOCTL_GET_CQ_INFO:
+		return "NVME_GET_CQ_INFO";
 	case NVME_IOCTL_GET_CAPABILITY:
 		return "NVME_GET_CAPABILITY";
 
@@ -116,14 +120,11 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 	case NVME_IOCTL_PREPARE_IOCQ:
 		return "NVME_PREPARE_IOCQ";
 
-	case NVME_IOCTL_GET_QUEUE:
-		return "NVME_GET_QUEUE";
-
 	case NVME_IOCTL_RING_SQ_DOORBELL:
 		return "NVME_RING_SQ_DOORBELL";
 
-	case NVME_IOCTL_SEND_64B_CMD:
-		return "NVME_SEND_64B_CMD";
+	case NVME_IOCTL_SUBMIT_64B_CMD:
+		return "NVME_SUBMIT_64B_CMD";
 
 	case NVME_IOCTL_INQUIRY_CQE:
 		return "NVME_INQUIRY_CQE";

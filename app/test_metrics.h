@@ -143,9 +143,6 @@ struct nvme_cq_info
 
 //--------------------------------------------------------------------------------
 
-void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size);
-int ioctl_tst_ring_dbl(int g_fd, int sq_id);
-
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);
 
 int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
@@ -155,7 +152,6 @@ int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
 int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                             enum fua_sts fua_sts, void *addr, uint32_t buf_size);
 
-uint32_t ioctl_reap_inquiry(int g_fd, int cq_id);
 int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display);
 
 void test_meta(int g_fd);

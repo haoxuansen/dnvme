@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -45,7 +46,7 @@ static void test_sub(void)
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
     test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -55,7 +56,7 @@ static void test_sub(void)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
@@ -77,7 +78,7 @@ static void test_sub(void)
     }
     pr_info("send cmd num: %d\n", cmd_cnt);
     /**********************************************************************/
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
     /**********************************************************************/
     //reap cq
     test_flag |= cq_gain(io_cq_id, (DWORD_RAND() % (cmd_cnt + 1)), &reap_num);

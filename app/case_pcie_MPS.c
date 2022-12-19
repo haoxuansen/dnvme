@@ -8,6 +8,7 @@
 
 #include "dnvme_ioctl.h"
 #include "pci.h"
+#include "queue.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -99,7 +100,7 @@ static void pcie_packet(void)
         cmd_cnt++;
     }
     pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
-    ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    nvme_ring_sq_doorbell(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 }
@@ -140,7 +141,7 @@ int case_pcie_MPS(void)
     cq_parameter.irq_no = io_cq_id;
     test_flag |= create_iocq(g_fd, &cq_parameter);
     pr_info("Ringing Doorbell for NVME_AQ_ID\n");
-    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
@@ -152,7 +153,7 @@ int case_pcie_MPS(void)
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(g_fd, &sq_parameter);
     pr_info("Ringing Doorbell for NVME_AQ_ID\n");
-    ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 

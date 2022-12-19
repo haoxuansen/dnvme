@@ -22,6 +22,7 @@
 #include "overview.h"
 #include "pci.h"
 #include "meta.h"
+#include "queue.h"
 #include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -146,7 +147,7 @@ static int case_send_io_write_cmd(void)
 	cmd_cnt++;
 	if (ret == 0) {
 		/* !TODO: Check return value! */
-		ioctl_tst_ring_dbl(g_fd, sq_id);
+		nvme_ring_sq_doorbell(g_fd, sq_id);
 		pr_info("Ringing Doorbell for sq_id %d\n", sq_id);
 		cq_gain(cq_id, cmd_cnt, &reap_num);
 		pr_info("cq reaped ok! reap_num:%d\n", reap_num);
@@ -182,10 +183,10 @@ static int case_send_io_read_cmd(void)
 		}
 	}
 	pr_info("Ringing Doorbell for sq_id %u\n", sq_id);
-	ioctl_tst_ring_dbl(g_fd, sq_id);
+	nvme_ring_sq_doorbell(g_fd, sq_id);
 	cq_gain(cq_id, cmd_cnt, &reap_num);
 	pr_info("cq reaped ok! reap_num:%d\n", reap_num);
-	// ioctl_tst_ring_dbl(g_fd, 0);
+	// nvme_ring_sq_doorbell(g_fd, 0);
 	return 0;
 }
 
@@ -201,13 +202,13 @@ static int case_send_io_compare_cmd(void)
 	pr_info("Send IO cmp cmd slba=%ld, this shouldn't be output warning!(FPGA-06 may not work!)\n", wr_slba);
 	ioctl_send_nvme_compare(g_fd, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, g_read_buf, wr_nlb * LBA_DAT_SIZE);
 
-	ioctl_tst_ring_dbl(g_fd, io_sq_id);
+	nvme_ring_sq_doorbell(g_fd, io_sq_id);
 	cq_gain(io_cq_id, 1, &reap_num);
 	pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
 	pr_info("Send IO cmp cmd slba=%ld, this should be output warning!\n", wr_slba + 3);
 	ioctl_send_nvme_compare(g_fd, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, g_read_buf, wr_nlb * LBA_DAT_SIZE);
-	ioctl_tst_ring_dbl(g_fd, io_sq_id);
+	nvme_ring_sq_doorbell(g_fd, io_sq_id);
 	cq_gain(io_cq_id, 1, &reap_num);
 	pr_info("cq reaped ok! reap_num:%d\n", reap_num);
 	return 0;
@@ -333,7 +334,7 @@ static int case_unknown3(void)
 			cmd_cnt++;
 			if (ret == SUCCEED)
 			{
-				ioctl_tst_ring_dbl(g_fd, io_sq_id);
+				nvme_ring_sq_doorbell(g_fd, io_sq_id);
 				cq_gain(io_cq_id, cmd_cnt, &reap_num);
 				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 			}
@@ -346,7 +347,7 @@ static int case_unknown3(void)
 			fwdma_parameter.cdw10 = data_len;  //data_len
 			fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
 			nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
-			ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+			nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 			cq_gain(NVME_AQ_ID, 1, &reap_num);
 			pr_info("\nfwdma wr cmd send done!\n");
 
@@ -354,7 +355,7 @@ static int case_unknown3(void)
 			cmd_cnt++;
 			if (ret == SUCCEED)
 			{
-				ioctl_tst_ring_dbl(g_fd, io_sq_id);
+				nvme_ring_sq_doorbell(g_fd, io_sq_id);
 				cq_gain(io_cq_id, cmd_cnt, &reap_num);
 				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 			}
@@ -382,7 +383,7 @@ static int case_unknown4(void)
 	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
 	fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] dec chk,
 	nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
-	ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+	nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	pr_info("host2reg tets send_maxio_fwdma_rd\n");
@@ -394,7 +395,7 @@ static int case_unknown4(void)
 	fwdma_parameter.cdw12 &= ~(1 << 2); //flag bit[2] enc chk,
 
 	nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
-	ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+	nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	return 0;
@@ -424,7 +425,7 @@ static int case_write_fwdma(void)
 			// fwdma_parameter.cdw12 |= (1<<2);                //flag bit[2] enc chk,
 			nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
 		}
-		ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+		nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 		cq_gain(NVME_AQ_ID, 1, &reap_num);
 		pr_info("\nfwdma wr cmd send done!\n");
 	}
@@ -446,7 +447,7 @@ static int case_read_fwdma(void)
 	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
 	// fwdma_parameter.cdw12 |= (1<<2);                 //flag bit[2] dec chk,
 	nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
-	ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+	nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\nfwdma wr cmd send done!\n");
 
@@ -475,12 +476,12 @@ static int case_unknown5(void)
 
 		fwdma_parameter.addr = g_write_buf;
 		nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
-		ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+		nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 		cq_gain(NVME_AQ_ID, 1, &reap_num);
 
 		fwdma_parameter.addr = g_read_buf;
 		nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
-		ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+		nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 		cq_gain(NVME_AQ_ID, 1, &reap_num);
 
 		if (FAILED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE))

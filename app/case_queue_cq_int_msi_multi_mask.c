@@ -7,6 +7,7 @@
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
 #include "irq.h"
+#include "queue.h"
 
 #include "auto_header.h"
 #include "common.h"
@@ -123,7 +124,7 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         cq_parameter.irq_no = irq_no_arr[q_index - 1];
         //pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
         test_flag |= create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         //admin error(mask bit0)
         if (check_admin_status == 1)
         {
@@ -152,7 +153,7 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
         test_flag |= create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -170,7 +171,7 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
             cmd_cnt++;
             wr_slba += wr_nlb;
         }
-        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
         //check msi int bit error
         if (check_status == 1)
         {
@@ -193,11 +194,11 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         }
         /**********************************************************************/
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/

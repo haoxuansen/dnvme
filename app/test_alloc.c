@@ -25,33 +25,12 @@
 #include "byteorder.h"
 #include "dnvme_ioctl.h"
 #include "meta.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_cq_gain.h"
-
-uint32_t ioctl_reap_inquiry(int g_fd, int cq_id)
-{
-    int ret_val = -1;
-    struct nvme_inquiry rp_inq = {0};
-
-    rp_inq.q_id = cq_id;
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_INQUIRY_CQE, &rp_inq);
-    if (ret_val < 0)
-    {
-        pr_err("reap inquiry Failed! ret_val:%d\n", ret_val);
-        exit(-1);
-    }
-    // else
-    // {
-    //     if (rp_inq.num_remaining)
-    //         pr_info("\tReap Inquiry on CQ ID = %d, Num_Remaining = %d, ISR_count = %d\n",
-    //                rp_inq.q_id, rp_inq.num_remaining, rp_inq.isr_count);
-    // }
-    return rp_inq.num_remaining;
-}
 
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display)
 {
@@ -99,7 +78,7 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display)
         pr_err("Malloc Failed");
         return -1;
     }
-    ret_val = ioctl(g_fd, NVME_IOCTL_REAP_CQE, &rp_cq);
+    ret_val = nvme_reap_cq_entries(g_fd, &rp_cq);
     if (ret_val < 0)
     {
         pr_err("reap cq Failed! ret_val:%d\n", ret_val);

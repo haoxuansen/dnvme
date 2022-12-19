@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -110,7 +111,7 @@ static uint32_t sub_case_cq_int_coalescing(void)
     aggr_time = 255; // max
     aggr_thr = 5;    // 0' beaed
     test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
-    test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
     test_flag |= cq_gain(0, 1, &reap_num);
     /**********************************************************************/
     for (uint16_t i = 0; i < queue_num; i++)
@@ -119,7 +120,7 @@ static uint32_t sub_case_cq_int_coalescing(void)
         coals_disable = 0;
         test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
     test_flag |= cq_gain(0, queue_num, &reap_num);
     /**********************************************************************/
 
@@ -138,7 +139,7 @@ static uint32_t sub_case_cq_int_coalescing(void)
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        test_flag |= ioctl_tst_ring_dbl(g_fd, ctrl_sq_info[i].sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, ctrl_sq_info[i].sq_id);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {

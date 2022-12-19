@@ -7,6 +7,7 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -287,7 +288,7 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         test_flag |= create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -298,7 +299,7 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = LOW_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -316,7 +317,7 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -327,7 +328,7 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -345,7 +346,7 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -356,7 +357,7 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = URGENT_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -374,7 +375,7 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         create_iocq(g_fd, &cq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
 
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
@@ -386,7 +387,7 @@ static void test_sub(void)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = HIGH_PRIO;
         create_iosq(g_fd, &sq_parameter);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -457,28 +458,28 @@ static void test_sub(void)
     // pr_info("!!!!!!!!!!!!!!!!!!!!!before dbl sleep(20)\n");
     // sleep(20);
     io_sq_id = 3;
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     io_sq_id = 1;
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     io_sq_id = 2;
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     io_sq_id = 4;
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     // io_sq_id = 5;
-    // test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    // test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     // io_sq_id = 6;
-    // test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    // test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     // io_sq_id = 7;
-    // test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    // test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     // io_sq_id = 8;
-    // test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    // test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
     // pr_info("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@after dbl sleep(30)\n");
     // sleep(30);
@@ -504,13 +505,13 @@ static void test_sub(void)
         io_sq_id = q_index;
         /**********************************************************************/
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-        test_flag |= ioctl_tst_ring_dbl(g_fd, NVME_AQ_ID);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
         pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -575,7 +576,7 @@ int case_command_arbitration(void)
     Arbit_LPW = 10;  //u8 This is a 0’s based value.
     Arbit_AB = 4;    //2^n Arbitration Burst (AB):
     test_flag |= nvme_set_feature_cmd(g_fd, 1, NVME_FEAT_ARBITRATION, ((Arbit_LPW << 8) | (Arbit_AB & 0x07)), ((Arbit_HPW << 8) | Arbit_MPW));
-    test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
     test_flag |= cq_gain(0, 1, &reap_num);
 
     /**********************************************************************/

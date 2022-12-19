@@ -9,6 +9,7 @@
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
 #include "pci.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -342,7 +343,7 @@ static uint32_t sub_case_iocmd_nvme_reg(void)
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -362,7 +363,7 @@ static uint32_t sub_case_iocmd_nvme_reg(void)
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -416,7 +417,7 @@ static uint32_t sub_case_iocmd_nvme_reg_normal(void)
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -436,7 +437,7 @@ static uint32_t sub_case_iocmd_nvme_reg_normal(void)
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);

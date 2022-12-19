@@ -17,6 +17,7 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -87,7 +88,7 @@ uint32_t iocmd_cstc_rdy_test(void)
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
         }
-        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
 	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
 	if (ret < 0)
@@ -105,7 +106,7 @@ uint32_t iocmd_cstc_rdy_test(void)
             test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
-        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
 	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
 	if (ret < 0)

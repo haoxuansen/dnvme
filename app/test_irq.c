@@ -54,7 +54,7 @@ void test_loop_irq(int fd)
         pr_err("Memalign Failed");
         return;
     }
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     /* Submit 10 cmds */
     pr_info("\nEnter no of commands in ACQ:");
     fflush(stdout);
@@ -64,8 +64,8 @@ void test_loop_irq(int fd)
         nvme_idfy_ctrl(fd, rd_buffer);
     }
 
-    ioctl_tst_ring_dbl(fd, 0); /* Ring Admin Q Doorbell */
-    while (ioctl_reap_inquiry(fd, 0) != (num + cmds))
+    nvme_ring_sq_doorbell(fd, 0); /* Ring Admin Q Doorbell */
+    while (nvme_inquiry_cq_entries(fd, 0) != (num + cmds))
         ;
 
     nvme_dump_log(fd, "/tmp/irq_loop_test.txt");
@@ -97,7 +97,7 @@ int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -134,7 +134,7 @@ int irq_for_io_contig(int g_fd, int cq_id, int irq_no,
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -171,7 +171,7 @@ void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -208,7 +208,7 @@ void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -242,7 +242,7 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_64b_cmd(fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending Admin Command Create IO CQ ID:%d \033[31mfailed!\033[0m\n", cq_id);
@@ -266,15 +266,15 @@ void set_cq_irq(int fd, void *p_dcq_buf)
     cq_id = 20;
     irq_no = 1;
     cq_flags = 0x2;
-    // num = ioctl_reap_inquiry(fd, 0);
-    ioctl_reap_inquiry(fd, 0);
+    // num = nvme_inquiry_cq_entries(fd, 0);
+    nvme_inquiry_cq_entries(fd, 0);
 
     ret_val = nvme_prepare_iocq(fd, cq_id, PAGE_SIZE_I, 0, 1, 0);
     if (ret_val < 0)
         exit(-1);
     ret_val = irq_for_io_discontig(fd, cq_id, irq_no, cq_flags,
                                    PAGE_SIZE_I, p_dcq_buf);
-    ioctl_tst_ring_dbl(fd, 0);
+    nvme_ring_sq_doorbell(fd, 0);
     /* contig case */
     cq_id = 2;
     irq_no = 2;
@@ -305,7 +305,7 @@ void set_cq_irq(int fd, void *p_dcq_buf)
 
     ret_val = irq_for_io_contig(fd, cq_id, irq_no, cq_flags, PAGE_SIZE_I);
 
-    ioctl_tst_ring_dbl(fd, 0);
+    nvme_ring_sq_doorbell(fd, 0);
 
     test_reap_cq(fd, 0, 3, 1);
 }
@@ -333,7 +333,7 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_64b_cmd(fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -367,7 +367,7 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 2;
 
-    ret_val = nvme_64b_cmd(fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -386,14 +386,14 @@ void set_sq_irq(int fd, void *addr)
     // int num;
     int ret_val;
 
-    ioctl_reap_inquiry(fd, 0);
+    nvme_inquiry_cq_entries(fd, 0);
     sq_id = 31;
     assoc_cq_id = 2;
     ret_val = nvme_prepare_iosq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 0);
     if (ret_val < 0)
         return;
     ret_val = irq_cr_disc_io_sq(fd, addr, sq_id, assoc_cq_id, PAGE_SIZE_I);
-    ioctl_tst_ring_dbl(fd, 0);
+    nvme_ring_sq_doorbell(fd, 0);
     /* Contig SQ */
     sq_id = 2;
     assoc_cq_id = 2;
@@ -416,7 +416,7 @@ void set_sq_irq(int fd, void *addr)
         return;
     ret_val = irq_cr_contig_io_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I);
 
-    ioctl_tst_ring_dbl(fd, 0);
+    nvme_ring_sq_doorbell(fd, 0);
     test_reap_cq(fd, 0, 3, 1);
 }
 
@@ -433,22 +433,22 @@ void test_contig_threeio_irq(int fd, void *addr0, void *addr1, void *addr2)
     assoc_cq_id = 21;
     create_meta_buf(fd, meta_index);
     send_nvme_read_mb(fd, sq_id, addr0, meta_index);
-    ioctl_tst_ring_dbl(fd, sq_id);
+    nvme_ring_sq_doorbell(fd, sq_id);
 
     /* SQ:CQ 33:22 */
     sq_id = 33;
     assoc_cq_id = 22;
     test_irq_send_nvme_read(fd, sq_id, addr1);
-    ioctl_tst_ring_dbl(fd, sq_id);
+    nvme_ring_sq_doorbell(fd, sq_id);
 
     /* SQ:CQ 34:23 */
 
     sq_id = 34;
     assoc_cq_id = 23;
-    num = ioctl_reap_inquiry(fd, assoc_cq_id);
+    num = nvme_inquiry_cq_entries(fd, assoc_cq_id);
     test_irq_send_nvme_read(fd, sq_id, addr2);
-    ioctl_tst_ring_dbl(fd, sq_id);
-    while (ioctl_reap_inquiry(fd, assoc_cq_id) != num + 1)
+    nvme_ring_sq_doorbell(fd, sq_id);
+    while (nvme_inquiry_cq_entries(fd, assoc_cq_id) != num + 1)
         ;
     ioctl_reap_cq(fd, assoc_cq_id, 1, 16, 0);
 
@@ -462,10 +462,10 @@ void test_discontig_io_irq(int fd, void *addr)
     /* SQ:CQ 31:20 */
     sq_id = 31;
     assoc_cq_id = 20;
-    num = ioctl_reap_inquiry(fd, assoc_cq_id);
+    num = nvme_inquiry_cq_entries(fd, assoc_cq_id);
     test_irq_send_nvme_read(fd, sq_id, addr);
-    ioctl_tst_ring_dbl(fd, sq_id);
-    while (ioctl_reap_inquiry(fd, assoc_cq_id) != num + 1)
+    nvme_ring_sq_doorbell(fd, sq_id);
+    while (nvme_inquiry_cq_entries(fd, assoc_cq_id) != num + 1)
         ;
     ioctl_reap_cq(fd, assoc_cq_id, 1, 16, 0);
 }
@@ -484,69 +484,69 @@ void test_irq_delete(int fd)
     /* SQ Case */
     op_code = 0x0;
     q_id = 32;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
 
     /* SQ Case */
     op_code = 0x0;
     q_id = 31;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
     /* SQ Case */
     op_code = 0x0;
     q_id = 33;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
 
     /* SQ Case */
     op_code = 0x0;
     q_id = 34;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
 
     /* CQ case */
     op_code = 0x4;
     q_id = 21;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
 
     /* CQ case */
     op_code = 0x4;
     q_id = 22;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
     /* CQ case */
     op_code = 0x4;
     q_id = 23;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
     /* CQ case */
     op_code = 0x4;
     q_id = 20;
-    num = ioctl_reap_inquiry(fd, 0);
+    num = nvme_inquiry_cq_entries(fd, 0);
     ioctl_delete_ioq(fd, op_code, q_id);
-    ioctl_tst_ring_dbl(fd, 0);
-    while (ioctl_reap_inquiry(fd, 0) != num + 1)
+    nvme_ring_sq_doorbell(fd, 0);
+    while (nvme_inquiry_cq_entries(fd, 0) != num + 1)
         ;
 }

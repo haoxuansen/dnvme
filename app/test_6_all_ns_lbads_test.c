@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -113,7 +114,7 @@ static uint32_t sub_case_all_ns_wr_rd_cmp(void)
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         }
         else
@@ -126,7 +127,7 @@ static uint32_t sub_case_all_ns_wr_rd_cmp(void)
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
-            test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         }
         else

@@ -518,58 +518,51 @@ void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id)
 	kfree(meta);
 }
 
-int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq)
+int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *usqp)
 {
-	struct nvme_get_queue q;
+	struct nvme_sq_public sqp;
 	struct nvme_sq *sq;
-	struct nvme_cq *cq;
 
-	if (copy_from_user(&q, uq, sizeof(q))) {
+	if (copy_from_user(&sqp, usqp, sizeof(sqp))) {
 		dnvme_err("failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
-	switch (q.type) {
-	case NVME_SQ:
-		if (q.bytes < sizeof(struct nvme_sq_public)) {
-			dnvme_err("No sufficient buf to copy SQ info!\n");
-			return -EINVAL;
-		}
+	sq = dnvme_find_sq(ctx, sqp.sq_id);
+	if (!sq) {
+		dnvme_err("SQ(%u) doesn't exist!\n", sqp.sq_id);
+		return -EBADSLT;
+	}
 
-		sq = dnvme_find_sq(ctx, q.q_id);
-		if (!sq) {
-			dnvme_err("SQ(%u) doesn't exist!\n", q.q_id);
-			return -EBADSLT;
-		}
-
-		if (copy_to_user(q.buf, &sq->pub, sizeof(struct nvme_sq_public))) {
-			dnvme_err("failed to copy to user space!\n");
-			return -EFAULT;
-		}
-		break;
-
-	case NVME_CQ:
-		if (q.bytes < sizeof(struct nvme_cq_public)) {
-			dnvme_err("No sufficient buf to copy CQ info!\n");
-			return -EINVAL;
-		}
-
-		cq = dnvme_find_cq(ctx, q.q_id);
-		if (!cq) {
-			dnvme_err("CQ(%u) doesn't exist!\n", q.q_id);
-			return -EBADSLT;
-		}
-
-		if (copy_to_user(q.buf, &cq->pub, sizeof(struct nvme_cq_public))) {
-			dnvme_err("failed to copy to user space!\n");
-			return -EFAULT;
-		}
-		break;
-
-	default:
-		dnvme_err("queue type(%d) is unknown!\n", q.type);
-		return -EINVAL;
+	if (copy_to_user(usqp, &sq->pub, sizeof(struct nvme_sq_public))) {
+		dnvme_err("failed to copy to user space!\n");
+		return -EFAULT;
 	}
 
 	return 0;
 }
+
+int dnvme_get_cq_info(struct nvme_context *ctx, struct nvme_cq_public __user *ucqp)
+{
+	struct nvme_cq_public cqp;
+	struct nvme_cq *cq;
+
+	if (copy_from_user(&cqp, ucqp, sizeof(cqp))) {
+		dnvme_err("failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	cq = dnvme_find_cq(ctx, cqp.q_id);
+	if (!cq) {
+		dnvme_err("CQ(%u) doesn't exist!\n", cqp.q_id);
+		return -EBADSLT;
+	}
+
+	if (copy_to_user(ucqp, &cq->pub, sizeof(struct nvme_cq_public))) {
+		dnvme_err("failed to copy to user space!\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+

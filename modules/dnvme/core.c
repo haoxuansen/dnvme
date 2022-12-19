@@ -284,6 +284,28 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	ndev = ctx->dev;
 
 	switch (cmd) {
+	case NVME_IOCTL_GET_DRIVER_INFO:
+		if (copy_to_user(argp, &nvme_drv, sizeof(struct nvme_driver))) {
+			dnvme_err("failed to copy to user space!\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case NVME_IOCTL_GET_DEVICE_INFO:
+		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
+			dnvme_err("failed to copy to user space!\n");
+			ret = -EFAULT;
+		}
+		break;
+
+	case NVME_IOCTL_GET_SQ_INFO:
+		ret = dnvme_get_sq_info(ctx, argp);
+		break;
+
+	case NVME_IOCTL_GET_CQ_INFO:
+		ret = dnvme_get_cq_info(ctx, argp);
+		break;
+
 	case NVME_IOCTL_READ_GENERIC:
 		ret = dnvme_generic_read(ctx, argp);
 		break;
@@ -307,10 +329,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_set_device_state(ctx, (enum nvme_state)arg);
 		break;
 
-	case NVME_IOCTL_GET_QUEUE:
-		ret = dnvme_get_queue(ctx, argp);
-		break;
-
 	case NVME_IOCTL_PREPARE_IOSQ:
 		ret = dnvme_prepare_sq(ctx, argp);
 		break;
@@ -323,7 +341,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_ring_sq_doorbell(ctx, (u16)arg);
 		break;
 
-	case NVME_IOCTL_SEND_64B_CMD:
+	case NVME_IOCTL_SUBMIT_64B_CMD:
 		ret = dnvme_send_64b_cmd(ctx, argp);
 		break;
 
@@ -337,13 +355,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_REAP_CQE:
 		ret = dnvme_reap_cqe(ctx, argp);
-		break;
-
-	case NVME_IOCTL_GET_DRIVER_INFO:
-		if (copy_to_user(argp, &nvme_drv, sizeof(struct nvme_driver))) {
-			dnvme_err("failed to copy to user space!\n");
-			ret = -EFAULT;
-		}
 		break;
 
 	case NVME_IOCTL_CREATE_META_POOL:
@@ -372,13 +383,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_UNMASK_IRQ:
 		ret = dnvme_unmask_interrupt(&ctx->irq_set, (u16)arg);
-		break;
-
-	case NVME_IOCTL_GET_DEVICE_INFO:
-		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
-			dnvme_err("failed to copy to user space!\n");
-			ret = -EFAULT;
-		}
 		break;
 
 	default:

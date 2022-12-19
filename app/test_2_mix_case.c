@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -128,7 +129,7 @@ static uint32_t sub_case_io_cmd(void)
                 if (test_flag == SUCCEED)
                 {
                     cmd_cnt++;
-                    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+                    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
                     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
                 }
                 else
@@ -141,7 +142,7 @@ static uint32_t sub_case_io_cmd(void)
                 if (test_flag == SUCCEED)
                 {
                     cmd_cnt++;
-                    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+                    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
                     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
                 }
                 else
@@ -207,7 +208,7 @@ static uint32_t sub_case_fwdma_cmd(void)
     test_flag |= nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
     if (SUCCEED == test_flag)
     {
-        test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
         test_flag |= cq_gain(0, 1, &reap_num);
     }
 
@@ -215,7 +216,7 @@ static uint32_t sub_case_fwdma_cmd(void)
     test_flag |= nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
     if (SUCCEED == test_flag)
     {
-        test_flag |= ioctl_tst_ring_dbl(g_fd, 0);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
         test_flag |= cq_gain(0, 1, &reap_num);
     }
 

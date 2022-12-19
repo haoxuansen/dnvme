@@ -7,6 +7,7 @@
 #include "dnvme_ioctl.h"
 #include "pci.h"
 #include "irq.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -90,7 +91,7 @@ static uint32_t sub_case_int_queue_mask(void)
     {
         io_sq_id = ctrl_sq_info[i].sq_id;
         io_cq_id = ctrl_sq_info[i].cq_id;
-        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
         nvme_mask_irq(g_fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
     }
     usleep(10000);
@@ -147,7 +148,7 @@ static uint32_t sub_case_pending_bit(void)
     for (uint16_t i = 0; i < queue_num; i++)
     {
         io_sq_id = ctrl_sq_info[i].sq_id;
-        test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
         nvme_mask_irq(g_fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
     }
     sleep(10);

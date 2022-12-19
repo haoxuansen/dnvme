@@ -8,6 +8,7 @@
 
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -194,7 +195,7 @@ int writeing_boot_partition(void)
 
     if (SUCCEED == nvme_firmware_download(g_fd, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
     {
-        ioctl_tst_ring_dbl(g_fd, 0);
+        nvme_ring_sq_doorbell(g_fd, 0);
         cq_gain(0, 1, &reap_num);
     }
 

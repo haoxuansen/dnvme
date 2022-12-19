@@ -17,7 +17,8 @@ int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state);
 int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess);
 
-int dnvme_get_queue(struct nvme_context *ctx, struct nvme_get_queue __user *uq);
+int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *usqp);
+int dnvme_get_cq_info(struct nvme_context *ctx, struct nvme_cq_public __user *ucqp);
 
 int dnvme_create_admin_queue(struct nvme_context *ctx, 
 	struct nvme_admin_queue __user *uaq);

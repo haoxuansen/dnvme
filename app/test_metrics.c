@@ -32,76 +32,6 @@
 #include "test_irq.h"
 #include "unittest.h"
 
-/*
- * Functions for the ioctl calls
-*/
-void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size)
-{
-    int ret_val = -1;
-    uint16_t tmp;
-    struct nvme_get_queue get_q_metrics = {0};
-
-    pr_debug("User App Calling Get Q Metrics...\n");
-
-    get_q_metrics.q_id = q_id;
-    get_q_metrics.type = q_type;
-    get_q_metrics.bytes = size;
-
-    if (q_type == 1)
-    {
-        get_q_metrics.buf = malloc(sizeof(uint8_t) *
-                                      sizeof(struct nvme_sq_public));
-    }
-    else
-    {
-        get_q_metrics.buf = malloc(sizeof(uint8_t) *
-                                      sizeof(struct nvme_cq_public));
-    }
-    if (get_q_metrics.buf == NULL)
-    {
-        pr_err("Malloc Failed");
-        return;
-    }
-    ret_val = ioctl(g_fd, NVME_IOCTL_GET_QUEUE, &get_q_metrics);
-
-    if (ret_val < 0)
-    {
-        pr_err("\tQ metrics could not be checked!\n");
-    }
-    else
-    {
-        if (q_type == 1)
-        {
-            memcpy(&tmp, &get_q_metrics.buf[0], sizeof(uint16_t));
-            pr_debug("\nMetrics for SQ Id = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[2], sizeof(uint16_t));
-            pr_debug("\tCQ Id = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[4], sizeof(uint16_t));
-            pr_debug("\tTail Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[6], sizeof(uint16_t));
-            pr_debug("\tTail_Ptr_Virt = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[8], sizeof(uint16_t));
-            pr_debug("\tHead Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[10], sizeof(uint16_t));
-            pr_debug("\tElements = %d\n", tmp);
-        }
-        else
-        {
-            memcpy(&tmp, &get_q_metrics.buf[0], sizeof(uint16_t));
-            pr_debug("\nMetrics for CQ Id = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[2], sizeof(uint16_t));
-            pr_debug("\tTail_Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[4], sizeof(uint16_t));
-            pr_debug("\tHead Ptr = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[6], sizeof(uint16_t));
-            pr_debug("\tElements = %d\n", tmp);
-            memcpy(&tmp, &get_q_metrics.buf[8], sizeof(uint16_t));
-            pr_debug("\tIrq Enabled = %d\n", tmp);
-        }
-    }
-    free(get_q_metrics.buf);
-}
-
 void admin_queue_config(int g_fd)
 {
     nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
@@ -120,7 +50,7 @@ int test_create_contig_iosq(int g_fd, uint16_t io_sq_id, uint16_t io_cq_id, uint
 
 int test_reap_cq(int g_fd, int cq_id, uint32_t cmd_cnt, int disp_flag)
 {
-    while (ioctl_reap_inquiry(g_fd, cq_id) != cmd_cnt)
+    while (nvme_inquiry_cq_entries(g_fd, cq_id) != cmd_cnt)
         usleep(50);
     return (ioctl_reap_cq(g_fd, cq_id, cmd_cnt, 16, disp_flag));
 }
@@ -134,7 +64,7 @@ struct nvme_completion *send_get_feature(int g_fd, uint8_t feature_id)
         pr_err("send get feature cmd Failed!\n");
     }
     // ring doorbell
-    if (ioctl_tst_ring_dbl(g_fd, 0))
+    if (nvme_ring_sq_doorbell(g_fd, 0))
     {
         pr_err("DBL ERR!");
     }
@@ -235,12 +165,12 @@ void test_encrypt_decrypt(void)
     cmd_cnt = 0;
     nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
     cmd_cnt++;
-    ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    nvme_ring_sq_doorbell(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     cmd_cnt = 0;
     nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    nvme_ring_sq_doorbell(g_fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
     err_flg = 0;

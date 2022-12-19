@@ -15,6 +15,7 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+#include "queue.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -122,7 +123,7 @@ static uint32_t sub_case_disable_volatile_wc(void)
             cmd_cnt++;
         }
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     return test_flag;
@@ -150,7 +151,7 @@ static uint32_t sub_case_enable_volatile_wc(void)
             cmd_cnt++;
         }
     }
-    test_flag |= ioctl_tst_ring_dbl(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     return test_flag;
