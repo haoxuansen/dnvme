@@ -17,6 +17,7 @@
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
 #include "irq.h"
+#include "queue.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -224,7 +225,7 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
     struct nvme_create_cq create_cq_cmd = {0};
     int ret_val;
 
-    //ioctl_prep_cq(fd, cq_id, 20, 1);
+    //nvme_prepare_iocq(fd, cq_id, 20, 1, 1, 0);
 
     /* Fill the command for create contig IOSQ*/
     create_cq_cmd.opcode = 0x05;
@@ -268,7 +269,7 @@ void set_cq_irq(int fd, void *p_dcq_buf)
     // num = ioctl_reap_inquiry(fd, 0);
     ioctl_reap_inquiry(fd, 0);
 
-    ret_val = ioctl_prep_cq(fd, cq_id, PAGE_SIZE_I, 0);
+    ret_val = nvme_prepare_iocq(fd, cq_id, PAGE_SIZE_I, 0, 1, 0);
     if (ret_val < 0)
         exit(-1);
     ret_val = irq_for_io_discontig(fd, cq_id, irq_no, cq_flags,
@@ -279,7 +280,7 @@ void set_cq_irq(int fd, void *p_dcq_buf)
     irq_no = 2;
     cq_flags = 0x3;
 
-    ret_val = ioctl_prep_cq(fd, cq_id, PAGE_SIZE_I, 1);
+    ret_val = nvme_prepare_iocq(fd, cq_id, PAGE_SIZE_I, 1, 1, 0);
     if (ret_val < 0)
         exit(-1);
     ret_val = irq_for_io_contig(fd, cq_id, irq_no, cq_flags, PAGE_SIZE_I);
@@ -288,7 +289,7 @@ void set_cq_irq(int fd, void *p_dcq_buf)
     irq_no = 2;
     cq_flags = 0x3;
 
-    ret_val = ioctl_prep_cq(fd, cq_id, PAGE_SIZE_I, 1);
+    ret_val = nvme_prepare_iocq(fd, cq_id, PAGE_SIZE_I, 1, 1, 0);
     if (ret_val < 0)
         exit(-1);
 
@@ -298,7 +299,7 @@ void set_cq_irq(int fd, void *p_dcq_buf)
     irq_no = 3;
     cq_flags = 0x3;
 
-    ret_val = ioctl_prep_cq(fd, cq_id, PAGE_SIZE_I, 1);
+    ret_val = nvme_prepare_iocq(fd, cq_id, PAGE_SIZE_I, 1, 1, 0);
     if (ret_val < 0)
         exit(-1);
 
@@ -388,7 +389,7 @@ void set_sq_irq(int fd, void *addr)
     ioctl_reap_inquiry(fd, 0);
     sq_id = 31;
     assoc_cq_id = 2;
-    ret_val = ioctl_prep_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 0);
+    ret_val = nvme_prepare_iosq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 0);
     if (ret_val < 0)
         return;
     ret_val = irq_cr_disc_io_sq(fd, addr, sq_id, assoc_cq_id, PAGE_SIZE_I);
@@ -396,21 +397,21 @@ void set_sq_irq(int fd, void *addr)
     /* Contig SQ */
     sq_id = 2;
     assoc_cq_id = 2;
-    ret_val = ioctl_prep_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 1);
+    ret_val = nvme_prepare_iosq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 1);
     if (ret_val < 0)
         return;
     ret_val = irq_cr_contig_io_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I);
 
     sq_id = 3;
     assoc_cq_id = 3;
-    ret_val = ioctl_prep_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 1);
+    ret_val = nvme_prepare_iosq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 1);
     if (ret_val < 0)
         return;
     ret_val = irq_cr_contig_io_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I);
 
     sq_id = 4;
     assoc_cq_id = 4;
-    ret_val = ioctl_prep_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 1);
+    ret_val = nvme_prepare_iosq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I, 1);
     if (ret_val < 0)
         return;
     ret_val = irq_cr_contig_io_sq(fd, sq_id, assoc_cq_id, PAGE_SIZE_I);

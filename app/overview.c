@@ -21,6 +21,7 @@
 #include "common_define.h"
 #include "overview.h"
 #include "pci.h"
+#include "meta.h"
 #include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -269,7 +270,7 @@ static int case_unknown1(void)
 			pr_info("io write succeed\n");
 		}
 	}
-	ioctl_meta_node_delete(g_fd, 0);
+	nvme_delete_meta_node(g_fd, 0);
 	return 0;
 }
 
@@ -293,7 +294,7 @@ static int case_unknown2(void)
 			pr_info("io read succeed\n");
 		}
 	}
-	ioctl_meta_node_delete(g_fd, 0);
+	nvme_delete_meta_node(g_fd, 0);
 	return 0;
 }
 

@@ -311,11 +311,11 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_get_queue(ctx, argp);
 		break;
 
-	case NVME_IOCTL_PREPARE_SQ_CREATION:
+	case NVME_IOCTL_PREPARE_IOSQ:
 		ret = dnvme_prepare_sq(ctx, argp);
 		break;
 
-	case NVME_IOCTL_PREPARE_CQ_CREATION:
+	case NVME_IOCTL_PREPARE_IOCQ:
 		ret = dnvme_prepare_cq(ctx, argp);
 		break;
 

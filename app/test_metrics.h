@@ -144,8 +144,6 @@ struct nvme_cq_info
 //--------------------------------------------------------------------------------
 
 void ioctl_get_q_metrics(int g_fd, int q_id, int q_type, int size);
-int ioctl_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint16_t elem, uint8_t contig);
-int ioctl_prep_cq(int g_fd, uint16_t cq_id, uint16_t elem, uint8_t contig);
 int ioctl_tst_ring_dbl(int g_fd, int sq_id);
 
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);
@@ -162,7 +160,6 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display);
 
 void test_meta(int g_fd);
 uint32_t create_meta_buf(int g_fd, uint32_t id);
-int ioctl_meta_node_delete(int g_fd, uint32_t id);
 
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
 void admin_queue_config(int g_fd);

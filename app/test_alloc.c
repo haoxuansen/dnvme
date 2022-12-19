@@ -24,72 +24,12 @@
 
 #include "byteorder.h"
 #include "dnvme_ioctl.h"
+#include "meta.h"
 
 #include "common.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_cq_gain.h"
-
-int ioctl_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint16_t elem, uint8_t contig)
-{
-    int ret_val = -1;
-    struct nvme_prep_sq prep_sq = {0};
-
-    prep_sq.sq_id = sq_id;
-    prep_sq.cq_id = cq_id;
-    prep_sq.elements = elem;
-    prep_sq.contig = contig;
-    prep_sq.sq_prio = MEDIUM_PRIO;
-
-    pr_debug("Calling Prepare SQ Creation...");
-    pr_debug("  SQ ID = %d", prep_sq.sq_id);
-    pr_debug("  Assoc CQ ID = %d", prep_sq.cq_id);
-    pr_debug("  No. of Elem = %d", prep_sq.elements);
-    pr_debug("  Contig(Y|N=(1|0)) = %d\n", prep_sq.contig);
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
-
-    if (ret_val < 0)
-    {
-        pr_err("\tSQ ID = %d Preparation Failed!\n", prep_sq.sq_id);
-    }
-    else
-    {
-        pr_debug("\tSQ ID = %d Preparation success\n", prep_sq.sq_id);
-    }
-    return ret_val;
-}
-
-int ioctl_prep_cq(int g_fd, uint16_t cq_id, uint16_t elem, uint8_t contig)
-{
-    int ret_val = -1;
-    struct nvme_prep_cq prep_cq = {0};
-
-    prep_cq.cq_id = cq_id;
-    prep_cq.elements = elem;
-    prep_cq.contig = contig;
-    /***************************/
-    prep_cq.cq_irq_en = 1;
-    prep_cq.cq_irq_no = 0;
-    /***************************/
-
-    pr_debug("Calling Prepare CQ Creation...");
-    pr_debug("  CQ ID = %d", prep_cq.cq_id);
-    pr_debug("  No. of Elem = %d", prep_cq.elements);
-    pr_debug("  Contig(Y|N=(1|0)) = %d\n", prep_cq.contig);
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
-
-    if (ret_val < 0)
-    {
-        pr_err("\tCQ ID = %d Preparation Failed!\n", prep_cq.cq_id);
-    }
-    else
-    {
-        pr_debug("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
-    }
-    return ret_val;
-}
 
 uint32_t ioctl_reap_inquiry(int g_fd, int cq_id)
 {
@@ -175,56 +115,11 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display)
     return ret_val;
 }
 
-int ioctl_meta_pool_create(int g_fd, uint32_t size)
-{
-    int ret_val;
-    ret_val = ioctl(g_fd, NVME_IOCTL_CREATE_META_POOL, size);
-    if (ret_val < 0)
-    {
-        pr_err("Meta data creation failed!\n");
-    }
-    else
-    {
-        pr_debug("Meta Data creation success!!\n");
-    }
-    return ret_val;
-}
-
-int ioctl_meta_node_create(int g_fd, uint32_t id)
-{
-    int ret_val;
-    ret_val = ioctl(g_fd, NVME_IOCTL_CREATE_META_NODE, id);
-    if (ret_val < 0)
-    {
-        pr_err("\nMeta Id = %d allocation failed!\n", id);
-    }
-    else
-    {
-        pr_debug("Meta Id = %d allocation success!!\n", id);
-    }
-    return ret_val;
-}
-
-int ioctl_meta_node_delete(int g_fd, uint32_t id)
-{
-    int ret_val;
-    ret_val = ioctl(g_fd, NVME_IOCTL_DELETE_META_NODE, id);
-    if (ret_val < 0)
-    {
-        pr_err("\nMeta Id = %d allocation failed!\n", id);
-    }
-    else
-    {
-        pr_debug("Meta Id = %d allocation success!!\n", id);
-    }
-    return ret_val;
-}
-
 uint32_t create_meta_buf(int g_fd, uint32_t id)
 {
     int ret_val;
-    ret_val = ioctl_meta_pool_create(g_fd, 4096);
-    ret_val = ioctl_meta_node_create(g_fd, id);
+    ret_val = nvme_create_meta_pool(g_fd, 4096);
+    ret_val = nvme_create_meta_node(g_fd, id);
     return ret_val;
 }
 
@@ -236,23 +131,23 @@ void test_meta(int g_fd)
     uint64_t *kadr;
 
     size = 4096;
-    ret_val = ioctl_meta_pool_create(g_fd, size);
+    ret_val = nvme_create_meta_pool(g_fd, size);
 
     for (id = 0; id < 20; id++)
     {
-        ret_val = ioctl_meta_node_create(g_fd, id);
+        ret_val = nvme_create_meta_node(g_fd, id);
     }
 
     id = 5;
-    ret_val = ioctl_meta_node_delete(g_fd, id);
+    ret_val = nvme_delete_meta_node(g_fd, id);
     id = 6;
-    ret_val = ioctl_meta_node_delete(g_fd, id);
+    ret_val = nvme_delete_meta_node(g_fd, id);
     id = 6;
-    ret_val = ioctl_meta_node_delete(g_fd, id);
+    ret_val = nvme_delete_meta_node(g_fd, id);
     id = 5;
-    ret_val = ioctl_meta_node_delete(g_fd, id);
+    ret_val = nvme_delete_meta_node(g_fd, id);
     id = 6;
-    ret_val = ioctl_meta_node_create(g_fd, id);
+    ret_val = nvme_create_meta_node(g_fd, id);
 
     id = 0x80004;
     pr_info("\nTEST 3.1: Call to Mmap encoded Meta Id = 0x%x\n", id);

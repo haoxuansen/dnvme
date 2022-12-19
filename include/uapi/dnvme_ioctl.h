@@ -32,8 +32,8 @@ enum {
 	NVME_SEND_64B_CMD,
 	NVME_GET_QUEUE,
 	NVME_CREATE_ADMIN_QUEUE,
-	NVME_PREPARE_SQ_CREATION,
-	NVME_PREPARE_CQ_CREATION,
+	NVME_PREPARE_IOSQ,
+	NVME_PREPARE_IOCQ,
 	NVME_RING_SQ_DOORBELL,
 	NVME_DUMP_LOG_FILE,
 	NVME_INQUIRY_CQE,
@@ -175,21 +175,18 @@ struct nvme_get_queue {
  * Interface structure for allocating SQ memory. The elements are 1 based
  * values and the CC.IOSQES is 2^n based.
  */
-struct nvme_prep_sq
-{
+struct nvme_prep_sq {
 	uint32_t	elements; /* Total number of entries that need kernel mem */
 	uint16_t	sq_id;	  /* The user specified unique SQ ID  */
 	uint16_t	cq_id;	  /* Existing or non-existing CQ ID */
 	uint8_t 	contig;    /* Indicates if SQ is contig or not, 1 = contig */
-	enum nvme_sq_prio	sq_prio;
 };
 
 /**
  * Interface structure for allocating CQ memory. The elements are 1 based
  * values and the CC.IOSQES is 2^n based.
  */
-struct nvme_prep_cq
-{
+struct nvme_prep_cq {
 	uint32_t	elements; /* Total number of entries that need kernal mem */
 	uint16_t	cq_id;	  /* Existing or non-existing CQ ID. */
 	uint8_t 	contig;    /* Indicates if SQ is contig or not, 1 = contig */
@@ -312,10 +309,10 @@ struct nvme_log_file {
 #define NVME_IOCTL_CREATE_ADMIN_QUEUE \
 	_IOWR('N', NVME_CREATE_ADMIN_QUEUE, struct nvme_admin_queue)
 
-#define NVME_IOCTL_PREPARE_SQ_CREATION \
-	_IOWR('N', NVME_PREPARE_SQ_CREATION, struct nvme_prep_sq)
-#define NVME_IOCTL_PREPARE_CQ_CREATION \
-	_IOWR('N', NVME_PREPARE_CQ_CREATION, struct nvme_prep_cq)
+#define NVME_IOCTL_PREPARE_IOSQ \
+	_IOWR('N', NVME_PREPARE_IOSQ, struct nvme_prep_sq)
+#define NVME_IOCTL_PREPARE_IOCQ \
+	_IOWR('N', NVME_PREPARE_IOCQ, struct nvme_prep_cq)
 
 #define NVME_IOCTL_GET_QUEUE \
 	_IOWR('N', NVME_GET_QUEUE, struct nvme_get_queue)

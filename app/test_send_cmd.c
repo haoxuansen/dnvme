@@ -25,6 +25,7 @@
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
 #include "pci.h"
+#include "queue.h"
 #include "reg_nvme_ctrl.h"
 
 #include "common.h"
@@ -437,24 +438,16 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
     struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_cq create_cq_cmd = {0};
 
-    /* prep cq para */
-    struct nvme_prep_cq prep_cq = {
-        .cq_id = cq_parameter->cq_id,
-        .elements = cq_parameter->cq_size,
-        .contig = cq_parameter->contig,
-        .cq_irq_en = cq_parameter->irq_en,
-        .cq_irq_no = cq_parameter->irq_no,
-    };
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
+    ret_val = nvme_prepare_iocq(g_fd, cq_parameter->cq_id, cq_parameter->cq_size,
+    	cq_parameter->contig, cq_parameter->irq_en, cq_parameter->irq_no);
     if (ret_val < 0)
     {
-        pr_err("\tCQ ID = %d Preparation Failed! %d\n", prep_cq.cq_id, ret_val);
+        pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_parameter->cq_id, ret_val);
         return FAILED;
     }
     else
     {
-        pr_debug("\tCQ ID = %d Preparation success\n", prep_cq.cq_id);
+        pr_debug("\tCQ ID = %d Preparation success\n", cq_parameter->cq_id);
     }
 
     /* Fill the command for create IOSQ*/
@@ -504,28 +497,19 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
 int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
 {
     int ret_val = FAILED;
-    struct nvme_prep_sq prep_sq = {0};
-
     struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_sq create_sq_cmd = {0};
 
-    /* prep cq para */
-    prep_sq.sq_id = sq_parameter->sq_id;
-    prep_sq.cq_id = sq_parameter->cq_id;
-    prep_sq.elements = sq_parameter->sq_size;
-    prep_sq.contig = sq_parameter->contig;
-    prep_sq.sq_prio = sq_parameter->sq_prio;
-
-    ret_val = ioctl(g_fd, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
-
+    ret_val = nvme_prepare_iosq(g_fd, sq_parameter->sq_id, sq_parameter->cq_id, 
+    	sq_parameter->sq_size, sq_parameter->contig);
     if (ret_val < 0)
     {
-        pr_err("\tSQ ID = %d Preparation Failed!\n", prep_sq.sq_id);
+        pr_err("\tSQ ID = %d Preparation Failed!\n", sq_parameter->sq_id);
         return FAILED;
     }
     else
     {
-        pr_debug("\tSQ ID = %d Preparation success\n", prep_sq.sq_id);
+        pr_debug("\tSQ ID = %d Preparation success\n", sq_parameter->sq_id);
     }
 
     /* Fill the command for create IOSQ*/
@@ -1305,29 +1289,6 @@ int nvme_get_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id)
 /**
  * @brief 
  * 
- * @param g_fd 
- * @param cq_id Existing or non-existing CQ ID.
- * @param cq_size Total number of entries that need kernal mem
- * @param contig Indicates if SQ is contig or not, 1 = contig
- * @param irq_en 
- * @param irq_no 
- * @return int 
- */
-static int nvme_prep_cq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t contig,
-                        uint8_t irq_en, uint16_t irq_no)
-{
-    struct nvme_prep_cq prep_cq = {
-        .cq_id = cq_id,
-        .elements = cq_size,
-        .contig = contig,
-        .cq_irq_en = irq_en,
-        .cq_irq_no = irq_no,
-    };
-    return ioctl(g_fd, NVME_IOCTL_PREPARE_CQ_CREATION, &prep_cq);
-}
-/**
- * @brief 
- * 
  * @return int 
  */
 int nvme_admin_ring_dbl_reap_cq(int g_fd)
@@ -1351,7 +1312,7 @@ int nvme_admin_ring_dbl_reap_cq(int g_fd)
 int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no)
 {
     int ret_val = SUCCEED;
-    ret_val = nvme_prep_cq(g_fd, cq_id, cq_size, 1, irq_en, irq_no);
+    ret_val = nvme_prepare_iocq(g_fd, cq_id, cq_size, 1, irq_en, irq_no);
     if (SUCCEED != ret_val)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1399,7 +1360,7 @@ int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8
                                uint8_t const *g_discontig_cq_buf, uint32_t discontig_cq_size)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prep_cq(g_fd, cq_id, cq_size, 0, irq_en, irq_no);
+    ret_val = nvme_prepare_iocq(g_fd, cq_id, cq_size, 0, irq_en, irq_no);
     if (SUCCEED != ret_val)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1435,29 +1396,6 @@ int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8
  * @brief 
  * 
  * @param g_fd 
- * @param cq_id Existing or non-existing SQ ID.
- * @param cq_size Total number of entries that need kernal mem
- * @param contig Indicates if SQ is contig or not, 1 = contig
- * @param irq_en 
- * @param irq_no 
- * @return int 
- */
-static int nvme_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t contig, uint8_t sq_prio)
-{
-    struct nvme_prep_sq prep_sq = {
-        .sq_id = sq_id,
-        .cq_id = cq_id,
-        .elements = sq_size,
-        .contig = contig,
-        .sq_prio = sq_prio,
-    };
-    return ioctl(g_fd, NVME_IOCTL_PREPARE_SQ_CREATION, &prep_sq);
-}
-
-/**
- * @brief 
- * 
- * @param g_fd 
  * @param sq_id Existing or non-existing SQ ID.
  * @param cq_id assoc CQ ID.
  * @param sq_size Total number of entries that need kernal mem
@@ -1467,7 +1405,7 @@ static int nvme_prep_sq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_si
 int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prep_sq(g_fd, sq_id, cq_id, sq_size, 1, sq_prio);
+    ret_val = nvme_prepare_iosq(g_fd, sq_id, cq_id, sq_size, 1);
     if (SUCCEED != ret_val)
     {
         pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1515,7 +1453,7 @@ int nvme_create_discontig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_
                                uint8_t const *g_discontig_sq_buf, uint32_t discontig_sq_size)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prep_sq(g_fd, sq_id, cq_id, sq_size, 0, sq_prio);
+    ret_val = nvme_prepare_iosq(g_fd, sq_id, cq_id, sq_size, 0);
     if (SUCCEED != ret_val)
     {
         pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
