@@ -1,0 +1,5 @@
+menuconfig LIB
+	bool "Library Support"
+	default y
+	help
+	  Say Y here to compile library

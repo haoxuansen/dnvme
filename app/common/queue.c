@@ -112,18 +112,6 @@ int nvme_prepare_iocq(int fd, uint16_t cqid, uint32_t elements, uint8_t contig,
 	return 0;
 }
 
-int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd)
-{
-	int ret;
-
-	ret = ioctl(fd, NVME_IOCTL_SUBMIT_64B_CMD, cmd);
-	if (ret < 0) {
-		pr_err("failed to submit cmd!(%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
 static void nvme_display_cq_entry(struct nvme_completion *entry)
 {
 	pr_debug("SQ:%u, CMD:0x%x, Head:0x%x, P:%u, Status:%u|%u|%u|0x%x|0x%x,"

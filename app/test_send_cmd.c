@@ -26,6 +26,7 @@
 #include "ioctl.h"
 #include "pci.h"
 #include "queue.h"
+#include "cmd.h"
 #include "reg_nvme_ctrl.h"
 
 #include "common.h"

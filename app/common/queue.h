@@ -27,8 +27,6 @@ int nvme_prepare_iosq(int fd, uint16_t sqid, uint16_t cqid, uint32_t elements,
 int nvme_prepare_iocq(int fd, uint16_t cqid, uint32_t elements, uint8_t contig,
 	uint8_t irq_en, uint16_t irq_no);
 
-int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd);
-
 int nvme_inquiry_cq_entries(int fd, uint16_t cqid);
 int nvme_reap_cq_entries(int fd, struct nvme_reap *rp);
 

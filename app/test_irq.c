@@ -18,6 +18,7 @@
 #include "ioctl.h"
 #include "irq.h"
 #include "queue.h"
+#include "cmd.h"
 
 #include "common.h"
 #include "test_metrics.h"

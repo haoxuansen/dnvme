@@ -36,7 +36,7 @@ menuconfig: $(MCONF)
 PHONY += menuconfig
 
 pre:
-	$(Q)mkdir -p $(OUTPUT_DIR)
+	$(Q)mkdir -p $(OUTPUT_DIR)/libs
 	$(Q)cp $(SCRIPT_DIR)/insmod.sh $(OUTPUT_DIR)/
 
 modules:
@@ -48,7 +48,13 @@ ifneq ($(CONFIG_U_DMA_BUF),)
 endif
 PHONY += modules
 
-build: pre modules
+lib:
+ifneq ($(CONFIG_LIB),)
+	$(Q)make -C lib
+endif
+PHONY += lib
+
+build: pre modules lib
 ifneq ($(CONFIG_UNVME),)
 	$(Q)make -C app
 endif
@@ -56,14 +62,22 @@ PHONY += build
 
 clean:
 	$(Q)make -C modules/dnvme clean
+ifneq ($(CONFIG_U_DMA_BUF),)
 	$(Q)make -C modules/udmabuf clean
+endif
+ifneq ($(CONFIG_LIB),)
+	$(Q)make -C lib clean
+endif
+ifneq ($(CONFIG_UNVME),)
 	$(Q)make -C app clean
+endif
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig clean
 PHONY += clean
 
 distclean:
 	$(Q)make -C modules/dnvme distclean
 	$(Q)make -C modules/udmabuf distclean
+	$(Q)make -C lib distclean
 	$(Q)make -C app distclean
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig distclean
 	$(Q)rm -rf $(OUTPUT_DIR)

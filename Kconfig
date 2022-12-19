@@ -7,6 +7,12 @@ source "modules/udmabuf/Kconfig"
 
 endmenu
 
+menu "Library Configuration"
+
+source "lib/Kconfig"
+
+endmenu
+
 menu "Application Configuration"
 
 source "app/Kconfig"
