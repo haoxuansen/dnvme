@@ -9,13 +9,20 @@
  * 
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
+#include <errno.h>
 
 #include "byteorder.h"
 #include "log.h"
 #include "queue.h"
+#include "cmd.h"
+
+#define NVME_REAP_CQ_TIMEUNIT		100 /* us */
+/* 10s */
+#define NVME_REAP_CQ_TIMEOUT		(1000 * 1000 * 10 / NVME_REAP_CQ_TIMEUNIT)
 
 int nvme_get_sq_info(int fd, struct nvme_sq_public *sq)
 {
@@ -73,44 +80,46 @@ int nvme_create_acq(int fd, uint32_t elements)
 	return 0;
 }
 
-int nvme_prepare_iosq(int fd, uint16_t sqid, uint16_t cqid, uint32_t elements, 
-	uint8_t contig)
+int nvme_prepare_iosq(int fd, struct nvme_prep_sq *psq)
 {
-	struct nvme_prep_sq psq;
 	int ret;
 
-	psq.sq_id = sqid;
-	psq.cq_id = cqid;
-	psq.elements = elements;
-	psq.contig = contig;
-
-	ret = ioctl(fd, NVME_IOCTL_PREPARE_IOSQ, &psq);
+	ret = ioctl(fd, NVME_IOCTL_PREPARE_IOSQ, psq);
 	if (ret < 0) {
-		pr_err("failed to prepare iosq %u!(%d)\n", sqid, ret);
+		pr_err("failed to prepare iosq %u!(%d)\n", psq->sq_id, ret);
 		return ret;
 	}
 	return 0;
 }
 
-int nvme_prepare_iocq(int fd, uint16_t cqid, uint32_t elements, uint8_t contig,
+int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_PREPARE_IOCQ, pcq);
+	if (ret < 0) {
+		pr_err("failed to prepare iocq %u!(%d)\n", pcq->cq_id, ret);
+		return ret;
+	}
+	return 0;
+}
+
+#if 0
+int nvme_create_iocq(int fd, uint16_t cqid, uint32_t elements, uint8_t contig,
 	uint8_t irq_en, uint16_t irq_no)
 {
-	struct nvme_prep_cq pcq;
 	int ret;
 
-	pcq.cq_id = cqid;
-	pcq.elements = elements;
-	pcq.contig = contig;
-	pcq.cq_irq_en = irq_en;
-	pcq.cq_irq_no = irq_no;
-
-	ret = ioctl(fd, NVME_IOCTL_PREPARE_IOCQ, &pcq);
-	if (ret < 0) {
-		pr_err("failed to prepare iocq %u!(%d)\n", cqid, ret);
+	ret = nvme_prepare_iocq(fd, cqid, elements, contig, irq_en, irq_no);
+	if (ret < 0)
 		return ret;
-	}
+	
+	ret = nvme_cmd_create_iocq(fd, contig, );
+
+	// !TODO: now
 	return 0;
 }
+#endif
 
 static void nvme_display_cq_entry(struct nvme_completion *entry)
 {
@@ -189,6 +198,64 @@ int nvme_reap_cq_entries(int fd, struct nvme_reap *rp)
 		return ret;
 	}
 	return 0;
+}
+
+/**
+ * @brief Reap the expected number of CQ entries.
+ * 
+ * @param fd NVMe device file descriptor
+ * @param expect The number of CQ entries expected to be reaaped.
+ * @param buf For store reaped CQ entries
+ * @param size The size of @buf
+ * @return The number of CQ entries actually reaped if success, otherwise
+ *  a negative errno
+ */
+int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf, 
+	uint32_t size)
+{
+	struct nvme_reap rp = {0};
+	uint8_t cqes = (cqid == NVME_AQ_ID) ? NVME_ADM_CQES : NVME_NVM_IOCQES;
+	uint32_t reaped = 0;
+	uint32_t timeout = 0;
+	int ret;
+
+	if (size < (expect << cqes)) {
+		pr_err("buf size(%u) is too small!\n", size);
+		return -EINVAL;
+	}
+
+	rp.q_id = cqid;
+	rp.elements = expect;
+	rp.buffer = buf;
+	rp.size = size;
+
+	while (reaped < expect) {
+		ret = nvme_reap_cq_entries(fd, &rp);
+		if (ret < 0)
+			break;
+
+		if (rp.num_reaped) {
+			reaped += rp.num_reaped;
+			rp.elements = expect - reaped;
+			rp.buffer += (rp.num_reaped << cqes);
+			rp.size -= (rp.num_reaped << cqes);
+			rp.num_reaped = 0;
+
+			timeout = 0;
+		}
+
+		usleep(NVME_REAP_CQ_TIMEUNIT);
+		timeout++;
+
+		if (timeout >= NVME_REAP_CQ_TIMEOUT) {
+			pr_err("timeout! CQ:%u, expect:%u, reaped:%u\n", 
+				cqid, expect, reaped);
+			ret = -ETIME;
+			break;
+		}
+	}
+
+	return reaped == 0 ? ret : (int)reaped;
 }
 
 int nvme_ring_sq_doorbell(int fd, uint16_t sqid)

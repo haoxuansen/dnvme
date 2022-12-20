@@ -830,7 +830,7 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
+int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
 {
 	struct nvme_sq *sq;
 	struct nvme_64b_cmd cmd;

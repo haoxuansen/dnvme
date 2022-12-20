@@ -20,6 +20,7 @@
 #define _UAPI_DNVME_IOCTLS_H_
 
 #include <linux/pci_regs.h>
+#include "linux/dma-direction.h"
 #include "bitops.h"
 #include "nvme.h"
 
@@ -207,13 +208,13 @@ struct nvme_64b_cmd {
 	/* BIT MASK for PRP1,PRP2 and metadata pointer */
 	enum nvme_64b_cmd_mask	bit_mask;
 	/* Data buffer or discontiguous CQ/SQ's user space address */
-	uint8_t const	*data_buf_ptr;
-	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
-	uint8_t 	data_dir;
-
-	uint8_t 	*cmd_buf_ptr;	/* Virtual Address pointer to 64B command */
-	uint32_t	meta_buf_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
+	void		*data_buf_ptr;
 	uint32_t	data_buf_size; /* Size of Data Buffer */
+	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
+	enum dma_data_direction	data_dir;
+
+	void 		*cmd_buf_ptr;	/* Virtual Address pointer to 64B command */
+	uint32_t	meta_buf_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
 	uint16_t	unique_id;     /* Value returned back to user space */
 	uint16_t	q_id;	       /* Queue ID where the cmd_buf command should go */
 };

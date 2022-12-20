@@ -342,7 +342,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_SUBMIT_64B_CMD:
-		ret = dnvme_send_64b_cmd(ctx, argp);
+		ret = dnvme_submit_64b_cmd(ctx, argp);
 		break;
 
 	case NVME_IOCTL_DUMP_LOG_FILE:

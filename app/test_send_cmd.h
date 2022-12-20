@@ -47,15 +47,6 @@ struct pcie_msi_cap
 // new unittest arch
 //########################################################################################
 
-//* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
-enum dma_data_direction
-{
-    DMA_BIDIRECTIONAL = 0,
-    DMA_TO_DEVICE = 1,
-    DMA_FROM_DEVICE = 2,
-    DMA_NONE = 3,
-};
-
 #define LBA_DATA_SIZE(nsid) (g_nvme_ns_info[nsid - 1].lbads)
 
 int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
@@ -88,10 +79,10 @@ int nvme_get_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id);
 int nvme_admin_ring_dbl_reap_cq(int g_fd);
 int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no);
 int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no,
-                               uint8_t const *g_discontig_cq_buf, uint32_t discontig_cq_size);
+                               uint8_t *g_discontig_cq_buf, uint32_t discontig_cq_size);
 int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio);
 int nvme_create_discontig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio,
-                               uint8_t const *g_discontig_sq_buf, uint32_t discontig_sq_size);
+                               uint8_t *g_discontig_sq_buf, uint32_t discontig_sq_size);
 int nvme_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);
 
 int nvme_firmware_commit(int g_fd, uint8_t bpid, uint8_t ca, uint8_t fs);

@@ -427,9 +427,11 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
 
     struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_cq create_cq_cmd = {0};
+    struct nvme_prep_cq pcq = {0};
 
-    ret_val = nvme_prepare_iocq(g_fd, cq_parameter->cq_id, cq_parameter->cq_size,
+    nvme_fill_prep_cq(&pcq, cq_parameter->cq_id, cq_parameter->cq_size,
     	cq_parameter->contig, cq_parameter->irq_en, cq_parameter->irq_no);
+    ret_val = nvme_prepare_iocq(g_fd, &pcq);
     if (ret_val < 0)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_parameter->cq_id, ret_val);
@@ -489,9 +491,11 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
     int ret_val = FAILED;
     struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_sq create_sq_cmd = {0};
+    struct nvme_prep_sq psq = {0};
 
-    ret_val = nvme_prepare_iosq(g_fd, sq_parameter->sq_id, sq_parameter->cq_id, 
+    nvme_fill_prep_sq(&psq, sq_parameter->sq_id, sq_parameter->cq_id, 
     	sq_parameter->sq_size, sq_parameter->contig);
+    ret_val = nvme_prepare_iosq(g_fd, &psq);
     if (ret_val < 0)
     {
         pr_err("\tSQ ID = %d Preparation Failed!\n", sq_parameter->sq_id);
@@ -957,7 +961,7 @@ int ioctl_send_format(int g_fd, uint8_t lbaf)
  * @param io_cmd 
  * @return int 
  */
-static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t const *data_addr, uint32_t buf_size,
+static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t *data_addr, uint32_t buf_size,
                        uint8_t data_dir, struct nvme_rw_command *io_cmd)
 {
     struct nvme_64b_cmd user_cmd = {
@@ -1131,7 +1135,7 @@ int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t
  * @param idfy_cmd 
  * @return int 
  */
-static int nvme_idfy_cmd(int g_fd, uint32_t nsid, uint32_t cns, uint8_t const *data_addr)
+static int nvme_idfy_cmd(int g_fd, uint32_t nsid, uint32_t cns, uint8_t *data_addr)
 {
     struct nvme_identify idfy_cmd = {
         .opcode = nvme_admin_identify,
@@ -1302,7 +1306,10 @@ int nvme_admin_ring_dbl_reap_cq(int g_fd)
 int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no)
 {
     int ret_val = SUCCEED;
-    ret_val = nvme_prepare_iocq(g_fd, cq_id, cq_size, 1, irq_en, irq_no);
+    struct nvme_prep_cq pcq = {0};
+
+    nvme_fill_prep_cq(&pcq, cq_id, cq_size, 1, irq_en, irq_no);
+    ret_val = nvme_prepare_iocq(g_fd, &pcq);
     if (SUCCEED != ret_val)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1347,10 +1354,13 @@ int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t 
  * @return int 
  */
 int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t irq_en, uint16_t irq_no,
-                               uint8_t const *g_discontig_cq_buf, uint32_t discontig_cq_size)
+                               uint8_t *g_discontig_cq_buf, uint32_t discontig_cq_size)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prepare_iocq(g_fd, cq_id, cq_size, 0, irq_en, irq_no);
+    struct nvme_prep_cq pcq = {0};
+
+    nvme_fill_prep_cq(&pcq, cq_id, cq_size, 0, irq_en, irq_no);
+    ret_val = nvme_prepare_iocq(g_fd, &pcq);
     if (SUCCEED != ret_val)
     {
         pr_err("\tCQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1395,7 +1405,10 @@ int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8
 int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prepare_iosq(g_fd, sq_id, cq_id, sq_size, 1);
+    struct nvme_prep_sq psq = {0};
+
+    nvme_fill_prep_sq(&psq, sq_id, cq_id, sq_size, 1);
+    ret_val = nvme_prepare_iosq(g_fd, &psq);
     if (SUCCEED != ret_val)
     {
         pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);
@@ -1440,10 +1453,13 @@ int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t s
  * @return int 
  */
 int nvme_create_discontig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t sq_size, uint8_t sq_prio,
-                               uint8_t const *g_discontig_sq_buf, uint32_t discontig_sq_size)
+                               uint8_t *g_discontig_sq_buf, uint32_t discontig_sq_size)
 {
     int ret_val = FAILED;
-    ret_val = nvme_prepare_iosq(g_fd, sq_id, cq_id, sq_size, 0);
+    struct nvme_prep_sq psq = {0};
+
+    nvme_fill_prep_sq(&psq, sq_id, cq_id, sq_size, 0);
+    ret_val = nvme_prepare_iosq(g_fd, &psq);
     if (SUCCEED != ret_val)
     {
         pr_err("\tSQ ID = %d Preparation Failed! %d\n", cq_id, ret_val);

@@ -23,6 +23,6 @@ void dnvme_release_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
 
 void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
 
-int dnvme_send_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd);
+int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd);
 
 #endif /* !_DNVME_CMD_H_ */

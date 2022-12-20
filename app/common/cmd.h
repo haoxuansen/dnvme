@@ -18,4 +18,7 @@
 
 int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd);
 
+int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
+	void *buf, uint32_t size);
+
 #endif /* !_APP_CMD_H_ */
