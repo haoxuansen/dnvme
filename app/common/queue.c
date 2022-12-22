@@ -104,22 +104,79 @@ int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq)
 	return 0;
 }
 
-#if 0
-int nvme_create_iocq(int fd, uint16_t cqid, uint32_t elements, uint8_t contig,
-	uint8_t irq_en, uint16_t irq_no)
+int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 {
+	struct nvme_prep_sq psq = {0};
+	struct nvme_create_sq csq = {0};
+	struct nvme_completion entry = {0};
 	int ret;
 
-	ret = nvme_prepare_iocq(fd, cqid, elements, contig, irq_en, irq_no);
+	nvme_fill_prep_sq(&psq, wrap->sqid, wrap->cqid, wrap->elements, 
+		wrap->contig);
+	ret = nvme_prepare_iosq(fd, &psq);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_cmd_create_iocq(fd, contig, );
+	nvme_cmd_fill_create_sq(&csq, wrap->sqid, wrap->cqid, wrap->elements,
+		wrap->contig, wrap->prio);
+	ret = nvme_cmd_create_iosq(fd, &csq, wrap->contig, wrap->buf, wrap->size);
+	if (ret < 0)
+		return ret;
 
-	// !TODO: now
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_check_cq_entries(&entry, 1);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
-#endif
+
+/**
+ * @brief Create a I/O completion queue
+ * 
+ * @param fd NVMe device file descriptor
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
+{
+	struct nvme_prep_cq pcq = {0};
+	struct nvme_create_cq ccq = {0};
+	struct nvme_completion entry = {0};
+	int ret;
+
+	nvme_fill_prep_cq(&pcq, wrap->cqid, wrap->elements, wrap->contig, 
+		wrap->irq_en, wrap->irq_no);
+	ret = nvme_prepare_iocq(fd, &pcq);
+	if (ret < 0)
+		return ret;
+
+	nvme_cmd_fill_create_cq(&ccq, wrap->cqid, wrap->elements, wrap->contig,
+		wrap->irq_en, wrap->irq_no);
+	ret = nvme_cmd_create_iocq(fd, &ccq, wrap->contig, wrap->buf, wrap->size);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_check_cq_entries(&entry, 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 static void nvme_display_cq_entry(struct nvme_completion *entry)
 {

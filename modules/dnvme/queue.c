@@ -342,7 +342,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 	u16 asq_id = 0; /* admin queue ID is always 0 */
 	int ret;
 
-	if (!elements || elements > NVME_ASQ_ENTRY_MAX) {
+	if (!elements || elements > NVME_AQ_MAX_SIZE) {
 		dnvme_err("ASQ elements(%u) is invalid!\n", elements);
 		return -EINVAL;
 	}
@@ -388,7 +388,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 	u16 acq_id = 0; /* admin queue ID is always 0 */
 	int ret;
 
-	if (!elements || elements > NVME_ACQ_ENTRY_MAX) {
+	if (!elements || elements > NVME_AQ_MAX_SIZE) {
 		dnvme_err("ACQ elements(%u) is invalid!\n", elements);
 		return -EINVAL;
 	}

@@ -484,7 +484,7 @@ static uint32_t delete_runing_iocmd_queue(void)
     pr_info("delete remain sq done\n");
 
     // delete_all_io_queue();
-    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     return test_flag;
 }

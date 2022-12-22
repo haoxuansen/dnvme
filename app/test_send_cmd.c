@@ -1743,7 +1743,7 @@ uint32_t create_all_io_queue(uint8_t flags)
     rdm_irq_no = BYTE_RAND() % num_irqs;
     pr_debug("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
 
-    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, int_type, num_irqs);
+    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, int_type, num_irqs);
 
     random_sq_cq_info();
     /**********************************************************************/

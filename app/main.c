@@ -168,8 +168,6 @@ int main(int argc, char *argv[])
 
 	case_display_case_list();
 	nvme_select_case_to_execute();
-
-	pr_info("Dump NVMe device info to %s\n", log_file);
 	nvme_dump_log(g_fd, log_file);
 
 	/* Exit gracefully */

@@ -24,6 +24,8 @@
 #include "bitops.h"
 #include "nvme.h"
 
+#define NVME_AQ_MAX_SIZE		4096
+
 enum {
 	NVME_READ_GENERIC = 0,
 	NVME_WRITE_GENERIC,

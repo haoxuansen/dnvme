@@ -249,7 +249,7 @@ static uint32_t sub_case_nvme_reg_normal(void)
     }
     pr_color(LOG_COLOR_GREEN, "nvme ctrl reg tests done!\n\n");
 
-    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     return test_flag;
 }
@@ -304,7 +304,7 @@ static uint32_t sub_case_pcie_reg_normal(void)
     }
     pr_color(LOG_COLOR_GREEN, "pcie ids reg tests done!\n\n");
 
-    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 

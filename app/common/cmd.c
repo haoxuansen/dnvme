@@ -37,6 +37,28 @@ int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd)
 	return 0;
 }
 
+int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
+	void *buf, uint32_t size)
+{
+	struct nvme_64b_cmd cmd = {0};
+
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = csq;
+	/* !TODO: Although it is always right to use bidirection, it is
+	 * better to choose the right direction */
+	cmd.data_dir = DMA_BIDIRECTIONAL;
+
+	if (contig)
+		cmd.bit_mask = NVME_MASK_PRP1_PAGE;
+	else
+		cmd.bit_mask = NVME_MASK_PRP1_LIST;
+
+	cmd.data_buf_ptr = buf;
+	cmd.data_buf_size = size;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
 int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 	void *buf, uint32_t size)
 {
@@ -44,6 +66,8 @@ int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 
 	cmd.q_id = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = ccq;
+	/* !TODO: Although it is always right to use bidirection, it is
+	 * better to choose the right direction */
 	cmd.data_dir = DMA_BIDIRECTIONAL;
 
 	if (contig)

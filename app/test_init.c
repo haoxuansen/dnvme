@@ -136,7 +136,7 @@ void random_sq_cq_info(void)
 	pr_info("\n");
 }
 
-void test_init(int g_fd)
+int test_init(int g_fd)
 {
 	int ret_val = FAILED;
 	uint16_t iosq_num, iocq_num;
@@ -144,12 +144,14 @@ void test_init(int g_fd)
 	uint32_t u32_tmp_data = 0;
 	uint8_t sqes = 0;
 	uint8_t cqes = 0;
-	pr_info("--->[%s]\n", __FUNCTION__);
 	int ret = FAILED;
+
 	ret = nvme_disable_controller_complete(g_fd);
-	assert(ret == SUCCEED);
-	nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-	nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_create_acq(g_fd, NVME_AQ_MAX_SIZE);
+	nvme_create_asq(g_fd, NVME_AQ_MAX_SIZE);
 	nvme_set_irq(g_fd, NVME_INT_PIN, 1);
 	g_nvme_dev.irq_type = NVME_INT_PIN;
 	nvme_enable_controller(g_fd);
@@ -198,10 +200,10 @@ void test_init(int g_fd)
 	//step1: disable control
 	nvme_disable_controller_complete(g_fd);
 	//step 2.1: configure Admin queue
-	pr_info("Init Admin cq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
-	nvme_create_acq(g_fd, MAX_ADMIN_QUEUE_SIZE);
-	pr_info("Init Admin sq, qsize:%d\n", MAX_ADMIN_QUEUE_SIZE);
-	nvme_create_asq(g_fd, MAX_ADMIN_QUEUE_SIZE);
+	pr_info("Init Admin cq, qsize:%d\n", NVME_AQ_MAX_SIZE);
+	nvme_create_acq(g_fd, NVME_AQ_MAX_SIZE);
+	pr_info("Init Admin sq, qsize:%d\n", NVME_AQ_MAX_SIZE);
+	nvme_create_asq(g_fd, NVME_AQ_MAX_SIZE);
 
 	//step 2.2: configure Admin queue
 	//set_irqs(g_fd, NVME_INT_NONE, 0);
@@ -301,6 +303,8 @@ void test_init(int g_fd)
     g_nvme_dev.link_speed = u32_tmp_data & 0x0F;
     g_nvme_dev.link_width = (u32_tmp_data >> 4) & 0x3F;
     pr_color(LOG_COLOR_CYAN, "\nCurrent link status: Gen%d, X%d\n", g_nvme_dev.link_speed, g_nvme_dev.link_width);
+
+    return 0;
 }
 
 void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type irq_type, uint16_t num_irqs)

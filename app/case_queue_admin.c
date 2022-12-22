@@ -55,7 +55,7 @@ int case_queue_admin(void)
             break;
         }
     }
-    test_change_init(g_fd, MAX_ADMIN_QUEUE_SIZE, MAX_ADMIN_QUEUE_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -150,8 +150,8 @@ static uint32_t sub_case_asq_size_random(void)
     uint8_t int_type = 0;
     uint16_t num_irqs;
     uint32_t cmd_cnt = 0;
-    uint32_t acqsz = MAX_ADMIN_QUEUE_SIZE;
-    uint32_t asqsz = MAX_ADMIN_QUEUE_SIZE;
+    uint32_t acqsz = NVME_AQ_MAX_SIZE;
+    uint32_t asqsz = NVME_AQ_MAX_SIZE;
     for(uint32_t idx = 0; idx < 50; idx++)
     {
         int_type = BYTE_RAND() % 4;
@@ -164,8 +164,8 @@ static uint32_t sub_case_asq_size_random(void)
             num_irqs = g_nvme_dev.max_sq_num + 1;
         }
 
-        asqsz = rand() % (MAX_ADMIN_QUEUE_SIZE - 2) + 2;
-        acqsz = rand() % (MAX_ADMIN_QUEUE_SIZE - 2) + 2;
+        asqsz = rand() % (NVME_AQ_MAX_SIZE - 2) + 2;
+        acqsz = rand() % (NVME_AQ_MAX_SIZE - 2) + 2;
 
         test_change_init(g_fd, asqsz, acqsz, int_type, num_irqs);
 
