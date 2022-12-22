@@ -66,6 +66,7 @@ int nvme_get_cq_info(int fd, struct nvme_cq_public *cq);
 
 int nvme_create_asq(int fd, uint32_t elements);
 int nvme_create_acq(int fd, uint32_t elements);
+int nvme_create_aq_pair(int fd, uint32_t sqsz, uint32_t cqsz);
 
 int nvme_prepare_iosq(int fd, struct nvme_prep_sq *psq);
 int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq);
@@ -78,6 +79,8 @@ int nvme_reap_cq_entries(int fd, struct nvme_reap *rp);
 int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf, 
 	uint32_t size);
 
+int nvme_valid_cq_entry(struct nvme_completion *entry, uint16_t sqid, 
+	uint16_t cid, uint16_t status);
 int nvme_check_cq_entries(struct nvme_completion *entries, uint32_t num);
 
 int nvme_ring_sq_doorbell(int fd, uint16_t sqid);

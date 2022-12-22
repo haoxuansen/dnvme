@@ -54,8 +54,8 @@ int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid)
         .data_buf_ptr = NULL,
         .data_dir = DMA_FROM_DEVICE,
     };
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
-    if (SUCCEED != ret_val)
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    if (ret_val < 0)
     {
         if (opcode == nvme_admin_delete_sq)
         {
@@ -101,7 +101,7 @@ int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 2;
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -148,7 +148,7 @@ int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -205,7 +205,7 @@ int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nl
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -255,7 +255,7 @@ int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_RD Sending Command Failed!\n");
@@ -299,7 +299,7 @@ int nvme_maxio_fwdma_wr(int g_fd, struct fwdma_parameter *fwdma_parameter)
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
@@ -357,7 +357,7 @@ int nvme_firmware_commit(int g_fd, uint8_t bpid, uint8_t ca, uint8_t fs)
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
@@ -401,7 +401,7 @@ int nvme_firmware_download(int g_fd, uint32_t numd, uint32_t ofst, uint8_t *dptr
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("firmware_download Sending Command Failed!\n");
@@ -467,7 +467,7 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
         user_cmd.data_buf_ptr = g_discontig_cq_buf;
     }
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -534,7 +534,7 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
         user_cmd.data_dir = 2;
     }
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -569,7 +569,7 @@ int keep_alive_cmd(int g_fd)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
@@ -604,7 +604,7 @@ int admin_illegal_opcode_cmd(int g_fd, uint8_t opcode)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
@@ -643,7 +643,7 @@ int ioctl_send_abort(int g_fd, uint16_t sq_id, uint16_t cmd_id)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -681,7 +681,7 @@ int ioctl_send_flush(int g_fd, uint16_t sq_id)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -732,7 +732,7 @@ int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -781,7 +781,7 @@ int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb)
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -933,7 +933,7 @@ int ioctl_send_format(int g_fd, uint8_t lbaf)
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -972,7 +972,7 @@ static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t *data_addr, uint32_t bu
         .data_buf_ptr = data_addr,
         .data_dir = data_dir,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 /**
  * @brief can refer struct nvme_rw_command for detail
@@ -1087,7 +1087,7 @@ int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint
         .meta_buf_id = id,
         .data_dir = DMA_FROM_DEVICE,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 
 /* CMD to send NVME IO read command using metabuff through contig Queue */
@@ -1114,7 +1114,7 @@ int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint3
         .meta_buf_id = id,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 
 int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num)
@@ -1150,7 +1150,7 @@ static int nvme_idfy_cmd(int g_fd, uint32_t nsid, uint32_t cns, uint8_t *data_ad
         .data_buf_ptr = data_addr,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 
 int nvme_idfy_ctrl(int g_fd, void *data)
@@ -1217,7 +1217,7 @@ int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, uint16_t dw11
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 /**
  * @brief 
@@ -1252,7 +1252,7 @@ int nvme_set_feature_hmb_cmd(int g_fd, uint32_t nsid, uint16_t ehm, uint32_t hsi
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 /**
  * @brief 
@@ -1277,7 +1277,7 @@ int nvme_get_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id)
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    return nvme_submit_64b_cmd(g_fd, &user_cmd);
+    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 
 /**
@@ -1332,10 +1332,10 @@ int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t 
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(g_fd);
@@ -1383,10 +1383,10 @@ int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8
         .data_buf_ptr = g_discontig_cq_buf,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(g_fd);
@@ -1431,10 +1431,10 @@ int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t s
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(g_fd);
@@ -1481,10 +1481,10 @@ int nvme_create_discontig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_
         .data_buf_ptr = g_discontig_sq_buf,
         .data_dir = DMA_FROM_DEVICE,
     };
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (SUCCEED != ret_val)
     {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd failed %d\n", cq_id, ret_val);
+        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(g_fd);

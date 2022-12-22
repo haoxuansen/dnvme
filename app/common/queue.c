@@ -48,6 +48,13 @@ int nvme_get_cq_info(int fd, struct nvme_cq_public *cq)
 	return 0;
 }
 
+/**
+ * @brief Create admin submission queue
+ * 
+ * @param fd NVMe device file descriptor
+ * @param elements The number of entries
+ * @return 0 on success, otherwise a negative errno
+ */
 int nvme_create_asq(int fd, uint32_t elements)
 {
 	struct nvme_admin_queue asq;
@@ -64,6 +71,13 @@ int nvme_create_asq(int fd, uint32_t elements)
 	return 0;
 }
 
+/**
+ * @brief Create admin completion queue
+ * 
+ * @param fd NVMe device file descriptor
+ * @param elements The number of entries
+ * @return 0 on success, otherwise a negative errno
+ */
 int nvme_create_acq(int fd, uint32_t elements)
 {
 	struct nvme_admin_queue acq;
@@ -77,6 +91,19 @@ int nvme_create_acq(int fd, uint32_t elements)
 		pr_err("failed to create acq!(%d)\n", ret);
 		return ret;
 	}
+	return 0;
+}
+
+int nvme_create_aq_pair(int fd, uint32_t sqsz, uint32_t cqsz)
+{
+	int ret;
+
+	ret = nvme_create_acq(fd, cqsz);
+	if (ret < 0)
+		return ret;
+	ret = nvme_create_asq(fd, sqsz);
+	if (ret < 0)
+		return ret;
 	return 0;
 }
 
@@ -109,6 +136,7 @@ int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 	struct nvme_prep_sq psq = {0};
 	struct nvme_create_sq csq = {0};
 	struct nvme_completion entry = {0};
+	uint16_t cid;
 	int ret;
 
 	nvme_fill_prep_sq(&psq, wrap->sqid, wrap->cqid, wrap->elements, 
@@ -122,6 +150,11 @@ int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 	ret = nvme_cmd_create_iosq(fd, &csq, wrap->contig, wrap->buf, wrap->size);
 	if (ret < 0)
 		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
 
 	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
@@ -129,7 +162,7 @@ int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_check_cq_entries(&entry, 1);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
 	if (ret < 0)
 		return ret;
 
@@ -147,6 +180,7 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 	struct nvme_prep_cq pcq = {0};
 	struct nvme_create_cq ccq = {0};
 	struct nvme_completion entry = {0};
+	uint16_t cid;
 	int ret;
 
 	nvme_fill_prep_cq(&pcq, wrap->cqid, wrap->elements, wrap->contig, 
@@ -160,6 +194,7 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 	ret = nvme_cmd_create_iocq(fd, &ccq, wrap->contig, wrap->buf, wrap->size);
 	if (ret < 0)
 		return ret;
+	cid = ret;
 
 	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
 	if (ret < 0)
@@ -171,7 +206,7 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_check_cq_entries(&entry, 1);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
 	if (ret < 0)
 		return ret;
 
@@ -191,6 +226,33 @@ static void nvme_display_cq_entry(struct nvme_completion *entry)
 		NVME_CQE_STATUS_TO_SCT(entry->status),
 		NVME_CQE_STATUS_TO_SC(entry->status),
 		le64_to_cpu(entry->result.u64));
+}
+
+/**
+ * @brief Validate CQ entry
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_valid_cq_entry(struct nvme_completion *entry, uint16_t sqid, 
+	uint16_t cid, uint16_t status)
+{
+	if (le16_to_cpu(entry->sq_id) != sqid) {
+		pr_err("SQ:%u vs %u\n", sqid, le16_to_cpu(entry->sq_id));
+		return -EINVAL;
+	}
+
+	if (entry->command_id != cid) {
+		pr_err("CID:%u vs %u\n", cid, entry->command_id);
+		return -EINVAL;
+	}
+
+	if (NVME_CQE_STATUS_TO_STATE(entry->status) != status) {
+		pr_err("status:0x%x vs 0x%x\n", status, 
+			NVME_CQE_STATUS_TO_STATE(entry->status));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**

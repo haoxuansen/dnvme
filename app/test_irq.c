@@ -98,7 +98,7 @@ int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -135,7 +135,7 @@ int irq_for_io_contig(int g_fd, int cq_id, int irq_no,
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -172,7 +172,7 @@ void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -209,7 +209,7 @@ void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -243,7 +243,7 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd(fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending Admin Command Create IO CQ ID:%d \033[31mfailed!\033[0m\n", cq_id);
@@ -339,7 +339,7 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
 
     pr_info("User Call to send command\n");
 
-    ret_val = nvme_submit_64b_cmd(fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
@@ -373,7 +373,7 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 2;
 
-    ret_val = nvme_submit_64b_cmd(fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd_legacy(fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command \033[31mfailed!\033[0m\n");
