@@ -127,27 +127,6 @@ struct nvme_cq_info
 
 #pragma pack(pop)
 
-/* nvme register definition offset*/
-#define NVME_REG_CAP_OFST 0x00
-#define NVME_REG_CAP_OFST_H 0x04
-#define NVME_REG_VS_OFST 0x08
-#define NVME_REG_INTMS_OFST 0x0C
-#define NVME_REG_INTMC_OFST 0x10
-#define NVME_REG_CC_OFST 0x14
-#define NVME_REG_CC_OFST_H 0x18
-#define NVME_REG_CSTS_OFST 0x1C
-#define NVME_REG_NSSR_OFST 0x20
-#define NVME_REG_AQA_OFST 0x24
-#define NVME_REG_ASQ_OFST 0x28
-#define NVME_REG_ASQ_OFST_H 0x2C
-#define NVME_REG_ACQ_OFST 0x30
-#define NVME_REG_ACQ_OFST_H 0x34
-#define NVME_REG_CMBLOC_OFST 0x38
-#define NVME_REG_CMBSZ_OFST 0x3C
-#define NVME_REG_BPINFO_OFST 0x40
-#define NVME_REG_BPRSEL_OFST 0x44
-#define NVME_REG_BPMBL_OFST 0x48
-
 //--------------------------------------------------------------------------------
 
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);

@@ -387,7 +387,7 @@ void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_ty
 	nvme_enable_controller(g_fd);
 
 	u32_tmp_data = 0x00460001;
-	nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+	nvme_write_ctrl_property(g_fd, NVME_REG_CC, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void test_change_irqs(int g_fd, enum nvme_irq_type irq_type, uint16_t num_irqs)

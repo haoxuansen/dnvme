@@ -141,6 +141,7 @@ enum {
 #define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
 #define NVME_CAP_NSSRC(cap)	(((cap) >> 36) & 0x1)
 #define NVME_CAP_CSS(cap)	(((cap) >> 37) & 0xff)
+#define NVME_CAP_BPS(cap)	(((cap) >> 45) & 0x1)
 #define NVME_CAP_MPSMIN(cap)	(((cap) >> 48) & 0xf)
 #define NVME_CAP_MPSMAX(cap)	(((cap) >> 52) & 0xf)
 #define NVME_CAP_CMBS(cap)	(((cap) >> 57) & 0x1)

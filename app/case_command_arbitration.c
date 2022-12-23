@@ -543,7 +543,7 @@ int case_command_arbitration(void)
     	return ret;
 
     u32_tmp_data |= (1 << 11); // bit 13:11, 000:R-R, 001:W R-R Urgent prio
-    nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+    nvme_write_ctrl_property(g_fd, NVME_REG_CC, 4, (uint8_t *)&u32_tmp_data);
 
     ret = nvme_read_ctrl_property(g_fd, 0x14, 4, &u32_tmp_data);
     if (ret < 0)

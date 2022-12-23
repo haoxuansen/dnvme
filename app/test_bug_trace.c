@@ -90,13 +90,13 @@ uint32_t iocmd_cstc_rdy_test(void)
         }
         test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
  
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
 
@@ -108,13 +108,13 @@ uint32_t iocmd_cstc_rdy_test(void)
         }
         test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
 
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS_OFST, 4, &csts);
+	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
     }

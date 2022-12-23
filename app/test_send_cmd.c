@@ -1679,34 +1679,34 @@ uint32_t nvme_msi_register_test(void)
     int ret;
     uint32_t u32_tmp_data = 0;
 
-    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMS_OFST, 4, &u32_tmp_data);
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMS, 4, &u32_tmp_data);
     if (ret < 0)
     	return FAILED;
 
-    pr_info("NVME_REG_INTMS_OFST:%#x\n", u32_tmp_data);
+    pr_info("NVME_REG_INTMS:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
-    if (nvme_write_ctrl_property(g_fd, NVME_REG_INTMS_OFST, 4, (uint8_t *)&u32_tmp_data))
+    if (nvme_write_ctrl_property(g_fd, NVME_REG_INTMS, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
 
-    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMS_OFST, 4, &u32_tmp_data);
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMS, 4, &u32_tmp_data);
     if (ret < 0)
     	return FAILED;
-    pr_info("set NVME_REG_INTMS_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
+    pr_info("set NVME_REG_INTMS = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
-    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMC_OFST, 4, &u32_tmp_data);
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMC, 4, &u32_tmp_data);
     if (ret < 0)
     	return FAILED;
 
-    pr_info("NVME_REG_INTMC_OFST:%#x\n", u32_tmp_data);
+    pr_info("NVME_REG_INTMC:%#x\n", u32_tmp_data);
     u32_tmp_data = DWORD_MASK;
-    if (nvme_write_ctrl_property(g_fd, NVME_REG_INTMC_OFST, 4, (uint8_t *)&u32_tmp_data))
+    if (nvme_write_ctrl_property(g_fd, NVME_REG_INTMC, 4, (uint8_t *)&u32_tmp_data))
         return FAILED;
 
-    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMC_OFST, 4, &u32_tmp_data);
+    ret = nvme_read_ctrl_property(g_fd, NVME_REG_INTMC, 4, &u32_tmp_data);
     if (ret < 0)
     	return FAILED;
 
-    pr_info("set NVME_REG_INTMC_OFST = DWORD_MASK, read register:%#x\n", u32_tmp_data);
+    pr_info("set NVME_REG_INTMC = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
     return SUCCEED;
 }

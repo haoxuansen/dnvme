@@ -66,14 +66,14 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     u32_tmp_data |= bpid << 31;  //Boot Partition Identifier (BPID)
     u32_tmp_data |= bprof << 10; //Boot Partition Read Offset (BPROF)
     u32_tmp_data |= bprsz << 0;  //Boot Partition Read Size (BPRSZ) in multiples of 4KB
-    ret_val = nvme_write_ctrl_property(g_fd, NVME_REG_BPRSEL_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_write_ctrl_property(g_fd, NVME_REG_BPRSEL, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        pr_err("[E] NVME_REG_BPRSEL_OFST ret_val:%d!\n", ret_val);
+        pr_err("[E] NVME_REG_BPRSEL ret_val:%d!\n", ret_val);
         goto error_out;
     }
     //7. writing to the Boot Partition Read Select(BPRSEL) register.
-    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
         pr_err("[E] NVME_REG_BPINFO_OFST1 ret_val:%d! %x\n", ret_val, u32_tmp_data);
@@ -83,7 +83,7 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
     try_max = (WORD_MASK << 4);
     while (((u32_tmp_data >> 24) & 0x3) != 0x2)
     {
-        ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+        ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
         if (ret_val < 0)
         {
             pr_err("[E] NVME_REG_BPINFO_OFST2 ret_val:%d! %x\n", ret_val, u32_tmp_data);
@@ -118,10 +118,10 @@ int reading_boot_partition(void)
     unsigned long phys_addr;
 
     //3. Get BPINFO.ABPID BPINFO.BPSZ
-    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO_OFST, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_BPINFO, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
     if (ret_val < 0)
     {
-        pr_err("[E] NVME_REG_BPINFO_OFST ret_val:%d!\n", ret_val);
+        pr_err("[E] NVME_REG_BPINFO ret_val:%d!\n", ret_val);
         goto error_out;
     }
     ABPID = (u32_tmp_data & 0x80000000) >> 31;
@@ -142,10 +142,10 @@ int reading_boot_partition(void)
     for (idx = 0; idx < boot_read_cnt; idx++)
     {
         BMBBA = phys_addr + idx * 4096;
-        ret_val = nvme_write_ctrl_property(g_fd, NVME_REG_BPMBL_OFST, sizeof(uint64_t), (uint8_t *)&BMBBA);
+        ret_val = nvme_write_ctrl_property(g_fd, NVME_REG_BPMBL, sizeof(uint64_t), (uint8_t *)&BMBBA);
         if (ret_val < 0)
         {
-            pr_err("[E] NVME_REG_BPMBL_OFST ret_val:%d!\n", ret_val);
+            pr_err("[E] NVME_REG_BPMBL ret_val:%d!\n", ret_val);
             goto error_out;
         }
         // pr_info("boot_read_cnt:%d!\n", idx);
@@ -222,17 +222,18 @@ int writeing_boot_partition(void)
 static uint32_t rd_wr_boot_part_ccen_0(void)
 {
     int ret_val;
-    uint32_t u32_tmp_data = 0;
+    uint64_t cap;
     // if(test_flag == FAILED)
     //     return test_flag;
     nvme_disable_controller_complete(g_fd);
-    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+
+    ret_val = nvme_read_ctrl_cap(g_fd, &cap);
     if (ret_val < 0)
     {
-        pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
+        pr_err("failed to read controller capability reg!(%d)\n", ret_val);
         goto error_out;
     }
-    if ((u32_tmp_data & 0x2000) == 0x2000)
+    if (NVME_CAP_BPS(cap))
     {
         /************************************************************************************************/
         pr_info(".1 Reading from a Boot Partition\n");
@@ -261,17 +262,18 @@ skip_out:
 static uint32_t rd_wr_boot_part_ccen_1(void)
 {
     int ret_val;
-    uint32_t u32_tmp_data = 0;
+    uint64_t cap;
     // if(test_flag == FAILED)
     //     return test_flag;
     nvme_enable_controller(g_fd);
-    ret_val = nvme_read_ctrl_property(g_fd, NVME_REG_CAP_OFST_H, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
+
+    ret_val = nvme_read_ctrl_cap(g_fd, &cap);
     if (ret_val < 0)
     {
-        pr_err("[E] NVME_REG_CAP_OFST_H ret_val:%d!\n", ret_val);
+        pr_err("failed to read controller capability reg!(%d)\n", ret_val);
         goto error_out;
     }
-    if ((u32_tmp_data & 0x2000) == 0x2000)
+    if (NVME_CAP_BPS(cap))
     {
         /************************************************************************************************/
         pr_info(".1 Reading from a Boot Partition\n");

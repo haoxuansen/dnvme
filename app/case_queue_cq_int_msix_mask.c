@@ -63,7 +63,7 @@ static void int_mask_bit(uint32_t msi_mask_flag)
     nvme_enable_controller(g_fd);
 
     u32_tmp_data = 0x00460001;
-    nvme_write_ctrl_property(g_fd, NVME_REG_CC_OFST, 4, (uint8_t *)&u32_tmp_data);
+    nvme_write_ctrl_property(g_fd, NVME_REG_CC, 4, (uint8_t *)&u32_tmp_data);
     //while(1);
 }
 static void test_all_cq_cmd(uint32_t msi_mask_flag)
