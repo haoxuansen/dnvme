@@ -78,6 +78,18 @@ int nvme_get_device_info(int fd, struct nvme_dev_public *dev)
 	return 0;
 }
 
+int nvme_get_capability(int fd, struct nvme_cap *cap)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_GET_CAPABILITY, cap);
+	if (ret < 0) {
+		pr_err("failed to get capability!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
 /**
  * @brief Read data from the specified region of the NVMe device.
  * 

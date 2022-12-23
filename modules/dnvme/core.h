@@ -205,19 +205,6 @@ struct nvme_dev_private {
 };
 
 /**
- * @brief NVMe device controller properties
- * 
- * @cap: Controller Capabilities Register
- * @cmbloc: Controller Memory Buffer Location Register
- * @cmbsz: Controller Memory Buffer Size Register
- */
-struct nvme_ctrl_property {
-	u64	cap;
-	u32	cmbloc;
-	u32	cmbsz;
-};
-
-/**
  * @brief Representation of a NVMe device
  * 
  * @cmb_size: Actually mapped CMB size, may less than CMBSZ which is indicated

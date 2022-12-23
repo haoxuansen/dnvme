@@ -85,7 +85,7 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display)
     }
     else
     {
-        pr_debug("  Reaped on CQ ID = %d, No Request = %d, No Reaped = %d, No Rem = %d, ISR_count = %d\n",
+        pr_div("  Reaped on CQ ID = %d, No Request = %d, No Reaped = %d, No Rem = %d, ISR_count = %d\n",
             rp_cq.q_id, rp_cq.elements, rp_cq.num_reaped, rp_cq.num_remaining, rp_cq.isr_count);
         if (display_cq_data(rp_cq.buffer, rp_cq.num_reaped, display))
             ret_val = -1;

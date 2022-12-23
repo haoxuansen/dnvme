@@ -57,4 +57,9 @@ static inline int pci_write_config_dword(int fd, uint32_t oft, uint32_t val)
 	return pci_write_config_data(fd, oft, 4, &val);
 }
 
+static inline int pci_exp_read_link_status(int fd, uint8_t oft, uint32_t *val)
+{
+	return pci_read_config_dword(fd, oft + PCI_EXP_LNKSTA, val);
+}
+
 #endif /* !_APP_PCI_H_ */

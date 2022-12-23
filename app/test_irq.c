@@ -105,7 +105,7 @@ int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
     }
     else
     {
-        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
+        pr_div("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
@@ -142,7 +142,7 @@ int irq_for_io_contig(int g_fd, int cq_id, int irq_no,
     }
     else
     {
-        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
+        pr_div("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
@@ -179,7 +179,7 @@ void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
     }
     else
     {
-        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
+        pr_div("Command sent \033[32msuccesfully\033[0m\n");
     }
 }
 
@@ -216,7 +216,7 @@ void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
     }
     else
     {
-        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
+        pr_div("Command sent \033[32msuccesfully\033[0m\n");
     }
 }
 
@@ -250,7 +250,7 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
     }
     else
     {
-        pr_debug("Admin Command Create IO CQ ID:%d success!\n\n", cq_id);
+        pr_div("Admin Command Create IO CQ ID:%d success!\n\n", cq_id);
     }
     return ret_val;
 }
@@ -346,7 +346,7 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
     }
     else
     {
-        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
+        pr_div("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }
@@ -380,7 +380,7 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
     }
     else
     {
-        pr_debug("Command sent \033[32msuccesfully\033[0m\n");
+        pr_div("Command sent \033[32msuccesfully\033[0m\n");
     }
     return ret_val;
 }

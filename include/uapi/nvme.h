@@ -136,6 +136,7 @@ enum {
 };
 
 #define NVME_CAP_MQES(cap)	((cap) & 0xffff)
+#define NVME_CAP_AMS(cap)	(((cap) >> 17) & 0x3)
 #define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
 #define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
 #define NVME_CAP_NSSRC(cap)	(((cap) >> 36) & 0x1)
@@ -201,7 +202,9 @@ enum {
 	NVME_CC_SHN_ABRUPT	= 2 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
 	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
+	NVME_CC_IOSQES_MASK	= 0xf << NVME_CC_IOSQES_SHIFT,
 	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
+	NVME_CC_IOCQES_MASK	= 0xf << NVME_CC_IOCQES_SHIFT,
 	NVME_CAP_CSS_NVM	= 1 << 0,
 	NVME_CAP_CSS_CSI	= 1 << 6,
 	NVME_CSTS_RDY		= 1 << 0,

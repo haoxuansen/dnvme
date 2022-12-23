@@ -146,13 +146,13 @@ static void test_sub(void)
     pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
-    pr_debug("\nTest: Delete sq_id %d, cq_id %d\n", io_sq_id, io_cq_id);
+    pr_div("\nTest: Delete sq_id %d, cq_id %d\n", io_sq_id, io_cq_id);
     ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
     ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
-    pr_debug("Ringing Doorbell for NVME_AQ_ID\n");
+    pr_div("Ringing Doorbell for NVME_AQ_ID\n");
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 2, &reap_num);
-    pr_debug("\tcq reaped ok! reap_num:%d\n", reap_num);
+    pr_div("\tcq reaped ok! reap_num:%d\n", reap_num);
 }
 
 int case_pcie_low_power_measure(void)

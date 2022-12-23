@@ -32,12 +32,6 @@
 #include "test_irq.h"
 #include "unittest.h"
 
-void admin_queue_config(int g_fd)
-{
-    nvme_create_acq(g_fd, NVME_AQ_MAX_SIZE);
-    nvme_create_asq(g_fd, NVME_AQ_MAX_SIZE);
-}
-
 int test_create_contig_iocq(int g_fd, uint16_t io_cq_id, uint16_t cq_size)
 {
     return nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, 1, 1);

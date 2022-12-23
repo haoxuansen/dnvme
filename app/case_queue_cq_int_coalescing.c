@@ -116,7 +116,7 @@ static uint32_t sub_case_cq_int_coalescing(void)
     /**********************************************************************/
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        int_vertor = ctrl_sq_info[i].cq_id;
+        int_vertor = g_ctrl_sq_info[i].cq_id;
         coals_disable = 0;
         test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
     }
@@ -126,26 +126,26 @@ static uint32_t sub_case_cq_int_coalescing(void)
 
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        ctrl_sq_info[i].cmd_cnt = 0;
+        g_ctrl_sq_info[i].cmd_cnt = 0;
 
         for (index = 0; index < 200; index++)
         {
             if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(g_fd, 0, ctrl_sq_info[i].sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
-                ctrl_sq_info[i].cmd_cnt++;
+                test_flag |= nvme_send_iocmd(g_fd, 0, g_ctrl_sq_info[i].sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+                g_ctrl_sq_info[i].cmd_cnt++;
             }
         }
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        test_flag |= nvme_ring_sq_doorbell(g_fd, ctrl_sq_info[i].sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, g_ctrl_sq_info[i].sq_id);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        // io_cq_id = ctrl_sq_info[i].cq_id;
-        // test_flag |= cq_gain(io_cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num);
-        test_flag |= cq_gain_disp_cq(ctrl_sq_info[i].cq_id, ctrl_sq_info[i].cmd_cnt, &reap_num, false);
+        // io_cq_id = g_ctrl_sq_info[i].cq_id;
+        // test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
+        test_flag |= cq_gain_disp_cq(g_ctrl_sq_info[i].cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num, false);
     }
     delete_all_io_queue();
     return test_flag;

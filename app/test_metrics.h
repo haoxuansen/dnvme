@@ -12,7 +12,6 @@
 #define _TEST_METRICS_H_
 
 #include "auto_header.h"
-#include "reg_nvme_ctrl.h"
 #include "dnvme_ioctl.h"
 
 // #define AMD_MB_EN //Warning: AMD MB may not support msi-multi, create by shell script in auto_heater.h
@@ -75,19 +74,32 @@ struct fwdma_parameter
     uint32_t cdw15;
 };
 
-struct nvme_ctrl
-{
-	uint32_t max_sq_num; // 1'base
-	uint32_t max_cq_num; // 1'base
-	uint32_t link_speed; //
-	uint32_t link_width; //
-	uint32_t irq_type;   //
-	uint8_t pmcap_ofst;
-	uint8_t msicap_ofst;
-	uint8_t pxcap_ofst;
+/**
+ * @brief 
+ * 
+ * @io_sqes: Actual effective I/O Completion Queue Entry Size. The value
+ *  is in bytes and is specified as a power of tow (2^n).
+ * @io_cqes: Actual effective I/O Submission Queue Entry Size. The value
+ *  is in bytes and is specified as a power of tow (2^n).
+ */
+struct nvme_dev_info {
+	uint32_t	max_sq_num; // 1'base
+	uint32_t	max_cq_num; // 1'base
+	uint32_t	link_speed;
+	uint32_t	link_width;
+	uint8_t		pmcap_ofst;
+	uint8_t		msicap_ofst;
+	uint8_t		pxcap_ofst;
 
-	struct nvme_id_ctrl id_ctrl;
-	struct reg_nvme_ctrl ctrl_reg;
+	uint8_t		io_sqes;
+	uint8_t		io_cqes;
+
+	enum nvme_irq_type	irq_type;
+	struct nvme_cap		cap;
+	struct nvme_id_ctrl	id_ctrl;
+
+	struct nvme_ctrl_property	prop;
+	struct nvme_sq_info	*sq;
 };
 
 struct nvme_ns
@@ -109,8 +121,8 @@ struct nvme_sq_info
 
 struct nvme_cq_info
 {
-    uint16_t sq_id;
-    uint16_t cq_id;
+	uint16_t sq_id;
+	uint16_t cq_id;
 };
 
 #pragma pack(pop)
@@ -136,10 +148,6 @@ struct nvme_cq_info
 #define NVME_REG_BPRSEL_OFST 0x44
 #define NVME_REG_BPMBL_OFST 0x48
 
-#define PCI_PMCAP_ID 0x01
-#define PCI_MSICAP_ID 0x05
-#define PCI_PXCAP_ID 0x10
-
 //--------------------------------------------------------------------------------
 
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);
@@ -157,7 +165,6 @@ void test_meta(int g_fd);
 uint32_t create_meta_buf(int g_fd, uint32_t id);
 
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
-void admin_queue_config(int g_fd);
 void test_irq_review568(int fd);
 
 uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length);
@@ -202,8 +209,8 @@ extern void *g_read_buf;
 extern void *g_write_buf;
 extern void *g_discontig_sq_buf;
 extern void *g_discontig_cq_buf;
-extern struct nvme_ctrl g_nvme_dev;
-extern struct nvme_sq_info *ctrl_sq_info;
+extern struct nvme_dev_info g_nvme_dev;
+extern struct nvme_sq_info *g_ctrl_sq_info;
 extern struct nvme_ns *g_nvme_ns_info;
 
 #define TEST_PASS "\nppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \

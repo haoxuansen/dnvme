@@ -29,7 +29,7 @@ static void int_mask_bit(uint32_t msi_mask_flag)
     uint32_t mask_bit = 0;
     uint32_t u32_tmp_data = 0;
     nvme_disable_controller_complete(g_fd);
-    admin_queue_config(g_fd);
+    nvme_create_aq_pair(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
 
     nvme_set_irq(g_fd, NVME_INT_MSIX, 9);
     g_nvme_dev.irq_type = NVME_INT_MSIX;

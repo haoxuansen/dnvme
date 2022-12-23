@@ -238,7 +238,7 @@ int mem_cmp(uint32_t *mem_addr1, uint32_t *mem_addr2, uint32_t data_size)
     if (idx)
         pr_err("Compare ERROR!!! idx:%d\n", idx);
     else
-        pr_debug("Compare OK!!! \n");
+        pr_div("Compare OK!!! \n");
     return idx;
 }
 /**
@@ -282,7 +282,7 @@ int pat_cmp(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size)
     if (flg)
         pr_err("Compare ERROR!!! idx:%d\n", idx);
     else
-        pr_debug("Compare OK!!! \n");
+        pr_div("Compare OK!!! \n");
     return idx;
 }
 
@@ -308,7 +308,7 @@ int dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size)
     }
     if (flg == SUCCEED)
     {
-        pr_debug("Compare OK!!! \n");
+        pr_div("Compare OK!!! \n");
     }
     else
     {

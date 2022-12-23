@@ -27,7 +27,6 @@
 #include "pci.h"
 #include "queue.h"
 #include "cmd.h"
-#include "reg_nvme_ctrl.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -110,7 +109,7 @@ int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     }
     else
     {
-        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_div("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -157,7 +156,7 @@ int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     }
     else
     {
-        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_div("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -214,7 +213,7 @@ int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nl
     }
     else
     {
-        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_div("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -263,7 +262,7 @@ int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter)
     }
     else
     {
-        pr_debug("NVME_VENDOR_FWDMA_RD Sending Command Succesfully!\n");
+        pr_div("NVME_VENDOR_FWDMA_RD Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -307,7 +306,7 @@ int nvme_maxio_fwdma_wr(int g_fd, struct fwdma_parameter *fwdma_parameter)
     }
     else
     {
-        pr_debug("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
+        pr_div("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -365,7 +364,7 @@ int nvme_firmware_commit(int g_fd, uint8_t bpid, uint8_t ca, uint8_t fs)
     }
     else
     {
-        pr_debug("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
+        pr_div("NVME_VENDOR_FWDMA_WR Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -409,7 +408,7 @@ int nvme_firmware_download(int g_fd, uint32_t numd, uint32_t ofst, uint8_t *dptr
     }
     else
     {
-        pr_debug("firmware_download Sending Command Succesfully!\n");
+        pr_div("firmware_download Sending Command Succesfully!\n");
     }
     return SUCCEED;
 }
@@ -439,7 +438,7 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
     }
     else
     {
-        pr_debug("\tCQ ID = %d Preparation success\n", cq_parameter->cq_id);
+        pr_div("\tCQ ID = %d Preparation success\n", cq_parameter->cq_id);
     }
 
     /* Fill the command for create IOSQ*/
@@ -475,7 +474,7 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
     }
     else
     {
-        pr_debug("Command sent succesfully\n\n");
+        pr_div("Command sent succesfully\n\n");
     }
     return SUCCEED;
 }
@@ -503,7 +502,7 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
     }
     else
     {
-        pr_debug("\tSQ ID = %d Preparation success\n", sq_parameter->sq_id);
+        pr_div("\tSQ ID = %d Preparation success\n", sq_parameter->sq_id);
     }
 
     /* Fill the command for create IOSQ*/
@@ -542,7 +541,7 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
     }
     else
     {
-        pr_debug("Command sent succesfully\n\n");
+        pr_div("Command sent succesfully\n\n");
     }
     return SUCCEED;
 }
@@ -577,7 +576,7 @@ int keep_alive_cmd(int g_fd)
     }
     else
     {
-        pr_debug("%s sent succesfully\n\n", __FUNCTION__);
+        pr_div("%s sent succesfully\n\n", __FUNCTION__);
     }
     return SUCCEED;
 }
@@ -612,7 +611,7 @@ int admin_illegal_opcode_cmd(int g_fd, uint8_t opcode)
     }
     else
     {
-        pr_debug("%s sent succesfully\n\n", __FUNCTION__);
+        pr_div("%s sent succesfully\n\n", __FUNCTION__);
     }
     return SUCCEED;
 }
@@ -651,7 +650,7 @@ int ioctl_send_abort(int g_fd, uint16_t sq_id, uint16_t cmd_id)
     }
     else
     {
-        pr_debug("Command sent succesfully\n\n");
+        pr_div("Command sent succesfully\n\n");
     }
 
     return SUCCEED;
@@ -689,7 +688,7 @@ int ioctl_send_flush(int g_fd, uint16_t sq_id)
     }
     else
     {
-        pr_debug("Command sent succesfully\n\n");
+        pr_div("Command sent succesfully\n\n");
     }
 
     return SUCCEED;
@@ -741,7 +740,7 @@ int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     }
     else
     {
-        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_div("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb);
     }
     return SUCCEED;
@@ -790,7 +789,7 @@ int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb)
     }
     else
     {
-        pr_debug("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
+        pr_div("command sq_id: %d, slba: 0x%x, nlb: %d Command sent succesfully\n\n",
                  sq_id, (uint32_t)slba, nlb + 1);
     }
     return SUCCEED;
@@ -941,7 +940,7 @@ int ioctl_send_format(int g_fd, uint8_t lbaf)
     }
     else
     {
-        pr_debug("Command sent succesfully\n\n");
+        pr_div("Command sent succesfully\n\n");
     }
 
     return SUCCEED;
@@ -1289,8 +1288,8 @@ int nvme_admin_ring_dbl_reap_cq(int g_fd)
 {
     uint32_t reap_num = 0;
     int ret_val = SUCCEED;
-    ret_val |= nvme_ring_sq_doorbell(g_fd, 0);
-    ret_val |= cq_gain(0, 1, &reap_num);
+    ret_val |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    ret_val |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     return ret_val;
 }
 /**
@@ -1741,7 +1740,7 @@ uint32_t create_all_io_queue(uint8_t flags)
     }
 
     rdm_irq_no = BYTE_RAND() % num_irqs;
-    pr_debug("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
+    pr_div("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
 
     test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, int_type, num_irqs);
 
@@ -1749,8 +1748,8 @@ uint32_t create_all_io_queue(uint8_t flags)
     /**********************************************************************/
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        cq_parameter.cq_id = ctrl_sq_info[sqidx].cq_id;
-        cq_parameter.cq_size = ctrl_sq_info[sqidx].cq_size;
+        cq_parameter.cq_id = g_ctrl_sq_info[sqidx].cq_id;
+        cq_parameter.cq_size = g_ctrl_sq_info[sqidx].cq_size;
         cq_parameter.contig = 1;
         cq_parameter.irq_en = 1;
         if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
@@ -1765,30 +1764,30 @@ uint32_t create_all_io_queue(uint8_t flags)
             }
             else
             {
-                cq_parameter.irq_no = ctrl_sq_info[sqidx].cq_int_vct;
+                cq_parameter.irq_no = g_ctrl_sq_info[sqidx].cq_int_vct;
             }
         }
-        pr_debug("create cq: %d\n", cq_parameter.cq_id);
+        pr_div("create cq: %d\n", cq_parameter.cq_id);
         create_iocq(g_fd, &cq_parameter);
     }
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        sq_parameter.cq_id = ctrl_sq_info[sqidx].cq_id;
-        sq_parameter.sq_id = ctrl_sq_info[sqidx].sq_id;
-        sq_parameter.sq_size = ctrl_sq_info[sqidx].sq_size;
+        sq_parameter.cq_id = g_ctrl_sq_info[sqidx].cq_id;
+        sq_parameter.sq_id = g_ctrl_sq_info[sqidx].sq_id;
+        sq_parameter.sq_size = g_ctrl_sq_info[sqidx].sq_size;
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
-        pr_debug("create sq: %d, assoc cq: %d\n", sq_parameter.sq_id, 
+        pr_div("create sq: %d, assoc cq: %d\n", sq_parameter.sq_id, 
             sq_parameter.cq_id);
         create_iosq(g_fd, &sq_parameter);
     }
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
 
@@ -1797,19 +1796,19 @@ uint32_t delete_all_io_queue(void)
     uint32_t reap_num = 0;
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, ctrl_sq_info[sqidx].sq_id);
+        ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, g_ctrl_sq_info[sqidx].sq_id);
     }
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
 
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, ctrl_sq_info[sqidx].cq_id);
+        ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, g_ctrl_sq_info[sqidx].cq_id);
     }
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_debug("  cq reaped ok! reap_num:%d\n", reap_num);
+    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
 

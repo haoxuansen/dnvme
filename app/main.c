@@ -39,8 +39,8 @@ void *g_cq_entry_buf;
 void *g_discontig_sq_buf;
 void *g_discontig_cq_buf;
 
-struct nvme_ctrl g_nvme_dev;
-struct nvme_sq_info *ctrl_sq_info;
+struct nvme_dev_info g_nvme_dev = {0};
+struct nvme_sq_info *g_ctrl_sq_info;
 struct nvme_ns *g_nvme_ns_info;
 
 static int test_mem_alloc(void)
@@ -119,8 +119,8 @@ void test_mem_free(void)
 	g_cq_entry_buf = NULL;
 
 	/* !TODO: It's better to free memory in "test_exit"? */
-	free(ctrl_sq_info);
-	ctrl_sq_info = NULL;
+	free(g_ctrl_sq_info);
+	g_ctrl_sq_info = NULL;
 	free(g_nvme_ns_info);
 	g_nvme_ns_info = NULL;
 }
@@ -160,11 +160,11 @@ int main(int argc, char *argv[])
 		// *((uint32_t *)(g_write_buf + i)) = DWORD_RAND();
 		*((uint32_t *)(g_write_buf + i)) = i;
 	}
-	memset(&g_nvme_dev, 0xff, sizeof(struct nvme_ctrl));
+	memset(&g_nvme_dev, 0xff, sizeof(struct nvme_dev_info));
 
 	srand(time(NULL));
 
-	test_init(g_fd);
+	test_init(g_fd, &g_nvme_dev);
 
 	case_display_case_list();
 	nvme_select_case_to_execute();

@@ -191,9 +191,10 @@ int case_pcie_MRRS(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
+    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
     int ret;
-    cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
-    sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
+    cq_size = NVME_CAP_MQES(prop->cap);
+    sq_size = NVME_CAP_MQES(prop->cap);
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s\n", disp_this_case);

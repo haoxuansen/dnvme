@@ -57,9 +57,10 @@ static SubCase_t sub_case_list[] = {
 int test_3_adm_wr_cache_fua(void)
 {
     uint32_t round_idx = 0;
+    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
     
-    cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
-    sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
+    cq_size = NVME_CAP_MQES(prop->cap);
+    sq_size = NVME_CAP_MQES(prop->cap);
 
     test_loop = 2;
 

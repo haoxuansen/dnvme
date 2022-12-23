@@ -18,6 +18,8 @@
 int nvme_get_driver_info(int fd, struct nvme_driver *drv);
 int nvme_get_device_info(int fd, struct nvme_dev_public *dev);
 
+int nvme_get_capability(int fd, struct nvme_cap *cap);
+
 int nvme_read_generic(int fd, enum nvme_region region, uint32_t oft, 
 	uint32_t len, void *buf);
 int nvme_write_generic(int fd, enum nvme_region region, uint32_t oft, 
@@ -27,6 +29,16 @@ static inline int nvme_read_ctrl_property(int fd, uint32_t oft, uint32_t len,
 	void *buf)
 {
 	return nvme_read_generic(fd, NVME_BAR0_BAR1, oft, len, buf);
+}
+
+static inline int nvme_read_ctrl_cap(int fd, uint64_t *val)
+{
+	return nvme_read_ctrl_property(fd, NVME_REG_CAP, 8, val);
+}
+
+static inline int nvme_read_ctrl_cc(int fd, uint32_t *val)
+{
+	return nvme_read_ctrl_property(fd, NVME_REG_CC, 4, val);
 }
 
 static inline int nvme_write_ctrl_property(int fd, uint32_t oft, uint32_t len,

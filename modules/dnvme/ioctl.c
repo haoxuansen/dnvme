@@ -76,6 +76,7 @@ static int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 
 	cc = dnvme_readl(bar0, NVME_REG_CC);
 	if (enabled) {
+		cc &= ~(NVME_CC_IOSQES_MASK | NVME_CC_IOCQES_MASK);
 		cc |= NVME_CC_IOSQES | NVME_CC_IOCQES;
 		cc |= NVME_CC_ENABLE;
 	} else {

@@ -53,4 +53,21 @@ int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
 int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 	void *buf, uint32_t size);
 
+int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);
+
+static inline int nvme_cmd_set_feat_num_queues(int fd, uint16_t nr_sq, 
+	uint16_t nr_cq)
+{
+	return nvme_cmd_set_feature(fd, 0, NVME_FEAT_NUM_QUEUES, 
+		((uint32_t)nr_cq << 16) | nr_sq);
+}
+
+int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf, 
+	uint32_t size);
+
+int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl);
+int nvme_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl);
+int nvme_cmd_identify_ns(int fd, struct nvme_id_ns *ns, uint32_t nsid);
+int nvme_identify_ns(int fd, struct nvme_id_ns *ns, uint32_t nsid);
+
 #endif /* !_APP_CMD_H_ */

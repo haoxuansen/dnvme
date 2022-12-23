@@ -71,7 +71,7 @@ static int case_disable_ctrl_complete(void)
 static int case_reinit_device(void)
 {
 	/* !TODO: Check return value! */
-	test_init(g_fd);
+	test_init(g_fd, &g_nvme_dev);
 	return 0;
 }
 
@@ -98,8 +98,9 @@ static int case_create_contig_queue(void)
 {
 	uint16_t sq_id = 1;
 	uint16_t cq_id = 1;
-	uint32_t sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
-	uint32_t cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
+	struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
+	uint32_t sq_size = NVME_CAP_MQES(prop->cap);
+	uint32_t cq_size = NVME_CAP_MQES(prop->cap);
 
 	/* !TODO: Check return value! */
 	pr_notice("Create contig cq_id:%d, cq_size = %d\n", cq_id, cq_size);

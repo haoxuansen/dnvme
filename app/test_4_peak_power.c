@@ -77,13 +77,14 @@ static uint8_t test_sub(void)
     uint64_t wr_slba = 0;
     uint16_t wr_nlb = 8;
     uint32_t wr_nsid = 1;
+    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
     uint32_t reap_num = 0;
     mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
     mem_set(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
-    sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
-    cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
+    sq_size = NVME_CAP_MQES(prop->cap);
+    cq_size = NVME_CAP_MQES(prop->cap);
 
     for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {

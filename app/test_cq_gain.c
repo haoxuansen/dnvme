@@ -47,7 +47,7 @@ int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 		}
 		else
 		{
-			pr_debug("Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
+			pr_div("Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
 				cq_entry->command_id, cq_entry->result.u32, 
 				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
 				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));

@@ -257,13 +257,13 @@ uint32_t get_higt_weight_q_min_num(void)
 static void test_sub(void)
 {
     uint32_t q_index = 0;
-
     uint32_t index = 0;
     uint32_t cmd_cnt = 0;
     uint32_t io_sq_id = 1;
     uint32_t io_cq_id = 1;
-    uint32_t cq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
-    uint32_t sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
+    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
+    uint32_t cq_size = NVME_CAP_MQES(prop->cap);
+    uint32_t sq_size = NVME_CAP_MQES(prop->cap);
     uint64_t wr_slba = 0;
     uint16_t wr_nlb = 0;
     uint32_t wr_nsid = 1;
@@ -291,7 +291,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -302,7 +302,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
     pr_info("create SQ2 prio = MEDIUM_PRIO\n");
@@ -320,7 +320,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -331,7 +331,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
     pr_info("create SQ3 prio = URGENT_PRIO\n");
@@ -349,7 +349,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -360,7 +360,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
     pr_info("create SQ4 prio = HIGH_PRIO\n");
@@ -379,7 +379,7 @@ static void test_sub(void)
 
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
@@ -390,7 +390,7 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     /**********************************************************************/
 
@@ -508,13 +508,13 @@ static void test_sub(void)
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
         test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-        pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+        pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
     }
     /****************************************************************************

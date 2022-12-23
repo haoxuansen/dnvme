@@ -62,7 +62,8 @@ int test_0_full_disk_wr(void)
     int test_flag = SUCCEED;
     uint32_t round_idx = 0;
     uint32_t test_loop = 1;
-    sq_size = g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes;
+    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
+    sq_size = NVME_CAP_MQES(prop->cap);
     cq_size = sq_size;
     wr_nsid = 1;
     wr_nlb = 8;

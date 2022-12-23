@@ -16,6 +16,7 @@
 
 #include "log.h"
 #include "cmd.h"
+#include "queue.h"
 
 /**
  * @brief Submit the specified command
@@ -66,6 +67,12 @@ int nvme_submit_64b_cmd_legacy(int fd, struct nvme_64b_cmd *cmd)
 	return 0;
 }
 
+/**
+ * @brief Submit command to create a I/O submission queue
+ * 
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
 	void *buf, uint32_t size)
 {
@@ -88,6 +95,12 @@ int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
+/**
+ * @brief Submit command to create a I/O completion queue
+ * 
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 	void *buf, uint32_t size)
 {
@@ -108,4 +121,145 @@ int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 	cmd.data_buf_size = size;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_features feat = {0};
+
+	feat.opcode = nvme_admin_set_features;
+	feat.nsid = cpu_to_le32(nsid);
+	feat.fid = cpu_to_le32(fid);
+	feat.dword11 = cpu_to_le32(dw11);
+
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &feat;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf, 
+	uint32_t size)
+{
+	struct nvme_64b_cmd cmd = {0};
+	
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = identify;
+	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP2_PAGE;
+	cmd.data_dir = DMA_BIDIRECTIONAL,
+	cmd.data_buf_ptr = buf;
+	cmd.data_buf_size = size;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_CTRL;
+
+	return nvme_cmd_identify(fd, &identify, ctrl, sizeof(*ctrl));
+}
+
+/**
+ * @brief Get Identify Controller data structure for the controller 
+ *  processing the command.
+ * 
+ * @param fd NVMe device file descriptor
+ * @param ctrl point to the identify controller data structure
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ctrl(fd, ctrl);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ns(int fd, struct nvme_id_ns *ns, uint32_t nsid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.nsid = cpu_to_le32(nsid);
+	identify.cns = NVME_ID_CNS_NS;
+
+	return nvme_cmd_identify(fd, &identify, ns, sizeof(*ns));
+}
+
+/**
+ * @brief Get Identify Namespace data structure for the specified NSID or
+ *  the common namespace capabilities for the NVM Command Set
+ * 
+ * @param fd NVMe device file descriptor
+ * @param ns point to the identify namespace data structure
+ * @param nsid The specifed namespace identifier
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns(int fd, struct nvme_id_ns *ns, uint32_t nsid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns(fd, ns, nsid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
 }

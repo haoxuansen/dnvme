@@ -72,7 +72,7 @@ static void test_sub(void)
             test_flag |= create_iocq(g_fd, &cq_parameter);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
             /**********************************************************************/
             io_sq_id = q_index;
@@ -81,7 +81,7 @@ static void test_sub(void)
             test_flag |= create_iosq(g_fd, &sq_parameter);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
             /**********************************************************************/
             //fill full cmd with q
@@ -102,18 +102,18 @@ static void test_sub(void)
 
             test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /**********************************************************************/
             test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
             test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         }
     }
     /*******************************************************************************************************************************/
@@ -142,7 +142,7 @@ static void test_sub(void)
             test_flag |= create_iocq(g_fd, &cq_parameter);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
             /**********************************************************************/
             io_sq_id = q_index;
@@ -151,7 +151,7 @@ static void test_sub(void)
             test_flag |= create_iosq(g_fd, &sq_parameter);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
             /**********************************************************************/
             //first send read cmd
@@ -171,7 +171,7 @@ static void test_sub(void)
 
             test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /**********************************************************************/
             //second send write cmd
@@ -190,18 +190,18 @@ static void test_sub(void)
 
             test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
             /**********************************************************************/
             test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
             test_flag |= ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
             test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-            pr_debug("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+            pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         }
     }
     /*******************************************************************************************************************************/

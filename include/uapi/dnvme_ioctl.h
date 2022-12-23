@@ -24,7 +24,11 @@
 #include "bitops.h"
 #include "nvme.h"
 
+/* The number of entries in Admin queue */
 #define NVME_AQ_MAX_SIZE		4096
+/* The number of entries in I/O queue */
+#define NVME_IOQ_MIN_SIZE		2 /* at least 2 entries */
+#define NVME_IOQ_MAX_SIZE		65536
 
 enum {
 	NVME_READ_GENERIC = 0,
@@ -106,6 +110,8 @@ enum nvme_64b_cmd_mask {
 	NVME_MASK_PRP_ADDR_OFFSET_ERR = (1 << 5), /* To inject PRP address offset (used for err cases) */
 };
 
+/* !FIXME: Some code doesn't follow the rules, and it is possible to replace
+ * the members of "enum nvme_irq_type" with constants. */
 enum nvme_irq_type {
 	NVME_INT_MSI_SINGLE,
 	NVME_INT_MSI_MULTI,
@@ -117,6 +123,21 @@ enum nvme_irq_type {
 struct nvme_driver {
 	uint32_t drv_version;
 	uint32_t api_version;
+};
+
+/**
+ * @brief NVMe device controller properties
+ * 
+ * @cap: Controller Capabilities Register
+ * @cc: Controller Configuration Register
+ * @cmbloc: Controller Memory Buffer Location Register
+ * @cmbsz: Controller Memory Buffer Size Register
+ */
+struct nvme_ctrl_property {
+	uint64_t	cap;
+	uint32_t	cc;
+	uint32_t	cmbloc;
+	uint32_t	cmbsz;
 };
 
 /**
@@ -146,16 +167,6 @@ struct pcie_cap {
 struct nvme_cap {
 	struct pci_cap	pci[PCI_CAP_ID_MAX];
 	struct pcie_cap	pcie[PCI_EXT_CAP_ID_MAX];
-
-
-	unsigned long	pci_cap_support[BITS_TO_LONGS(PCI_CAP_ID_MAX)];
-/* PCI Power Management Capability */
-#define PCI_CAP_SUPPORT_PM		0
-/* Message Signaled Interrupts Capability */
-#define PCI_CAP_SUPPORT_MSI		1
-#define PCI_CAP_SUPPORT_MSIX		2
-#define PCI_CAP_SUPPORT_PCIE		3
-	uint8_t		pci_cap_offset[32];
 };
 
 /**

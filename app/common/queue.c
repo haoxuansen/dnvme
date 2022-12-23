@@ -215,7 +215,7 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 
 static void nvme_display_cq_entry(struct nvme_completion *entry)
 {
-	pr_debug("SQ:%u, CMD:0x%x, Head:0x%x, P:%u, Status:%u|%u|%u|0x%x|0x%x,"
+	pr_bub("SQ:%u, CMD:0x%x, Head:0x%x, P:%u, Status:%u|%u|%u|0x%x|0x%x,"
 		" QWord:0x%llx\n",
 		le16_to_cpu(entry->sq_id), entry->command_id, 
 		le16_to_cpu(entry->sq_head), 
