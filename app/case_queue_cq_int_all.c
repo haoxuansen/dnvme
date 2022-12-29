@@ -27,12 +27,12 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static uint32_t sub_case_int_pin(void);
-static uint32_t sub_case_int_msi_single(void);
-static uint32_t sub_case_int_msi_multi(void);
-static uint32_t sub_case_int_msix(void);
-static uint32_t sub_case_int_n_queue(void);
-static uint32_t sub_case_multi_cq_map_one_int_vct(void);
+static int sub_case_int_pin(void);
+static int sub_case_int_msi_single(void);
+static int sub_case_int_msi_multi(void);
+static int sub_case_int_msix(void);
+static int sub_case_int_n_queue(void);
+static int sub_case_multi_cq_map_one_int_vct(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_queue_cq_int_all",
@@ -72,7 +72,7 @@ int case_queue_cq_int_all(void)
     return test_flag;
 }
 
-static uint32_t sub_case_int_pin(void)
+static int sub_case_int_pin(void)
 {
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
@@ -135,7 +135,7 @@ static uint32_t sub_case_int_pin(void)
     return test_flag;
 }
 
-static uint32_t sub_case_int_msi_single(void)
+static int sub_case_int_msi_single(void)
 {
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
@@ -201,7 +201,7 @@ static uint32_t sub_case_int_msi_single(void)
     return test_flag;
 }
 
-static uint32_t sub_case_int_msi_multi(void)
+static int sub_case_int_msi_multi(void)
 {
     uint32_t index = 0;
     #ifdef AMD_MB_EN
@@ -270,7 +270,7 @@ static uint32_t sub_case_int_msi_multi(void)
     return test_flag;
 }
 
-static uint32_t sub_case_int_msix(void)
+static int sub_case_int_msix(void)
 {
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
@@ -336,7 +336,7 @@ static uint32_t sub_case_int_msix(void)
     return test_flag;
 }
 
-static uint32_t sub_case_int_n_queue(void)
+static int sub_case_int_n_queue(void)
 {
     uint32_t index = 0;
 
@@ -374,7 +374,7 @@ static uint32_t sub_case_int_n_queue(void)
     return test_flag;
 }
 
-static uint32_t sub_case_multi_cq_map_one_int_vct(void)
+static int sub_case_multi_cq_map_one_int_vct(void)
 {
     uint32_t index = 0;
 

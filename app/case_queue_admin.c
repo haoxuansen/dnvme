@@ -23,8 +23,8 @@ static uint32_t test_loop = 0;
 // static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static uint32_t sub_case_asq_size_loop_array(void);
-static uint32_t sub_case_asq_size_random(void);
+static int sub_case_asq_size_loop_array(void);
+static int sub_case_asq_size_random(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_queue_cq_int_all",
@@ -59,7 +59,7 @@ int case_queue_admin(void)
     return test_flag;
 }
 
-static uint32_t sub_case_asq_size_loop_array(void)
+static int sub_case_asq_size_loop_array(void)
 {
     uint32_t sq_size_idx = 0;
     uint32_t cq_size_idx = 0;
@@ -145,7 +145,7 @@ static uint32_t sub_case_asq_size_loop_array(void)
     return test_flag;
 }
 
-static uint32_t sub_case_asq_size_random(void)
+static int sub_case_asq_size_random(void)
 {
     uint8_t int_type = 0;
     uint16_t num_irqs;

@@ -22,7 +22,7 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static uint32_t sub_case_cq_int_coalescing(void);
+static int sub_case_cq_int_coalescing(void);
 
 static SubCaseHeader_t sub_case_header = {
     "this case will tests CQ interrupt int_coalescing",
@@ -98,7 +98,7 @@ int case_queue_cq_int_coalescing(void)
     return test_flag;
 }
 
-static uint32_t sub_case_cq_int_coalescing(void)
+static int sub_case_cq_int_coalescing(void)
 {
     uint32_t index = 0;
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;

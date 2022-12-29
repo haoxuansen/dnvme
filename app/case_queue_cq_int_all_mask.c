@@ -26,8 +26,8 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static uint32_t sub_case_int_queue_mask(void);
-static uint32_t sub_case_pending_bit(void);
+static int sub_case_int_queue_mask(void);
+static int sub_case_pending_bit(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_queue_cq_int_all",
@@ -63,7 +63,7 @@ int case_queue_cq_int_all_mask(void)
     return test_flag;
 }
 
-static uint32_t sub_case_int_queue_mask(void)
+static int sub_case_int_queue_mask(void)
 {
     uint32_t index = 0;
 
@@ -123,7 +123,7 @@ int msi_cap_access(void)
 }
 
 
-static uint32_t sub_case_pending_bit(void)
+static int sub_case_pending_bit(void)
 {
     create_all_io_queue(0);
     

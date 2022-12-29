@@ -31,7 +31,7 @@ static struct create_sq_parameter sq_parameter = {0};
 static uint32_t reap_num = 0;
 static uint32_t send_num = 0;
 
-static uint32_t sub_case_use_1_q_del_it(void)
+static int sub_case_use_1_q_del_it(void)
 {
 	uint32_t cq_size = 1024; //(DWORD_RAND())%(g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes-20)+20;
 	uint32_t sq_size = 1024; //(DWORD_RAND())%(g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes-20)+20;
@@ -86,7 +86,7 @@ static uint32_t sub_case_use_1_q_del_it(void)
 	return test_flag;
 }
 
-static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
+static int sub_case_use_3_q_del_2_use_remian_del_it(void)
 {
 	uint32_t cq_size = 1024; //(DWORD_RAND())%(g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes-20)+20;
 	uint32_t sq_size = 1024; //(DWORD_RAND())%(g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes-20)+20;
@@ -210,7 +210,7 @@ static uint32_t sub_case_use_3_q_del_2_use_remian_del_it(void)
 	return test_flag;
 }
 
-static uint32_t sub_case_del_cq_before_sq(void)
+static int sub_case_del_cq_before_sq(void)
 {
 	uint32_t cq_size = 1024; //(DWORD_RAND())%(g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes-20)+20;
 	uint32_t sq_size = 1024; //(DWORD_RAND())%(g_nvme_dev.ctrl_reg.nvme_cap0.bits.cap_mqes-20)+20;
@@ -270,7 +270,7 @@ static uint32_t sub_case_del_cq_before_sq(void)
 	return test_flag;
 }
 
-static uint32_t delete_runing_cmd_queue(void)
+static int delete_runing_cmd_queue(void)
 {
 	uint32_t reap_num;
 	uint32_t cmd_cnt = 0;
@@ -318,7 +318,7 @@ static uint32_t delete_runing_cmd_queue(void)
 	return test_flag;
 }
 
-static uint32_t delete_runing_fua_cmd_queue(void)
+static int delete_runing_fua_cmd_queue(void)
 {
 
 	uint32_t reap_num;
@@ -365,7 +365,7 @@ static uint32_t delete_runing_fua_cmd_queue(void)
 	return test_flag;
 }
 
-static uint32_t delete_runing_iocmd_queue(void)
+static int delete_runing_iocmd_queue(void)
 {
 	create_all_io_queue(0);
 

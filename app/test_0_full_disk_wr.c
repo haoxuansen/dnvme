@@ -32,14 +32,14 @@ static uint64_t wr_slba = 0;
 static uint32_t wr_nsid = 1;
 static uint8_t cmp_fg = 0;
 
-static uint32_t sub_case_pre(void);
-static uint32_t sub_case_end(void);
-static uint32_t sub_case_write_order(void);
-static uint32_t sub_case_write_random(void);
-static uint32_t sub_case_read_order(void);
-static uint32_t sub_case_read_random(void);
-static uint32_t sub_case_write_read_verify(void);
-static uint32_t sub_case_sgl_write_read_verify(void);
+static int sub_case_pre(void);
+static int sub_case_end(void);
+static int sub_case_write_order(void);
+static int sub_case_write_random(void);
+static int sub_case_read_order(void);
+static int sub_case_read_random(void);
+static int sub_case_write_read_verify(void);
+static int sub_case_sgl_write_read_verify(void);
 
 static SubCaseHeader_t sub_case_header = {
     "test_0_full_disk_wr",
@@ -86,7 +86,7 @@ int test_0_full_disk_wr(void)
     return SUCCEED;
 }
 
-static uint32_t sub_case_pre(void)
+static int sub_case_pre(void)
 {
     int test_flag = SUCCEED;
     pr_info("==>QID:%d\n", io_sq_id);
@@ -97,7 +97,7 @@ static uint32_t sub_case_pre(void)
     test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
-static uint32_t sub_case_end(void)
+static int sub_case_end(void)
 {
     int test_flag = SUCCEED;
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
@@ -106,7 +106,7 @@ static uint32_t sub_case_end(void)
     return test_flag;
 }
 
-static uint32_t sub_case_write_order(void)
+static int sub_case_write_order(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -133,7 +133,7 @@ static uint32_t sub_case_write_order(void)
     return test_flag;
 }
 
-static uint32_t sub_case_write_random(void)
+static int sub_case_write_random(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -155,7 +155,7 @@ static uint32_t sub_case_write_random(void)
     return test_flag;
 }
 
-static uint32_t sub_case_read_order(void)
+static int sub_case_read_order(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -179,7 +179,7 @@ static uint32_t sub_case_read_order(void)
     return test_flag;
 }
 
-static uint32_t sub_case_read_random(void)
+static int sub_case_read_random(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -201,8 +201,8 @@ static uint32_t sub_case_read_random(void)
     return test_flag;
 }
 
-static uint32_t sub_case_write_read_verify_1(void);
-static uint32_t sub_case_write_read_verify(void)
+static int sub_case_write_read_verify_1(void);
+static int sub_case_write_read_verify(void)
 {
     int test_flag = SUCCEED;
     for (uint32_t i = 0; i < 100; i++)
@@ -210,7 +210,7 @@ static uint32_t sub_case_write_read_verify(void)
     return test_flag;
 }
 
-static uint32_t sub_case_write_read_verify_1(void)
+static int sub_case_write_read_verify_1(void)
 {
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
@@ -312,7 +312,7 @@ static uint32_t sub_case_write_read_verify_1(void)
     return test_flag;
 }
 
-static uint32_t sub_case_sgl_write_read_verify(void)
+static int sub_case_sgl_write_read_verify(void)
 {
     uint8_t flags = 0;
     int test_flag = SUCCEED;

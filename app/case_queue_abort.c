@@ -27,14 +27,14 @@ static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 static uint32_t send_num = 0;
 
-static uint32_t sub_case_pre(void);
-static uint32_t sub_case_end(void);
+static int sub_case_pre(void);
+static int sub_case_end(void);
 
-static uint32_t sub_case_abort_1_wrd_cmd(void);
-static uint32_t sub_case_random_abort_1_wrd_cmd(void);
-static uint32_t sub_case_abort_2_wrd_cmd(void);
-static uint32_t sub_case_abort_3_wrd_cmd(void);
-static uint32_t sub_case_abort_4_wrd_cmd(void);
+static int sub_case_abort_1_wrd_cmd(void);
+static int sub_case_random_abort_1_wrd_cmd(void);
+static int sub_case_abort_2_wrd_cmd(void);
+static int sub_case_abort_3_wrd_cmd(void);
+static int sub_case_abort_4_wrd_cmd(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_queue_abort",
@@ -77,7 +77,7 @@ int case_queue_abort(void)
     return test_flag;
 }
 
-static uint32_t sub_case_pre(void)
+static int sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -87,7 +87,7 @@ static uint32_t sub_case_pre(void)
     test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
-static uint32_t sub_case_end(void)
+static int sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
@@ -103,7 +103,7 @@ static uint32_t sub_case_end(void)
  * sub_case_random_abort_1_wrd_cmd, sub_case_abort_2_wrd_cmd,
  * sub_case_abort_3_wrd_cmd, sub_case_abort_4_wrd_cmd
  */
-static uint32_t sub_case_abort_1_wrd_cmd(void)
+static int sub_case_abort_1_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -124,7 +124,7 @@ static uint32_t sub_case_abort_1_wrd_cmd(void)
     return test_flag;
 }
 
-static uint32_t sub_case_random_abort_1_wrd_cmd(void)
+static int sub_case_random_abort_1_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -149,7 +149,7 @@ static uint32_t sub_case_random_abort_1_wrd_cmd(void)
     return test_flag;
 }
 
-static uint32_t sub_case_abort_2_wrd_cmd(void)
+static int sub_case_abort_2_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -175,7 +175,7 @@ static uint32_t sub_case_abort_2_wrd_cmd(void)
     return test_flag;
 }
 
-static uint32_t sub_case_abort_3_wrd_cmd(void)
+static int sub_case_abort_3_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -203,7 +203,7 @@ static uint32_t sub_case_abort_3_wrd_cmd(void)
     return test_flag;
 }
 
-static uint32_t sub_case_abort_4_wrd_cmd(void)
+static int sub_case_abort_4_wrd_cmd(void)
 {
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;

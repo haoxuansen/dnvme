@@ -36,10 +36,10 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static uint32_t sub_case_pre(void);
-static uint32_t sub_case_end(void);
+static int sub_case_pre(void);
+static int sub_case_end(void);
 
-static uint32_t sub_case_all_ns_wr_rd_cmp(void);
+static int sub_case_all_ns_wr_rd_cmp(void);
 
 static SubCaseHeader_t sub_case_header = {
     "test_6_all_ns_lbads_test",
@@ -77,7 +77,7 @@ int test_6_all_ns_lbads_test(void)
     return test_flag;
 }
 
-static uint32_t sub_case_pre(void)
+static int sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -87,7 +87,7 @@ static uint32_t sub_case_pre(void)
     test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
-static uint32_t sub_case_end(void)
+static int sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
@@ -95,7 +95,7 @@ static uint32_t sub_case_end(void)
     return test_flag;
 }
 
-static uint32_t sub_case_all_ns_wr_rd_cmp(void)
+static int sub_case_all_ns_wr_rd_cmp(void)
 {
     for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
     {

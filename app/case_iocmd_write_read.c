@@ -28,13 +28,13 @@ static uint16_t wr_nlb = 8;
 static uint32_t wr_nsid = 1;
 static uint32_t reap_num = 0;
 
-static uint32_t sub_case_pre(void);
-static uint32_t sub_case_end(void);
+static int sub_case_pre(void);
+static int sub_case_end(void);
 
-static uint32_t sub_case_write(void);
-static uint32_t sub_case_read(void);
-static uint32_t sub_case_write_read(void);
-static uint32_t sub_case_write_read_2(void);
+static int sub_case_write(void);
+static int sub_case_read(void);
+static int sub_case_write_read(void);
+static int sub_case_write_read_2(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_iocmd_write_read",
@@ -74,7 +74,7 @@ int case_iocmd_write_read(void)
     return test_flag;
 }
 
-static uint32_t sub_case_pre(void)
+static int sub_case_pre(void)
 {
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -85,7 +85,7 @@ static uint32_t sub_case_pre(void)
     return test_flag;
 }
 
-static uint32_t sub_case_end(void)
+static int sub_case_end(void)
 {
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
@@ -95,7 +95,7 @@ static uint32_t sub_case_end(void)
 
 uint16_t wr_nlb_arr[] = {32, 64, 128, 256};
 
-static uint32_t sub_case_write(void)
+static int sub_case_write(void)
 {
     uint32_t index0 = 0;
     uint32_t index1 = 0;
@@ -137,7 +137,7 @@ static uint32_t sub_case_write(void)
     return test_flag;
 }
 
-static uint32_t sub_case_read(void)
+static int sub_case_read(void)
 {
     uint32_t index0 = 0;
     uint32_t index1 = 0;
@@ -179,7 +179,7 @@ static uint32_t sub_case_read(void)
     return test_flag;
 }
 
-static uint32_t sub_case_write_read(void)
+static int sub_case_write_read(void)
 {
     uint32_t index0 = 0;
     uint32_t index1 = 0;
@@ -225,7 +225,7 @@ static uint32_t sub_case_write_read(void)
     return test_flag;
 }
 
-static uint32_t sub_case_write_read_2(void)
+static int sub_case_write_read_2(void)
 {
     uint32_t index0 = 0;
     uint32_t index1 = 0;

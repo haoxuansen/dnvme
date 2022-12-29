@@ -25,7 +25,7 @@ typedef struct _case_ctrl_t
 
 
 #define SUB_CASE(cf, cn) {cf, #cf, cn, FAILED}
-typedef uint32_t (*SubCaseFunc_t)(void);
+typedef int (*SubCaseFunc_t)(void);
 typedef struct _SubCase_t
 {
     SubCaseFunc_t CaseFunc; 

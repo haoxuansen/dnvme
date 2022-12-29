@@ -21,8 +21,8 @@ static int test_flag = SUCCEED;
 static uint32_t test_loop = 0;
 static void *boot_buffer;
 
-static uint32_t rd_wr_boot_part_ccen_0(void);
-static uint32_t rd_wr_boot_part_ccen_1(void);
+static int rd_wr_boot_part_ccen_0(void);
+static int rd_wr_boot_part_ccen_1(void);
 
 static SubCaseHeader_t sub_case_header = {
     "case_nvme_boot_partition",
@@ -219,7 +219,7 @@ int writeing_boot_partition(void)
     return test_flag;
 }
 
-static uint32_t rd_wr_boot_part_ccen_0(void)
+static int rd_wr_boot_part_ccen_0(void)
 {
     int ret_val;
     uint64_t cap;
@@ -259,7 +259,7 @@ skip_out:
     return test_flag;
 }
 
-static uint32_t rd_wr_boot_part_ccen_1(void)
+static int rd_wr_boot_part_ccen_1(void)
 {
     int ret_val;
     uint64_t cap;
