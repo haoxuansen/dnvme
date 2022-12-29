@@ -111,6 +111,12 @@ static int init_ns_data(int fd, uint32_t nn)
 		return -ENOMEM;
 	}
 
+	/* !FIXME: The identify of namespaces may not start with 1 or be
+	 * consecutive
+	 *
+	 * It's better to get the correct identify by getting active namespace
+	 * ID list ?
+	 */
 	for (idx = 0; idx < nn; idx++) {
 		ret = nvme_identify_ns(fd, &ns[idx].id_ns, idx + 1);
 		if (ret < 0) {

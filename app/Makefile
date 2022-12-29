@@ -19,6 +19,8 @@ LDFLAGS := -L$(TOP_DIR)/output/libs
 LDFLAGS += -static
 LDLIBS := -lbase
 
+Q ?= @
+
 .DEFAULT_GOAL := build
 
 %.o: %.c

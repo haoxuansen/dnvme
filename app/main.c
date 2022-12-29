@@ -150,6 +150,7 @@ int main(int argc, char *argv[])
 		return errno;
 	}
 	pr_info("Open %s OK!\n", argv[1]);
+	g_nvme_dev.fd = g_fd;
 
 	ret = test_mem_alloc();
 	if (ret < 0)
@@ -160,7 +161,7 @@ int main(int argc, char *argv[])
 		// *((uint32_t *)(g_write_buf + i)) = DWORD_RAND();
 		*((uint32_t *)(g_write_buf + i)) = i;
 	}
-	memset(&g_nvme_dev, 0xff, sizeof(struct nvme_dev_info));
+	//memset(&g_nvme_dev, 0xff, sizeof(struct nvme_dev_info));
 
 	srand(time(NULL));
 

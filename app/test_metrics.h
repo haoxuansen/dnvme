@@ -83,6 +83,8 @@ struct fwdma_parameter
  *  is in bytes and is specified as a power of tow (2^n).
  */
 struct nvme_dev_info {
+	int		fd;
+
 	uint32_t	max_sq_num; // 1'base
 	uint32_t	max_cq_num; // 1'base
 	uint32_t	link_speed;
