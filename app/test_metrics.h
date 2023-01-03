@@ -20,8 +20,6 @@
 #define DEFAULT_IO_QUEUE_SIZE (65535)
 #define NSIDX(n) (n - 1)
 
-#define SAMSUNG_CTRL_VID (0x144d)
-
 #define MAXIO_CTRL_VID (0x1E4B)
 #define MAXIO_CTRL_SSVID (0x1E4B)
 

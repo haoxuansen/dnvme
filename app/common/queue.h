@@ -74,6 +74,9 @@ int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq);
 int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap);
 int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap);
 
+int nvme_delete_iosq(int fd, uint16_t sqid);
+int nvme_delete_iocq(int fd, uint16_t cqid);
+
 int nvme_inquiry_cq_entries(int fd, uint16_t cqid);
 int nvme_reap_cq_entries(int fd, struct nvme_reap *rp);
 int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf, 

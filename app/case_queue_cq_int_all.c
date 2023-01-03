@@ -275,8 +275,6 @@ static int sub_case_int_msix(void)
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
-    if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-        return SKIPED;
 
     test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 

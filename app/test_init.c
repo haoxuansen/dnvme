@@ -313,14 +313,9 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	if (ndev->id_ctrl.vid == SAMSUNG_CTRL_VID) {
-		nvme_set_irq(fd, NVME_INT_PIN, 1);
-		ndev->irq_type = NVME_INT_PIN;
-	} else {
-		/* the number of irq equals to (ASQ + IOSQ) */
-		nvme_set_irq(fd, NVME_INT_MSIX, ndev->max_sq_num + 1);
-		ndev->irq_type = NVME_INT_MSIX;
-	}
+	/* the number of irq equals to (ASQ + IOSQ) */
+	nvme_set_irq(fd, NVME_INT_MSIX, ndev->max_sq_num + 1);
+	ndev->irq_type = NVME_INT_MSIX;
 
 	ret = nvme_enable_controller(fd);
 	if (ret < 0)

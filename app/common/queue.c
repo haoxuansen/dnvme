@@ -21,8 +21,8 @@
 #include "cmd.h"
 
 #define NVME_REAP_CQ_TIMEUNIT		100 /* us */
-/* 10s */
-#define NVME_REAP_CQ_TIMEOUT		(1000 * 1000 * 10 / NVME_REAP_CQ_TIMEUNIT)
+/* 5s */
+#define NVME_REAP_CQ_TIMEOUT		(1000 * 1000 * 5 / NVME_REAP_CQ_TIMEUNIT)
 
 int nvme_get_sq_info(int fd, struct nvme_sq_public *sq)
 {
@@ -169,6 +169,34 @@ int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 	return 0;
 }
 
+int nvme_delete_iosq(int fd, uint16_t sqid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_delete_iosq(fd, sqid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
 /**
  * @brief Create a I/O completion queue
  * 
@@ -210,6 +238,34 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 	if (ret < 0)
 		return ret;
 
+	return 0;
+}
+
+int nvme_delete_iocq(int fd, uint16_t cqid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_delete_iocq(fd, cqid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
 	return 0;
 }
 
@@ -367,7 +423,7 @@ int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf,
 		timeout++;
 
 		if (timeout >= NVME_REAP_CQ_TIMEOUT) {
-			pr_err("timeout! CQ:%u, expect:%u, reaped:%u\n", 
+			pr_warn("timeout! CQ:%u, expect:%u, reaped:%u\n", 
 				cqid, expect, reaped);
 			ret = -ETIME;
 			break;

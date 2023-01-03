@@ -53,6 +53,9 @@ int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
 int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 	void *buf, uint32_t size);
 
+int nvme_cmd_delete_iosq(int fd, uint16_t sqid);
+int nvme_cmd_delete_iocq(int fd, uint16_t cqid);
+
 int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);
 
 static inline int nvme_cmd_set_feat_num_queues(int fd, uint16_t nr_sq, 

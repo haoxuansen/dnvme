@@ -54,10 +54,7 @@ static void test_sub(void)
     cq_parameter.cq_size = cq_size;
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
-    if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-        cq_parameter.irq_no = 0;
-    else
-        cq_parameter.irq_no = io_cq_id;
+    cq_parameter.irq_no = io_cq_id;
     test_flag |= create_iocq(g_fd, &cq_parameter);
     test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
@@ -170,10 +167,8 @@ static void test_sub(void)
     }
 
     usleep(10000);
-    if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-        test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_PIN, 1);
-    else
-        test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+
+    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 }
 
 int case_resets_random_all(void)

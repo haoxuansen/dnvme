@@ -123,6 +123,34 @@ int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
+int nvme_cmd_delete_iosq(int fd, uint16_t sqid)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_delete_queue dq = {0};
+
+	dq.opcode = nvme_admin_delete_sq;
+	dq.qid = cpu_to_le16(sqid);
+
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &dq;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_cmd_delete_iocq(int fd, uint16_t cqid)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_delete_queue dq = {0};
+
+	dq.opcode = nvme_admin_delete_cq;
+	dq.qid = cpu_to_le16(cqid);
+
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &dq;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
 /**
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.

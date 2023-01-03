@@ -203,6 +203,10 @@ static int pci_parse_msix_cap(struct pci_dev *pdev, struct pci_cap *cap)
 		dev_err(dev, "failed to read msix capability!\n");
 		goto out;
 	}
+	dev_dbg(dev, "Message Control Register: 0x%x\n", msix->mc);
+	dev_dbg(dev, "\tTable Size: %u\n", msix->mc & PCI_MSIX_FLAGS_QSIZE);
+	dev_dbg(dev, "Table Offset/BIR Register: 0x%x\n", msix->table);
+	dev_dbg(dev, "PBA Offset/BIR Register: 0x%x\n", msix->pba);
 
 	cap->data = msix;
 	return 0;

@@ -1725,8 +1725,6 @@ uint32_t create_all_io_queue(uint8_t flags)
 
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
-    if (g_nvme_dev.id_ctrl.vid == SAMSUNG_CTRL_VID)
-        return FAILED;
 
     int_type = BYTE_RAND() % 4;
 

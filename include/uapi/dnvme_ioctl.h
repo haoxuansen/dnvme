@@ -218,6 +218,10 @@ struct nvme_prep_cq {
  * sending 64 Bytes command to both admin and IO SQ's and CQ's
  */
 struct nvme_64b_cmd {
+	uint16_t	q_id;	       /* Queue ID where the cmd_buf command should go */
+	uint16_t	unique_id;     /* Value returned back to user space */
+	void 		*cmd_buf_ptr;	/* Virtual Address pointer to 64B command */
+
 	/* BIT MASK for PRP1,PRP2 and metadata pointer */
 	enum nvme_64b_cmd_mask	bit_mask;
 	/* Data buffer or discontiguous CQ/SQ's user space address */
@@ -226,10 +230,7 @@ struct nvme_64b_cmd {
 	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
 	enum dma_data_direction	data_dir;
 
-	void 		*cmd_buf_ptr;	/* Virtual Address pointer to 64B command */
 	uint32_t	meta_buf_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
-	uint16_t	unique_id;     /* Value returned back to user space */
-	uint16_t	q_id;	       /* Queue ID where the cmd_buf command should go */
 };
 
 /**
