@@ -6,8 +6,6 @@
 
 #include "test_metrics.h"
 
-void random_sq_cq_info(void);
-
 int nvme_init(struct nvme_dev_info *ndev);
 
 int nvme_reinit(int fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type type,

@@ -75,7 +75,7 @@ static int sub_case_int_queue_mask(void)
     wr_nlb = WORD_RAND() % 255 + 1;
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         g_ctrl_sq_info[i].cmd_cnt = 0;
 
         for (index = 0; index < 200; index++)
@@ -89,15 +89,15 @@ static int sub_case_int_queue_mask(void)
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
-        io_cq_id = g_ctrl_sq_info[i].cq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
+        io_cq_id = g_ctrl_sq_info[i].cqid;
         test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
         nvme_mask_irq(g_fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
     }
     usleep(10000);
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_cq_id = g_ctrl_sq_info[i].cq_id;
+        io_cq_id = g_ctrl_sq_info[i].cqid;
         nvme_unmask_irq(g_fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
@@ -133,7 +133,7 @@ static int sub_case_pending_bit(void)
     wr_nlb = WORD_RAND() % 255 + 1;
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         g_ctrl_sq_info[i].cmd_cnt = 0;
 
         for (uint32_t index = 0; index < 200; index++)
@@ -147,14 +147,14 @@ static int sub_case_pending_bit(void)
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
         nvme_mask_irq(g_fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
     }
     sleep(10);
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_cq_id = g_ctrl_sq_info[i].cq_id;
+        io_cq_id = g_ctrl_sq_info[i].cqid;
         if( (g_nvme_dev.irq_type == NVME_INT_MSI_SINGLE)||(g_nvme_dev.irq_type == NVME_INT_MSI_MULTI) )
         {
             msi_cap_access();

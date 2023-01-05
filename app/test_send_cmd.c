@@ -1722,6 +1722,8 @@ uint32_t create_all_io_queue(uint8_t flags)
     uint8_t rdm_irq_no = 0;
     uint16_t num_irqs;
     uint32_t reap_num = 0;
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+    struct nvme_cq_info *cq;
 
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
@@ -1742,12 +1744,18 @@ uint32_t create_all_io_queue(uint8_t flags)
 
     nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, int_type, num_irqs);
 
-    random_sq_cq_info();
+    nvme_swap_ioq_info_random(ndev);
     /**********************************************************************/
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        cq_parameter.cq_id = g_ctrl_sq_info[sqidx].cq_id;
-        cq_parameter.cq_size = g_ctrl_sq_info[sqidx].cq_size;
+        cq_parameter.cq_id = g_ctrl_sq_info[sqidx].cqid;
+
+	cq = nvme_find_iocq_info(ndev, cq_parameter.cq_id);
+	if (!cq) {
+		pr_err("failed to find iocq(%u) info!\n", cq_parameter.cq_id);
+		return FAILED;
+	}
+        cq_parameter.cq_size = cq->size;
         cq_parameter.contig = 1;
         cq_parameter.irq_en = 1;
         if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
@@ -1762,7 +1770,7 @@ uint32_t create_all_io_queue(uint8_t flags)
             }
             else
             {
-                cq_parameter.irq_no = g_ctrl_sq_info[sqidx].cq_int_vct;
+                cq_parameter.irq_no = cq->irq_no;
             }
         }
         pr_div("create cq: %d\n", cq_parameter.cq_id);
@@ -1774,9 +1782,9 @@ uint32_t create_all_io_queue(uint8_t flags)
     /**********************************************************************/
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        sq_parameter.cq_id = g_ctrl_sq_info[sqidx].cq_id;
-        sq_parameter.sq_id = g_ctrl_sq_info[sqidx].sq_id;
-        sq_parameter.sq_size = g_ctrl_sq_info[sqidx].sq_size;
+        sq_parameter.cq_id = g_ctrl_sq_info[sqidx].cqid;
+        sq_parameter.sq_id = g_ctrl_sq_info[sqidx].sqid;
+        sq_parameter.sq_size = g_ctrl_sq_info[sqidx].size;
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
         pr_div("create sq: %d, assoc cq: %d\n", sq_parameter.sq_id, 
@@ -1794,7 +1802,7 @@ uint32_t delete_all_io_queue(void)
     uint32_t reap_num = 0;
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, g_ctrl_sq_info[sqidx].sq_id);
+        ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, g_ctrl_sq_info[sqidx].sqid);
     }
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
@@ -1802,7 +1810,7 @@ uint32_t delete_all_io_queue(void)
 
     for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
     {
-        ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, g_ctrl_sq_info[sqidx].cq_id);
+        ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, g_ctrl_sq_info[sqidx].cqid);
     }
     nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);

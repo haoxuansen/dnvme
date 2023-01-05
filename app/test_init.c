@@ -66,37 +66,6 @@ static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
 	return 0;
 }
 
-static int init_sq_data(struct nvme_dev_info *ndev)
-{
-	struct nvme_sq_info *sq;
-	struct nvme_ctrl_property *prop = &ndev->prop;
-	uint32_t nr_sq = ndev->max_sq_num;
-	uint16_t mqes = NVME_CAP_MQES(prop->cap);
-	uint32_t i;
-
-	sq = calloc(nr_sq, sizeof(*sq));
-	if (!sq) {
-		pr_err("failed to alloc for sq!(nr:%u)\n", nr_sq);
-		return -ENOMEM;
-	}
-
-	for (i = 1; i <= nr_sq; i++) {
-		sq[i - 1].sq_id = i;
-		sq[i - 1].cq_id = i;
-		sq[i - 1].cq_int_vct = i;
-		sq[i - 1].sq_size = WORD_RAND() % (mqes - 512) + 512;
-		sq[i - 1].cq_size = WORD_RAND() % (mqes - 512) + 512;
-
-		pr_debug("SQ:%u, CQ:%u, INT:%u, SQ elements:%u, CQ elements:%u\n",
-			sq[i - 1].sq_id, sq[i - 1].cq_id, 
-			sq[i - 1].cq_int_vct, sq[i - 1].sq_size, 
-			sq[i - 1].cq_size);
-	}
-
-	g_ctrl_sq_info = sq; /* !TODO: obsolete */
-	return 0;
-}
-
 static int init_ns_data(int fd, uint32_t nn)
 {
 	struct nvme_ns *ns;
@@ -219,41 +188,6 @@ static int check_link_status(int fd, struct nvme_dev_info *ndev)
 }
 
 /**
- * @brief make sq_cq_map_arr random.
- * 
- */
-void random_sq_cq_info(void)
-{
-	uint32_t num = 0;
-	struct nvme_sq_info temp;
-	struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
-	uint32_t cnt = g_nvme_dev.max_sq_num;
-
-	srand((uint32_t)time(NULL));
-	for (uint32_t i = 0; i < (cnt - 1); i++)
-	{
-		num = i + rand() % (cnt - i);
-		temp.cq_id = g_ctrl_sq_info[i].cq_id;
-		g_ctrl_sq_info[i].cq_id = g_ctrl_sq_info[num].cq_id;
-		g_ctrl_sq_info[num].cq_id = temp.cq_id;
-
-		num = i + rand() % (cnt - i);
-		temp.cq_int_vct = g_ctrl_sq_info[i].cq_int_vct;
-		g_ctrl_sq_info[i].cq_int_vct = g_ctrl_sq_info[num].cq_int_vct;
-		g_ctrl_sq_info[num].cq_int_vct = temp.cq_int_vct;
-
-		// pr_info("random_map:sq_id:%#x, cq_id:%#x, cq_vct:%#x\n", g_ctrl_sq_info[i].sq_id, g_ctrl_sq_info[i].cq_id, g_ctrl_sq_info[i].cq_int_vct);
-	}
-	for (uint32_t i = 1; i <= g_nvme_dev.max_sq_num; i++)
-	{
-		g_ctrl_sq_info[i - 1].sq_size = rand() % (NVME_CAP_MQES(prop->cap) - 512) + 512;
-		g_ctrl_sq_info[i - 1].cq_size = rand() % (NVME_CAP_MQES(prop->cap) - 512) + 512;
-		// pr_info("init_sq_size:%#x,cq_size:%#x\n", g_ctrl_sq_info[i - 1].sq_size, g_ctrl_sq_info[i - 1].cq_size);
-	}
-	pr_info("\n");
-}
-
-/**
  * @brief Try to get the basic information of NVMe device. Eg. queue number,
  *  Identify controller data...
  * 
@@ -324,9 +258,10 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = init_sq_data(ndev);
+	ret = nvme_init_ioq_info(ndev);
 	if (ret < 0)
 		return ret;
+	g_ctrl_sq_info = ndev->iosqs; /* !TODO: obsolete */
 
 	ret = init_ns_data(fd, ndev->id_ctrl.nn);
 	if (ret < 0)

@@ -13,23 +13,7 @@
 #define _APP_CORE_H_
 
 #include "dnvme_ioctl.h"
-
-struct nvme_sq_info {
-	uint16_t	sq_id;
-	uint16_t	cq_id;
-
-	uint32_t	sq_size;
-	uint32_t	cq_size;
-
-	uint16_t	cq_int_vct;
-	uint16_t	cmd_cnt;
-};
-
-struct nvme_cq_info {
-	uint16_t	cqid;
-	uint16_t	irq_no;
-	uint32_t	size;
-};
+#include "queue.h"
 
 /**
  * @brief NVMe device information
@@ -45,8 +29,8 @@ struct nvme_dev_info {
 	uint32_t	max_sq_num; // 1'base
 	uint32_t	max_cq_num; // 1'base
 
-	struct nvme_sq_info	*sqs;
-	struct nvme_cq_info	*cqs;
+	struct nvme_sq_info	*iosqs;
+	struct nvme_cq_info	*iocqs;
 
 	uint32_t	link_speed;
 	uint32_t	link_width;

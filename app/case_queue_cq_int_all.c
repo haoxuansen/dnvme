@@ -346,7 +346,7 @@ static int sub_case_int_n_queue(void)
     wr_nlb = WORD_RAND() % 255 + 1;
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         g_ctrl_sq_info[i].cmd_cnt = 0;
 
         for (index = 0; index < 100; index++)
@@ -360,12 +360,12 @@ static int sub_case_int_n_queue(void)
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_cq_id = g_ctrl_sq_info[i].cq_id;
+        io_cq_id = g_ctrl_sq_info[i].cqid;
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
     delete_all_io_queue();
@@ -384,7 +384,7 @@ static int sub_case_multi_cq_map_one_int_vct(void)
     wr_nlb = WORD_RAND() % 255 + 1;
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         g_ctrl_sq_info[i].cmd_cnt = 0;
 
         for (index = 0; index < 200; index++)
@@ -398,12 +398,12 @@ static int sub_case_multi_cq_map_one_int_vct(void)
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_sq_id = g_ctrl_sq_info[i].sq_id;
+        io_sq_id = g_ctrl_sq_info[i].sqid;
         test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        io_cq_id = g_ctrl_sq_info[i].cq_id;
+        io_cq_id = g_ctrl_sq_info[i].cqid;
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
     delete_all_io_queue();

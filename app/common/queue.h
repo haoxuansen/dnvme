@@ -16,6 +16,8 @@
 
 #include "dnvme_ioctl.h"
 
+struct nvme_dev_info;
+
 /**
  * @brief For create submission queue
  */
@@ -39,6 +41,20 @@ struct nvme_ccq_wrapper {
 	uint8_t		irq_en;
 	uint8_t		contig;
 	void		*buf;
+	uint32_t	size;
+};
+
+struct nvme_sq_info {
+	uint16_t	sqid;
+	uint16_t	cqid;
+	uint32_t	size;
+
+	uint16_t	cmd_cnt;
+};
+
+struct nvme_cq_info {
+	uint16_t	cqid;
+	uint16_t	irq_no;
 	uint32_t	size;
 };
 
@@ -92,5 +108,15 @@ int nvme_valid_cq_entry(struct nvme_completion *entry, uint16_t sqid,
 int nvme_check_cq_entries(struct nvme_completion *entries, uint32_t num);
 
 int nvme_ring_sq_doorbell(int fd, uint16_t sqid);
+
+int nvme_init_ioq_info(struct nvme_dev_info *ndev);
+void nvme_deinit_ioq_info(struct nvme_dev_info *ndev);
+
+void nvme_swap_ioq_info_random(struct nvme_dev_info *ndev);
+
+struct nvme_sq_info *nvme_find_iosq_info(struct nvme_dev_info *ndev, 
+	uint16_t sqid);
+struct nvme_cq_info *nvme_find_iocq_info(struct nvme_dev_info *ndev, 
+	uint16_t cqid);
 
 #endif /* !_APP_QUEUE_H_ */

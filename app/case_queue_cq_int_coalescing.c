@@ -116,7 +116,7 @@ static int sub_case_cq_int_coalescing(void)
     /**********************************************************************/
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        int_vertor = g_ctrl_sq_info[i].cq_id;
+        int_vertor = g_ctrl_sq_info[i].cqid;
         coals_disable = 0;
         test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
     }
@@ -132,20 +132,20 @@ static int sub_case_cq_int_coalescing(void)
         {
             if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(g_fd, 0, g_ctrl_sq_info[i].sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+                test_flag |= nvme_send_iocmd(g_fd, 0, g_ctrl_sq_info[i].sqid, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 g_ctrl_sq_info[i].cmd_cnt++;
             }
         }
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        test_flag |= nvme_ring_sq_doorbell(g_fd, g_ctrl_sq_info[i].sq_id);
+        test_flag |= nvme_ring_sq_doorbell(g_fd, g_ctrl_sq_info[i].sqid);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
         // io_cq_id = g_ctrl_sq_info[i].cq_id;
         // test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
-        test_flag |= cq_gain_disp_cq(g_ctrl_sq_info[i].cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num, false);
+        test_flag |= cq_gain_disp_cq(g_ctrl_sq_info[i].cqid, g_ctrl_sq_info[i].cmd_cnt, &reap_num, false);
     }
     delete_all_io_queue();
     return test_flag;

@@ -11,6 +11,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
 #include <errno.h>
@@ -19,6 +20,7 @@
 #include "log.h"
 #include "queue.h"
 #include "cmd.h"
+#include "core.h"
 
 #define NVME_REAP_CQ_TIMEUNIT		100 /* us */
 /* 5s */
@@ -506,4 +508,147 @@ int nvme_ring_sq_doorbell(int fd, uint16_t sqid)
 		return ret;
 	}
 	return 0;
+}
+
+static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
+{
+	struct nvme_sq_info *sq;
+	struct nvme_ctrl_property *prop = &ndev->prop;
+	uint16_t nr_sq = ndev->max_sq_num;
+	uint16_t mqes = NVME_CAP_MQES(prop->cap);
+	uint16_t qid;
+
+	sq = calloc(nr_sq, sizeof(*sq));
+	if (!sq) {
+		pr_err("failed to alloc iosq info!(nr:%u)\n", nr_sq);
+		return -ENOMEM;
+	}
+
+	for (qid = 1; qid <= nr_sq; qid++) {
+		sq[qid - 1].sqid = qid;
+		sq[qid - 1].cqid = qid;
+		sq[qid - 1].size = rand() % (mqes - 512) + 512;
+	}
+
+	ndev->iosqs = sq;
+	return 0;
+}
+
+static int nvme_alloc_iocq_info(struct nvme_dev_info *ndev)
+{
+	struct nvme_cq_info *cq;
+	struct nvme_ctrl_property *prop = &ndev->prop;
+	uint16_t nr_cq = ndev->max_cq_num;
+	uint16_t mqes = NVME_CAP_MQES(prop->cap);
+	uint16_t qid;
+
+	cq = calloc(nr_cq, sizeof(*cq));
+	if (!cq) {
+		pr_err("failed to alloc iocq info!(nr:%u)\n", nr_cq);
+		return -ENOMEM;
+	}
+
+	for (qid = 1; qid <= nr_cq; qid++) {
+		cq[qid - 1].cqid = qid;
+		cq[qid - 1].irq_no = qid;
+		cq[qid - 1].size = rand() % (mqes - 512) + 512;
+	}
+
+	ndev->iocqs = cq;
+	return 0;
+}
+
+int nvme_init_ioq_info(struct nvme_dev_info *ndev)
+{
+	int ret;
+
+	ret = nvme_alloc_iosq_info(ndev);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_alloc_iocq_info(ndev);
+	if (ret < 0)
+		goto out;
+
+	return 0;
+out:
+	free(ndev->iosqs);
+	ndev->iosqs = NULL;
+	return ret;
+}
+
+void nvme_deinit_ioq_info(struct nvme_dev_info *ndev)
+{
+	free(ndev->iosqs);
+	ndev->iosqs = NULL;
+	free(ndev->iocqs);
+	ndev->iocqs = NULL;
+}
+
+struct nvme_sq_info *nvme_find_iosq_info(struct nvme_dev_info *ndev, 
+	uint16_t sqid)
+{
+	if (sqid > ndev->max_sq_num)
+		return NULL;
+	
+	if (ndev->iosqs[sqid - 1].sqid != sqid)
+		return NULL;
+
+	return &ndev->iosqs[sqid - 1];
+}
+
+struct nvme_cq_info *nvme_find_iocq_info(struct nvme_dev_info *ndev, 
+	uint16_t cqid)
+{
+	if (cqid > ndev->max_cq_num)
+		return NULL;
+	
+	if (ndev->iocqs[cqid - 1].cqid != cqid)
+		return NULL;
+	
+	return &ndev->iocqs[cqid - 1];
+}
+
+static void nvme_swap_iosq_info_random(struct nvme_sq_info *sqs, uint16_t nr_sq)
+{
+	struct nvme_sq_info tmp;
+	uint16_t i, num;
+
+	/* The last sq info has been exchanged with the previous one */
+	for (i = 0; i < (nr_sq - 1); i++) {
+		num = i + rand() % (nr_sq - i);
+		tmp.cqid = sqs[i].cqid;
+		sqs[i].cqid = sqs[num].cqid;
+		sqs[num].cqid = tmp.cqid;
+
+		num = i + rand() % (nr_sq - i);
+		tmp.size = sqs[i].size;
+		sqs[i].size = sqs[num].size;
+		sqs[num].size = tmp.size;
+	}
+}
+
+static void nvme_swap_iocq_info_random(struct nvme_cq_info *cqs, uint16_t nr_cq)
+{
+	struct nvme_cq_info tmp;
+	uint16_t i, num;
+
+	/* The last cq info has been exchanged with the previous one */
+	for (i = 0; i < (nr_cq - 1); i++) {
+		num = i + rand() % (nr_cq - i);
+		tmp.irq_no = cqs[i].irq_no;
+		cqs[i].irq_no = cqs[num].irq_no;
+		cqs[num].irq_no = tmp.irq_no;
+
+		num = i + rand() % (nr_cq - i);
+		tmp.size = cqs[i].size;
+		cqs[i].size = cqs[num].size;
+		cqs[num].size = tmp.size;
+	}
+}
+
+void nvme_swap_ioq_info_random(struct nvme_dev_info *ndev)
+{
+	nvme_swap_iosq_info_random(ndev->iosqs, ndev->max_sq_num);
+	nvme_swap_iocq_info_random(ndev->iocqs, ndev->max_cq_num);
 }
