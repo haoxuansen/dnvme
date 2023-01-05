@@ -13,6 +13,7 @@
 
 #include "auto_header.h"
 #include "dnvme_ioctl.h"
+#include "core.h"
 
 // #define AMD_MB_EN //Warning: AMD MB may not support msi-multi, create by shell script in auto_heater.h
 // #define FWDMA_RST_OPEN
@@ -72,57 +73,11 @@ struct fwdma_parameter
     uint32_t cdw15;
 };
 
-/**
- * @brief 
- * 
- * @io_sqes: Actual effective I/O Completion Queue Entry Size. The value
- *  is in bytes and is specified as a power of tow (2^n).
- * @io_cqes: Actual effective I/O Submission Queue Entry Size. The value
- *  is in bytes and is specified as a power of tow (2^n).
- */
-struct nvme_dev_info {
-	int		fd;
-
-	uint32_t	max_sq_num; // 1'base
-	uint32_t	max_cq_num; // 1'base
-	uint32_t	link_speed;
-	uint32_t	link_width;
-	uint8_t		pmcap_ofst;
-	uint8_t		msicap_ofst;
-	uint8_t		pxcap_ofst;
-
-	uint8_t		io_sqes;
-	uint8_t		io_cqes;
-
-	enum nvme_irq_type	irq_type;
-	struct nvme_cap		cap;
-	struct nvme_id_ctrl	id_ctrl;
-
-	struct nvme_ctrl_property	prop;
-	struct nvme_sq_info	*sq;
-};
-
 struct nvme_ns
 {
 	uint32_t lbads;
 	uint64_t nsze;
 	struct nvme_id_ns id_ns;
-};
-
-struct nvme_sq_info
-{
-	uint16_t sq_id;
-	uint16_t cq_id;
-	uint16_t cq_int_vct;
-	uint16_t cmd_cnt;
-	uint32_t cq_size;
-	uint32_t sq_size;
-};
-
-struct nvme_cq_info
-{
-	uint16_t sq_id;
-	uint16_t cq_id;
 };
 
 #pragma pack(pop)

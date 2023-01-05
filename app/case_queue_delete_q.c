@@ -618,7 +618,7 @@ static int delete_runing_iocmd_queue(void)
 	}
 
 	// delete_all_io_queue();
-	test_change_init(ndev->fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+	nvme_reinit(ndev->fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
 	return 0;
 }

@@ -15,6 +15,7 @@
 
 #include "log.h"
 #include "irq.h"
+#include "ioctl.h"
 
 static const char *nvme_irq_type_string(enum nvme_irq_type type)
 {
@@ -48,6 +49,31 @@ int nvme_set_irq(int fd, enum nvme_irq_type type, uint16_t nr_irqs)
 			nvme_irq_type_string(type), nr_irqs, ret);
 		return ret;
 	}
+	return 0;
+}
+
+/**
+ * @brief Switch interrupt configuration.
+ * 
+ * @param fd NVMe device file descriptor
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_switch_irq(int fd, enum nvme_irq_type type, uint16_t nr_irqs)
+{
+	int ret;
+
+	ret = nvme_disable_controller(fd);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_set_irq(fd, type, nr_irqs);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_enable_controller(fd);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 

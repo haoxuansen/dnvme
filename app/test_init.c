@@ -93,7 +93,6 @@ static int init_sq_data(struct nvme_dev_info *ndev)
 			sq[i - 1].cq_size);
 	}
 
-	ndev->sq = sq;
 	g_ctrl_sq_info = sq; /* !TODO: obsolete */
 	return 0;
 }
@@ -345,15 +344,15 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 }
 
 
-int test_init(int fd, struct nvme_dev_info *ndev)
+int nvme_init(struct nvme_dev_info *ndev)
 {
 	int ret;
 
-	ret = nvme_init_stage1(fd, ndev);
+	ret = nvme_init_stage1(ndev->fd, ndev);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_init_stage2(fd, ndev);
+	ret = nvme_init_stage2(ndev->fd, ndev);
 	if (ret < 0)
 		goto out;
 
@@ -366,44 +365,40 @@ out:
 	return ret;
 }
 
-void test_change_init(int g_fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type irq_type, uint16_t num_irqs)
+int nvme_reinit(int fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type type,
+	uint16_t nr_irqs)
 {
-	uint32_t u32_tmp_data = 0;
-	int ret = FAILED;
-	ret = nvme_disable_controller_complete(g_fd);
-	assert(ret == SUCCEED);
-	nvme_create_asq(g_fd, asqsz);
-	nvme_create_acq(g_fd, acqsz);
+	struct nvme_dev_info *ndev = &g_nvme_dev;
+	int ret;
+
+	ret = nvme_disable_controller_complete(fd);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_create_aq_pair(fd, asqsz, acqsz);
+	if (ret < 0)
+		return ret;
 
 #ifdef AMD_MB_EN
-	//Warning: AMD MB may not support msi-multi
-	if (irq_type == NVME_INT_MSI_MULTI)
-	{
-		irq_type = NVME_INT_MSIX;
-		pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
+	/* !TODO: It's better to confirm whether AMB really doesn't support
+	 * Multi MSI.
+	 */
+	if (type == NVME_INT_MSI_MULTI) {
+		type = NVME_INT_MSIX;
+		pr_warn("AMD MB may not support msi-multi, use msi-x replace!\n");
 	}
 #endif
-	nvme_set_irq(g_fd, irq_type, num_irqs);
-	g_nvme_dev.irq_type = irq_type;
-	nvme_enable_controller(g_fd);
-
-	u32_tmp_data = 0x00460001;
-	nvme_write_ctrl_property(g_fd, NVME_REG_CC, 4, (uint8_t *)&u32_tmp_data);
-}
-
-void test_change_irqs(int g_fd, enum nvme_irq_type irq_type, uint16_t num_irqs)
-{
-	nvme_disable_controller(g_fd);
-#ifdef AMD_MB_EN
-	//Warning: AMD MB may not support msi-multi
-	if (irq_type == NVME_INT_MSI_MULTI)
-	{
-		irq_type = NVME_INT_MSIX;
-		pr_warn("AMD MB may not support msi-multi, use msi-x replace\n");
+	ret = nvme_set_irq(fd, type, nr_irqs);
+	if (ret < 0) {
+		ndev->irq_type = NVME_INT_NONE;
+		return ret;
 	}
-#endif
-	nvme_set_irq(g_fd, irq_type, num_irqs);
-	g_nvme_dev.irq_type = irq_type;
-	nvme_enable_controller(g_fd);
+	ndev->irq_type = type;
+
+	ret = nvme_enable_controller(fd);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 

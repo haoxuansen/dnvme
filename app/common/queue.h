@@ -77,6 +77,11 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap);
 int nvme_delete_iosq(int fd, uint16_t sqid);
 int nvme_delete_iocq(int fd, uint16_t cqid);
 
+int nvme_delete_all_iosq(int fd, uint16_t nr_sq);
+int nvme_delete_all_iocq(int fd, uint16_t nr_cq);
+
+int nvme_delete_all_ioq(int fd, uint16_t nr_sq, uint16_t nr_cq);
+
 int nvme_inquiry_cq_entries(int fd, uint16_t cqid);
 int nvme_reap_cq_entries(int fd, struct nvme_reap *rp);
 int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf, 

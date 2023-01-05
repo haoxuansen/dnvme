@@ -71,7 +71,7 @@ static int case_disable_ctrl_complete(void)
 static int case_reinit_device(void)
 {
 	/* !TODO: Check return value! */
-	test_init(g_fd, &g_nvme_dev);
+	nvme_init(&g_nvme_dev);
 	return 0;
 }
 

@@ -18,6 +18,7 @@
 #include "dnvme_ioctl.h"
 
 int nvme_set_irq(int fd, enum nvme_irq_type type, uint16_t nr_irqs);
+int nvme_switch_irq(int fd, enum nvme_irq_type type, uint16_t nr_irqs);
 
 int nvme_mask_irq(int fd, uint16_t irq_no);
 int nvme_unmask_irq(int fd, uint16_t irq_no);

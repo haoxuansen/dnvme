@@ -55,7 +55,7 @@ int case_queue_admin(void)
             break;
         }
     }
-    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
     return test_flag;
 }
 
@@ -88,7 +88,7 @@ static int sub_case_asq_size_loop_array(void)
             admin_sq_size = asq_size[sq_size_idx];
             pr_color(LOG_COLOR_GREEN, "\ncfg admin_cq_size:%d, admin_sq_size:%d\n", acq_size[cq_size_idx], asq_size[sq_size_idx]);
 
-            test_change_init(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+            nvme_reinit(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
             cmd_cnt = 0;
             for (index = 0; index < (admin_sq_size - 1); index++)
@@ -111,7 +111,7 @@ static int sub_case_asq_size_loop_array(void)
         admin_cq_size = test2_asq_size[sq_size_idx];
         pr_color(LOG_COLOR_GREEN, "\ncfg acq_size:%d, asq_size:%d\n",
                   test2_asq_size[sq_size_idx], test2_asq_size[sq_size_idx]);
-        test_change_init(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+        nvme_reinit(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
         /**********************************************************************/
         cmd_cnt = 0;
@@ -167,7 +167,7 @@ static int sub_case_asq_size_random(void)
         asqsz = rand() % (NVME_AQ_MAX_SIZE - 2) + 2;
         acqsz = rand() % (NVME_AQ_MAX_SIZE - 2) + 2;
 
-        test_change_init(g_fd, asqsz, acqsz, int_type, num_irqs);
+        nvme_reinit(g_fd, asqsz, acqsz, int_type, num_irqs);
 
         cmd_cnt = 0;
         for (uint32_t index = 0; index < (asqsz - 1); index++)

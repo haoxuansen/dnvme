@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	test_init(g_fd, &g_nvme_dev);
+	nvme_init(&g_nvme_dev);
 
 	case_display_case_list();
 	nvme_select_case_to_execute();

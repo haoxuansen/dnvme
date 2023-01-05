@@ -198,6 +198,30 @@ int nvme_delete_iosq(int fd, uint16_t sqid)
 }
 
 /**
+ * @brief Delete all IOSQs.
+ * 
+ * @param fd NVMe device file descriptor
+ * @param nr_sq The number of IOSQs to be deleted
+ * @return 0 on success, otherwise a negative errno.
+ * 
+ * @note We assume that the range of qid is 1 ~ @nr_sq 
+ */
+int nvme_delete_all_iosq(int fd, uint16_t nr_sq)
+{
+	uint16_t qid;
+	int ret;
+
+	for (qid = 1; qid <= nr_sq; qid++) {
+		ret = nvme_delete_iosq(fd, qid);
+		if (ret < 0) {
+			pr_err("failed to delete iosq(%u)!(%d)\n", qid, ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+/**
  * @brief Create a I/O completion queue
  * 
  * @param fd NVMe device file descriptor
@@ -263,6 +287,45 @@ int nvme_delete_iocq(int fd, uint16_t cqid)
 	}
 
 	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @brief Delete all IOCQs.
+ * 
+ * @param fd NVMe device file descriptor
+ * @param nr_cq The number of IOCQs to be deleted
+ * @return 0 on success, otherwise a negative errno.
+ * 
+ * @note We assume that the range of qid is 1 ~ @nr_sq 
+ */
+int nvme_delete_all_iocq(int fd, uint16_t nr_cq)
+{
+	uint16_t qid;
+	int ret;
+
+	for (qid = 1; qid <= nr_cq; qid++) {
+		ret = nvme_delete_iocq(fd, qid);
+		if (ret < 0) {
+			pr_err("failed to delete iocq(%u)!(%d)\n", qid, ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+int nvme_delete_all_ioq(int fd, uint16_t nr_sq, uint16_t nr_cq)
+{
+	int ret;
+
+	ret = nvme_delete_all_iosq(fd, nr_sq);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_delete_all_iocq(fd, nr_cq);
 	if (ret < 0)
 		return ret;
 	

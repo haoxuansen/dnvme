@@ -281,7 +281,7 @@ int case_queue_cq_int_msi_multi_mask(void)
 
     test_sub();
     
-    test_change_init(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
 
     if (test_flag != SUCCEED)
     {
