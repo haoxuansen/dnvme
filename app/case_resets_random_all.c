@@ -29,7 +29,8 @@ static void test_sub(void)
     uint32_t cmd_cnt = 0;
     uint32_t io_sq_id = 1;
     uint32_t io_cq_id = 1;
-    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+    struct nvme_ctrl_property *prop = &ndev->prop;
     uint32_t cq_size = NVME_CAP_MQES(prop->cap);
     uint32_t sq_size = NVME_CAP_MQES(prop->cap);
     uint64_t wr_slba = 0;
@@ -168,7 +169,7 @@ static void test_sub(void)
 
     usleep(10000);
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 }
 
 int case_resets_random_all(void)

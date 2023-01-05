@@ -33,6 +33,7 @@ static void int_mask_bit(uint32_t msi_mask_flag)
 
     nvme_set_irq(g_fd, NVME_INT_MSIX, 9);
     g_nvme_dev.irq_type = NVME_INT_MSIX;
+    g_nvme_dev.nr_irq = 9;
 
     /*
     nvme_mask_irq(g_fd, 1);
@@ -266,12 +267,14 @@ static void test_sub(void)
 
 int case_queue_cq_int_msix_mask(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s", disp_this_case);
 
     test_sub();
     
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
     if (test_flag != SUCCEED)
     {

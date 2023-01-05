@@ -12,6 +12,8 @@
 #ifndef _APP_CORE_H_
 #define _APP_CORE_H_
 
+#include <stdint.h>
+
 #include "dnvme_ioctl.h"
 #include "queue.h"
 
@@ -22,12 +24,14 @@
  *  is in bytes and is specified as a power of two (2^n).
  * @io_cqes: Actual effective I/O Submission Queue Entry Size. The value
  *  is in bytes and is specified as a power of two (2^n).
+ * @irq_type: The type of interrupt configured
+ * @nr_irq: The number of interrupts configured
  */
 struct nvme_dev_info {
 	int		fd;
 
-	uint32_t	max_sq_num; // 1'base
-	uint32_t	max_cq_num; // 1'base
+	uint16_t	max_sq_num; // 1'base
+	uint16_t	max_cq_num; // 1'base
 
 	struct nvme_sq_info	*iosqs;
 	struct nvme_cq_info	*iocqs;
@@ -42,10 +46,15 @@ struct nvme_dev_info {
 	uint8_t		io_cqes;
 
 	enum nvme_irq_type	irq_type;
+	uint16_t		nr_irq;
+	
 	struct nvme_cap		cap;
 	struct nvme_id_ctrl	id_ctrl;
 
 	struct nvme_ctrl_property	prop;
 };
+
+int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
+	enum nvme_irq_type type);
 
 #endif /* !_APP_CORE_H_ */

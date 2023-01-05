@@ -44,6 +44,7 @@ static SubCase_t sub_case_list[] = {
 
 int case_queue_cq_int_all_mask(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t round_idx = 0;
 
     test_loop = 10;
@@ -59,15 +60,25 @@ int case_queue_cq_int_all_mask(void)
             break;
         }
     }
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
 
 static int sub_case_int_queue_mask(void)
 {
     uint32_t index = 0;
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+    enum nvme_irq_type type;
+    int ret;
 
-    create_all_io_queue(0);
+    type = nvme_select_irq_type_random();
+    ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+    if (ret < 0)
+        return ret;
+
+    ret = nvme_create_all_ioq(ndev, 0);
+    if (ret < 0)
+        return ret;
 
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
@@ -101,7 +112,7 @@ static int sub_case_int_queue_mask(void)
         nvme_unmask_irq(g_fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
-    delete_all_io_queue();
+    nvme_delete_all_ioq(ndev);
     return test_flag;
 }
 
@@ -125,7 +136,18 @@ int msi_cap_access(void)
 
 static int sub_case_pending_bit(void)
 {
-    create_all_io_queue(0);
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+    enum nvme_irq_type type;
+    int ret;
+
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
+
+    ret = nvme_create_all_ioq(ndev, 0);
+    if (ret < 0)
+        return ret;
     
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
@@ -162,6 +184,7 @@ static int sub_case_pending_bit(void)
         nvme_unmask_irq(g_fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
-    delete_all_io_queue();
+
+    nvme_delete_all_ioq(ndev);
     return test_flag;
 }

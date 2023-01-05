@@ -6,6 +6,7 @@
 
 #include "dnvme_ioctl.h"
 #include "queue.h"
+#include "irq.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -40,6 +41,7 @@ static SubCase_t sub_case_list[] = {
 
 int case_queue_admin(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t round_idx = 0;
 
     test_loop = 1;
@@ -55,12 +57,13 @@ int case_queue_admin(void)
             break;
         }
     }
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
 
 static int sub_case_asq_size_loop_array(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t sq_size_idx = 0;
     uint32_t cq_size_idx = 0;
     uint32_t index = 0;
@@ -88,7 +91,7 @@ static int sub_case_asq_size_loop_array(void)
             admin_sq_size = asq_size[sq_size_idx];
             pr_color(LOG_COLOR_GREEN, "\ncfg admin_cq_size:%d, admin_sq_size:%d\n", acq_size[cq_size_idx], asq_size[sq_size_idx]);
 
-            nvme_reinit(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+            nvme_reinit(ndev, admin_sq_size, admin_cq_size, NVME_INT_MSIX);
 
             cmd_cnt = 0;
             for (index = 0; index < (admin_sq_size - 1); index++)
@@ -111,7 +114,7 @@ static int sub_case_asq_size_loop_array(void)
         admin_cq_size = test2_asq_size[sq_size_idx];
         pr_color(LOG_COLOR_GREEN, "\ncfg acq_size:%d, asq_size:%d\n",
                   test2_asq_size[sq_size_idx], test2_asq_size[sq_size_idx]);
-        nvme_reinit(g_fd, admin_sq_size, admin_cq_size, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+        nvme_reinit(ndev, admin_sq_size, admin_cq_size, NVME_INT_MSIX);
 
         /**********************************************************************/
         cmd_cnt = 0;
@@ -147,27 +150,19 @@ static int sub_case_asq_size_loop_array(void)
 
 static int sub_case_asq_size_random(void)
 {
-    uint8_t int_type = 0;
-    uint16_t num_irqs;
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+    enum nvme_irq_type int_type = 0;
     uint32_t cmd_cnt = 0;
     uint32_t acqsz = NVME_AQ_MAX_SIZE;
     uint32_t asqsz = NVME_AQ_MAX_SIZE;
     for(uint32_t idx = 0; idx < 50; idx++)
     {
-        int_type = BYTE_RAND() % 4;
-        if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
-        {
-            num_irqs = 1;
-        }
-        else
-        {
-            num_irqs = g_nvme_dev.max_sq_num + 1;
-        }
+        int_type = nvme_select_irq_type_random();
 
         asqsz = rand() % (NVME_AQ_MAX_SIZE - 2) + 2;
         acqsz = rand() % (NVME_AQ_MAX_SIZE - 2) + 2;
 
-        nvme_reinit(g_fd, asqsz, acqsz, int_type, num_irqs);
+        nvme_reinit(ndev, asqsz, acqsz, int_type);
 
         cmd_cnt = 0;
         for (uint32_t index = 0; index < (asqsz - 1); index++)

@@ -89,8 +89,7 @@ int nvme_firmware_commit(int g_fd, uint8_t bpid, uint8_t ca, uint8_t fs);
 int nvme_firmware_download(int g_fd, uint32_t numd, uint32_t ofst, uint8_t *addr);
 
 uint32_t nvme_msi_register_test(void);
-uint32_t create_all_io_queue(uint8_t flags);
-uint32_t delete_all_io_queue(void);
+
 int nvme_send_iocmd(int g_fd, uint8_t cmp_dis, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb, void *data_addr);
 
 

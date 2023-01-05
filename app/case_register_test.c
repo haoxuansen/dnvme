@@ -201,6 +201,7 @@ static uint32_t sub_case_end(void)
 
 static int sub_case_nvme_reg_normal(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0, rand_data = 0;
     uint32_t i = 0;
     int ret;
@@ -249,13 +250,14 @@ static int sub_case_nvme_reg_normal(void)
     }
     pr_color(LOG_COLOR_GREEN, "nvme ctrl reg tests done!\n\n");
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
     return test_flag;
 }
 
 static int sub_case_pcie_reg_normal(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0, rand_data = 0;
     uint32_t i = 0;
     int ret;
@@ -304,7 +306,7 @@ static int sub_case_pcie_reg_normal(void)
     }
     pr_color(LOG_COLOR_GREEN, "pcie ids reg tests done!\n\n");
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
 

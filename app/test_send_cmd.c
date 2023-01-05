@@ -27,6 +27,7 @@
 #include "pci.h"
 #include "queue.h"
 #include "cmd.h"
+#include "irq.h"
 
 #include "common.h"
 #include "test_metrics.h"
@@ -1708,113 +1709,6 @@ uint32_t nvme_msi_register_test(void)
 
     pr_info("set NVME_REG_INTMC = DWORD_MASK, read register:%#x\n", u32_tmp_data);
 
-    return SUCCEED;
-}
-/**
- * @brief Create a all io queue object
- * 
- * @param flags 
- * @return uint32_t 
- */
-uint32_t create_all_io_queue(uint8_t flags)
-{
-    uint8_t int_type = 0;
-    uint8_t rdm_irq_no = 0;
-    uint16_t num_irqs;
-    uint32_t reap_num = 0;
-    struct nvme_dev_info *ndev = &g_nvme_dev;
-    struct nvme_cq_info *cq;
-
-    struct create_cq_parameter cq_parameter = {0};
-    struct create_sq_parameter sq_parameter = {0};
-
-    int_type = BYTE_RAND() % 4;
-
-    if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
-    {
-        num_irqs = 1;
-    }
-    else
-    {
-        num_irqs = g_nvme_dev.max_sq_num + 1;
-    }
-
-    rdm_irq_no = BYTE_RAND() % num_irqs;
-    pr_div("create queue int_type:%d num_irqs:%d\n", int_type, num_irqs);
-
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, int_type, num_irqs);
-
-    nvme_swap_ioq_info_random(ndev);
-    /**********************************************************************/
-    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
-    {
-        cq_parameter.cq_id = g_ctrl_sq_info[sqidx].cqid;
-
-	cq = nvme_find_iocq_info(ndev, cq_parameter.cq_id);
-	if (!cq) {
-		pr_err("failed to find iocq(%u) info!\n", cq_parameter.cq_id);
-		return FAILED;
-	}
-        cq_parameter.cq_size = cq->size;
-        cq_parameter.contig = 1;
-        cq_parameter.irq_en = 1;
-        if (int_type == NVME_INT_PIN || int_type == NVME_INT_MSI_SINGLE)
-        {
-            cq_parameter.irq_no = 0;
-        }
-        else
-        {
-            if (1 == flags) //for test all_io_queue_with_one_irq_no
-            {
-                cq_parameter.irq_no = rdm_irq_no;
-            }
-            else
-            {
-                cq_parameter.irq_no = cq->irq_no;
-            }
-        }
-        pr_div("create cq: %d\n", cq_parameter.cq_id);
-        create_iocq(g_fd, &cq_parameter);
-    }
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
-    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
-    /**********************************************************************/
-    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
-    {
-        sq_parameter.cq_id = g_ctrl_sq_info[sqidx].cqid;
-        sq_parameter.sq_id = g_ctrl_sq_info[sqidx].sqid;
-        sq_parameter.sq_size = g_ctrl_sq_info[sqidx].size;
-        sq_parameter.contig = 1;
-        sq_parameter.sq_prio = MEDIUM_PRIO;
-        pr_div("create sq: %d, assoc cq: %d\n", sq_parameter.sq_id, 
-            sq_parameter.cq_id);
-        create_iosq(g_fd, &sq_parameter);
-    }
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
-    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
-    return SUCCEED;
-}
-
-uint32_t delete_all_io_queue(void)
-{
-    uint32_t reap_num = 0;
-    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
-    {
-        ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, g_ctrl_sq_info[sqidx].sqid);
-    }
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
-    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
-
-    for (uint32_t sqidx = 0; sqidx < g_nvme_dev.max_sq_num; sqidx++)
-    {
-        ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, g_ctrl_sq_info[sqidx].cqid);
-    }
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
-    cq_gain(NVME_AQ_ID, g_nvme_dev.max_sq_num, &reap_num);
-    pr_div("  cq reaped ok! reap_num:%d\n", reap_num);
     return SUCCEED;
 }
 

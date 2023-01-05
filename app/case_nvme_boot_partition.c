@@ -38,6 +38,7 @@ static SubCase_t sub_case_list[] = {
 
 int case_nvme_boot_partition(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t round_idx = 0;
     test_loop = 1;
     pr_info("\ntest will loop number: %d\n", test_loop);
@@ -52,7 +53,7 @@ int case_nvme_boot_partition(void)
         }
     }
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
     return test_flag;
 }
@@ -175,9 +176,10 @@ error_out:
 
 int writeing_boot_partition(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t reap_num = 0;
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     // 1. The host issues a Firmware Image Download command to download the contents of the Boot
     // Partition to the controller. There may be multiple portions of the Boot Partition to download, thus
     // the offset for each portion of the Boot Partition being downloaded is specified in the Firmware Image

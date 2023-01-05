@@ -8,6 +8,7 @@
 #include "dnvme_ioctl.h"
 #include "queue.h"
 #include "cmd.h"
+#include "irq.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -346,6 +347,7 @@ static int delete_runing_cmd_queue(void)
 {
 	struct nvme_dev_info *ndev = &g_nvme_dev;
 	struct nvme_completion entry = {0};
+	enum nvme_irq_type type;
 	uint16_t cid;
 	int ret;
 	uint32_t qid;
@@ -355,8 +357,15 @@ static int delete_runing_cmd_queue(void)
 	uint64_t wr_slba = 0;
 	uint8_t cmd_num_per_q;
 	uint8_t queue_num = g_nvme_dev.max_sq_num;
+	
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
 
-	create_all_io_queue(0);
+	ret = nvme_create_all_ioq(ndev, 0);
+	if (ret < 0)
+		return ret;
 
 	/* use several queues */
 	for (qid = 1; qid <= queue_num; qid++) {
@@ -425,6 +434,7 @@ static int delete_runing_fua_cmd_queue(void)
 {
 	struct nvme_dev_info *ndev = &g_nvme_dev;
 	struct nvme_completion entry = {0};
+	enum nvme_irq_type type;
 	uint16_t cid;
 	int ret;
 	uint32_t cmd_cnt = 0;
@@ -434,7 +444,14 @@ static int delete_runing_fua_cmd_queue(void)
 	uint8_t cmd_num_per_q;
 	uint8_t queue_num = g_nvme_dev.max_sq_num;
 
-	create_all_io_queue(0);
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_create_all_ioq(ndev, 0);
+	if (ret < 0)
+		return ret;
 
 	for (uint32_t qid = 1; qid <= queue_num; qid++)
 	{
@@ -500,6 +517,7 @@ static int delete_runing_fua_cmd_queue(void)
 static int delete_runing_iocmd_queue(void)
 {
 	struct nvme_dev_info *ndev = &g_nvme_dev;
+	enum nvme_irq_type type;
 	uint16_t i;
 	uint32_t sqidx;
 	uint16_t index;
@@ -507,7 +525,14 @@ static int delete_runing_iocmd_queue(void)
 	uint8_t queue_num;
 	int ret;
 
-	create_all_io_queue(0);
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_create_all_ioq(ndev, 0);
+	if (ret < 0)
+		return ret;
 
 	/* use several queues */
 
@@ -618,7 +643,7 @@ static int delete_runing_iocmd_queue(void)
 	}
 
 	// delete_all_io_queue();
-	nvme_reinit(ndev->fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+	nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
 	return 0;
 }

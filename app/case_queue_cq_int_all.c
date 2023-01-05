@@ -6,6 +6,7 @@
 
 #include "dnvme_ioctl.h"
 #include "queue.h"
+#include "irq.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -53,6 +54,7 @@ static SubCase_t sub_case_list[] = {
 
 int case_queue_cq_int_all(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t round_idx = 0;
 
     test_loop = 10;
@@ -68,17 +70,18 @@ int case_queue_cq_int_all(void)
             break;
         }
     }
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
 
 static int sub_case_int_pin(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_PIN, 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_PIN);
 
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
@@ -137,11 +140,12 @@ static int sub_case_int_pin(void)
 
 static int sub_case_int_msi_single(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSI_SINGLE, 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSI_SINGLE);
 
     cq_parameter.cq_id = io_cq_id;
     cq_parameter.cq_size = cq_size;
@@ -203,14 +207,14 @@ static int sub_case_int_msi_single(void)
 
 static int sub_case_int_msi_multi(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index = 0;
     #ifdef AMD_MB_EN
         return SKIPED;
     #endif
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSI_MULTI,
-                     (g_nvme_dev.max_sq_num + 1 > 32) ? 33 : (g_nvme_dev.max_sq_num + 1));
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSI_MULTI);
 
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
@@ -272,11 +276,12 @@ static int sub_case_int_msi_multi(void)
 
 static int sub_case_int_msix(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index = 0;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
@@ -336,9 +341,19 @@ static int sub_case_int_msix(void)
 
 static int sub_case_int_n_queue(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index = 0;
+	enum nvme_irq_type type;
+	int ret;
 
-    create_all_io_queue(0);
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
+
+    ret = nvme_create_all_ioq(ndev, 0);
+    if (ret < 0)
+        return ret;
 
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
@@ -368,15 +383,26 @@ static int sub_case_int_n_queue(void)
         io_cq_id = g_ctrl_sq_info[i].cqid;
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
-    delete_all_io_queue();
+
+    nvme_delete_all_ioq(ndev);
     return test_flag;
 }
 
 static int sub_case_multi_cq_map_one_int_vct(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index = 0;
+	enum nvme_irq_type type;
+	int ret;
 
-    create_all_io_queue(1);
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
+
+    ret = nvme_create_all_ioq(ndev, NVME_CIOQ_F_CQS_BIND_SINGLE_IRQ);
+    if (ret < 0)
+        return ret;
     
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
@@ -406,6 +432,7 @@ static int sub_case_multi_cq_map_one_int_vct(void)
         io_cq_id = g_ctrl_sq_info[i].cqid;
         test_flag |= cq_gain(io_cq_id, g_ctrl_sq_info[i].cmd_cnt, &reap_num);
     }
-    delete_all_io_queue();
+
+    nvme_delete_all_ioq(ndev);
     return test_flag;
 }

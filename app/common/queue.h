@@ -16,6 +16,10 @@
 
 #include "dnvme_ioctl.h"
 
+/* Create IO Queue Flags */
+#define NVME_CIOQ_F_CQS_BIND_SINGLE_IRQ	(1 << 0)
+#define NVME_CIOQ_F_SQS_BIND_SINGLE_CQ	(1 << 1)
+
 struct nvme_dev_info;
 
 /**
@@ -55,6 +59,7 @@ struct nvme_sq_info {
 struct nvme_cq_info {
 	uint16_t	cqid;
 	uint16_t	irq_no;
+	uint8_t		irq_en;
 	uint32_t	size;
 };
 
@@ -93,10 +98,11 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap);
 int nvme_delete_iosq(int fd, uint16_t sqid);
 int nvme_delete_iocq(int fd, uint16_t cqid);
 
-int nvme_delete_all_iosq(int fd, uint16_t nr_sq);
-int nvme_delete_all_iocq(int fd, uint16_t nr_cq);
+int nvme_delete_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq);
+int nvme_delete_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq);
 
-int nvme_delete_all_ioq(int fd, uint16_t nr_sq, uint16_t nr_cq);
+int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag);
+int nvme_delete_all_ioq(struct nvme_dev_info *ndev);
 
 int nvme_inquiry_cq_entries(int fd, uint16_t cqid);
 int nvme_reap_cq_entries(int fd, struct nvme_reap *rp);
@@ -113,6 +119,7 @@ int nvme_init_ioq_info(struct nvme_dev_info *ndev);
 void nvme_deinit_ioq_info(struct nvme_dev_info *ndev);
 
 void nvme_swap_ioq_info_random(struct nvme_dev_info *ndev);
+void nvme_reinit_ioq_info_random(struct nvme_dev_info *ndev);
 
 struct nvme_sq_info *nvme_find_iosq_info(struct nvme_dev_info *ndev, 
 	uint16_t sqid);

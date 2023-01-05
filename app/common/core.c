@@ -12,37 +12,48 @@
 #include <errno.h>
 
 #include "log.h"
+#include "ioctl.h"
+#include "queue.h"
+#include "irq.h"
 #include "core.h"
 
-#if 0
-void nvme_swap_sq_random(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, uint32_t flag)
+int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
+	enum nvme_irq_type type)
 {
-	struct nvme_ctrl_property *prop = &ndev->prop;
-	struct nvme_sq_info tmp;
-	uint32_t nr_sq = ndev->max_sq_num;
-	uint32_t nr_cq = ndev->max_cq_num;
-	uint32_t num;
-	uint32_t i;
+	uint16_t nr_cq = ndev->max_cq_num + 1; /* ACQ + IOCQ */
+	uint16_t nr_irq;
+	int ret;
 
-	for (i = 0; i < nr_sq; i++) {
-		num = i + rand() % (nr_sq - i);
-		tmp.cq_id = sq[i].cq_id;
-		sq[i].cq_id = sq[num].cq_id;
-		sq[num].cq_id = tmp.cq_id;
+	ret = nvme_disable_controller_complete(ndev->fd);
+	if (ret < 0)
+		return ret;
 
-		num = i + rand() % (nr_sq - i);
-		tmp.cq_int_vct = sq[i].cq_int_vct;
-		sq[i].cq_int_vct = sq[num].cq_int_vct;
-		sq[num].cq_int_vct = tmp.cq_int_vct;
+	ret = nvme_create_aq_pair(ndev->fd, asqsz, acqsz);
+	if (ret < 0)
+		return ret;
 
-		num = i + rand() % (nr_sq - i);
-		tmp.sq_size = sq[i].sq_size;
-		sq[i].sq_size = sq[num].sq_size;
-		sq[num].sq_size = tmp.sq_size;
-
-		num = i + rand() % (nr_sq - i);
-		tmp.cq_size = sq[i].cq_size;
-		sq[i].
+	if (type == NVME_INT_PIN || type == NVME_INT_MSI_SINGLE) {
+		nr_irq = 1;
+	} else if (type == NVME_INT_MSI_MULTI) {
+		/* !TODO: It's better to check irq limit by parsing MSI Cap */
+		nr_irq = nr_cq > 32 ? 32 : nr_cq;
+	} else if (type == NVME_INT_MSIX) {
+		/* !TODO: It's better to check irq limit by parsing MSI-X Cap */
+		nr_irq = nr_cq > 2048 ? 2048 : nr_cq;
 	}
+
+	ret = nvme_set_irq(ndev->fd, type, nr_irq);
+	if (ret < 0) {
+		ndev->irq_type = NVME_INT_NONE;
+		ndev->nr_irq = 0;
+		return ret;
+	}
+	ndev->irq_type = type;
+	ndev->nr_irq = nr_irq;
+
+	ret = nvme_enable_controller(ndev->fd);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
-#endif

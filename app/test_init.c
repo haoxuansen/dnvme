@@ -212,6 +212,7 @@ static int nvme_init_stage1(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 	ndev->irq_type = NVME_INT_PIN;
+	ndev->nr_irq = 1;
 
 	ret = nvme_enable_controller(fd);
 	if (ret < 0)
@@ -246,9 +247,12 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	/* the number of irq equals to (ASQ + IOSQ) */
-	nvme_set_irq(fd, NVME_INT_MSIX, ndev->max_sq_num + 1);
+	/* the number of irq equals to (ACQ + IOCQ) */
+	ret = nvme_set_irq(fd, NVME_INT_MSIX, ndev->max_cq_num + 1);
+	if (ret < 0)
+		return ret;
 	ndev->irq_type = NVME_INT_MSIX;
+	ndev->nr_irq = ndev->max_cq_num + 1;
 
 	ret = nvme_enable_controller(fd);
 	if (ret < 0)
@@ -298,42 +302,5 @@ int nvme_init(struct nvme_dev_info *ndev)
 out:
 	/* !TODO: Required to release allocated source after failed! */
 	return ret;
-}
-
-int nvme_reinit(int fd, uint32_t asqsz, uint32_t acqsz, enum nvme_irq_type type,
-	uint16_t nr_irqs)
-{
-	struct nvme_dev_info *ndev = &g_nvme_dev;
-	int ret;
-
-	ret = nvme_disable_controller_complete(fd);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_create_aq_pair(fd, asqsz, acqsz);
-	if (ret < 0)
-		return ret;
-
-#ifdef AMD_MB_EN
-	/* !TODO: It's better to confirm whether AMB really doesn't support
-	 * Multi MSI.
-	 */
-	if (type == NVME_INT_MSI_MULTI) {
-		type = NVME_INT_MSIX;
-		pr_warn("AMD MB may not support msi-multi, use msi-x replace!\n");
-	}
-#endif
-	ret = nvme_set_irq(fd, type, nr_irqs);
-	if (ret < 0) {
-		ndev->irq_type = NVME_INT_NONE;
-		return ret;
-	}
-	ndev->irq_type = type;
-
-	ret = nvme_enable_controller(fd);
-	if (ret < 0)
-		return ret;
-
-	return 0;
 }
 

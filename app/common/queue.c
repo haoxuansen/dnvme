@@ -199,24 +199,44 @@ int nvme_delete_iosq(int fd, uint16_t sqid)
 	return 0;
 }
 
+int nvme_create_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
+{
+	struct nvme_csq_wrapper wrap = {0};
+	uint16_t i;
+	int ret;
+	
+	for (i = 0; i < nr_sq; i++) {
+		wrap.sqid = sqs[i].sqid;
+		wrap.cqid = sqs[i].cqid;
+		wrap.elements = sqs[i].size;
+		wrap.prio = NVME_SQ_PRIO_MEDIUM;
+		wrap.contig = 1;
+
+		ret = nvme_create_iosq(fd, &wrap);
+		if (ret < 0) {
+			pr_err("failed to create iosq(%u)!(%d)\n",
+				sqs[i].sqid, ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
 /**
  * @brief Delete all IOSQs.
  * 
- * @param fd NVMe device file descriptor
- * @param nr_sq The number of IOSQs to be deleted
  * @return 0 on success, otherwise a negative errno.
- * 
- * @note We assume that the range of qid is 1 ~ @nr_sq 
  */
-int nvme_delete_all_iosq(int fd, uint16_t nr_sq)
+int nvme_delete_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
 {
-	uint16_t qid;
+	uint16_t i;
 	int ret;
 
-	for (qid = 1; qid <= nr_sq; qid++) {
-		ret = nvme_delete_iosq(fd, qid);
+	for (i = 0; i < nr_sq; i++) {
+		ret = nvme_delete_iosq(fd, sqs[i].sqid);
 		if (ret < 0) {
-			pr_err("failed to delete iosq(%u)!(%d)\n", qid, ret);
+			pr_err("failed to delete iosq(%u)!(%d)\n", 
+				sqs[i].sqid, ret);
 			return ret;
 		}
 	}
@@ -295,39 +315,91 @@ int nvme_delete_iocq(int fd, uint16_t cqid)
 	return 0;
 }
 
-/**
- * @brief Delete all IOCQs.
- * 
- * @param fd NVMe device file descriptor
- * @param nr_cq The number of IOCQs to be deleted
- * @return 0 on success, otherwise a negative errno.
- * 
- * @note We assume that the range of qid is 1 ~ @nr_sq 
- */
-int nvme_delete_all_iocq(int fd, uint16_t nr_cq)
+int nvme_create_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq)
 {
-	uint16_t qid;
+	struct nvme_ccq_wrapper wrap = {0};
+	uint16_t i;
 	int ret;
 
-	for (qid = 1; qid <= nr_cq; qid++) {
-		ret = nvme_delete_iocq(fd, qid);
+	for (i = 0; i < nr_cq; i++) {
+		wrap.cqid = cqs[i].cqid;
+		wrap.elements = cqs[i].size;
+		wrap.irq_no = cqs[i].irq_no;
+		wrap.irq_en = cqs[i].irq_en;
+		wrap.contig = 1;
+
+		ret = nvme_create_iocq(fd, &wrap);
 		if (ret < 0) {
-			pr_err("failed to delete iocq(%u)!(%d)\n", qid, ret);
+			pr_err("failed to create iocq(%u)!(%d)\n",
+				cqs[i].cqid, ret);
 			return ret;
 		}
 	}
 	return 0;
 }
 
-int nvme_delete_all_ioq(int fd, uint16_t nr_sq, uint16_t nr_cq)
+/**
+ * @brief Delete all IOCQs.
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_delete_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq)
 {
+	uint16_t i;
 	int ret;
 
-	ret = nvme_delete_all_iosq(fd, nr_sq);
+	for (i = 0; i < nr_cq; i++) {
+		ret = nvme_delete_iocq(fd, cqs[i].cqid);
+		if (ret < 0) {
+			pr_err("failed to delete iocq(%u)!(%d)\n", 
+				cqs[i].cqid, ret);
+			return ret;
+		}
+	}
+	return 0;
+}
+
+int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
+{
+	struct nvme_cq_info *cqs = ndev->iocqs;
+	uint16_t irq_no;
+	uint16_t i;
+	int ret;
+
+	// nvme_reinit_ioq_info_random(ndev);
+	nvme_swap_ioq_info_random(ndev);
+
+	if (flag & NVME_CIOQ_F_CQS_BIND_SINGLE_IRQ) {
+		if (ndev->irq_type == NVME_INT_NONE || ndev->nr_irq == 0) {
+			pr_err("irq_type is none or nr_irq is zero!\n");
+			return -EPERM;
+		}
+		irq_no = rand() % ndev->nr_irq;
+
+		for (i = 0; i < ndev->max_cq_num; i++)
+			cqs[i].irq_no = irq_no;
+	}
+
+	ret = nvme_create_all_iocq(ndev->fd, ndev->iocqs, ndev->max_cq_num);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_delete_all_iocq(fd, nr_cq);
+	ret = nvme_create_all_iosq(ndev->fd, ndev->iosqs, ndev->max_sq_num);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int nvme_delete_all_ioq(struct nvme_dev_info *ndev)
+{
+	int ret;
+
+	ret = nvme_delete_all_iosq(ndev->fd, ndev->iosqs, ndev->max_sq_num);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_delete_all_iocq(ndev->fd, ndev->iocqs, ndev->max_cq_num);
 	if (ret < 0)
 		return ret;
 	
@@ -609,6 +681,38 @@ struct nvme_cq_info *nvme_find_iocq_info(struct nvme_dev_info *ndev,
 	return &ndev->iocqs[cqid - 1];
 }
 
+void nvme_reinit_ioq_info_random(struct nvme_dev_info *ndev)
+{
+	struct nvme_sq_info *sqs = ndev->iosqs;
+	struct nvme_cq_info *cqs = ndev->iocqs;
+	struct nvme_ctrl_property *prop = &ndev->prop;
+	uint16_t mqes = NVME_CAP_MQES(prop->cap);
+	uint16_t nr_cq = ndev->max_cq_num;
+	uint16_t nr_sq = ndev->max_sq_num;
+	uint16_t i;
+
+	for (i = 0; i < nr_sq; i++) {
+		sqs[i].cqid = rand() % nr_cq + 1; /* cqid range: 1 ~ nr_cq */
+		sqs[i].size = rand() % (mqes - 512) + 512;
+
+		pr_debug("SQ:%u, element:%u, bind CQ:%u\n",
+			sqs[i].sqid, sqs[i].size, sqs[i].cqid);
+	}
+
+	for (i = 0; i < nr_cq; i++) {
+		if (ndev->irq_type == NVME_INT_NONE || ndev->nr_irq == 0) {
+			cqs[i].irq_en = 0;
+		} else {
+			cqs[i].irq_en = 1;
+			cqs[i].irq_no = rand() % ndev->nr_irq;
+		}
+		cqs[i].size = rand() % (mqes - 512) + 512;
+
+		pr_debug("CQ:%u, element:%u, irq_en:%u, irq_no:%u\n",
+			cqs[i].cqid, cqs[i].size, cqs[i].irq_en, cqs[i].irq_no);
+	}
+}
+
 static void nvme_swap_iosq_info_random(struct nvme_sq_info *sqs, uint16_t nr_sq)
 {
 	struct nvme_sq_info tmp;
@@ -628,18 +732,23 @@ static void nvme_swap_iosq_info_random(struct nvme_sq_info *sqs, uint16_t nr_sq)
 	}
 }
 
-static void nvme_swap_iocq_info_random(struct nvme_cq_info *cqs, uint16_t nr_cq)
+static void nvme_swap_iocq_info_random(struct nvme_cq_info *cqs, uint16_t nr_cq, 
+	uint16_t nr_irq)
 {
 	struct nvme_cq_info tmp;
 	uint16_t i, num;
 
+	for (i = 0; i < nr_cq; i++) {
+		if (nr_irq) {
+			cqs[i].irq_no = rand() % nr_irq;
+			cqs[i].irq_en = 1;
+		} else {
+			cqs[i].irq_en = 0;
+		}
+	}
+
 	/* The last cq info has been exchanged with the previous one */
 	for (i = 0; i < (nr_cq - 1); i++) {
-		num = i + rand() % (nr_cq - i);
-		tmp.irq_no = cqs[i].irq_no;
-		cqs[i].irq_no = cqs[num].irq_no;
-		cqs[num].irq_no = tmp.irq_no;
-
 		num = i + rand() % (nr_cq - i);
 		tmp.size = cqs[i].size;
 		cqs[i].size = cqs[num].size;
@@ -650,5 +759,5 @@ static void nvme_swap_iocq_info_random(struct nvme_cq_info *cqs, uint16_t nr_cq)
 void nvme_swap_ioq_info_random(struct nvme_dev_info *ndev)
 {
 	nvme_swap_iosq_info_random(ndev->iosqs, ndev->max_sq_num);
-	nvme_swap_iocq_info_random(ndev->iocqs, ndev->max_cq_num);
+	nvme_swap_iocq_info_random(ndev->iocqs, ndev->max_cq_num, ndev->nr_irq);
 }

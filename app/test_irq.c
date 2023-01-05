@@ -35,6 +35,7 @@ void test_irq_review568(int fd)
         pr_info("\nIRQ Loop Test = %d\n", i + 1);
         nvme_set_irq(fd, NVME_INT_MSIX, 2);
         g_nvme_dev.irq_type = NVME_INT_MSIX;
+	g_nvme_dev.nr_irq = 2;
         i--;
     }
     nvme_set_irq(g_fd, NVME_INT_NONE, 0);

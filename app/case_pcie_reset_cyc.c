@@ -88,6 +88,7 @@ static void test_sub(void)
 
 int case_pcie_reset_cyc(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;
@@ -117,7 +118,7 @@ int case_pcie_reset_cyc(void)
     }
     sleep(1);
     
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
     if (test_flag != SUCCEED)
     {

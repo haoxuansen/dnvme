@@ -32,6 +32,7 @@ static void test_sub(void)
     uint16_t wr_nlb = 0;
     uint32_t wr_nsid = 1;
 
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
     uint32_t reap_num = 0;
@@ -91,7 +92,7 @@ static void test_sub(void)
 
     sleep(1);
 
-    nvme_reinit(g_fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX, g_nvme_dev.max_sq_num + 1);
+    nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
     /*******************************************************************************************************************************/
 }

@@ -10,12 +10,14 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
 
 #include "log.h"
 #include "irq.h"
 #include "ioctl.h"
+#include "auto_header.h"
 
 static const char *nvme_irq_type_string(enum nvme_irq_type type)
 {
@@ -32,6 +34,29 @@ static const char *nvme_irq_type_string(enum nvme_irq_type type)
 		return "msix";
 	default:
 		return "unknown";
+	}
+}
+
+enum nvme_irq_type nvme_select_irq_type_random(void)
+{
+	uint8_t num = rand() % 4;
+
+	switch (num) {
+	case 0:
+		return NVME_INT_PIN;
+	case 1:
+		return NVME_INT_MSI_SINGLE;
+	case 2:
+#ifdef AMD_MB_EN
+		pr_warn("AMD MB may not support msi-multi, use msi-x replace!\n");
+		return NVME_INT_MSIX;
+#else
+		return NVME_INT_MSI_MULTI;
+#endif
+	case 3:
+		return NVME_INT_MSIX;
+	default:
+		return NVME_INT_NONE;
 	}
 }
 

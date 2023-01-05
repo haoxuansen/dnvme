@@ -12,6 +12,7 @@ CC ?= gcc
 CFLAGS := -g -Wall
 CFLAGS += -I$(TOP_DIR)/include/generated
 CFLAGS += -I$(TOP_DIR)/include/uapi
+CFLAGS += -I$(CUR_DIR)
 CFLAGS += -I$(CUR_DIR)/common
 CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
 

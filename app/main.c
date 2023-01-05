@@ -176,6 +176,7 @@ int main(int argc, char *argv[])
 	nvme_disable_controller_complete(g_fd);
 	nvme_set_irq(g_fd, NVME_INT_NONE, 0);
 	g_nvme_dev.irq_type = NVME_INT_NONE;
+	g_nvme_dev.nr_irq = 0;
 	test_mem_free();
 	pr_info("\n\n****** END OF TEST ******\n\n");
 	close(g_fd);
