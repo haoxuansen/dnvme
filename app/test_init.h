@@ -7,5 +7,6 @@
 #include "test_metrics.h"
 
 int nvme_init(struct nvme_dev_info *ndev);
+void nvme_deinit(struct nvme_dev_info *ndev);
 
 #endif

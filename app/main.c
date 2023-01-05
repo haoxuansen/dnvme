@@ -40,7 +40,6 @@ void *g_discontig_sq_buf;
 void *g_discontig_cq_buf;
 
 struct nvme_dev_info g_nvme_dev = {0};
-struct nvme_sq_info *g_ctrl_sq_info;
 struct nvme_ns *g_nvme_ns_info;
 
 static int test_mem_alloc(void)
@@ -119,8 +118,6 @@ void test_mem_free(void)
 	g_cq_entry_buf = NULL;
 
 	/* !TODO: It's better to free memory in "test_exit"? */
-	free(g_ctrl_sq_info);
-	g_ctrl_sq_info = NULL;
 	free(g_nvme_ns_info);
 	g_nvme_ns_info = NULL;
 }
@@ -174,9 +171,7 @@ int main(int argc, char *argv[])
 	/* Exit gracefully */
 	pr_info("\nNow Exiting gracefully....\n");
 	nvme_disable_controller_complete(g_fd);
-	nvme_set_irq(g_fd, NVME_INT_NONE, 0);
-	g_nvme_dev.irq_type = NVME_INT_NONE;
-	g_nvme_dev.nr_irq = 0;
+	nvme_deinit(&g_nvme_dev);
 	test_mem_free();
 	pr_info("\n\n****** END OF TEST ******\n\n");
 	close(g_fd);

@@ -346,6 +346,7 @@ static int check_sq_head(struct nvme_completion *entries, int reaped)
 static int delete_runing_cmd_queue(void)
 {
 	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_sq_info *sqs = ndev->iosqs;
 	struct nvme_completion entry = {0};
 	enum nvme_irq_type type;
 	uint16_t cid;
@@ -373,13 +374,13 @@ static int delete_runing_cmd_queue(void)
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
 		wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
 		wr_nlb = WORD_RAND() % 255 + 1;
-		for (index = 0; index < MIN(cmd_num_per_q, g_ctrl_sq_info[qid - 1].size) / 2; index++)
+		for (index = 0; index < MIN(cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
 		{
 			if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
 			{
-				ret |= nvme_io_write_cmd(g_fd, 0, g_ctrl_sq_info[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+				ret |= nvme_io_write_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 				cmd_cnt++;
-				ret |= nvme_io_read_cmd(g_fd, 0, g_ctrl_sq_info[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+				ret |= nvme_io_read_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
 				cmd_cnt++;
 			}
 		}
@@ -390,24 +391,24 @@ static int delete_runing_cmd_queue(void)
 		}
 		pr_debug("Submit %u cmds to SQ(%u)!\n", cmd_cnt, qid);
 
-		ret = nvme_cmd_delete_iosq(ndev->fd, g_ctrl_sq_info[qid - 1].sqid);
+		ret = nvme_cmd_delete_iosq(ndev->fd, sqs[qid - 1].sqid);
 		if (ret < 0)
 			return ret;
 		cid = ret;
 
-		ret = nvme_ring_sq_doorbell(ndev->fd, g_ctrl_sq_info[qid - 1].sqid);
+		ret = nvme_ring_sq_doorbell(ndev->fd, sqs[qid - 1].sqid);
 		if (ret < 0)
 			return ret;
 		ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_reap_expect_cqe(ndev->fd, g_ctrl_sq_info[qid - 1].cqid, 
+		ret = nvme_reap_expect_cqe(ndev->fd, sqs[qid - 1].cqid, 
 			cmd_cnt, g_cq_entry_buf, BUFFER_CQ_ENTRY_SIZE);
 		if (ret != cmd_cnt) {
 			pr_notice("SQ:%u, CQ:%u, reaped:%d, expect:%u\n", 
-				g_ctrl_sq_info[qid - 1].sqid, 
-				g_ctrl_sq_info[qid - 1].cqid,
+				sqs[qid - 1].sqid, 
+				sqs[qid - 1].cqid,
 				ret, cmd_cnt);
 			ret = check_sq_head(g_cq_entry_buf, ret);
 			if (ret < 0)
@@ -422,7 +423,7 @@ static int delete_runing_cmd_queue(void)
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_delete_iocq(ndev->fd, g_ctrl_sq_info[qid - 1].cqid);
+		ret = nvme_delete_iocq(ndev->fd, sqs[qid - 1].cqid);
 		if (ret < 0)
 			return ret;
 	}
@@ -433,6 +434,7 @@ static int delete_runing_cmd_queue(void)
 static int delete_runing_fua_cmd_queue(void)
 {
 	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_sq_info *sqs = ndev->iosqs;
 	struct nvme_completion entry = {0};
 	enum nvme_irq_type type;
 	uint16_t cid;
@@ -459,11 +461,11 @@ static int delete_runing_fua_cmd_queue(void)
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
 		wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
 		wr_nlb = WORD_RAND() % 255 + 1;
-		for (index = 0; index < MIN(cmd_num_per_q, g_ctrl_sq_info[qid - 1].size) / 2; index++)
+		for (index = 0; index < MIN(cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
 		{
 			if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
 			{
-				ret |= nvme_io_write_cmd(g_fd, 0, g_ctrl_sq_info[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, NVME_RW_FUA, g_write_buf);
+				ret |= nvme_io_write_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, NVME_RW_FUA, g_write_buf);
 				cmd_cnt++;
 			}
 		}
@@ -474,24 +476,24 @@ static int delete_runing_fua_cmd_queue(void)
 		}
 		pr_debug("Submit %u cmds to SQ(%u)!\n", cmd_cnt, qid);
 
-		ret = nvme_cmd_delete_iosq(ndev->fd, g_ctrl_sq_info[qid - 1].sqid);
+		ret = nvme_cmd_delete_iosq(ndev->fd, sqs[qid - 1].sqid);
 		if (ret < 0)
 			return ret;
 		cid = ret;
 
-		ret = nvme_ring_sq_doorbell(ndev->fd, g_ctrl_sq_info[qid - 1].sqid);
+		ret = nvme_ring_sq_doorbell(ndev->fd, sqs[qid - 1].sqid);
 		if (ret < 0)
 			return ret;
 		ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_reap_expect_cqe(ndev->fd, g_ctrl_sq_info[qid - 1].cqid, 
+		ret = nvme_reap_expect_cqe(ndev->fd, sqs[qid - 1].cqid, 
 			cmd_cnt, g_cq_entry_buf, BUFFER_CQ_ENTRY_SIZE);
 		if (ret != cmd_cnt) {
 			pr_notice("SQ:%u, CQ:%u, reaped:%d, expect:%u\n", 
-				g_ctrl_sq_info[qid - 1].sqid, 
-				g_ctrl_sq_info[qid - 1].cqid,
+				sqs[qid - 1].sqid, 
+				sqs[qid - 1].cqid,
 				ret, cmd_cnt);
 			ret = check_sq_head(g_cq_entry_buf, ret);
 			if (ret < 0)
@@ -506,7 +508,7 @@ static int delete_runing_fua_cmd_queue(void)
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_delete_iocq(ndev->fd, g_ctrl_sq_info[qid - 1].cqid);
+		ret = nvme_delete_iocq(ndev->fd, sqs[qid - 1].cqid);
 		if (ret < 0)
 			return ret;
 	}
@@ -517,6 +519,7 @@ static int delete_runing_fua_cmd_queue(void)
 static int delete_runing_iocmd_queue(void)
 {
 	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_sq_info *sqs = ndev->iosqs;
 	enum nvme_irq_type type;
 	uint16_t i;
 	uint32_t sqidx;
@@ -544,12 +547,12 @@ static int delete_runing_iocmd_queue(void)
 	for (i = 0; i < queue_num; i++)
 	{
 		//controller outstanding cmd num is 512
-		g_ctrl_sq_info[i].cmd_cnt = 0;
+		sqs[i].cmd_cnt = 0;
 		for (index = 0; index < cmd_num_per_q; index++) {
 			if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze) {
-				ret |= nvme_send_iocmd(ndev->fd, 0, g_ctrl_sq_info[i].sqid, 
+				ret |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, 
 					wr_nsid, wr_slba, wr_nlb, g_write_buf);
-				g_ctrl_sq_info[i].cmd_cnt++;
+				sqs[i].cmd_cnt++;
 			}
 		}
 
@@ -558,11 +561,11 @@ static int delete_runing_iocmd_queue(void)
 			return ret;
 		}
 		pr_debug("Submit %u cmds to SQ(%u)!\n", 
-			g_ctrl_sq_info[i].cmd_cnt, g_ctrl_sq_info[i].sqid);
+			sqs[i].cmd_cnt, sqs[i].sqid);
 	}
 
 	for (i = 0; i < queue_num; i++) {
-		ret = nvme_cmd_delete_iosq(ndev->fd, g_ctrl_sq_info[i].sqid);
+		ret = nvme_cmd_delete_iosq(ndev->fd, sqs[i].sqid);
 		if (ret < 0) {
 			pr_err("failed to submit delete iosq cmd!(%d)\n", ret);
 			return ret;
@@ -570,20 +573,20 @@ static int delete_runing_iocmd_queue(void)
 	}
 
 	for (i = 0; i < queue_num; i++)
-		ret |= nvme_ring_sq_doorbell(ndev->fd, g_ctrl_sq_info[i].sqid);
+		ret |= nvme_ring_sq_doorbell(ndev->fd, sqs[i].sqid);
 
 	ret |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < queue_num; i++) {
-		ret = nvme_reap_expect_cqe(ndev->fd, g_ctrl_sq_info[i].cqid, 
-			g_ctrl_sq_info[i].cmd_cnt, g_cq_entry_buf, BUFFER_CQ_ENTRY_SIZE);
-		if (ret != g_ctrl_sq_info[i].cmd_cnt) {
+		ret = nvme_reap_expect_cqe(ndev->fd, sqs[i].cqid, 
+			sqs[i].cmd_cnt, g_cq_entry_buf, BUFFER_CQ_ENTRY_SIZE);
+		if (ret != sqs[i].cmd_cnt) {
 			pr_notice("SQ:%u, CQ:%u, reaped:%d, expect:%u\n", 
-				g_ctrl_sq_info[i].sqid, 
-				g_ctrl_sq_info[i].cqid,
-				ret, g_ctrl_sq_info[i].cmd_cnt);
+				sqs[i].sqid, 
+				sqs[i].cqid,
+				ret, sqs[i].cmd_cnt);
 			ret = check_sq_head(g_cq_entry_buf, ret);
 			if (ret < 0)
 				return ret;
@@ -601,7 +604,7 @@ static int delete_runing_iocmd_queue(void)
 
 	/* delete iocq */
 	for (i = 0; i < queue_num; i++) {
-		ret = nvme_cmd_delete_iocq(ndev->fd, g_ctrl_sq_info[i].cqid);
+		ret = nvme_cmd_delete_iocq(ndev->fd, sqs[i].cqid);
 		if (ret < 0) {
 			pr_err("failed to submit delete iocq cmd!(%d)\n", ret);
 			return ret;
@@ -624,20 +627,20 @@ static int delete_runing_iocmd_queue(void)
 	/* delete remain queue */
 	for (sqidx = queue_num; sqidx < g_nvme_dev.max_sq_num; sqidx++)
 	{
-		ret = nvme_delete_iosq(ndev->fd, g_ctrl_sq_info[sqidx].sqid);
+		ret = nvme_delete_iosq(ndev->fd, sqs[sqidx].sqid);
 		if (ret < 0) {
 			pr_err("failed to delete iosq(%u)!(%d)\n", 
-				g_ctrl_sq_info[sqidx].sqid, ret);
+				sqs[sqidx].sqid, ret);
 			return ret;
 		}
 	}
 
 	for (sqidx = queue_num; sqidx < g_nvme_dev.max_sq_num; sqidx++)
 	{
-		ret = nvme_delete_iocq(ndev->fd, g_ctrl_sq_info[sqidx].cqid);
+		ret = nvme_delete_iocq(ndev->fd, sqs[sqidx].cqid);
 		if (ret < 0) {
 			pr_err("failed to delete iocq(%u)!(%d)\n", 
-				g_ctrl_sq_info[sqidx].cqid, ret);
+				sqs[sqidx].cqid, ret);
 			return ret;
 		}
 	}

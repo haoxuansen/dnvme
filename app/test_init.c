@@ -265,7 +265,6 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 	ret = nvme_init_ioq_info(ndev);
 	if (ret < 0)
 		return ret;
-	g_ctrl_sq_info = ndev->iosqs; /* !TODO: obsolete */
 
 	ret = init_ns_data(fd, ndev->id_ctrl.nn);
 	if (ret < 0)
@@ -302,5 +301,10 @@ int nvme_init(struct nvme_dev_info *ndev)
 out:
 	/* !TODO: Required to release allocated source after failed! */
 	return ret;
+}
+
+void nvme_deinit(struct nvme_dev_info *ndev)
+{
+	nvme_deinit_ioq_info(ndev);
 }
 
