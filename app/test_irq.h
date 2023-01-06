@@ -15,7 +15,6 @@
 
 #define PAGE_SIZE_I 4096
 
-void test_loop_irq(int fd);
 int admin_create_iocq_irq(int fd, int cq_id, int irq_vec, int cq_flags);
 void set_cq_irq(int fd, void *p_dcq_buf);
 void set_sq_irq(int fd, void *addr);

@@ -18,7 +18,23 @@
 #include "queue.h"
 
 /**
+ * @brief NVMe namespace information
+ * 
+ * @id_ns: NVM command set identify namesapce data structure
+ */
+struct nvme_ns_info {
+	uint32_t	nsid;
+
+	uint32_t	lbads;
+	uint64_t	nsze;
+	struct nvme_id_ns	id_ns;
+};
+
+/**
  * @brief NVMe device information
+ * 
+ * @nss: An array for storing namespace info.
+ * @ns_num_total: The maximum value of a valid NSID for the NVM subsystem
  * 
  * @io_sqes: Actual effective I/O Completion Queue Entry Size. The value
  *  is in bytes and is specified as a power of two (2^n).
@@ -35,6 +51,10 @@ struct nvme_dev_info {
 
 	struct nvme_sq_info	*iosqs;
 	struct nvme_cq_info	*iocqs;
+
+	struct nvme_ns_info	*nss;
+	uint32_t	ns_num_total;
+	uint32_t	ns_num_actual;
 
 	uint32_t	link_speed;
 	uint32_t	link_width;

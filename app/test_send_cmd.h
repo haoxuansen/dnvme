@@ -65,9 +65,6 @@ int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint3
 
 int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num);
 
-int nvme_idfy_ctrl(int g_fd, void *data);
-int nvme_idfy_ns(int fd, uint32_t nsid, uint8_t present, void *data);
-int nvme_idfy_ns_list(int fd, uint32_t nsid, uint8_t all, void *data);
 int nvme_idfy_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data);
 int nvme_idfy_secondary_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data);
 int nvme_idfy_ns_descs(int fd, uint32_t nsid, void *data);

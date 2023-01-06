@@ -40,7 +40,7 @@ void *g_discontig_sq_buf;
 void *g_discontig_cq_buf;
 
 struct nvme_dev_info g_nvme_dev = {0};
-struct nvme_ns *g_nvme_ns_info;
+struct nvme_ns_info *g_nvme_ns_info;
 
 static int test_mem_alloc(void)
 {

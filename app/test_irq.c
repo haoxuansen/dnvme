@@ -46,34 +46,6 @@ void test_irq_review568(int fd)
     getchar();
 }
 
-void test_loop_irq(int fd)
-{
-    int i, cmds;
-    uint32_t num;
-    void *rd_buffer;
-    if (posix_memalign(&rd_buffer, 4096, RW_BUFFER_SIZE))
-    {
-        pr_err("Memalign Failed");
-        return;
-    }
-    num = nvme_inquiry_cq_entries(fd, 0);
-    /* Submit 10 cmds */
-    pr_info("\nEnter no of commands in ACQ:");
-    fflush(stdout);
-    scanf("%d", &cmds);
-    for (i = 0; i < cmds; i++)
-    {
-        nvme_idfy_ctrl(fd, rd_buffer);
-    }
-
-    nvme_ring_sq_doorbell(fd, 0); /* Ring Admin Q Doorbell */
-    while (nvme_inquiry_cq_entries(fd, 0) != (num + cmds))
-        ;
-
-    nvme_dump_log(fd, "/tmp/irq_loop_test.txt");
-    free(rd_buffer);
-}
-
 int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
                          uint16_t elem, void *addr)
 {

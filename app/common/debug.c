@@ -34,11 +34,11 @@ void nvme_display_id_ctrl(struct nvme_id_ctrl *ctrl)
 	pr_debug("SGL Support: 0x%x\n", le32_to_cpu(ctrl->sgls));
 }
 
-void nvme_display_id_ns(struct nvme_id_ns *ns)
+void nvme_display_id_ns(struct nvme_id_ns *ns, uint32_t nsid)
 {
 	uint8_t flbas = ns->flbas & 0xf;
 
-	pr_debug("===== Identify Namespace Data =====\n");
+	pr_debug("===== Identify Namespace(%u) Data =====\n", nsid);
 
 	pr_debug("Namespace Size: 0x%llx\n", le64_to_cpu(ns->nsze));
 

@@ -11,13 +11,16 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <malloc.h>
 #include <errno.h>
 
 #include "byteorder.h"
+#include "log.h"
 #include "dnvme_ioctl.h"
+#include "core.h"
 #include "ioctl.h"
 #include "pci.h"
 #include "irq.h"
@@ -25,15 +28,7 @@
 #include "cmd.h"
 #include "debug.h"
 
-#include "auto_header.h"
-#include "common.h"
-#include "test_metrics.h"
-#include "test_send_cmd.h"
-#include "test_irq.h"
-#include "test_cq_gain.h"
-
 #include "test_init.h"
-
 
 static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
 {
@@ -66,12 +61,16 @@ static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
 	return 0;
 }
 
-static int init_ns_data(int fd, uint32_t nn)
+static int init_ns_data(struct nvme_dev_info *ndev)
 {
-	struct nvme_ns *ns;
-	uint32_t idx;
+	struct nvme_ns_info *ns;
+	uint32_t nn = le32_to_cpu(ndev->id_ctrl.nn);
+	uint32_t i;
 	uint8_t flbas;
-	int ret;
+	__le32 *ns_list;
+	int ret = -ENOMEM;
+
+	WARN_ON(nn > 1024);
 
 	ns = calloc(nn, sizeof(*ns));
 	if (!ns) {
@@ -79,40 +78,54 @@ static int init_ns_data(int fd, uint32_t nn)
 		return -ENOMEM;
 	}
 
-	/* !FIXME: The identify of namespaces may not start with 1 or be
-	 * consecutive
-	 *
-	 * It's better to get the correct identify by getting active namespace
-	 * ID list ?
-	 */
-	for (idx = 0; idx < nn; idx++) {
-		ret = nvme_identify_ns(fd, &ns[idx].id_ns, idx + 1);
+	ns_list = malloc(NVME_IDENTIFY_DATA_SIZE);
+	if (!ns_list) {
+		pr_err("failed to allo for ns list!\n");
+		goto out;
+	}
+	memset(ns_list, 0, NVME_IDENTIFY_DATA_SIZE);
+
+	ret = nvme_identify_ns_list_active(ndev->fd, ns_list, 
+		NVME_IDENTIFY_DATA_SIZE, 0);
+	if (ret < 0) {
+		pr_err("failed to get active ns list!(%d)\n", ret);
+		goto out2;
+	}
+
+	for (i = 0; i < 1024 && ns_list[i] != 0; i++) {
+		BUG_ON(i >= nn);
+
+		ns[i].nsid = le32_to_cpu(ns_list[i]);
+
+		ret = nvme_identify_ns_active(ndev->fd, &ns[i].id_ns, ns[i].nsid);
 		if (ret < 0) {
-			pr_err("failed to get ns(%u) data!(%d)\n", idx + 1, ret);
-			goto out;
+			pr_err("failed to get ns(%u) data!(%d)\n", ns[i].nsid, ret);
+			goto out2;
 		}
-		nvme_display_id_ns(&ns[idx].id_ns);
+		nvme_display_id_ns(&ns[i].id_ns, ns[i].nsid);
 
-		ns[idx].nsze = le64_to_cpu(ns[idx].id_ns.nsze);
-		flbas = ns[idx].id_ns.flbas & 0xf;
-		ns[idx].lbads = 1 << ns[idx].id_ns.lbaf[flbas].ds;
+		ns[i].nsze = le64_to_cpu(ns[i].id_ns.nsze);
+		flbas = ns[i].id_ns.flbas & 0xf;
+		ns[i].lbads = 1 << ns[i].id_ns.lbaf[flbas].ds;
 
-		if (!ns[idx].nsze) {
-			pr_err("NS:%u, NSZE is zero?\n", idx + 1);
+		if (!ns[i].nsze || ns[i].lbads < 512) {
+			pr_err("invlid nsze(%llu) or lbads(%u) in ns(%u)\n", 
+				ns[i].nsze, ns[i].lbads, ns[i].nsid);
 			ret = -EINVAL;
-			goto out;
-		}
-
-		if (ns[idx].lbads < 512) {
-			pr_err("NS:%u, lbads %u in byte is invalid!\n", 
-				idx + 1, ns[idx].lbads);
-			ret = -EINVAL;
-			goto out;
+			goto out2;
 		}
 	}
 
-	g_nvme_ns_info = ns;
+	ndev->nss = ns;
+	ndev->ns_num_total = nn;
+	ndev->ns_num_actual = i;
+
+	g_nvme_ns_info = ns; /* Obsolete */
+
+	free(ns_list);
 	return 0;
+out2:
+	free(ns_list);
 out:
 	free(ns);
 	return ret;
@@ -266,7 +279,7 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = init_ns_data(fd, ndev->id_ctrl.nn);
+	ret = init_ns_data(ndev);
 	if (ret < 0)
 		return ret;
 

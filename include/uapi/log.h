@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include <assert.h>
 #include "log/color.h"
 
 #define LOG_LEVEL_EMERG			0
@@ -59,5 +60,10 @@ int log_print(uint8_t level, const char *fmt, ...);
 /* Obsolte, Don't use it in new places */
 #define pr_color(color, fmt, ...) \
 	printf(color pr_fmt(fmt), ##__VA_ARGS__)
+
+#define BUG_ON(cond)			assert(!(cond))
+#define WARN_ON(cond) \
+	((cond) ? pr_warn("%s:%d: %s: Assertion '!(%s)' failed.\n", __FILE__, \
+		__LINE__, __func__, #cond) : 0)
 
 #endif /* !_UAPI_LOG_H_ */

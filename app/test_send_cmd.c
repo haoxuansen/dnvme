@@ -1153,26 +1153,6 @@ static int nvme_idfy_cmd(int g_fd, uint32_t nsid, uint32_t cns, uint8_t *data_ad
     return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
 }
 
-int nvme_idfy_ctrl(int g_fd, void *data)
-{
-    memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(g_fd, 0, NVME_ID_CNS_CTRL, data);
-}
-
-int nvme_idfy_ns(int fd, uint32_t nsid, uint8_t present, void *data)
-{
-    uint32_t cns = present ? NVME_ID_CNS_NS_PRESENT : NVME_ID_CNS_NS;
-    memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(fd, nsid, cns, data);
-}
-
-int nvme_idfy_ns_list(int fd, uint32_t nsid, uint8_t all, void *data)
-{
-    uint32_t cns = all ? NVME_ID_CNS_NS_PRESENT_LIST : NVME_ID_CNS_NS_ACTIVE_LIST;
-    memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(fd, nsid, cns, data);
-}
-
 int nvme_idfy_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data)
 {
     uint32_t cns = nsid ? NVME_ID_CNS_CTRL_NS_LIST : NVME_ID_CNS_CTRL_LIST;

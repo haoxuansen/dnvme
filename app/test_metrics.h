@@ -73,13 +73,6 @@ struct fwdma_parameter
     uint32_t cdw15;
 };
 
-struct nvme_ns
-{
-	uint32_t lbads;
-	uint64_t nsze;
-	struct nvme_id_ns id_ns;
-};
-
 #pragma pack(pop)
 
 //--------------------------------------------------------------------------------
@@ -144,7 +137,7 @@ extern void *g_write_buf;
 extern void *g_discontig_sq_buf;
 extern void *g_discontig_cq_buf;
 extern struct nvme_dev_info g_nvme_dev;
-extern struct nvme_ns *g_nvme_ns_info;
+extern struct nvme_ns_info *g_nvme_ns_info;
 
 #define TEST_PASS "\nppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
                   "pp       pp     aa       aa     ss              ss          \n"   \
