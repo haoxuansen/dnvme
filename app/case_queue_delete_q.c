@@ -62,7 +62,7 @@ static int sub_case_use_1_q_del_it(void)
 	cmd_cnt = 0;
 	send_num = rand() % 200 + 100;
 	for (i = 0; i < send_num; i++) {
-		if (wr_slba + wr_nlb < g_nvme_ns_info[0].nsze) {
+		if (wr_slba + wr_nlb < ndev->nss[0].nsze) {
 			ret |= nvme_io_write_cmd(g_fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			cmd_cnt++;
 			ret |= nvme_io_read_cmd(g_fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
@@ -253,7 +253,7 @@ static int sub_case_del_cq_before_sq(void)
 	/* 2. Use IOSQ & IOCQ */
 	cmd_cnt = 0;
 	for (i = 0; i < 5; i++) {
-		if (wr_slba + wr_nlb < g_nvme_ns_info[0].nsze) {
+		if (wr_slba + wr_nlb < ndev->nss[0].nsze) {
 			ret |= nvme_io_write_cmd(ndev->fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			cmd_cnt++;
 			ret |= nvme_io_read_cmd(ndev->fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
@@ -372,11 +372,11 @@ static int delete_runing_cmd_queue(void)
 	for (qid = 1; qid <= queue_num; qid++) {
 		cmd_cnt = 0;
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
-		wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+		wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
 		wr_nlb = WORD_RAND() % 255 + 1;
 		for (index = 0; index < MIN(cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
 		{
-			if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+			if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
 			{
 				ret |= nvme_io_write_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 				cmd_cnt++;
@@ -459,11 +459,11 @@ static int delete_runing_fua_cmd_queue(void)
 	{
 		cmd_cnt = 0;
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
-		wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+		wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
 		wr_nlb = WORD_RAND() % 255 + 1;
 		for (index = 0; index < MIN(cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
 		{
-			if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+			if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
 			{
 				ret |= nvme_io_write_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, NVME_RW_FUA, g_write_buf);
 				cmd_cnt++;
@@ -541,7 +541,7 @@ static int delete_runing_iocmd_queue(void)
 
 	queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
-	wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+	wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
 	wr_nlb = WORD_RAND() % 255 + 1;
 	cmd_num_per_q = (512 / g_nvme_dev.max_sq_num); //WORD_RAND() % 150 + 10;
 	for (i = 0; i < queue_num; i++)
@@ -549,7 +549,7 @@ static int delete_runing_iocmd_queue(void)
 		//controller outstanding cmd num is 512
 		sqs[i].cmd_cnt = 0;
 		for (index = 0; index < cmd_num_per_q; index++) {
-			if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze) {
+			if ((wr_slba + wr_nlb) < ndev->nss[0].nsze) {
 				ret |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, 
 					wr_nsid, wr_slba, wr_nlb, g_write_buf);
 				sqs[i].cmd_cnt++;

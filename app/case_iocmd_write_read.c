@@ -97,6 +97,7 @@ uint16_t wr_nlb_arr[] = {32, 64, 128, 256};
 
 static int sub_case_write(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index0 = 0;
     uint32_t index1 = 0;
     cmd_cnt = 0;
@@ -113,16 +114,16 @@ static int sub_case_write(void)
         for (index1 = 0; index1 <= 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;
             }
         }
-        for (index1 = (g_nvme_ns_info[0].nsze / 2); index1 <= (g_nvme_ns_info[0].nsze / 2) + 7; index1++)
+        for (index1 = (ndev->nss[0].nsze / 2); index1 <= (ndev->nss[0].nsze / 2) + 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;
@@ -139,6 +140,7 @@ static int sub_case_write(void)
 
 static int sub_case_read(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index0 = 0;
     uint32_t index1 = 0;
     cmd_cnt = 0;
@@ -155,16 +157,16 @@ static int sub_case_read(void)
         for (index1 = 0; index1 <= 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
                 cmd_cnt++;
             }
         }
-        for (index1 = (g_nvme_ns_info[0].nsze / 2); index1 <= (g_nvme_ns_info[0].nsze / 2) + 7; index1++)
+        for (index1 = (ndev->nss[0].nsze / 2); index1 <= (ndev->nss[0].nsze / 2) + 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
                 cmd_cnt++;
@@ -181,6 +183,7 @@ static int sub_case_read(void)
 
 static int sub_case_write_read(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index0 = 0;
     uint32_t index1 = 0;
     cmd_cnt = 0;
@@ -197,7 +200,7 @@ static int sub_case_write_read(void)
         for (index1 = 0; index1 <= 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;
@@ -205,10 +208,10 @@ static int sub_case_write_read(void)
                 cmd_cnt++;
             }
         }
-        for (index1 = (g_nvme_ns_info[0].nsze / 2); index1 <= (g_nvme_ns_info[0].nsze / 2) + 7; index1++)
+        for (index1 = (ndev->nss[0].nsze / 2); index1 <= (ndev->nss[0].nsze / 2) + 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;
@@ -227,16 +230,17 @@ static int sub_case_write_read(void)
 
 static int sub_case_write_read_2(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t index0 = 0;
     uint32_t index1 = 0;
     cmd_cnt = 0;
     for (index0 = 0; index0 < 10; index0++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
         for (index1 = 0; index1 < (sq_size / 10); index1++)
         {
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;
@@ -249,11 +253,11 @@ static int sub_case_write_read_2(void)
     cmd_cnt = 0;
     for (index0 = 0; index0 < 10; index0++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
         for (index1 = 0; index1 < (sq_size / 10); index1++)
         {
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;
@@ -266,11 +270,11 @@ static int sub_case_write_read_2(void)
     cmd_cnt = 0;
     for (index0 = 0; index0 < 10; index0++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
         for (index1 = 0; index1 < (sq_size / 20); index1++)
         {
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
                 cmd_cnt++;

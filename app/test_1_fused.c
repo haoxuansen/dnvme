@@ -97,16 +97,19 @@ static int sub_case_end(void)
 
 static int sub_case_cmpare_write_fused_cmd(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
     {
         wr_nsid = ns_idx + 1;
         wr_slba = 0;
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+        mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
-        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 
         wr_slba = 0;
         wr_nlb = 64;

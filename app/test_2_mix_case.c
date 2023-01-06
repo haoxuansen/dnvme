@@ -104,25 +104,27 @@ static int sub_case_end(void)
 
 static int sub_case_io_cmd(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint8_t tmp_fg = 0;
 
     for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
     {
         wr_nsid = ns_idx + 1;
-        // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        // wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         // wr_nlb = WORD_RAND() % 32 + 1;
         wr_slba = 0;
         wr_nlb = 32;
 
-        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 
-        for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / wr_nlb)); i++)
+        for (uint32_t i = 0; i < (((ndev->nss[0].nsze / wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / wr_nlb)); i++)
         {
 
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
-                mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-                mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+                mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+                mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
                 cmd_cnt = 0;
                 test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
@@ -149,15 +151,15 @@ static int sub_case_io_cmd(void)
                 {
                     goto out;
                 }
-                tmp_fg = dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+                tmp_fg = dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                 test_flag |= tmp_fg;
                 if (tmp_fg != SUCCEED)
                 {
                     pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
                     pr_info("\nwrite_buffer Data:\n");
-                    mem_disp(g_write_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+                    mem_disp(g_write_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                     pr_info("\nRead_buffer Data:\n");
-                    mem_disp(g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+                    mem_disp(g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                     break;
                 }
                 wr_slba += wr_nlb;

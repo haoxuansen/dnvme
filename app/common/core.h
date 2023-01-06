@@ -20,13 +20,16 @@
 /**
  * @brief NVMe namespace information
  * 
+ * @nsid: Namespace identifier
+ * @nsze: The total size of the namespace in logical blocks
+ * @lbads: LBA data size in byte
  * @id_ns: NVM command set identify namesapce data structure
  */
 struct nvme_ns_info {
 	uint32_t	nsid;
-
-	uint32_t	lbads;
 	uint64_t	nsze;
+	uint32_t	lbads;
+
 	struct nvme_id_ns	id_ns;
 };
 

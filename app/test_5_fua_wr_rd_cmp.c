@@ -109,11 +109,13 @@ static int sub_case_end(void)
 
 static int sub_case_write_read_compare(void)
 {
-    for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / g_wr_nlb)); i++)
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
+    for (uint32_t i = 0; i < (((ndev->nss[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / g_wr_nlb)); i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
             mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
             mem_set(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
@@ -151,11 +153,13 @@ static int sub_case_write_read_compare(void)
 
 static int sub_case_fua_write_read_compare(void)
 {
-    for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / g_wr_nlb)); i++)
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
+    for (uint32_t i = 0; i < (((ndev->nss[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / g_wr_nlb)); i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
             mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
             mem_set(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
@@ -190,11 +194,13 @@ static int sub_case_fua_write_read_compare(void)
 
 static int sub_case_write_read_fua_compare(void)
 {
-    for (uint32_t i = 0; i < (((g_nvme_ns_info[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (g_nvme_ns_info[0].nsze / g_wr_nlb)); i++)
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
+    for (uint32_t i = 0; i < (((ndev->nss[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / g_wr_nlb)); i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
             mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
             mem_set(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);

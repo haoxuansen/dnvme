@@ -83,7 +83,7 @@ static int sub_case_int_queue_mask(void)
 
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
-    wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+    wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
     for (uint16_t i = 0; i < queue_num; i++)
     {
@@ -92,7 +92,7 @@ static int sub_case_int_queue_mask(void)
 
         for (index = 0; index < 200; index++)
         {
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_send_iocmd(g_fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 sqs[i].cmd_cnt++;
@@ -153,7 +153,7 @@ static int sub_case_pending_bit(void)
     
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
 
-    wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+    wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
     for (uint16_t i = 0; i < queue_num; i++)
     {
@@ -162,7 +162,7 @@ static int sub_case_pending_bit(void)
 
         for (uint32_t index = 0; index < 200; index++)
         {
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_send_iocmd(g_fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 sqs[i].cmd_cnt++;

@@ -159,6 +159,7 @@ static int case_send_io_write_cmd(void)
 /* !TODO: case_send_io_read_cmd */
 static int case_send_io_read_cmd(void)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	uint16_t sq_id = 1;
 	uint16_t cq_id = 1;
 	uint64_t wr_slba = 0;
@@ -172,9 +173,9 @@ static int case_send_io_read_cmd(void)
 	memset(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
 	// for (index = 0; index < 150; index++)
 	{
-		// wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+		// wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
 		// wr_nlb = WORD_RAND() % 255 + 1;
-		if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+		if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
 		{
 			// nvme_io_write_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			// cmd_cnt++;
@@ -248,6 +249,7 @@ static int case_test_meta(void)
 
 static int case_unknown1(void)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
 	uint64_t wr_slba = 0;
@@ -260,7 +262,7 @@ static int case_unknown1(void)
 	pr_color(LOG_COLOR_CYAN, "pls enter wr_nlb:");
 	fflush(stdout);
 	scanf("%d", (int *)&wr_nlb);
-	memset(g_write_buf, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+	memset(g_write_buf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 	create_meta_buf(g_fd, 0);
 
 	if(SUCCEED == send_nvme_write_using_metabuff(g_fd, 0, io_sq_id, 
@@ -278,13 +280,14 @@ static int case_unknown1(void)
 
 static int case_unknown2(void)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
 	uint64_t wr_slba = 0;
 	uint32_t wr_nsid = 1;
 	uint16_t wr_nlb = 8;
 
-	memset(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+	memset(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 	create_meta_buf(g_fd, 0);
 
 	if (SUCCEED == send_nvme_read_using_metabuff(g_fd, 0, io_sq_id, 
@@ -302,6 +305,7 @@ static int case_unknown2(void)
 
 static int case_unknown3(void)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	int ret;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
@@ -328,8 +332,9 @@ static int case_unknown3(void)
 			wr_slba = 0;
 			wr_nlb = BYTE_RAND() % 32;
 			memset(g_read_buf, 0, RW_BUFFER_SIZE);
-			memset(g_write_buf, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-			pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+			memset(g_write_buf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+			pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+				wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 			cmd_cnt = 0;
 			ret = nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			cmd_cnt++;
@@ -360,7 +365,7 @@ static int case_unknown3(void)
 				cq_gain(io_cq_id, cmd_cnt, &reap_num);
 				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 			}
-			if (SUCCEED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+			if (SUCCEED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
 			{
 				pr_color(LOG_COLOR_GREEN, "dw_cmp pass!\n");
 			}

@@ -47,8 +47,6 @@ struct pcie_msi_cap
 // new unittest arch
 //########################################################################################
 
-#define LBA_DATA_SIZE(nsid) (g_nvme_ns_info[nsid - 1].lbads)
-
 int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                       uint16_t control, void *data_addr);
 

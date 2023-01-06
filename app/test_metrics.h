@@ -137,7 +137,6 @@ extern void *g_write_buf;
 extern void *g_discontig_sq_buf;
 extern void *g_discontig_cq_buf;
 extern struct nvme_dev_info g_nvme_dev;
-extern struct nvme_ns_info *g_nvme_ns_info;
 
 #define TEST_PASS "\nppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
                   "pp       pp     aa       aa     ss              ss          \n"   \

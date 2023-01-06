@@ -312,6 +312,8 @@ static int sub_case_pcie_reg_normal(void)
 
 static int sub_case_iocmd_nvme_reg(void)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
+
     // if(strstr(g_nvme_dev.id_ctrl.mn, "Cougar"))
     // {
     //     return SKIPED;
@@ -329,13 +331,13 @@ static int sub_case_iocmd_nvme_reg(void)
 
         wr_nsid = 1;
         wr_slba = 0;
-        // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+        mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
-        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
@@ -375,7 +377,7 @@ static int sub_case_iocmd_nvme_reg(void)
             pr_err("nvme_io_read_cmd");
             goto out;
         }
-        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
         {
             test_flag |= FAILED;
             pr_err("dw_cmp");
@@ -389,6 +391,8 @@ out:
 
 static int sub_case_iocmd_nvme_reg_normal(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     //for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
     {
         uint32_t index = 1;
@@ -403,13 +407,13 @@ static int sub_case_iocmd_nvme_reg_normal(void)
 
         wr_nsid = 1;
         wr_slba = 0;
-        // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+        mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
-        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
@@ -449,7 +453,7 @@ static int sub_case_iocmd_nvme_reg_normal(void)
             pr_err("nvme_io_read_cmd");
             goto out;
         }
-        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
         {
             test_flag |= FAILED;
             pr_err("dw_cmp");

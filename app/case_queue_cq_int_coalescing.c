@@ -108,7 +108,7 @@ static int sub_case_cq_int_coalescing(void)
 	int ret;
     uint32_t index = 0;
     uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
-    wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+    wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
 
 	type = nvme_select_irq_type_random();
@@ -143,7 +143,7 @@ static int sub_case_cq_int_coalescing(void)
 
         for (index = 0; index < 200; index++)
         {
-            if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
                 test_flag |= nvme_send_iocmd(g_fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 sqs[i].cmd_cnt++;

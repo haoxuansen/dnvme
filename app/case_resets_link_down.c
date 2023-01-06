@@ -67,9 +67,9 @@ static void test_sub(void)
     /**********************************************************************/
     for (index = 0; index < (DWORD_RAND() % (sq_size - 2)) / 2 + 100; index++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if (wr_slba + wr_nlb < g_nvme_ns_info[0].nsze)
+        if (wr_slba + wr_nlb < ndev->nss[0].nsze)
         {
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;

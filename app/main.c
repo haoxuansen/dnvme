@@ -40,7 +40,6 @@ void *g_discontig_sq_buf;
 void *g_discontig_cq_buf;
 
 struct nvme_dev_info g_nvme_dev = {0};
-struct nvme_ns_info *g_nvme_ns_info;
 
 static int test_mem_alloc(void)
 {
@@ -116,10 +115,6 @@ void test_mem_free(void)
 	g_discontig_cq_buf = NULL;
 	free(g_cq_entry_buf);
 	g_cq_entry_buf = NULL;
-
-	/* !TODO: It's better to free memory in "test_exit"? */
-	free(g_nvme_ns_info);
-	g_nvme_ns_info = NULL;
 }
 
 /**
@@ -162,7 +157,9 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	nvme_init(&g_nvme_dev);
+	ret = nvme_init(&g_nvme_dev);
+	if (ret < 0)
+		return ret;
 
 	case_display_case_list();
 	nvme_select_case_to_execute();

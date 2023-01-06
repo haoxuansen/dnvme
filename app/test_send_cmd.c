@@ -990,6 +990,7 @@ static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t *data_addr, uint32_t bu
 int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                       uint16_t control, void *data_addr)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_write,
@@ -999,7 +1000,7 @@ int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, ui
         .length = (nlb - 1),
         .control = control,
     };
-    data_size = nlb * LBA_DATA_SIZE(nsid);
+    data_size = nlb * ndev->nss[nsid - 1].lbads;
     return nvme_io_cmd(g_fd, sq_id, data_addr, data_size, DMA_FROM_DEVICE, &io_cmd);
 }
 
@@ -1019,6 +1020,7 @@ int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, ui
 int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                      uint16_t control, void *data_addr)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_read,
@@ -1028,9 +1030,8 @@ int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uin
         .length = (nlb - 1),
         .control = control,
     };
-    data_size = nlb * LBA_DATA_SIZE(nsid);
+    data_size = nlb * ndev->nss[nsid - 1].lbads;
     // data_size = nlb * LBA_DAT_SIZE;
-    //pr_info("### %d,%d %d,%d\n", nlb * LBA_DAT_SIZE, nlb * LBA_DATA_SIZE(nsid), LBA_DAT_SIZE, g_nvme_ns_info[nsid - 1].lbads);
     return nvme_io_cmd(g_fd, sq_id, data_addr, data_size, DMA_BIDIRECTIONAL, &io_cmd);
 }
 
@@ -1050,6 +1051,7 @@ int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uin
 int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                         uint16_t control, void *data_addr)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_compare,
@@ -1059,7 +1061,7 @@ int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, 
         .length = (nlb - 1),
         .control = control,
     };
-    data_size = nlb * LBA_DATA_SIZE(nsid);
+    data_size = nlb * ndev->nss[nsid - 1].lbads;
     return nvme_io_cmd(g_fd, sq_id, data_addr, data_size, DMA_FROM_DEVICE, &io_cmd);
 }
 
@@ -1067,6 +1069,7 @@ int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, 
 int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                                    uint16_t control, uint32_t id, void *data_addr)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_write,
@@ -1076,7 +1079,7 @@ int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint
         .length = (nlb - 1), //0'base
         .control = control,
     };
-    data_size = nlb * LBA_DATA_SIZE(nsid);
+    data_size = nlb * ndev->nss[nsid - 1].lbads;
 
     struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,
@@ -1094,6 +1097,7 @@ int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint
 int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                                   uint16_t control, uint32_t id, void *data_addr)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_read,
@@ -1103,7 +1107,7 @@ int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint3
         .length = (nlb - 1), //0'base
         .control = control,
     };
-    data_size = nlb * LBA_DATA_SIZE(nsid);
+    data_size = nlb * ndev->nss[nsid - 1].lbads;
 
     struct nvme_64b_cmd user_cmd = {
         .q_id = sq_id,

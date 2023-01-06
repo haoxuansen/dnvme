@@ -70,7 +70,6 @@ uint32_t iocmd_cstc_rdy_test(void)
     io_sq_id = io_cq_id = 1;
     wr_nsid = 1;
     wr_slba = 0;
-    // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
     wr_nlb = 8; //WORD_RAND() % 32 + 1;
     pr_color(LOG_COLOR_PURPLE, "tests iocmd read csts.rdy will hang at pcie gen1/gen2 \r\n");
 

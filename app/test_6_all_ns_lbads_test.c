@@ -97,17 +97,19 @@ static int sub_case_end(void)
 
 static int sub_case_all_ns_wr_rd_cmp(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
     {
         wr_nsid = ns_idx + 1;
         wr_slba = 0;
-        // wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-        mem_set(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+        mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
-        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, wr_nsid, LBA_DATA_SIZE(wr_nsid), wr_slba, wr_nlb);
+        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
@@ -134,7 +136,7 @@ static int sub_case_all_ns_wr_rd_cmp(void)
         {
             goto out;
         }
-        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid)))
+        if (dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
         {
             test_flag |= FAILED;
         }

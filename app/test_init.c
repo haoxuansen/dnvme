@@ -65,6 +65,7 @@ static int init_ns_data(struct nvme_dev_info *ndev)
 {
 	struct nvme_ns_info *ns;
 	uint32_t nn = le32_to_cpu(ndev->id_ctrl.nn);
+	uint32_t last = 0;
 	uint32_t i;
 	uint8_t flbas;
 	__le32 *ns_list;
@@ -96,6 +97,11 @@ static int init_ns_data(struct nvme_dev_info *ndev)
 		BUG_ON(i >= nn);
 
 		ns[i].nsid = le32_to_cpu(ns_list[i]);
+		if (ns[i].nsid <= last) {
+			pr_err("The NSID in list must increase in order!\n");
+			goto out2;
+		}
+		last = ns[i].nsid;
 
 		ret = nvme_identify_ns_active(ndev->fd, &ns[i].id_ns, ns[i].nsid);
 		if (ret < 0) {
@@ -120,8 +126,6 @@ static int init_ns_data(struct nvme_dev_info *ndev)
 	ndev->ns_num_total = nn;
 	ndev->ns_num_actual = i;
 
-	g_nvme_ns_info = ns; /* Obsolete */
-
 	free(ns_list);
 	return 0;
 out2:
@@ -129,6 +133,14 @@ out2:
 out:
 	free(ns);
 	return ret;
+}
+
+static void deinit_ns_data(struct nvme_dev_info *ndev)
+{
+	free(ndev->nss);
+	ndev->nss = NULL;
+	ndev->ns_num_total = 0;
+	ndev->ns_num_actual = 0;
 }
 
 static int init_ctrl_property(int fd, struct nvme_ctrl_property *prop)
@@ -318,6 +330,7 @@ out:
 
 void nvme_deinit(struct nvme_dev_info *ndev)
 {
+	deinit_ns_data(ndev);
 	nvme_deinit_ioq_info(ndev);
 }
 

@@ -104,19 +104,21 @@ static int sub_case_end(void)
 
 static int sub_case_disable_volatile_wc(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     test_flag |= nvme_set_feature_cmd(g_fd, 1, NVME_FEAT_VOLATILE_WC, false, 0);
     if (test_flag == FAILED)
         return test_flag;
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", false);
     test_flag |= nvme_admin_ring_dbl_reap_cq(g_fd);
     wr_nsid = 1;
-    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
     cmd_cnt = 0;
     for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             if (test_flag == FAILED)
@@ -132,19 +134,21 @@ static int sub_case_disable_volatile_wc(void)
 
 static int sub_case_enable_volatile_wc(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     test_flag |= nvme_set_feature_cmd(g_fd, 1, NVME_FEAT_VOLATILE_WC, true, 0);
     if (test_flag == FAILED)
         return test_flag;
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", true);
     test_flag |= nvme_admin_ring_dbl_reap_cq(g_fd);
     wr_nsid = 1;
-    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
+    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
     cmd_cnt = 0;
     for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[0].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             if (test_flag == FAILED)

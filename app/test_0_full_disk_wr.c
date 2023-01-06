@@ -108,13 +108,14 @@ static int sub_case_end(void)
 
 static int sub_case_write_order(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     wr_slba = 0;
     wr_nlb = 8;
     for (uint32_t i = 0; i < 1024; i++)
     {
-        if (wr_slba + wr_nlb < g_nvme_ns_info[NSIDX(wr_nsid)].nsze)
+        if (wr_slba + wr_nlb < ndev->nss[NSIDX(wr_nsid)].nsze)
         {
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
@@ -135,13 +136,14 @@ static int sub_case_write_order(void)
 
 static int sub_case_write_random(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     for (uint32_t i = 0; i < 128; i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[NSIDX(wr_nsid)].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if (wr_slba + wr_nlb < g_nvme_ns_info[NSIDX(wr_nsid)].nsze)
+        if (wr_slba + wr_nlb < ndev->nss[NSIDX(wr_nsid)].nsze)
         {
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
@@ -157,13 +159,14 @@ static int sub_case_write_random(void)
 
 static int sub_case_read_order(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     wr_slba = 0;
     wr_nlb = 8;
     for (uint32_t i = 0; i < 1024; i++)
     {
-        if (wr_slba + wr_nlb < g_nvme_ns_info[NSIDX(wr_nsid)].nsze)
+        if (wr_slba + wr_nlb < ndev->nss[NSIDX(wr_nsid)].nsze)
         {
             test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
@@ -181,13 +184,14 @@ static int sub_case_read_order(void)
 
 static int sub_case_read_random(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     for (uint32_t i = 0; i < 128; i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[NSIDX(wr_nsid)].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[NSIDX(wr_nsid)].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[NSIDX(wr_nsid)].nsze)
         {
             test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
@@ -216,8 +220,7 @@ static int sub_case_write_read_verify_1(void)
     uint32_t cmd_cnt = 0;
     #if 1
     static uint32_t patcnt;
-    // memset(g_write_buf, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-    // memset(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+
     for (uint32_t i = 0; i < 16; i++)
     {
         for (uint32_t idx = 0; idx < (16*1024); idx += 4)
@@ -228,7 +231,7 @@ static int sub_case_write_read_verify_1(void)
     }
     memset(g_read_buf, 0, 16*1024*16);
 
-    wr_slba = 0;//DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
+    wr_slba = 0;//DWORD_RAND() % (ndev->nss[NSIDX(wr_nsid)].nsze / 2);
     wr_nlb = 32;//WORD_RAND() % 255 + 1;
 
     cmd_cnt = 0;
@@ -246,7 +249,7 @@ static int sub_case_write_read_verify_1(void)
     // pr_info("  cq:%d wr cnt:%d\n", io_cq_id, cmd_cnt);
     
     cmd_cnt = 0;
-    wr_slba = 0;//DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
+    wr_slba = 0;//DWORD_RAND() % (ndev->nss[NSIDX(wr_nsid)].nsze / 2);
     wr_nlb = 32;//WORD_RAND() % 255 + 1;
     for (uint32_t i = 0; i < 16; i++)
     {
@@ -274,9 +277,9 @@ static int sub_case_write_read_verify_1(void)
     #else
     for (uint32_t i = 0; i < 16; i++)
     {
-        wr_slba = 0;//DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
+        wr_slba = 0;//DWORD_RAND() % (ndev->nss[NSIDX(wr_nsid)].nsze / 2);
         wr_nlb = 32;//WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[NSIDX(wr_nsid)].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[NSIDX(wr_nsid)].nsze)
         {
             cmd_cnt++;
             test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
@@ -314,21 +317,22 @@ static int sub_case_write_read_verify_1(void)
 
 static int sub_case_sgl_write_read_verify(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint8_t flags = 0;
     int test_flag = SUCCEED;
     uint32_t cmd_cnt = 0;
     pr_info("ctrl.sgls:%#x\n", g_nvme_dev.id_ctrl.sgls);
-    memset(g_write_buf, BYTE_RAND(), wr_nlb * LBA_DATA_SIZE(wr_nsid));
-    memset(g_read_buf, 0, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+    memset(g_write_buf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+    memset(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
     for (uint32_t i = 0; i < 128; i++)
     {
-        wr_slba = DWORD_RAND() % (g_nvme_ns_info[NSIDX(wr_nsid)].nsze / 2);
+        wr_slba = DWORD_RAND() % (ndev->nss[NSIDX(wr_nsid)].nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < g_nvme_ns_info[NSIDX(wr_nsid)].nsze)
+        if ((wr_slba + wr_nlb) < ndev->nss[NSIDX(wr_nsid)].nsze)
         {
             cmd_cnt++;
-            MEM32_GET(g_write_buf+wr_nlb * LBA_DATA_SIZE(wr_nsid) - 4) = cmd_cnt;
-            MEM32_GET(g_read_buf+wr_nlb * LBA_DATA_SIZE(wr_nsid) - 4) = 0;
+            MEM32_GET(g_write_buf+wr_nlb * ndev->nss[wr_nsid - 1].lbads - 4) = cmd_cnt;
+            MEM32_GET(g_read_buf+wr_nlb * ndev->nss[wr_nsid - 1].lbads - 4) = 0;
             if(g_nvme_dev.id_ctrl.sgls & ((1 << 0) | (1 << 1)))
                 flags = NVME_CMD_SGL_METASEG;
             else
@@ -348,15 +352,15 @@ static int sub_case_sgl_write_read_verify(void)
             if(test_flag<0)
                 goto OUT;
 
-            cmp_fg = memcmp(g_write_buf, g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+            cmp_fg = memcmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
             test_flag |= cmp_fg;
             if (cmp_fg != SUCCEED)
             {
                 pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
                 pr_info("\nwrite_buffer Data:\n");
-                mem_disp(g_write_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+                mem_disp(g_write_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                 pr_info("\nRead_buffer Data:\n");
-                mem_disp(g_read_buf, wr_nlb * LBA_DATA_SIZE(wr_nsid));
+                mem_disp(g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                 break;
             }
         }
