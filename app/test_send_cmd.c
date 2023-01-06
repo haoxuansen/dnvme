@@ -1131,51 +1131,6 @@ int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t
 }
 
 /**
- * @brief identify cmds use this common interface send to device
- * 
- * @param g_fd 
- * @param nsid 
- * @param data_addr 
- * @param idfy_cmd 
- * @return int 
- */
-static int nvme_idfy_cmd(int g_fd, uint32_t nsid, uint32_t cns, uint8_t *data_addr)
-{
-    struct nvme_identify idfy_cmd = {
-        .opcode = nvme_admin_identify,
-        .nsid = nsid,
-        .cns = cns,
-    };
-    struct nvme_64b_cmd user_cmd = {
-        .q_id = 0,
-        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP2_PAGE),
-        .cmd_buf_ptr = (u_int8_t *)&idfy_cmd,
-        .data_buf_size = IDENTIFY_DATA_SIZE,
-        .data_buf_ptr = data_addr,
-        .data_dir = DMA_BIDIRECTIONAL,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-}
-
-int nvme_idfy_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data)
-{
-    uint32_t cns = nsid ? NVME_ID_CNS_CTRL_NS_LIST : NVME_ID_CNS_CTRL_LIST;
-    memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(fd, nsid, (cntid << 16) | cns, data);
-}
-
-int nvme_idfy_secondary_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data)
-{
-    memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(fd, nsid, (cntid << 16) | NVME_ID_CNS_SCNDRY_CTRL_LIST, data);
-}
-
-int nvme_idfy_ns_descs(int fd, uint32_t nsid, void *data)
-{
-    memset(data, 0, IDENTIFY_DATA_SIZE);
-    return nvme_idfy_cmd(fd, nsid, NVME_ID_CNS_NS_DESC_LIST, data);
-}
-/**
  * @brief 
  * 
  * @param g_fd 

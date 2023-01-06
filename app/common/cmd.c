@@ -196,6 +196,160 @@ int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf,
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
  */
+int nvme_cmd_identify_ctrl_list(int fd, void *buf, uint32_t size, 
+	uint16_t cntid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_CTRL_LIST;
+	identify.ctrlid = cpu_to_le16(cntid);
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get Controller list.
+ * 
+ * @param cntid A controller list is returned containing a controller 
+ *  identifier greater than or equal to the value specified in this field.
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ctrl_list(int fd, void *buf, uint32_t size, uint16_t cntid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ctrl_list(fd, buf, size, cntid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size,
+	uint32_t nsid, uint16_t cntid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_CTRL_NS_LIST;
+	identify.nsid = cpu_to_le32(nsid);
+	identify.ctrlid = cpu_to_le16(cntid);
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get Namespace Attached Controller list.
+ * 
+ * @param cntid A controller list is returned containing a controller 
+ *  identifier greater than or equal to the value specified in this field.
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size, 
+	uint32_t nsid, uint16_t cntid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns_attached_ctrl_list(fd, buf, size, nsid, cntid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
+	uint32_t nsid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_NS_DESC_LIST;
+	identify.nsid = cpu_to_le32(nsid);
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get Namespace Identification Descriptor list.
+ * 
+ * @param nsid An active NSID
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns_desc_list(int fd, void *buf, uint32_t size, uint32_t nsid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns_desc_list(fd, buf, size, nsid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int nvme_cmd_identify_ns_list_active(int fd, void *buf, uint32_t size, 
 	uint32_t nsid)
 {

@@ -63,9 +63,6 @@ int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint3
 
 int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num);
 
-int nvme_idfy_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data);
-int nvme_idfy_secondary_ctrl_list(int fd, uint32_t nsid, uint16_t cntid, void *data);
-int nvme_idfy_ns_descs(int fd, uint32_t nsid, void *data);
 int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, uint16_t dw11l, uint16_t dw11h);
 int nvme_set_feature_hmb_cmd(int g_fd, uint32_t nsid, uint16_t ehm, uint32_t hsize,
                              uint32_t hmdlla, uint32_t hmdlua, uint32_t hmdlec);
