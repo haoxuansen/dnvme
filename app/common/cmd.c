@@ -68,6 +68,23 @@ int nvme_submit_64b_cmd_legacy(int fd, struct nvme_64b_cmd *cmd)
 }
 
 /**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_keep_alive(int fd)
+{
+	struct nvme_common_command ccmd = {0};
+	struct nvme_64b_cmd cmd = {0};
+
+	ccmd.opcode = nvme_admin_keep_alive;
+
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &ccmd;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+/**
  * @brief Submit command to create a I/O submission queue
  * 
  * @return The assigned command identifier if success, otherwise a negative
@@ -604,6 +621,57 @@ int nvme_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid)
 	}
 
 	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
+{
+	struct nvme_rw_command rwc = {0};
+	struct nvme_64b_cmd cmd = {0};
+
+	rwc.opcode = opcode;
+	rwc.flags = wrap->flags;
+	rwc.nsid = cpu_to_le32(wrap->nsid);
+	rwc.slba = cpu_to_le64(wrap->slba);
+	rwc.length = cpu_to_le16((uint16_t)(wrap->nlb - 1)); /* 0'base */
+	rwc.control = cpu_to_le16(wrap->control);
+	
+	cmd.q_id = wrap->sqid;
+	cmd.cmd_buf_ptr = &rwc;
+	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+		NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST;
+	cmd.data_buf_ptr = wrap->buf;
+	cmd.data_buf_size = wrap->size;
+	cmd.data_dir = DMA_BIDIRECTIONAL;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_io_rw_common(fd, wrap, opcode);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, wrap->sqid);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_reap_expect_cqe(fd, wrap->cqid, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, 0);
 	if (ret < 0)
 		return ret;
 	

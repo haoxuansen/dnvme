@@ -17,6 +17,28 @@
 #include "byteorder.h"
 #include "dnvme_ioctl.h"
 
+/**
+ * @brief For nvme_rw_command
+ * 
+ * @flags: Command Dword 0 bit[15:8]
+ * @slba: Start Logical Block Address
+ * @nlb: Number of Logical Blocks, 1'base
+ * @control: Command Dword 12 bit[31:16]
+ */
+struct nvme_rwc_wrapper {
+	uint16_t	sqid;
+	uint16_t	cqid;
+
+	uint8_t		flags;
+	uint32_t	nsid;
+	uint64_t	slba;
+	uint32_t	nlb;
+	uint16_t	control;
+
+	void		*buf;
+	uint32_t	size;
+};
+
 static inline void nvme_cmd_fill_create_sq(struct nvme_create_sq *csq, 
 	uint16_t sqid, uint16_t cqid, uint32_t elements, uint8_t contig,
 	uint16_t prio)
@@ -47,6 +69,8 @@ static inline void nvme_cmd_fill_create_cq(struct nvme_create_cq *ccq,
 int nvme_submit_64b_cmd_legacy(int fd, struct nvme_64b_cmd *cmd);
 
 int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd);
+
+int nvme_cmd_keep_alive(int fd);
 
 int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
 	void *buf, uint32_t size);
@@ -99,5 +123,38 @@ int nvme_cmd_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size,
 	uint32_t nsid, uint16_t cntid);
 int nvme_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size, 
 	uint32_t nsid, uint16_t cntid);
+
+int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode);
+int nvme_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode);
+
+static inline int nvme_cmd_io_read(int fd, struct nvme_rwc_wrapper *wrap)
+{
+	return nvme_cmd_io_rw_common(fd, wrap, nvme_cmd_read);
+}
+
+static inline int nvme_io_read(int fd, struct nvme_rwc_wrapper *wrap)
+{
+	return nvme_io_rw_common(fd, wrap, nvme_cmd_read);
+}
+
+static inline int nvme_cmd_io_write(int fd, struct nvme_rwc_wrapper *wrap)
+{
+	return nvme_cmd_io_rw_common(fd, wrap, nvme_cmd_write);
+}
+
+static inline int nvme_io_write(int fd, struct nvme_rwc_wrapper *wrap)
+{
+	return nvme_io_rw_common(fd, wrap, nvme_cmd_write);
+}
+
+static inline int nvme_cmd_io_compare(int fd, struct nvme_rwc_wrapper *wrap)
+{
+	return nvme_cmd_io_rw_common(fd, wrap, nvme_cmd_compare);
+}
+
+static inline int nvme_io_compare(int fd, struct nvme_rwc_wrapper *wrap)
+{
+	return nvme_io_rw_common(fd, wrap, nvme_cmd_compare);
+}
 
 #endif /* !_APP_CMD_H_ */

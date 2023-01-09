@@ -16,6 +16,8 @@
 
 #include "dnvme_ioctl.h"
 
+void nvme_display_buffer(const char *str, void *buf, uint32_t size);
+
 void nvme_display_id_ctrl(struct nvme_id_ctrl *ctrl);
 void nvme_display_id_ns(struct nvme_id_ns *ns, uint32_t nsid);
 

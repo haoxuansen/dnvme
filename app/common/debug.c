@@ -13,6 +13,20 @@
 #include "log.h"
 #include "debug.h"
 
+void nvme_display_buffer(const char *str, void *buf, uint32_t size)
+{
+	uint32_t *data = buf;
+	uint32_t cnt = (size % 4 != 0) ? (size / 4 + 1) : (size / 4);
+	uint32_t i;
+
+	pr_debug("display '%s' with size:0x%x\n", str, size);
+
+	for (i = 0; i < cnt; i += 4) {
+		pr_debug("0x%08x: %08x %08x %08x %08x\n", 4 * i, 
+			data[i], data[i + 1], data[i + 2], data[i + 3]);
+	}
+}
+
 void nvme_display_id_ctrl(struct nvme_id_ctrl *ctrl)
 {
 	pr_debug("===== Identify Controller Data =====\n");

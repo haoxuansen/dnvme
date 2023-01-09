@@ -551,40 +551,6 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
  * @brief  
  * @note   
  * @param  g_fd: 
- * @retval 
- */
-int keep_alive_cmd(int g_fd)
-{
-    int ret_val = FAILED;
-    struct nvme_common_command keep_alive_cmd = {
-        .opcode = nvme_admin_keep_alive,
-    };
-
-    struct nvme_64b_cmd user_cmd = {
-        .q_id = 0,
-        .bit_mask = 0,
-        .cmd_buf_ptr = (u_int8_t *)(&keep_alive_cmd),
-        .data_buf_size = 0,
-        .data_buf_ptr = NULL,
-        .data_dir = 0,
-    };
-
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (ret_val < 0)
-    {
-        pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
-        return FAILED;
-    }
-    else
-    {
-        pr_div("%s sent succesfully\n\n", __FUNCTION__);
-    }
-    return SUCCEED;
-}
-/**
- * @brief  
- * @note   
- * @param  g_fd: 
  * @param  opcode: 
  * @retval 
  */

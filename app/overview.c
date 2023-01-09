@@ -23,6 +23,8 @@
 #include "pci.h"
 #include "meta.h"
 #include "queue.h"
+#include "test_queue.h"
+#include "test_cmd.h"
 #include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -121,117 +123,6 @@ static int case_delete_queue(void)
 	pr_notice("Deleting SQID:%d,CQID:%d\n", sq_id, cq_id);
 	nvme_delete_ioq(g_fd, nvme_admin_delete_sq, sq_id);
 	nvme_delete_ioq(g_fd, nvme_admin_delete_cq, cq_id);
-	return 0;
-}
-
-static int case_send_io_write_cmd(void)
-{
-	int ret;
-	uint16_t sq_id = 1;
-	uint16_t cq_id = 1;
-	uint32_t i;
-	uint64_t wr_slba = 0;
-	uint32_t wr_nsid = 1;
-	uint16_t wr_nlb = 8;
-	uint32_t cmd_cnt = 0;
-	uint32_t reap_num;
-
-	pr_notice("\nTest: Sending IO Write Command through sq_id %u\n", sq_id);
-	for (i = 0; i < RW_BUFFER_SIZE / 4; i += 4) {
-		*(uint32_t *)(g_write_buf + i) = i;
-	}
-
-	pr_info("slba:%ld nlb:%d\n", wr_slba, wr_nlb);
-
-	ret = nvme_io_write_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 
-		0, g_write_buf);
-	cmd_cnt++;
-	if (ret == 0) {
-		/* !TODO: Check return value! */
-		nvme_ring_sq_doorbell(g_fd, sq_id);
-		pr_info("Ringing Doorbell for sq_id %d\n", sq_id);
-		cq_gain(cq_id, cmd_cnt, &reap_num);
-		pr_info("cq reaped ok! reap_num:%d\n", reap_num);
-	}
-	return 0;
-}
-
-/* !TODO: case_send_io_read_cmd */
-static int case_send_io_read_cmd(void)
-{
-	struct nvme_dev_info *ndev = &g_nvme_dev;
-	uint16_t sq_id = 1;
-	uint16_t cq_id = 1;
-	uint64_t wr_slba = 0;
-	uint32_t wr_nsid = 1;
-	uint16_t wr_nlb = 32; /* !NOTE: why different from case_send_io_write_cmd */
-	uint32_t cmd_cnt = 0;
-	uint32_t reap_num;
-
-	pr_info("\nTest: Sending IO Read Command through sq_id %u\n", sq_id);
-
-	memset(g_read_buf, 0, wr_nlb * LBA_DAT_SIZE);
-	// for (index = 0; index < 150; index++)
-	{
-		// wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
-		// wr_nlb = WORD_RAND() % 255 + 1;
-		if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
-		{
-			// nvme_io_write_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
-			// cmd_cnt++;
-			nvme_io_read_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
-			//nvme_io_read_cmd(g_fd, 0, sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
-			cmd_cnt++;
-		}
-	}
-	pr_info("Ringing Doorbell for sq_id %u\n", sq_id);
-	nvme_ring_sq_doorbell(g_fd, sq_id);
-	cq_gain(cq_id, cmd_cnt, &reap_num);
-	pr_info("cq reaped ok! reap_num:%d\n", reap_num);
-	// nvme_ring_sq_doorbell(g_fd, 0);
-	return 0;
-}
-
-/* !TODO: case_send_io_compare_cmd */
-static int case_send_io_compare_cmd(void)
-{
-	uint16_t io_sq_id = 1;
-	uint16_t io_cq_id = 1;
-	uint64_t wr_slba = 0;
-	uint16_t wr_nlb = 32;
-	uint32_t reap_num;
-
-	pr_info("Send IO cmp cmd slba=%ld, this shouldn't be output warning!(FPGA-06 may not work!)\n", wr_slba);
-	ioctl_send_nvme_compare(g_fd, io_sq_id, wr_slba, wr_nlb, FUA_DISABLE, g_read_buf, wr_nlb * LBA_DAT_SIZE);
-
-	nvme_ring_sq_doorbell(g_fd, io_sq_id);
-	cq_gain(io_cq_id, 1, &reap_num);
-	pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
-
-	pr_info("Send IO cmp cmd slba=%ld, this should be output warning!\n", wr_slba + 3);
-	ioctl_send_nvme_compare(g_fd, io_sq_id, wr_slba + 3, wr_nlb, FUA_DISABLE, g_read_buf, wr_nlb * LBA_DAT_SIZE);
-	nvme_ring_sq_doorbell(g_fd, io_sq_id);
-	cq_gain(io_cq_id, 1, &reap_num);
-	pr_info("cq reaped ok! reap_num:%d\n", reap_num);
-	return 0;
-}
-
-static int case_display_rw_buffer(void)
-{
-	uint16_t wr_nlb = 8;
-
-	pr_info("\nwrite_buffer Data:\n");
-	mem_disp(g_write_buf, wr_nlb * LBA_DAT_SIZE);
-	pr_info("\nRead_buffer Data:\n");
-	mem_disp(g_read_buf, wr_nlb * LBA_DAT_SIZE);
-	return 0;
-}
-
-static int case_compare_rw_buffer(void)
-{
-	uint16_t wr_nlb = 8;
-
-	dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE);
 	return 0;
 }
 
@@ -620,16 +511,9 @@ static struct nvme_case g_case_table[] = {
 		"Create contiguous IOSQ and IOCQ"),
 	INIT_CASE(5, case_delete_queue, 
 		"Delete IOSQ and IOCQ which is created in case 4"),
-	INIT_CASE(6, case_send_io_write_cmd, 
-		"Send IO write cmd to SQ which is create in case 4"),
-	INIT_CASE(7, case_send_io_read_cmd, 
-		"Send IO read cmd to SQ which is create in case 4"),
-	INIT_CASE(8, case_send_io_compare_cmd, 
-		"Send IO Compare cmd which process in case 6 case 7"),
-	INIT_CASE(9, case_display_rw_buffer, 
-		"Display Write_buffer and Read_buffer Data"),
-	INIT_CASE(10, case_compare_rw_buffer, 
-		"Compare Write_buffer and Read_buffer Data"),
+	INIT_CASE(6, case_cmd_send_io_write_cmd, "Send IO write cmd to IOSQ"),
+	INIT_CASE(7, case_cmd_send_io_read_cmd, "Send IO read cmd to IOSQ"),
+	INIT_CASE(8, case_cmd_send_io_compare_cmd, "Send IO compare cmd to IOSQ"),
 	INIT_CASE(11, case_encrypt_decrypt, 
 		"Encrypt and decrypt (Obsolete?)"),
 	INIT_CASE(12, case_test_meta, "Test meta data (Obsolete?)"),
@@ -683,6 +567,7 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(99, case_unknown7, "Unknown7 (Obsolete?)"),
 	INIT_CASE(100, case_unknown8, "Unknown8 (Obsolete?)"),
 	INIT_CASE(101, case_unknown9, "Unknown9 (Obsolete?)"),
+	INIT_CASE(102, case_queue_iocmd_to_asq, "Submit IO command to Admin SQ"),
 	INIT_CASE(255, case_all_cases, "test case list exe"),
 };
 

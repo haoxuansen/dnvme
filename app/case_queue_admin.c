@@ -7,6 +7,7 @@
 #include "dnvme_ioctl.h"
 #include "queue.h"
 #include "irq.h"
+#include "cmd.h"
 
 #include "common.h"
 #include "unittest.h"
@@ -64,6 +65,7 @@ int case_queue_admin(void)
 static int sub_case_asq_size_loop_array(void)
 {
     struct nvme_dev_info *ndev = &g_nvme_dev;
+    int ret;
     uint32_t sq_size_idx = 0;
     uint32_t cq_size_idx = 0;
     uint32_t index = 0;
@@ -96,7 +98,9 @@ static int sub_case_asq_size_loop_array(void)
             cmd_cnt = 0;
             for (index = 0; index < (admin_sq_size - 1); index++)
             {
-                test_flag |= keep_alive_cmd(g_fd);
+                ret = nvme_cmd_keep_alive(g_fd);
+		if (ret < 0)
+			test_flag = FAILED;
                 cmd_cnt++;
             }
             test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
@@ -120,7 +124,9 @@ static int sub_case_asq_size_loop_array(void)
         cmd_cnt = 0;
         for (index = 0; index < test2_asq_1_send[sq_size_idx]; index++)
         {
-            test_flag |= keep_alive_cmd(g_fd);
+	    ret = nvme_cmd_keep_alive(g_fd);
+	    if (ret < 0)
+		    test_flag = FAILED;
             cmd_cnt++;
         }
         test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
@@ -131,7 +137,9 @@ static int sub_case_asq_size_loop_array(void)
         cmd_cnt = 0;
         for (index = 0; index < test2_asq_2_send[sq_size_idx]; index++)
         {
-            test_flag |= keep_alive_cmd(g_fd);
+	    ret = nvme_cmd_keep_alive(g_fd);
+	    if (ret < 0)
+		    test_flag = FAILED;
             cmd_cnt++;
         }
         test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
@@ -152,6 +160,7 @@ static int sub_case_asq_size_random(void)
 {
     struct nvme_dev_info *ndev = &g_nvme_dev;
     enum nvme_irq_type int_type = 0;
+    int ret;
     uint32_t cmd_cnt = 0;
     uint32_t acqsz = NVME_AQ_MAX_SIZE;
     uint32_t asqsz = NVME_AQ_MAX_SIZE;
@@ -167,7 +176,9 @@ static int sub_case_asq_size_random(void)
         cmd_cnt = 0;
         for (uint32_t index = 0; index < (asqsz - 1); index++)
         {
-            test_flag |= keep_alive_cmd(g_fd);
+	    ret = nvme_cmd_keep_alive(g_fd);
+	    if (ret < 0)
+		    test_flag = FAILED;
             cmd_cnt ++;
         }
         test_flag |= nvme_ring_sq_doorbell(g_fd, 0);

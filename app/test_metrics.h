@@ -104,7 +104,6 @@ struct nvme_completion *send_get_feature(int g_fd, uint8_t feature_id);
 
 int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter);
 int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter);
-int keep_alive_cmd(int g_fd);
 int admin_illegal_opcode_cmd(int g_fd, uint8_t opcode);
 
 int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter);
