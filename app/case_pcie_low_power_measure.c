@@ -25,6 +25,7 @@ static char *disp_this_case = "this case for PCIe low power measure\n";
 
 static void test_sub(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int cmds = 0;
     int ret;
     uint32_t reg_value = 0;
@@ -50,8 +51,8 @@ static void test_sub(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_no = io_cq_id;
     cq_parameter.cq_id = io_cq_id;
-    test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    test_flag |= create_iocq(ndev->fd, &cq_parameter);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         
     pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
@@ -62,8 +63,8 @@ static void test_sub(void)
     sq_parameter.sq_prio = MEDIUM_PRIO;
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
-    test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    test_flag |= create_iosq(ndev->fd, &sq_parameter);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("\tcq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -80,7 +81,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -100,7 +101,7 @@ static void test_sub(void)
     pr_color(LOG_COLOR_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &reg_value);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &reg_value);
     if (ret < 0)
     	exit(-1);
 
@@ -114,7 +115,7 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=42");          //RC enable L1
     //EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
     pr_info("\nL1 --> L0 --> L1\n");
@@ -124,13 +125,13 @@ static void test_sub(void)
     cmd_cnt = 0;
     //for (uint32_t index = 1; index < (sq_size/2); index++)
     {
-        test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
-        test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         cmd_cnt++;
     }
     /**********************************************************************/
-    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
         
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         
@@ -143,20 +144,21 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=40");          //RC disable L1
     //EP disable L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     scanf("%d", &cmds);
     pr_div("\nTest: Delete sq_id %d, cq_id %d\n", io_sq_id, io_cq_id);
-    ioctl_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    ioctl_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
+    ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+    ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
     pr_div("Ringing Doorbell for NVME_AQ_ID\n");
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 2, &reap_num);
     pr_div("\tcq reaped ok! reap_num:%d\n", reap_num);
 }
 
 int case_pcie_low_power_measure(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;
@@ -165,7 +167,7 @@ int case_pcie_low_power_measure(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

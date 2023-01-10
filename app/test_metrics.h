@@ -129,7 +129,6 @@ uint32_t pcie_hot_reset(void);
 
 void test_encrypt_decrypt(void);
 
-extern int g_fd;
 extern void *g_cq_entry_buf;
 extern void *g_read_buf;
 extern void *g_write_buf;

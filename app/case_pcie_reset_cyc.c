@@ -22,6 +22,7 @@ static char *disp_this_case = "this case will tests PCIe Reset cycle\n";
 
 static void test_sub(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     uint8_t cur_speed, cur_width;
     int ret;
@@ -48,7 +49,7 @@ static void test_sub(void)
     // }
 
     // check status after re-link
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -69,7 +70,7 @@ static void test_sub(void)
     pcie_link_down();
 
     // check status after re-link
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -97,7 +98,7 @@ int case_pcie_reset_cyc(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

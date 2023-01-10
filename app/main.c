@@ -32,7 +32,6 @@
 #include "test_init.h"
 #include "test_irq.h"
 
-int g_fd = -1;
 void *g_read_buf;
 void *g_write_buf;
 void *g_cq_entry_buf;
@@ -127,6 +126,7 @@ void test_mem_free(void)
  */
 int main(int argc, char *argv[])
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	int ret;
 	char *log_file = "/tmp/nvme_log.txt";
 	uint32_t i = 0;
@@ -136,13 +136,12 @@ int main(int argc, char *argv[])
 		return -EINVAL;
 	}
 
-	g_fd = open(argv[1], 0);
-	if (g_fd < 0) {
+	ndev->fd = open(argv[1], 0);
+	if (ndev->fd < 0) {
 		pr_err("failed to open %s: %s!\n", argv[1], strerror(errno));
 		return errno;
 	}
 	pr_info("Open %s OK!\n", argv[1]);
-	g_nvme_dev.fd = g_fd;
 
 	ret = test_mem_alloc();
 	if (ret < 0)
@@ -157,21 +156,21 @@ int main(int argc, char *argv[])
 
 	srand(time(NULL));
 
-	ret = nvme_init(&g_nvme_dev);
+	ret = nvme_init(ndev);
 	if (ret < 0)
 		return ret;
 
 	case_display_case_list();
 	nvme_select_case_to_execute();
-	nvme_dump_log(g_fd, log_file);
+	nvme_dump_log(ndev->fd, log_file);
 
 	/* Exit gracefully */
 	pr_info("\nNow Exiting gracefully....\n");
-	nvme_disable_controller_complete(g_fd);
-	nvme_deinit(&g_nvme_dev);
+	nvme_disable_controller_complete(ndev->fd);
+	nvme_deinit(ndev);
 	test_mem_free();
 	pr_info("\n\n****** END OF TEST ******\n\n");
-	close(g_fd);
+	close(ndev->fd);
 	return 0;
 }
 

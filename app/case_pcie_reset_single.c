@@ -22,6 +22,7 @@ static char *disp_this_case = "this case will tests PCIe Reset single\n";
 
 static void test_sub(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     uint8_t cur_speed, cur_width;
     int cmds;
@@ -32,7 +33,7 @@ static void test_sub(void)
     pcie_hot_reset();
 
     // check status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -54,7 +55,7 @@ static void test_sub(void)
     pcie_link_down();
 
     // check status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -73,24 +74,24 @@ static void test_sub(void)
 
     /************************** Issue FLR reset *********************/
     pr_info("\nIssue FLR reset\n");
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data |= 0x00008000;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
-    ret = pci_read_config_dword(g_fd, 0x4, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, 0x4, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
     u32_tmp_data |= 0x06; // bus master and memory space enable
-    pci_write_config_data(g_fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     // check status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -109,6 +110,7 @@ static void test_sub(void)
 
 int case_pcie_reset_single(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;
@@ -118,7 +120,7 @@ int case_pcie_reset_single(void)
     /**********************************************************************/
 
     // first displaly power up link status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

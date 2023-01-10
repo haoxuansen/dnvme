@@ -63,9 +63,9 @@ static int sub_case_use_1_q_del_it(void)
 	send_num = rand() % 200 + 100;
 	for (i = 0; i < send_num; i++) {
 		if (wr_slba + wr_nlb < ndev->nss[0].nsze) {
-			ret |= nvme_io_write_cmd(g_fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+			ret |= nvme_io_write_cmd(ndev->fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 			cmd_cnt++;
-			ret |= nvme_io_read_cmd(g_fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+			ret |= nvme_io_read_cmd(ndev->fd, 0, qid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
 			cmd_cnt++;
 		}
 	}
@@ -378,9 +378,9 @@ static int delete_runing_cmd_queue(void)
 		{
 			if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
 			{
-				ret |= nvme_io_write_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+				ret |= nvme_io_write_cmd(ndev->fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
 				cmd_cnt++;
-				ret |= nvme_io_read_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+				ret |= nvme_io_read_cmd(ndev->fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
 				cmd_cnt++;
 			}
 		}
@@ -465,7 +465,7 @@ static int delete_runing_fua_cmd_queue(void)
 		{
 			if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
 			{
-				ret |= nvme_io_write_cmd(g_fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, NVME_RW_FUA, g_write_buf);
+				ret |= nvme_io_write_cmd(ndev->fd, 0, sqs[qid - 1].sqid, wr_nsid, wr_slba, wr_nlb, NVME_RW_FUA, g_write_buf);
 				cmd_cnt++;
 			}
 		}

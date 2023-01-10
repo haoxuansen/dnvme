@@ -56,8 +56,8 @@ static void test_sub(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    test_flag |= create_iocq(g_fd, &cq_parameter);
-    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    test_flag |= create_iocq(ndev->fd, &cq_parameter);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -66,8 +66,8 @@ static void test_sub(void)
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
-    test_flag |= create_iosq(g_fd, &sq_parameter);
-    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    test_flag |= create_iosq(ndev->fd, &sq_parameter);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
@@ -90,11 +90,11 @@ static void test_sub(void)
 
         if (wr_slba + wr_nlb < ndev->nss[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
-            test_flag |= nvme_io_compare_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
+            test_flag |= nvme_io_compare_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
             cmd_cnt++;
         }
     }
@@ -107,16 +107,16 @@ static void test_sub(void)
         fwdma_parameter.cdw12 |= (1 << 1); //flag bit[1] hw data chk(only read)
         fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] enc/dec chk,
         fwdma_parameter.addr = fwdma_wr_buffer;
-        test_flag |= nvme_maxio_fwdma_wr(g_fd, &fwdma_parameter);
+        test_flag |= nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
         fwdma_parameter.addr = fwdma_rd_buffer;
-        test_flag |= nvme_maxio_fwdma_rd(g_fd, &fwdma_parameter);
+        test_flag |= nvme_maxio_fwdma_rd(ndev->fd, &fwdma_parameter);
     }
     #endif
 
     /**********************************************************************/
-    test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
 #ifdef FWDMA_RST_OPEN
-    test_flag |= nvme_ring_sq_doorbell(g_fd, NVME_ADMIN_SQ);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_ADMIN_SQ);
 #endif
     /**********************************************************************/
     //reap cq
@@ -130,13 +130,13 @@ static void test_sub(void)
     if (test_type == 1)
     {
         pr_color(LOG_COLOR_YELLOW, "controller disable Reset ...\n");
-        test_flag |= nvme_disable_controller_complete(g_fd);
+        test_flag |= nvme_disable_controller_complete(ndev->fd);
         pr_color(LOG_COLOR_YELLOW, "controller disable Reset Done\n");
     }
     else if (test_type == 2)
     {
         pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset ...\n");
-        test_flag |= nvme_reset_subsystem(g_fd);
+        test_flag |= nvme_reset_subsystem(ndev->fd);
         pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset Done\n");
     }
     else if (test_type == 3)

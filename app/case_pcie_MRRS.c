@@ -37,69 +37,75 @@ static char *disp_this_case = "this case will tests PCIe Max Read Request Size\n
 
 static void set_pcie_mrrs_128(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 128
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFF8FFF;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
 static void set_pcie_mrrs_256(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 256
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x1000;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
 static void set_pcie_mrrs_512(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 512
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x2000;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 }
 
 static void pcie_packet(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     pr_info("\nTest: Sending IO Write Command through sq_id %d\n", io_sq_id);
     wr_slba = 0;
     wr_nlb = 64;
     cmd_cnt = 0;
     for (i = 0; i < 1; i++)
     {
-        nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
         cmd_cnt++;
         //nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
         //cmd_cnt++;
     }
     pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
-    nvme_ring_sq_doorbell(g_fd, io_sq_id);
+    nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 }
 
 static void set_pcie_rcb_64(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -107,15 +113,15 @@ static void set_pcie_rcb_64(void)
     //system("setpci -s 0:1b.4 50.b=40");
 
     // EP set RCB 64
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFFF7;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -125,6 +131,7 @@ static void set_pcie_rcb_64(void)
 
 static void set_pcie_rcb_128(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -132,16 +139,16 @@ static void set_pcie_rcb_128(void)
     //system("setpci -s 0:1b.4 50.b=48");
 
     // EP set RCB 128
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFFF7;
     u32_tmp_data |= 0x08;
-    pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
     
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -189,10 +196,12 @@ static void test_sub(void)
 
 int case_pcie_MRRS(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+    struct nvme_ctrl_property *prop = &ndev->prop;
+    int ret;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
-    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
-    int ret;
+
     cq_size = NVME_CAP_MQES(prop->cap);
     sq_size = NVME_CAP_MQES(prop->cap);
 
@@ -206,9 +215,9 @@ int case_pcie_MRRS(void)
     cq_parameter.contig = 1;
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
-    test_flag |= create_iocq(g_fd, &cq_parameter);
+    test_flag |= create_iocq(ndev->fd, &cq_parameter);
     pr_info("Ringing Doorbell for NVME_AQ_ID\n");
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
@@ -218,14 +227,14 @@ int case_pcie_MRRS(void)
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
-    test_flag |= create_iosq(g_fd, &sq_parameter);
+    test_flag |= create_iosq(ndev->fd, &sq_parameter);
     pr_info("Ringing Doorbell for NVME_AQ_ID\n");
-    nvme_ring_sq_doorbell(g_fd, NVME_AQ_ID);
+    nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 1, &reap_num);
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Read Request Size
-    ret = pci_read_config_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

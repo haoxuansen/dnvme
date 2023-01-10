@@ -123,17 +123,17 @@ static int sub_case_cq_int_coalescing(void)
     /**********************************************************************/
     aggr_time = 255; // max
     aggr_thr = 5;    // 0' beaed
-    test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
-    test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+    test_flag |= nvme_set_feature_cmd(ndev->fd, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
     test_flag |= cq_gain(0, 1, &reap_num);
     /**********************************************************************/
     for (uint16_t i = 0; i < queue_num; i++)
     {
         int_vertor = sqs[i].cqid;
         coals_disable = 0;
-        test_flag |= nvme_set_feature_cmd(g_fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
+        test_flag |= nvme_set_feature_cmd(ndev->fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
     }
-    test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
     test_flag |= cq_gain(0, queue_num, &reap_num);
     /**********************************************************************/
 
@@ -145,14 +145,14 @@ static int sub_case_cq_int_coalescing(void)
         {
             if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(g_fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+                test_flag |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, g_write_buf);
                 sqs[i].cmd_cnt++;
             }
         }
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {
-        test_flag |= nvme_ring_sq_doorbell(g_fd, sqs[i].sqid);
+        test_flag |= nvme_ring_sq_doorbell(ndev->fd, sqs[i].sqid);
     }
     for (uint16_t i = 0; i < queue_num; i++)
     {

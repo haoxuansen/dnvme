@@ -98,12 +98,12 @@ static int sub_case_asq_size_loop_array(void)
             cmd_cnt = 0;
             for (index = 0; index < (admin_sq_size - 1); index++)
             {
-                ret = nvme_cmd_keep_alive(g_fd);
+                ret = nvme_cmd_keep_alive(ndev->fd);
 		if (ret < 0)
 			test_flag = FAILED;
                 cmd_cnt++;
             }
-            test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+            test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
             // usleep(500000);
             nvme_msi_register_test();
             test_flag |= cq_gain(0, cmd_cnt, &reap_num);
@@ -124,12 +124,12 @@ static int sub_case_asq_size_loop_array(void)
         cmd_cnt = 0;
         for (index = 0; index < test2_asq_1_send[sq_size_idx]; index++)
         {
-	    ret = nvme_cmd_keep_alive(g_fd);
+	    ret = nvme_cmd_keep_alive(ndev->fd);
 	    if (ret < 0)
 		    test_flag = FAILED;
             cmd_cnt++;
         }
-        test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+        test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
         pr_color(LOG_COLOR_PURPLE, "first send, admin q reaped ok! reap_num:%d\n", reap_num);
 
@@ -137,19 +137,19 @@ static int sub_case_asq_size_loop_array(void)
         cmd_cnt = 0;
         for (index = 0; index < test2_asq_2_send[sq_size_idx]; index++)
         {
-	    ret = nvme_cmd_keep_alive(g_fd);
+	    ret = nvme_cmd_keep_alive(ndev->fd);
 	    if (ret < 0)
 		    test_flag = FAILED;
             cmd_cnt++;
         }
-        test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+        test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);
         pr_color(LOG_COLOR_PURPLE, "second send, admin q reaped ok! reap_num:%d\n", reap_num);
     }
     /*******************************************************************************************************************************/
     pr_info("\n3. issue illegal admin cmd opcodes\n");
-    test_flag |= admin_illegal_opcode_cmd(g_fd, 0xff);
-    test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+    test_flag |= admin_illegal_opcode_cmd(ndev->fd, 0xff);
+    test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
     cq_gain(0, 1, &reap_num);
     pr_color(LOG_COLOR_PURPLE, "send illegal admin cmd reaped ok! reap_num:%d\n", reap_num);
     /**********************************************************************/
@@ -176,12 +176,12 @@ static int sub_case_asq_size_random(void)
         cmd_cnt = 0;
         for (uint32_t index = 0; index < (asqsz - 1); index++)
         {
-	    ret = nvme_cmd_keep_alive(g_fd);
+	    ret = nvme_cmd_keep_alive(ndev->fd);
 	    if (ret < 0)
 		    test_flag = FAILED;
             cmd_cnt ++;
         }
-        test_flag |= nvme_ring_sq_doorbell(g_fd, 0);
+        test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
         // usleep(500000);
         nvme_msi_register_test();
         test_flag |= cq_gain(0, cmd_cnt, &reap_num);

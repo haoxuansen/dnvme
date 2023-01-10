@@ -23,6 +23,7 @@ static char *disp_this_case = "this case will tests PCIe Link Speed and Width cy
 
 static void test_sub(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint16_t data;
     uint8_t set_speed, set_width, cur_speed, cur_width;
     int ret;
@@ -45,7 +46,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, &data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, &data);
     if (ret < 0)
     	exit(-1);
     
@@ -64,6 +65,7 @@ static void test_sub(void)
 
 int case_pcie_link_speed_width_cyc(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int test_round = 0;
     uint16_t u32_tmp_data = 0;
     int ret;
@@ -73,7 +75,7 @@ int case_pcie_link_speed_width_cyc(void)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12, &u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

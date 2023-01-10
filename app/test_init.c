@@ -161,13 +161,13 @@ static int init_ctrl_property(int fd, struct nvme_ctrl_property *prop)
 	return 0;
 }
 
-static int init_capability(int fd, struct nvme_dev_info *ndev)
+static int init_capability(struct nvme_dev_info *ndev)
 {
 	int ret;
 	struct nvme_cap *cap = &ndev->cap;
 	struct pci_cap *pci = cap->pci;
 
-	ret = nvme_get_capability(g_fd, cap);
+	ret = nvme_get_capability(ndev->fd, cap);
 	if (ret < 0)
 		return ret;
 	
@@ -192,12 +192,12 @@ static int init_capability(int fd, struct nvme_dev_info *ndev)
 	return 0;
 }
 
-static int check_link_status(int fd, struct nvme_dev_info *ndev)
+static int check_link_status(struct nvme_dev_info *ndev)
 {
 	int ret;
 	uint32_t link_sts;
 
-	ret = pci_exp_read_link_status(g_fd, ndev->pxcap_ofst, &link_sts);
+	ret = pci_exp_read_link_status(ndev->fd, ndev->pxcap_ofst, &link_sts);
 	if (ret < 0) {
 		pr_err("failed to read link status reg!(%d)\n", ret);
 		return ret;
@@ -295,11 +295,11 @@ static int nvme_init_stage2(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = init_capability(fd, ndev);
+	ret = init_capability(ndev);
 	if (ret < 0)
 		return ret;
 
-	ret = check_link_status(fd, ndev);
+	ret = check_link_status(ndev);
 	if (ret < 0)
 		return ret;
 

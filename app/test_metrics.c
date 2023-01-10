@@ -101,6 +101,7 @@ uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length)
 
 void test_encrypt_decrypt(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t io_sq_id = 1;
     uint32_t io_cq_id = 1;
     uint32_t reap_num;
@@ -157,14 +158,14 @@ void test_encrypt_decrypt(void)
         *(char *)(g_read_buf + i) = 0;
     }
     cmd_cnt = 0;
-    nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+    nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
     cmd_cnt++;
-    nvme_ring_sq_doorbell(g_fd, io_sq_id);
+    nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     cmd_cnt = 0;
-    nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
     cmd_cnt++;
-    nvme_ring_sq_doorbell(g_fd, io_sq_id);
+    nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
     err_flg = 0;

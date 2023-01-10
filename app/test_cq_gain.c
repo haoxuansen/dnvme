@@ -60,6 +60,7 @@ int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 
 int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	int ret_val = SUCCEED;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
@@ -80,7 +81,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 
 	while (*reaped_num < expect_num)
 	{
-		ret_val = nvme_reap_cq_entries(g_fd, &rp_cq);
+		ret_val = nvme_reap_cq_entries(ndev->fd, &rp_cq);
 		if (ret_val < 0)
 		{
 			pr_err("Call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
@@ -120,6 +121,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 
 int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , uint32_t disp_cq)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	int ret_val = SUCCEED;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
@@ -139,7 +141,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 
 	while (*reaped_num < expect_num)
 	{
-		ret_val = nvme_reap_cq_entries(g_fd, &rp_cq);
+		ret_val = nvme_reap_cq_entries(ndev->fd, &rp_cq);
 		if (ret_val < 0)
 		{
 			pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
@@ -186,6 +188,7 @@ struct nvme_completion *get_cq_entry(void)
 //for command_arbitration
 int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	int ret_val = -1;
 	struct nvme_reap rp_cq = {0};
 	uint64_t cq_to_cnt = 0;
@@ -231,10 +234,11 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 		{
 			cq_id = i;
 			rp_cq.q_id = cq_id;
-			ret_val = nvme_reap_cq_entries(g_fd, &rp_cq);
+			ret_val = nvme_reap_cq_entries(ndev->fd, &rp_cq);
 			if (ret_val < 0)
 			{
-				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, arb_parameter->expect_num);
+				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", 
+					cq_id, arb_parameter->expect_num);
 				exit(-1);
 				return ret_val;
 			}
@@ -477,6 +481,7 @@ GOOUT:
 
 int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 {
+	struct nvme_dev_info *ndev = &g_nvme_dev;
 	int ret_val = -1;
 	struct nvme_reap rp_cq = {0};
 	uint64_t cq_to_cnt = 0;
@@ -509,7 +514,7 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 		{
 			cq_id = i;
 			rp_cq.q_id = cq_id;
-			ret_val = nvme_reap_cq_entries(g_fd, &rp_cq);
+			ret_val = nvme_reap_cq_entries(ndev->fd, &rp_cq);
 			if (ret_val < 0)
 			{
 				pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, arb_parameter->expect_num);

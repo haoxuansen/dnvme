@@ -41,18 +41,22 @@ static uint32_t reap_num = 0;
 
 static uint32_t sub_case_pre(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
-    test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
+    test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
 
 static uint32_t sub_case_end(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
-    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
+    test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+    test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
 }
 
@@ -63,6 +67,7 @@ static uint32_t sub_case_end(void)
  */
 uint32_t iocmd_cstc_rdy_test(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int ret;
     uint32_t csts;
     uint32_t loop;
@@ -84,36 +89,36 @@ uint32_t iocmd_cstc_rdy_test(void)
         cmd_cnt = 0;
         for (int iocnt = 0; iocnt < 1000; iocnt++)
         {
-            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
         }
-        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
+	ret = nvme_read_ctrl_property(ndev->fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
  
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
+	ret = nvme_read_ctrl_property(ndev->fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
 
         cmd_cnt = 0;
         for (int iocnt = 0; iocnt < 1000; iocnt++)
         {
-            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
-        test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+        test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
+	ret = nvme_read_ctrl_property(ndev->fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
 
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
 
-	ret = nvme_read_ctrl_property(g_fd, NVME_REG_CSTS, 4, &csts);
+	ret = nvme_read_ctrl_property(ndev->fd, NVME_REG_CSTS, 4, &csts);
 	if (ret < 0)
 		exit(-1);
     }
@@ -128,11 +133,12 @@ uint32_t iocmd_cstc_rdy_test(void)
  */
 uint32_t reg_bug_trace(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int ret;
     uint32_t u32_tmp_data;
     pr_color(LOG_COLOR_RED, "tests device's dbl will error bug \r\n");
 
-    ret = nvme_read_ctrl_property(g_fd, 0x1620, 4, &u32_tmp_data);
+    ret = nvme_read_ctrl_property(ndev->fd, 0x1620, 4, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -140,17 +146,17 @@ uint32_t reg_bug_trace(void)
     u32_tmp_data = 0xffffffff;
     for (int i = (0x1000 + (8 * 20)); i < 0x3000; i += 4)
     {
-        nvme_write_ctrl_property(g_fd, i, 4, (uint8_t *)&u32_tmp_data);
+        nvme_write_ctrl_property(ndev->fd, i, 4, (uint8_t *)&u32_tmp_data);
     }
 
-    ret = nvme_read_ctrl_property(g_fd, 0x1620, 4, &u32_tmp_data);
+    ret = nvme_read_ctrl_property(ndev->fd, 0x1620, 4, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     pr_color(LOG_COLOR_PURPLE, "after write,read 0x1620: %x\n", u32_tmp_data);
     for (int i = 0; i < 0x3000; i += 4)
     {
-        ret = nvme_read_ctrl_property(g_fd, i, 4, &u32_tmp_data);
+        ret = nvme_read_ctrl_property(ndev->fd, i, 4, &u32_tmp_data);
 	if (ret < 0)
 		exit(-1);
 

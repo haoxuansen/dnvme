@@ -142,18 +142,19 @@ static SubCase_t sub_case_list[] = {
 
 void scan_control_reister(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int ret;
 
     for (uint32_t i = 0; i < ARRAY_SIZE(nvme_ctrl_reg); i++)
     {
-    	ret = nvme_read_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, 
+    	ret = nvme_read_ctrl_property(ndev->fd, nvme_ctrl_reg[i].addr, 4, 
 		&nvme_ctrl_reg[i].def_val);
 	if (ret < 0)
 		exit(-1);
     }
     for (uint32_t i = 0; i < ARRAY_SIZE(pcie_ids_reg); i++)
     {
-        ret = pci_read_config_dword(g_fd, pcie_ids_reg[i].addr, &pcie_ids_reg[i].def_val);
+        ret = pci_read_config_dword(ndev->fd, pcie_ids_reg[i].addr, &pcie_ids_reg[i].def_val);
 	if (ret < 0)
 		exit(-1);
     }
@@ -181,21 +182,25 @@ int case_register_test(void)
 
 static uint32_t sub_case_pre(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(g_fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
     pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
-    test_flag |= nvme_create_contig_iosq(g_fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
+    test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
 
     return test_flag;
 }
 
 static uint32_t sub_case_end(void)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
+
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
-    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_sq, io_sq_id);
-    test_flag |= nvme_delete_ioq(g_fd, nvme_admin_delete_cq, io_cq_id);
+    test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+    test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
     return test_flag;
 }
 
@@ -210,7 +215,7 @@ static int sub_case_nvme_reg_normal(void)
     {
         if (nvme_ctrl_reg[i].type == RO)
         {
-            ret = nvme_read_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, &u32_tmp_data);
+            ret = nvme_read_ctrl_property(ndev->fd, nvme_ctrl_reg[i].addr, 4, &u32_tmp_data);
 	    if (ret < 0)
 	    	exit(-1);
 
@@ -229,9 +234,9 @@ static int sub_case_nvme_reg_normal(void)
             u32_tmp_data = (rand_data & nvme_ctrl_reg[i].mark);
             // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          nvme_ctrl_reg[i].addr,rand_data, nvme_ctrl_reg[i].mark, u32_tmp_data);
-            nvme_write_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
+            nvme_write_ctrl_property(ndev->fd, nvme_ctrl_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
-            ret = nvme_read_ctrl_property(g_fd, nvme_ctrl_reg[i].addr, 4, &u32_tmp_data);
+            ret = nvme_read_ctrl_property(ndev->fd, nvme_ctrl_reg[i].addr, 4, &u32_tmp_data);
 	    if (ret < 0)
 	    	exit(-1);
 
@@ -266,7 +271,7 @@ static int sub_case_pcie_reg_normal(void)
     {
         if (pcie_ids_reg[i].type == RO)
         {
-            ret = pci_read_config_dword(g_fd, pcie_ids_reg[i].addr, &u32_tmp_data);
+            ret = pci_read_config_dword(ndev->fd, pcie_ids_reg[i].addr, &u32_tmp_data);
 	    if (ret < 0)
 	    	exit(-1);
 	    
@@ -285,9 +290,9 @@ static int sub_case_pcie_reg_normal(void)
             u32_tmp_data = (rand_data & pcie_ids_reg[i].mark);
             // pr_info("addr:0x%08x, rand_data:0x%08x, mark:0x%08x, rand_data&mark:0x%08x\n",
             //          pcie_ids_reg[i].addr,rand_data, pcie_ids_reg[i].mark, u32_tmp_data);
-            pci_write_config_data(g_fd, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
+            pci_write_config_data(ndev->fd, pcie_ids_reg[i].addr, 4, (uint8_t *)&u32_tmp_data);
 
-            ret = pci_read_config_dword(g_fd, pcie_ids_reg[i].addr, &u32_tmp_data);
+            ret = pci_read_config_dword(ndev->fd, pcie_ids_reg[i].addr, &u32_tmp_data);
 	    if (ret < 0)
 	    	exit(-1);
 	    
@@ -342,12 +347,12 @@ static int sub_case_iocmd_nvme_reg(void)
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -362,12 +367,12 @@ static int sub_case_iocmd_nvme_reg(void)
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -418,12 +423,12 @@ static int sub_case_iocmd_nvme_reg_normal(void)
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_write_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -438,12 +443,12 @@ static int sub_case_iocmd_nvme_reg_normal(void)
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
         {
-            test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
             cmd_cnt++;
         }
         if (test_flag == SUCCEED)
         {
-            test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
+            test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
             nvme_msi_register_test();
             test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);

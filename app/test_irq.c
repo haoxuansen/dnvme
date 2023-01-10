@@ -28,6 +28,7 @@
 
 void test_irq_review568(int fd)
 {
+    struct nvme_dev_info *ndev = &g_nvme_dev;
     int i;
     i = 10000;
     while (i)
@@ -38,7 +39,7 @@ void test_irq_review568(int fd)
 	g_nvme_dev.nr_irq = 2;
         i--;
     }
-    nvme_set_irq(g_fd, NVME_INT_NONE, 0);
+    nvme_set_irq(ndev->fd, NVME_INT_NONE, 0);
     g_nvme_dev.irq_type = NVME_INT_NONE;
     pr_info("\nCalling Dump Metrics to irq_loop_test\n");
     nvme_dump_log(fd, "/tmp/test_rev568.txt");
