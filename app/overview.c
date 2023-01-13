@@ -25,6 +25,7 @@
 #include "queue.h"
 #include "test_queue.h"
 #include "test_cmd.h"
+#include "test_pm.h"
 #include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -430,14 +431,14 @@ static int case_disable_ltr(void)
 static int case_set_d0_state(void)
 {
 	pr_info("set to D0 state\n");
-	set_power_state(g_nvme_dev.pmcap_ofst, D0);
+	set_pcie_power_state(g_nvme_dev.pmcap_ofst, D0);
 	return 0;
 }
 
 static int case_set_d3_state(void)
 {
 	pr_info("set to D3 state\n");
-	set_power_state(g_nvme_dev.pmcap_ofst, D3hot);
+	set_pcie_power_state(g_nvme_dev.pmcap_ofst, D3hot);
 	return 0;
 }
 
@@ -580,6 +581,7 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(100, case_unknown8, "Unknown8 (Obsolete?)"),
 	INIT_CASE(101, case_unknown9, "Unknown9 (Obsolete?)"),
 	INIT_CASE(102, case_queue_iocmd_to_asq, "Submit IO command to Admin SQ"),
+	INIT_CASE(111, case_pm_switch_power_state, "Randomly switch power state"),
 	INIT_CASE(255, case_all_cases, "test case list exe"),
 };
 

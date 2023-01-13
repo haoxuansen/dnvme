@@ -148,9 +148,9 @@ static void test_sub(void)
     else if (test_type == 4)
     {
         pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset ...\n");
-        test_flag |= set_power_state(g_nvme_dev.pmcap_ofst, D3hot);
+        test_flag |= set_pcie_power_state(g_nvme_dev.pmcap_ofst, D3hot);
         assert(test_flag == SUCCEED);
-        test_flag |= set_power_state(g_nvme_dev.pmcap_ofst, D0);
+        test_flag |= set_pcie_power_state(g_nvme_dev.pmcap_ofst, D0);
         assert(test_flag == SUCCEED);
         pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset Done\n");
     }

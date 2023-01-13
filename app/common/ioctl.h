@@ -36,6 +36,11 @@ static inline int nvme_read_ctrl_cap(int fd, uint64_t *val)
 	return nvme_read_ctrl_property(fd, NVME_REG_CAP, 8, val);
 }
 
+static inline int nvme_read_ctrl_vs(int fd, uint32_t *val)
+{
+	return nvme_read_ctrl_property(fd, NVME_REG_VS, 4, val);
+}
+
 static inline int nvme_read_ctrl_cc(int fd, uint32_t *val)
 {
 	return nvme_read_ctrl_property(fd, NVME_REG_CC, 4, val);

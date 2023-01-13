@@ -21,9 +21,6 @@
 #define DEFAULT_IO_QUEUE_SIZE (65535)
 #define NSIDX(n) (n - 1)
 
-#define MAXIO_CTRL_VID (0x1E4B)
-#define MAXIO_CTRL_SSVID (0x1E4B)
-
 #define IDENTIFY_DATA_SIZE (4096)
 #define RW_BUFFER_SIZE (2 * 1024 * 1024)
 #define LBA_DAT_SIZE (512)
@@ -118,7 +115,7 @@ int ioctl_send_format(int g_fd, uint8_t lbaf);
 uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
 
 int ctrl_pci_flr(void);
-int set_power_state(uint8_t pmcap, uint8_t dstate);
+int set_pcie_power_state(uint8_t pmcap, uint8_t dstate);
 
 void pcie_retrain_link(void);
 void pcie_RC_cfg_speed(int speed);

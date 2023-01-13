@@ -129,12 +129,14 @@ struct nvme_driver {
  * @brief NVMe device controller properties
  * 
  * @cap: Controller Capabilities Register
+ * @vs: Version
  * @cc: Controller Configuration Register
  * @cmbloc: Controller Memory Buffer Location Register
  * @cmbsz: Controller Memory Buffer Size Register
  */
 struct nvme_ctrl_property {
 	uint64_t	cap;
+	uint32_t	vs;
 	uint32_t	cc;
 	uint32_t	cmbloc;
 	uint32_t	cmbsz;

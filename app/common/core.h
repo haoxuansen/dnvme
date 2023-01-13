@@ -36,6 +36,8 @@ struct nvme_ns_info {
 /**
  * @brief NVMe device information
  * 
+ * @fd: NVMe device file descriptor
+ * @vid: Vendor Identifier
  * @nss: An array for storing namespace info.
  * @ns_num_total: The maximum value of a valid NSID for the NVM subsystem
  * 
@@ -48,6 +50,8 @@ struct nvme_ns_info {
  */
 struct nvme_dev_info {
 	int		fd;
+
+	uint16_t	vid;
 
 	uint16_t	max_sq_num; // 1'base
 	uint16_t	max_cq_num; // 1'base

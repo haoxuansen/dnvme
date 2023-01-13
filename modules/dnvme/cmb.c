@@ -28,14 +28,14 @@ MODULE_PARM_DESC(use_cmb_sqes, "use controller's memory buffer for I/O SQes");
 
 static u64 dnvme_cmb_size_unit(u32 cmbsz)
 {
-	u8 szu = (cmbsz >> NVME_CMBSZ_SZU_SHIFT) & NVME_CMBSZ_SZU_MASK;
+	u8 szu = NVME_CMBSZ_SZU(cmbsz);
 
 	return 1ULL << (12 + 4 * szu);
 }
 
 static u32 dnvme_cmb_size(u32 cmbsz)
 {
-	return (cmbsz >> NVME_CMBSZ_SZ_SHIFT) & NVME_CMBSZ_SZ_MASK;
+	return NVME_CMBSZ_SZ(cmbsz);
 }
 
 int dnvme_map_cmb(struct nvme_device *ndev)

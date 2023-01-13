@@ -833,7 +833,7 @@ int ctrl_pci_flr(void)
     return SUCCEED;
 }
 
-int set_power_state(uint8_t pmcap, uint8_t dstate)
+int set_pcie_power_state(uint8_t pmcap, uint8_t dstate)
 {
     struct nvme_dev_info *ndev = &g_nvme_dev;
     uint32_t u32_tmp_data = 0;

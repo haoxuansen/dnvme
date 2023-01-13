@@ -29,9 +29,9 @@
 #define LOG_LEVEL_DIVING		9
 #define LOG_LEVEL_DEFAULT		LOG_LEVEL_DEBUG
 
-#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
 #ifndef pr_fmt
-#define pr_fmt(fmt)			fmt
+#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
+// #define pr_fmt(fmt)			fmt
 #endif
 
 #define pr_emerg(fmt, ...) \

@@ -11,7 +11,11 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 
+#include "defs.h"
 #include "compiler.h"
+#include "nvme/property.h"
+#include "nvme/feature.h"
+#include "nvme/command.h"
 
 /* NQN names in commands fields specified one size */
 #define NVMF_NQN_FIELD_LEN	256
@@ -102,77 +106,6 @@ enum {
  */
 #define NVME_AQ_MQ_TAG_DEPTH	(NVME_AQ_BLK_MQ_DEPTH - 1)
 
-enum {
-	NVME_REG_CAP	= 0x0000,	/* Controller Capabilities */
-	NVME_REG_VS	= 0x0008,	/* Version */
-	NVME_REG_INTMS	= 0x000c,	/* Interrupt Mask Set */
-	NVME_REG_INTMC	= 0x0010,	/* Interrupt Mask Clear */
-	NVME_REG_CC	= 0x0014,	/* Controller Configuration */
-	NVME_REG_CSTS	= 0x001c,	/* Controller Status */
-	NVME_REG_NSSR	= 0x0020,	/* NVM Subsystem Reset */
-	NVME_REG_AQA	= 0x0024,	/* Admin Queue Attributes */
-	NVME_REG_ASQ	= 0x0028,	/* Admin SQ Base Address */
-	NVME_REG_ACQ	= 0x0030,	/* Admin CQ Base Address */
-	NVME_REG_CMBLOC	= 0x0038,	/* Controller Memory Buffer Location */
-	NVME_REG_CMBSZ	= 0x003c,	/* Controller Memory Buffer Size */
-	NVME_REG_BPINFO	= 0x0040,	/* Boot Partition Information */
-	NVME_REG_BPRSEL	= 0x0044,	/* Boot Partition Read Select */
-	NVME_REG_BPMBL	= 0x0048,	/* Boot Partition Memory Buffer
-					 * Location
-					 */
-	NVME_REG_CMBMSC = 0x0050,	/* Controller Memory Buffer Memory
-					 * Space Control
-					 */
-	NVME_REG_PMRCAP	= 0x0e00,	/* Persistent Memory Capabilities */
-	NVME_REG_PMRCTL	= 0x0e04,	/* Persistent Memory Region Control */
-	NVME_REG_PMRSTS	= 0x0e08,	/* Persistent Memory Region Status */
-	NVME_REG_PMREBS	= 0x0e0c,	/* Persistent Memory Region Elasticity
-					 * Buffer Size
-					 */
-	NVME_REG_PMRSWTP = 0x0e10,	/* Persistent Memory Region Sustained
-					 * Write Throughput
-					 */
-	NVME_REG_DBS	= 0x1000,	/* SQ 0 Tail Doorbell */
-};
-
-#define NVME_CAP_MQES(cap)	((cap) & 0xffff)
-#define NVME_CAP_AMS(cap)	(((cap) >> 17) & 0x3)
-#define NVME_CAP_TIMEOUT(cap)	(((cap) >> 24) & 0xff)
-#define NVME_CAP_STRIDE(cap)	(((cap) >> 32) & 0xf)
-#define NVME_CAP_NSSRC(cap)	(((cap) >> 36) & 0x1)
-#define NVME_CAP_CSS(cap)	(((cap) >> 37) & 0xff)
-#define NVME_CAP_BPS(cap)	(((cap) >> 45) & 0x1)
-#define NVME_CAP_MPSMIN(cap)	(((cap) >> 48) & 0xf)
-#define NVME_CAP_MPSMAX(cap)	(((cap) >> 52) & 0xf)
-#define NVME_CAP_CMBS(cap)	(((cap) >> 57) & 0x1)
-/* bit[16] Configuous Queues Required */
-#define NVME_CAP_CQR		(1 << 16)
-
-#define NVME_CMB_BIR(cmbloc)	((cmbloc) & 0x7)
-#define NVME_CMB_OFST(cmbloc)	(((cmbloc) >> 12) & 0xfffff)
-
-/* bit[27:16] Admin Completion Queue Size (in entries, zero based) */
-#define NVME_AQA_FOR_ACQS(aqa)	(((aqa) & 0xfff) << 16)
-#define NVME_AQA_TO_ACQS(aqa)	(((aqa) >> 16) & 0xfff)
-#define NVME_AQA_ACQS_MASK	NVME_AQA_FOR_ACQS(0xfff)
-/* bit[11:0] Admin Submission Queue Size (in entries, zero based) */
-#define NVME_AQA_FOR_ASQS(aqa)	(((aqa) & 0xfff) << 0)
-#define NVME_AQA_TO_ASQS(aqa)	(((aqa) >> 0) & 0xfff)
-#define NVME_AQA_ASQS_MASK	NVME_AQA_FOR_ASQS(0xfff)
-
-enum {
-	NVME_CMBSZ_SQS		= 1 << 0,
-	NVME_CMBSZ_CQS		= 1 << 1,
-	NVME_CMBSZ_LISTS	= 1 << 2,
-	NVME_CMBSZ_RDS		= 1 << 3,
-	NVME_CMBSZ_WDS		= 1 << 4,
-
-	NVME_CMBSZ_SZ_SHIFT	= 12,
-	NVME_CMBSZ_SZ_MASK	= 0xfffff,
-
-	NVME_CMBSZ_SZU_SHIFT	= 8,
-	NVME_CMBSZ_SZU_MASK	= 0xf,
-};
 
 /*
  * Submission and Completion Queue Entry Sizes for the NVM command set.
@@ -182,43 +115,6 @@ enum {
 #define NVME_ADM_CQES		4
 #define NVME_NVM_IOSQES		6
 #define NVME_NVM_IOCQES		4
-
-enum {
-	NVME_CC_ENABLE		= 1 << 0,
-	NVME_CC_EN_SHIFT	= 0,
-	NVME_CC_CSS_SHIFT	= 4,
-	NVME_CC_MPS_SHIFT	= 7,
-	NVME_CC_AMS_SHIFT	= 11,
-	NVME_CC_SHN_SHIFT	= 14,
-	NVME_CC_IOSQES_SHIFT	= 16,
-	NVME_CC_IOCQES_SHIFT	= 20,
-	NVME_CC_CSS_NVM		= 0 << NVME_CC_CSS_SHIFT,
-	NVME_CC_CSS_CSI		= 6 << NVME_CC_CSS_SHIFT,
-	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
-	NVME_CC_AMS_RR		= 0 << NVME_CC_AMS_SHIFT,
-	NVME_CC_AMS_WRRU	= 1 << NVME_CC_AMS_SHIFT,
-	NVME_CC_AMS_VS		= 7 << NVME_CC_AMS_SHIFT,
-	NVME_CC_SHN_NONE	= 0 << NVME_CC_SHN_SHIFT,
-	NVME_CC_SHN_NORMAL	= 1 << NVME_CC_SHN_SHIFT,
-	NVME_CC_SHN_ABRUPT	= 2 << NVME_CC_SHN_SHIFT,
-	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
-	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
-	NVME_CC_IOSQES_MASK	= 0xf << NVME_CC_IOSQES_SHIFT,
-	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
-	NVME_CC_IOCQES_MASK	= 0xf << NVME_CC_IOCQES_SHIFT,
-	NVME_CAP_CSS_NVM	= 1 << 0,
-	NVME_CAP_CSS_CSI	= 1 << 6,
-	NVME_CSTS_RDY		= 1 << 0,
-	NVME_CSTS_CFS		= 1 << 1,
-	NVME_CSTS_NSSRO		= 1 << 4,
-	NVME_CSTS_PP		= 1 << 5,
-	NVME_CSTS_SHST_NORMAL	= 0 << 2,
-	NVME_CSTS_SHST_OCCUR	= 1 << 2,
-	NVME_CSTS_SHST_CMPLT	= 2 << 2,
-	NVME_CSTS_SHST_MASK	= 3 << 2,
-	NVME_CMBMSC_CRE		= 1 << 0,
-	NVME_CMBMSC_CMSE	= 1 << 1,
-};
 
 struct nvme_id_power_state {
 	__le16			max_power;	/* centiwatts */
@@ -684,46 +580,6 @@ enum nvme_async_event_type {
 	NVME_AER_TYPE_NOTICE	= 2,
 };
 
-/* I/O commands */
-
-enum nvme_opcode {
-	nvme_cmd_flush		= 0x00,
-	nvme_cmd_write		= 0x01,
-	nvme_cmd_read		= 0x02,
-	nvme_cmd_write_uncor	= 0x04,
-	nvme_cmd_compare	= 0x05,
-	nvme_cmd_write_zeroes	= 0x08,
-	nvme_cmd_dsm		= 0x09,
-	nvme_cmd_verify		= 0x0c,
-	nvme_cmd_resv_register	= 0x0d,
-	nvme_cmd_resv_report	= 0x0e,
-	nvme_cmd_resv_acquire	= 0x11,
-	nvme_cmd_resv_release	= 0x15,
-	nvme_cmd_zone_mgmt_send	= 0x79,
-	nvme_cmd_zone_mgmt_recv	= 0x7a,
-	nvme_cmd_zone_append	= 0x7d,
-};
-
-#define nvme_opcode_name(opcode)	{ opcode, #opcode }
-#define show_nvm_opcode_name(val)				\
-	__print_symbolic(val,					\
-		nvme_opcode_name(nvme_cmd_flush),		\
-		nvme_opcode_name(nvme_cmd_write),		\
-		nvme_opcode_name(nvme_cmd_read),		\
-		nvme_opcode_name(nvme_cmd_write_uncor),		\
-		nvme_opcode_name(nvme_cmd_compare),		\
-		nvme_opcode_name(nvme_cmd_write_zeroes),	\
-		nvme_opcode_name(nvme_cmd_dsm),			\
-		nvme_opcode_name(nvme_cmd_resv_register),	\
-		nvme_opcode_name(nvme_cmd_resv_report),		\
-		nvme_opcode_name(nvme_cmd_resv_acquire),	\
-		nvme_opcode_name(nvme_cmd_resv_release),	\
-		nvme_opcode_name(nvme_cmd_zone_mgmt_send),	\
-		nvme_opcode_name(nvme_cmd_zone_mgmt_recv),	\
-		nvme_opcode_name(nvme_cmd_zone_append))
-
-
-
 /*
  * Descriptor subtype - lower 4 bits of nvme_(keyed_)sgl_desc identifier
  *
@@ -983,77 +839,6 @@ enum {
 	NVME_ENABLE_ACRE	= 1,
 };
 
-/*
- * Admin commands
- * 
- * 1.All commands, including vendor specific commands, shall follow this
- * convention:
- *   00b = no data transfer; 01b = host to controller;
- *   10b = controller to host; 11b = bidirectional;
- */
-enum nvme_admin_opcode {
-	nvme_admin_delete_sq		= 0x00,
-	nvme_admin_create_sq		= 0x01,
-	nvme_admin_get_log_page		= 0x02,
-	nvme_admin_delete_cq		= 0x04,
-	nvme_admin_create_cq		= 0x05,
-	nvme_admin_identify		= 0x06,
-	nvme_admin_abort_cmd		= 0x08,
-	nvme_admin_set_features		= 0x09,
-	nvme_admin_get_features		= 0x0a,
-	nvme_admin_async_event		= 0x0c,
-	nvme_admin_ns_mgmt		= 0x0d,
-	nvme_admin_activate_fw		= 0x10,
-	nvme_admin_download_fw		= 0x11,
-	nvme_admin_dev_self_test	= 0x14,
-	nvme_admin_ns_attach		= 0x15,
-	nvme_admin_keep_alive		= 0x18,
-	nvme_admin_directive_send	= 0x19,
-	nvme_admin_directive_recv	= 0x1a,
-	nvme_admin_virtual_mgmt		= 0x1c,
-	nvme_admin_nvme_mi_send		= 0x1d,
-	nvme_admin_nvme_mi_recv		= 0x1e,
-	nvme_admin_dbbuf		= 0x7C,
-	nvme_admin_format_nvm		= 0x80,
-	nvme_admin_security_send	= 0x81,
-	nvme_admin_security_recv	= 0x82,
-	nvme_admin_sanitize_nvm		= 0x84,
-	nvme_admin_get_lba_status	= 0x86,
-	nvme_admin_vendor_start		= 0xC0,
-
-	nvme_admin_vendor_write		= 0xc1,
-	nvme_admin_vendor_read		= 0xc2,
-	nvme_admin_vendor_fwdma_write	= 0xc3,
-	nvme_admin_vendor_fwdma_read	= 0xc4,
-	nvme_admin_vendor_para_set	= 0xc5,
-};
-
-#define nvme_admin_opcode_name(opcode)	{ opcode, #opcode }
-#define show_admin_opcode_name(val)					\
-	__print_symbolic(val,						\
-		nvme_admin_opcode_name(nvme_admin_delete_sq),		\
-		nvme_admin_opcode_name(nvme_admin_create_sq),		\
-		nvme_admin_opcode_name(nvme_admin_get_log_page),	\
-		nvme_admin_opcode_name(nvme_admin_delete_cq),		\
-		nvme_admin_opcode_name(nvme_admin_create_cq),		\
-		nvme_admin_opcode_name(nvme_admin_identify),		\
-		nvme_admin_opcode_name(nvme_admin_abort_cmd),		\
-		nvme_admin_opcode_name(nvme_admin_set_features),	\
-		nvme_admin_opcode_name(nvme_admin_get_features),	\
-		nvme_admin_opcode_name(nvme_admin_async_event),		\
-		nvme_admin_opcode_name(nvme_admin_ns_mgmt),		\
-		nvme_admin_opcode_name(nvme_admin_activate_fw),		\
-		nvme_admin_opcode_name(nvme_admin_download_fw),		\
-		nvme_admin_opcode_name(nvme_admin_ns_attach),		\
-		nvme_admin_opcode_name(nvme_admin_keep_alive),		\
-		nvme_admin_opcode_name(nvme_admin_directive_send),	\
-		nvme_admin_opcode_name(nvme_admin_directive_recv),	\
-		nvme_admin_opcode_name(nvme_admin_dbbuf),		\
-		nvme_admin_opcode_name(nvme_admin_format_nvm),		\
-		nvme_admin_opcode_name(nvme_admin_security_send),	\
-		nvme_admin_opcode_name(nvme_admin_security_recv),	\
-		nvme_admin_opcode_name(nvme_admin_sanitize_nvm),	\
-		nvme_admin_opcode_name(nvme_admin_get_lba_status))
 
 enum {
 	NVME_QUEUE_PHYS_CONTIG	= (1 << 0),
@@ -1062,35 +847,6 @@ enum {
 	NVME_SQ_PRIO_HIGH	= (1 << 1),
 	NVME_SQ_PRIO_MEDIUM	= (2 << 1),
 	NVME_SQ_PRIO_LOW	= (3 << 1),
-	NVME_FEAT_ARBITRATION	= 0x01,
-	NVME_FEAT_POWER_MGMT	= 0x02,
-	NVME_FEAT_LBA_RANGE	= 0x03,
-	NVME_FEAT_TEMP_THRESH	= 0x04,
-	NVME_FEAT_ERR_RECOVERY	= 0x05,
-	NVME_FEAT_VOLATILE_WC	= 0x06,
-	NVME_FEAT_NUM_QUEUES	= 0x07,
-	NVME_FEAT_IRQ_COALESCE	= 0x08,
-	NVME_FEAT_IRQ_CONFIG	= 0x09,
-	NVME_FEAT_WRITE_ATOMIC	= 0x0a,
-	NVME_FEAT_ASYNC_EVENT	= 0x0b,
-	NVME_FEAT_AUTO_PST	= 0x0c,
-	NVME_FEAT_HOST_MEM_BUF	= 0x0d,
-	NVME_FEAT_TIMESTAMP	= 0x0e,
-	NVME_FEAT_KATO		= 0x0f,
-	NVME_FEAT_HCTM		= 0x10,
-	NVME_FEAT_NOPSC		= 0x11,
-	NVME_FEAT_RRL		= 0x12,
-	NVME_FEAT_PLM_CONFIG	= 0x13,
-	NVME_FEAT_PLM_WINDOW	= 0x14,
-	NVME_FEAT_HOST_BEHAVIOR	= 0x16,
-	NVME_FEAT_SANITIZE	= 0x17,
-	NVME_FEAT_SW_PROGRESS	= 0x80,
-	NVME_FEAT_HOST_ID	= 0x81,
-	NVME_FEAT_RESV_MASK	= 0x82,
-	NVME_FEAT_RESV_PERSIST	= 0x83,
-	NVME_FEAT_WRITE_PROTECT	= 0x84,
-	NVME_FEAT_VENDOR_START	= 0xC0,
-	NVME_FEAT_VENDOR_END	= 0xFF,
 	NVME_LOG_ERROR		= 0x01,
 	NVME_LOG_SMART		= 0x02,
 	NVME_LOG_FW_SLOT	= 0x03,
@@ -1680,12 +1436,5 @@ struct nvme_completion {
 #define NVME_CQE_STATUS_TO_M(s)		((le16_to_cpu(s) >> 14) & 0x1)
 #define NVME_CQE_STATUS_TO_DNR(s)	((le16_to_cpu(s) >> 15) & 0x1)
 };
-
-#define NVME_VS(major, minor, tertiary) \
-	(((major) << 16) | ((minor) << 8) | (tertiary))
-
-#define NVME_MAJOR(ver)		((ver) >> 16)
-#define NVME_MINOR(ver)		(((ver) >> 8) & 0xff)
-#define NVME_TERTIARY(ver)	((ver) & 0xff)
 
 #endif /* _LINUX_NVME_H */

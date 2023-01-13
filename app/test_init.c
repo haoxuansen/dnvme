@@ -153,6 +153,13 @@ static int init_ctrl_property(int fd, struct nvme_ctrl_property *prop)
 
 	nvme_display_cap(prop->cap);
 
+	ret = nvme_read_ctrl_vs(fd, &prop->vs);
+	if (ret < 0)
+		return ret;
+
+	pr_notice("NVMe Version: %u.%u.%u\n", NVME_VS_MJR(prop->vs), 
+		NVME_VS_MNR(prop->vs), NVME_VS_TER(prop->vs));
+
 	ret = nvme_read_ctrl_cc(fd, &prop->cc);
 	if (ret < 0)
 		return ret;
@@ -256,6 +263,7 @@ static int nvme_init_stage1(int fd, struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
+	ndev->vid = le16_to_cpu(ndev->id_ctrl.vid);
 	nvme_display_id_ctrl(&ndev->id_ctrl);
 	return 0;
 }

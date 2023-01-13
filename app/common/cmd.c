@@ -192,6 +192,26 @@ int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
  */
+int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_features feat = {0};
+
+	feat.opcode = nvme_admin_get_features;
+	feat.nsid = cpu_to_le32(nsid);
+	feat.fid = cpu_to_le32(fid);
+	feat.dword11 = cpu_to_le32(dw11);
+
+	cmd.q_id = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &feat;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf, 
 	uint32_t size)
 {

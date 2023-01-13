@@ -12,11 +12,18 @@
 #ifndef _UAPI_DEFS_H_
 #define _UAPI_DEFS_H_
 
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(x)			(sizeof(x) / sizeof(x[0]))
+#endif
 
+#ifndef DIV_ROUND_UP
 #define DIV_ROUND_UP(n,d)		(((n) + (d) - 1) / (d))
+#endif
 
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
 
-#endif /* !_UAPI_DEFS_H_ */
+#ifndef BIT
+#define BIT(x)				(1UL << (x))
+#endif
 
+#endif /* !_UAPI_DEFS_H_ */
