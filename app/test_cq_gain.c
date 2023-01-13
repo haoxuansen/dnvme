@@ -20,19 +20,19 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_irq.h"
 #include "test_cq_gain.h"
 
 char *tmpfile_dump = "/tmp/dump_cq.txt";
 
-int disp_cq_data(unsigned char *cq_buffer, int reap_num)
+int disp_cq_data(struct nvme_completion *cq_entry, int reap_num)
 {
 	int ret_val = SUCCEED;
-	struct nvme_completion *cq_entry = NULL;
+
 	while (reap_num)
 	{
-		cq_entry = (struct nvme_completion *)cq_buffer;
 		if (NVME_CQE_STATUS_TO_STATE(cq_entry->status)) // status != 0 !!!!! force display
 		{
 			pr_warn("Reaped:cmd_id=%d, dw0=%#x, phase_bit=%d, sq_head_ptr=%#x, sq_id=%d, sts=%#x\n",
@@ -53,14 +53,15 @@ int disp_cq_data(unsigned char *cq_buffer, int reap_num)
 				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 		}
 		reap_num--;
-		cq_buffer += sizeof(struct nvme_completion);
+		cq_entry++;
 	}
 	return ret_val;
 }
 
 int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	int ret_val = SUCCEED;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
@@ -68,7 +69,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 	*reaped_num = 0;
 
 	// check cq id
-	if (cq_id > g_nvme_dev.max_cq_num)
+	if (cq_id > ndev->max_cq_num)
 	{
 		pr_err("cq_id is exceed!!!\n");
 		return FAILED;
@@ -76,8 +77,8 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 
 	rp_cq.q_id = cq_id;
 	rp_cq.elements = expect_num;
-	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
+	rp_cq.size = tool->entry_size;
+	rp_cq.buffer = (uint8_t *)tool->entry;
 
 	while (*reaped_num < expect_num)
 	{
@@ -112,7 +113,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 			break;
 		}
 	}
-	if (disp_cq_data(g_cq_entry_buf, *reaped_num))
+	if (disp_cq_data(tool->entry, *reaped_num))
 	{
 		ret_val = FAILED;
 	}
@@ -121,14 +122,15 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 
 int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , uint32_t disp_cq)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	int ret_val = SUCCEED;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
 
 	*reaped_num = 0;
 
-	if (cq_id > g_nvme_dev.max_cq_num)
+	if (cq_id > ndev->max_cq_num)
 	{
 		pr_err("cq_id is exceed!!!\n");
 		return FAILED;
@@ -136,8 +138,8 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 
 	rp_cq.q_id = cq_id;
 	rp_cq.elements = expect_num;
-	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
+	rp_cq.size = tool->entry_size;
+	rp_cq.buffer = (uint8_t *)tool->entry;
 
 	while (*reaped_num < expect_num)
 	{
@@ -173,7 +175,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 	}
 	if(disp_cq)
 	{
-		ret_val = disp_cq_data(g_cq_entry_buf, *reaped_num);
+		ret_val = disp_cq_data(tool->entry, *reaped_num);
 	}
 	return ret_val;
 }
@@ -181,14 +183,17 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 
 struct nvme_completion *get_cq_entry(void)
 {
-	return (struct nvme_completion *)g_cq_entry_buf;
+	struct nvme_tool *tool = g_nvme_tool;
+
+	return (struct nvme_completion *)tool->entry;
 }
 
 /***********************/
 //for command_arbitration
 int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	int ret_val = -1;
 	struct nvme_reap rp_cq = {0};
 	uint64_t cq_to_cnt = 0;
@@ -226,8 +231,8 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 	// uint32_t cmd_sum_num = 0;
 
 	rp_cq.elements = 0; //
-	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
+	rp_cq.size = tool->entry_size;
+	rp_cq.buffer = (uint8_t *)tool->entry;
 	while (reaped_num < arb_parameter->expect_num)
 	{
 		for (i = 1; i <= 8; i++)
@@ -269,7 +274,7 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 	// cmd_sum_num = arb_parameter->hight_prio_cmd_num + arb_parameter->medium_prio_cmd_num + arb_parameter->low_prio_cmd_num;
 
 	loop = 0;
-	cq_buffer = g_cq_entry_buf;
+	cq_buffer = (unsigned char *)tool->entry;
 	for (cq_cmd_cnt = 1; cq_cmd_cnt <= reaped_num; cq_cmd_cnt++)
 	{
 		cq_entry = (struct nvme_completion *)cq_buffer;
@@ -481,7 +486,8 @@ GOOUT:
 
 int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	int ret_val = -1;
 	struct nvme_reap rp_cq = {0};
 	uint64_t cq_to_cnt = 0;
@@ -506,8 +512,8 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 	uint32_t low_cnt = 0;
 
 	rp_cq.elements = 0; //
-	rp_cq.size = (uint32_t)BUFFER_CQ_ENTRY_SIZE;
-	rp_cq.buffer = (uint8_t *)g_cq_entry_buf;
+	rp_cq.size = tool->entry_size;
+	rp_cq.buffer = (uint8_t *)tool->entry;
 	while (reaped_num < arb_parameter->expect_num)
 	{
 		for (i = 1; i <= qnum; i++)
@@ -547,7 +553,7 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 	// loop_data = arb_parameter->Arbit_HPW + 1 + arb_parameter->Arbit_MPW + 1 + arb_parameter->Arbit_LPW + 1;
 	// cmd_sum_num = arb_parameter->hight_prio_cmd_num + arb_parameter->medium_prio_cmd_num + arb_parameter->low_prio_cmd_num;
 
-	cq_buffer = g_cq_entry_buf;
+	cq_buffer = (unsigned char *)tool->entry;
 	for (cq_cmd_cnt = 1; cq_cmd_cnt <= reaped_num; cq_cmd_cnt++)
 	{
 		cq_entry = (struct nvme_completion *)cq_buffer;

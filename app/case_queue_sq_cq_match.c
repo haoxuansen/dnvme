@@ -6,6 +6,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_cq_gain.h"
 #include "test_send_cmd.h"
@@ -27,7 +28,8 @@ static char *disp_this_case = ".1 one to one test: cq 1 <---> sq 1, from 1 to 8 
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t index = 0;
     uint32_t cmd_cnt = 0;
     uint32_t io_sq_id = 1;
@@ -50,7 +52,7 @@ static void test_sub(void)
     sq_size = 16384;
 
     pr_color(LOG_COLOR_PURPLE, "  Create contig sq assoc cq 1-max_sq_num, sq_size = %d\n", sq_size);
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_cq_id = io_sq_id = index;
         test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
@@ -61,19 +63,19 @@ static void test_sub(void)
     wr_slba = 0;
     wr_nlb = 8;
     pr_div("\n\033[35m  Sending IO Write && Read Command to SQ1-max \033[0m\n");
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     }
     pr_div("\033[35m  Ringing Doorbell for SQ1-max IO cmd\033[0m\n");
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     }
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_cq_id = index;
         test_flag |= cq_gain(io_cq_id, 2, &reap_num);
@@ -101,20 +103,20 @@ static void test_sub(void)
     wr_slba = 0;
     wr_nlb = 8;
 
-    for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 2; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     }
     pr_div("\033[35m  Ringing Doorbell for SQ 2-max IO cmd\033[0m\n");
-    for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 2; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     }
 
-    for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 2; index <= ndev->max_sq_num; index++)
     {
         io_cq_id = index;
         test_flag |= cq_gain(io_cq_id, 2, &reap_num);
@@ -125,7 +127,7 @@ static void test_sub(void)
     /**********************************************************************/
     pr_div("\033[35m  Deleting SQ1-max\033[0m\n");
     cmd_cnt = 0;
-    for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 2; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -138,7 +140,7 @@ static void test_sub(void)
     /**********************************************************************/
     pr_div("\033[35m  Deleting CQ1-max\033[0m\n");
     cmd_cnt = 0;
-    for (index = 2; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 2; index <= ndev->max_sq_num; index++)
     {
         io_cq_id = index;
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
@@ -150,8 +152,8 @@ static void test_sub(void)
 
     /*******************************************************************************************************************************/
 
-    io_cq_id = rand() % g_nvme_dev.max_sq_num + 1;
-    pr_color(LOG_COLOR_PURPLE,".2: cq %d <---> sq 1~g_nvme_dev.max_sq_num\n", io_cq_id);
+    io_cq_id = rand() % ndev->max_sq_num + 1;
+    pr_color(LOG_COLOR_PURPLE,".2: cq %d <---> sq 1~ndev->max_sq_num\n", io_cq_id);
     io_sq_id = 1;
 
     cq_size = 16384;
@@ -159,13 +161,13 @@ static void test_sub(void)
 
     test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    pr_div("\n\033[35m  Preparing io_sq_id 1-g_nvme_dev.max_sq_num: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
+    pr_div("\n\033[35m  Preparing io_sq_id 1-ndev->max_sq_num: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
     cmd_cnt = 0;
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     sq_parameter.cq_id = io_cq_id;
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         sq_parameter.sq_id = index;
         test_flag |= create_iosq(ndev->fd, &sq_parameter);
@@ -180,18 +182,18 @@ static void test_sub(void)
     wr_slba = 0;
     wr_nlb = 8;
     cmd_cnt = 0;
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
         cmd_cnt++;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
 
     pr_div("\033[35m  Ringing Doorbell for SQ1-max IO cmd\033[0m\n");
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
@@ -202,7 +204,7 @@ static void test_sub(void)
     /**********************************************************************/
     pr_div("\033[35m  Deleting SQ1-max\033[0m\n");
     cmd_cnt = 0;
-    for (index = 1; index <= g_nvme_dev.max_sq_num; index++)
+    for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_sq_id = index;
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -220,8 +222,8 @@ static void test_sub(void)
 
     /*******************************************************************************************************************************/
 
-    io_cq_id = rand() % g_nvme_dev.max_sq_num + 1;
-    pr_color(LOG_COLOR_PURPLE,".3: cq %d <---> sq g_nvme_dev.max_sq_num~1\n", io_cq_id);
+    io_cq_id = rand() % ndev->max_sq_num + 1;
+    pr_color(LOG_COLOR_PURPLE,".3: cq %d <---> sq ndev->max_sq_num~1\n", io_cq_id);
     io_sq_id = 1;
 
     cq_size = 16384;
@@ -229,13 +231,13 @@ static void test_sub(void)
 
     test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    pr_div("\n\033[35m  Preparing io_sq_id g_nvme_dev.max_sq_num-1: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
+    pr_div("\n\033[35m  Preparing io_sq_id ndev->max_sq_num-1: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
     cmd_cnt = 0;
     sq_parameter.sq_size = sq_size;
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     sq_parameter.cq_id = io_cq_id;
-    for (index = g_nvme_dev.max_sq_num; index >= 1; index--)
+    for (index = ndev->max_sq_num; index >= 1; index--)
     {
         sq_parameter.sq_id = index;
         test_flag |= create_iosq(ndev->fd, &sq_parameter);
@@ -250,18 +252,18 @@ static void test_sub(void)
     cmd_cnt = 0;
     wr_nlb = 8;
     cmd_cnt = 0;
-    for (index = g_nvme_dev.max_sq_num; index >= 1; index--)
+    for (index = ndev->max_sq_num; index >= 1; index--)
     {
         io_sq_id = index;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
         cmd_cnt++;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
         wr_slba += wr_nlb;
     }
 
     pr_div("\033[35m  Ringing Doorbell for SQ8-SQ1 IO cmd\033[0m\n");
-    for (index = g_nvme_dev.max_sq_num; index >= 1; index--)
+    for (index = ndev->max_sq_num; index >= 1; index--)
     {
         io_sq_id = index;
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
@@ -272,7 +274,7 @@ static void test_sub(void)
     /**********************************************************************/
     pr_div("\033[35m  Deleting SQ8-SQ1\033[0m\n");
     cmd_cnt = 0;
-    for (index = g_nvme_dev.max_sq_num; index >= 1; index--)
+    for (index = ndev->max_sq_num; index >= 1; index--)
     {
         io_sq_id = index;
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -359,9 +361,9 @@ static void test_sub(void)
     for (index = 1; index <= 4; index++)
     {
         io_sq_id = index;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
         //cmd_cnt++;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         //cmd_cnt++;
         wr_slba += wr_nlb;
     }
@@ -415,13 +417,13 @@ static void test_sub(void)
     // pr_div("\n\033[35m  Preparing cq:sq 1: 4; 2: 3; 3: 1,2; sq_size = %d \033[0m\n", sq_size);
     pr_div("\n\033[35m  Sending IO Write && Read Command to SQ1,SQ2 \033[0m\n");
     io_sq_id = 1;
-    test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
-    test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+    test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     wr_slba += wr_nlb;
 
     io_sq_id = 2;
-    test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
-    test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+    test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     wr_slba += wr_nlb;
 
     pr_div("\033[35m  Ringing Doorbell for SQ2,SQ3 \033[0m\n");
@@ -450,8 +452,8 @@ static void test_sub(void)
 
     /*******************************************************************************************************************************/
 
-    io_cq_id = rand() % g_nvme_dev.max_sq_num + 1;
-    io_sq_id = rand() % g_nvme_dev.max_sq_num + 1;
+    io_cq_id = rand() % ndev->max_sq_num + 1;
+    io_sq_id = rand() % ndev->max_sq_num + 1;
     pr_color(LOG_COLOR_PURPLE,".5 random sq:%d/cq:%d  match\n", io_sq_id, io_cq_id);
 
     cq_size = 16384;
@@ -483,9 +485,9 @@ static void test_sub(void)
     wr_slba = 0;
     wr_nlb = 8 * (rand() % 10 + 1);
     cmd_cnt = 0;
-    test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+    test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
     cmd_cnt++;
-    test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     cmd_cnt++;
 
     pr_div("\033[35m  Ringing Doorbell for SQ1-SQ8 IO cmd\033[0m\n");

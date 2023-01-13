@@ -13,13 +13,16 @@
 
 #include "log.h"
 #include "dnvme_ioctl.h"
+
 #include "core.h"
 #include "cmd.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_queue.h"
 
-static int send_io_read_to_asq(struct nvme_dev_info *ndev)
+static int send_io_read_to_asq(struct nvme_tool *tool)
 {
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_info *nss = ndev->nss;
 	struct nvme_rwc_wrapper wrap = {0};
 	int ret;
@@ -29,7 +32,7 @@ static int send_io_read_to_asq(struct nvme_dev_info *ndev)
 	wrap.nsid = nss[0].nsid;
 	wrap.slba = 0;
 	wrap.nlb = 8;
-	wrap.buf = g_read_buf;
+	wrap.buf = tool->rbuf;
 	wrap.size = wrap.nlb * nss[0].lbads;
 
 	ret = nvme_io_read(ndev->fd, &wrap);
@@ -42,8 +45,9 @@ static int send_io_read_to_asq(struct nvme_dev_info *ndev)
 	}
 }
 
-static int send_io_write_to_asq(struct nvme_dev_info *ndev)
+static int send_io_write_to_asq(struct nvme_tool *tool)
 {
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_info *nss = ndev->nss;
 	struct nvme_rwc_wrapper wrap = {0};
 	int ret;
@@ -53,7 +57,7 @@ static int send_io_write_to_asq(struct nvme_dev_info *ndev)
 	wrap.nsid = nss[0].nsid;
 	wrap.slba = 0;
 	wrap.nlb = 8;
-	wrap.buf = g_write_buf;
+	wrap.buf = tool->wbuf;
 	wrap.size = wrap.nlb * nss[0].lbads;
 
 	ret = nvme_io_write(ndev->fd, &wrap);
@@ -68,17 +72,16 @@ static int send_io_write_to_asq(struct nvme_dev_info *ndev)
 
 int case_queue_iocmd_to_asq(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
 	int ret;
 
-	ret = send_io_read_to_asq(ndev);
+	ret = send_io_read_to_asq(tool);
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_to_asq(ndev);
+	ret = send_io_write_to_asq(tool);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
-

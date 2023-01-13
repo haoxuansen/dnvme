@@ -11,6 +11,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -37,7 +38,8 @@ static char *disp_this_case = "this case will tests PCIe Max Read Request Size\n
 
 static void set_pcie_mrrs_128(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 128
@@ -52,7 +54,8 @@ static void set_pcie_mrrs_128(void)
 
 static void set_pcie_mrrs_256(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 256
@@ -68,7 +71,8 @@ static void set_pcie_mrrs_256(void)
 
 static void set_pcie_mrrs_512(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 512
@@ -84,7 +88,8 @@ static void set_pcie_mrrs_512(void)
 
 static void pcie_packet(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("\nTest: Sending IO Write Command through sq_id %d\n", io_sq_id);
     wr_slba = 0;
@@ -92,9 +97,9 @@ static void pcie_packet(void)
     cmd_cnt = 0;
     for (i = 0; i < 1; i++)
     {
-        nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
         cmd_cnt++;
-        //nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        //nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         //cmd_cnt++;
     }
     pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
@@ -105,7 +110,8 @@ static void pcie_packet(void)
 
 static void set_pcie_rcb_64(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -131,7 +137,8 @@ static void set_pcie_rcb_64(void)
 
 static void set_pcie_rcb_128(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -196,7 +203,8 @@ static void test_sub(void)
 
 int case_pcie_MRRS(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
     int ret;
     int test_round = 0;
@@ -234,7 +242,7 @@ int case_pcie_MRRS(void)
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Read Request Size
-    ret = pci_read_config_dword(ndev->fd, g_nvme_dev.pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

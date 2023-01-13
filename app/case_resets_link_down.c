@@ -9,11 +9,11 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
-#include "test_init.h"
 
 static int test_flag = SUCCEED;
 
@@ -32,13 +32,14 @@ static void test_sub(void)
     uint16_t wr_nlb = 0;
     uint32_t wr_nsid = 1;
 
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct create_cq_parameter cq_parameter = {0};
     struct create_sq_parameter sq_parameter = {0};
     uint32_t reap_num = 0;
 
     /**********************************************************************/
-    io_sq_id = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
+    io_sq_id = BYTE_RAND() % ndev->max_sq_num + 1;
     pr_info("create SQ %d\n", io_sq_id);
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
@@ -71,9 +72,9 @@ static void test_sub(void)
         wr_nlb = WORD_RAND() % 255 + 1;
         if (wr_slba + wr_nlb < ndev->nss[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
             cmd_cnt++;
         }
     }

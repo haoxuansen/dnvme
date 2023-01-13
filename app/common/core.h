@@ -81,6 +81,9 @@ struct nvme_dev_info {
 	struct nvme_ctrl_property	prop;
 };
 
+struct nvme_dev_info *nvme_init(const char *devpath);
+void nvme_deinit(struct nvme_dev_info *ndev);
+
 int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
 	enum nvme_irq_type type);
 

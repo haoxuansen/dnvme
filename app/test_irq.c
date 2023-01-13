@@ -21,6 +21,7 @@
 #include "cmd.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_irq.h"
@@ -28,19 +29,20 @@
 
 void test_irq_review568(int fd)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int i;
     i = 10000;
     while (i)
     {
         pr_info("\nIRQ Loop Test = %d\n", i + 1);
         nvme_set_irq(fd, NVME_INT_MSIX, 2);
-        g_nvme_dev.irq_type = NVME_INT_MSIX;
-	g_nvme_dev.nr_irq = 2;
+        ndev->irq_type = NVME_INT_MSIX;
+	    ndev->nr_irq = 2;
         i--;
     }
     nvme_set_irq(ndev->fd, NVME_INT_NONE, 0);
-    g_nvme_dev.irq_type = NVME_INT_NONE;
+    ndev->irq_type = NVME_INT_NONE;
     pr_info("\nCalling Dump Metrics to irq_loop_test\n");
     nvme_dump_log(fd, "/tmp/test_rev568.txt");
     pr_info("\nPressAny key..\n");
@@ -140,7 +142,7 @@ void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
                          NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
-    user_cmd.data_buf_size = RW_BUFFER_SIZE;
+    user_cmd.data_buf_size = NVME_TOOL_RW_BUF_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
@@ -176,7 +178,7 @@ void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
                          NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
-    user_cmd.data_buf_size = RW_BUFFER_SIZE;
+    user_cmd.data_buf_size = NVME_TOOL_RW_BUF_SIZE;
     user_cmd.data_buf_ptr = addr;
     user_cmd.meta_buf_id = id;
     user_cmd.data_dir = 0;

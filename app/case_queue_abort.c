@@ -8,6 +8,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -53,6 +54,8 @@ static SubCase_t sub_case_list[] = {
 
 int case_queue_abort(void)
 {
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 
     test_loop = 1;
@@ -61,7 +64,7 @@ int case_queue_abort(void)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
+        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
         {
             test_flag = SUCCEED;
             io_sq_id = index;
@@ -79,7 +82,8 @@ int case_queue_abort(void)
 
 static int sub_case_pre(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -91,7 +95,8 @@ static int sub_case_pre(void)
 }
 static int sub_case_end(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -109,12 +114,13 @@ static int sub_case_end(void)
  */
 static int sub_case_abort_1_wrd_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
     cmd_cnt = 0;
-    test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+    test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
     cmd_cnt++;
     // send abort cmd
     ioctl_send_abort(ndev->fd, io_sq_id, 0);
@@ -132,14 +138,15 @@ static int sub_case_abort_1_wrd_cmd(void)
 
 static int sub_case_random_abort_1_wrd_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
     cmd_cnt = 0;
     for (uint32_t index = 0; index < 20; index++)
     {
-        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
         cmd_cnt++;
     }
     //random select 1 cmd (read or write) to abort
@@ -159,7 +166,8 @@ static int sub_case_random_abort_1_wrd_cmd(void)
 
 static int sub_case_abort_2_wrd_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -167,7 +175,7 @@ static int sub_case_abort_2_wrd_cmd(void)
     send_num = ((WORD_RAND() % 300) + 100);
     for (uint32_t index = 0; index < send_num; index++)
     {
-        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
         cmd_cnt++;
         if (index == 25)
             ioctl_send_abort(ndev->fd, io_sq_id, index);
@@ -187,7 +195,8 @@ static int sub_case_abort_2_wrd_cmd(void)
 
 static int sub_case_abort_3_wrd_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -195,7 +204,7 @@ static int sub_case_abort_3_wrd_cmd(void)
     send_num = ((WORD_RAND() % 300) + 100);
     for (uint32_t index = 0; index < send_num; index++)
     {
-        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
         cmd_cnt++;
     }
     // send abort cmd
@@ -217,7 +226,8 @@ static int sub_case_abort_3_wrd_cmd(void)
 
 static int sub_case_abort_4_wrd_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     wr_slba = 0;
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -225,7 +235,7 @@ static int sub_case_abort_4_wrd_cmd(void)
     send_num = ((WORD_RAND() % 300) + 100);
     for (uint32_t index = 0; index < send_num; index++)
     {
-        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+        test_flag |= nvme_send_iocmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
         cmd_cnt++;
     }
     // send abort cmd

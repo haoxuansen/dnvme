@@ -8,6 +8,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -22,7 +23,8 @@ static char *disp_this_case = "this case will tests creat IO sq with different q
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t q_index = 0;
     uint32_t qsize_index = 0;
 
@@ -64,7 +66,7 @@ static void test_sub(void)
         sq_size = q_size[qsize_index];
         cq_parameter.cq_size = cq_size;
         sq_parameter.sq_size = sq_size;
-        for (q_index = 1; q_index <= g_nvme_dev.max_sq_num; q_index++)
+        for (q_index = 1; q_index <= ndev->max_sq_num; q_index++)
         {
             /**********************************************************************/
             io_cq_id = q_index;
@@ -92,9 +94,9 @@ static void test_sub(void)
             for (index = 0; index < (uint32_t)(sq_parameter.sq_size - 1) / 2; index++)
             {
                 // pr_info("cmd_cnt:%d\n", cmd_cnt);
-                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
-                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
                 cmd_cnt++;
 
                 //wr_slba += wr_nlb;
@@ -134,7 +136,7 @@ static void test_sub(void)
         sq_size = test2_sq_size[qsize_index];
         cq_parameter.cq_size = cq_size;
         sq_parameter.sq_size = sq_size;
-        for (q_index = 1; q_index <= g_nvme_dev.max_sq_num; q_index++)
+        for (q_index = 1; q_index <= ndev->max_sq_num; q_index++)
         {
             /**********************************************************************/
             io_cq_id = q_index;
@@ -162,9 +164,9 @@ static void test_sub(void)
             for (index = 1; index <= test2_sq_1_send[qsize_index] / 2; index++)
             {
                 // pr_info("cmd_cnt:%d\n", cmd_cnt);
-                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
-                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
                 cmd_cnt++;
                 //wr_slba += wr_nlb;
             }
@@ -181,9 +183,9 @@ static void test_sub(void)
             cmd_cnt = 0;
             for (index = 1; index <= test2_sq_2_send[qsize_index] / 2; index++)
             {
-                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
-                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
                 cmd_cnt++;
                 // wr_slba += wr_nlb;
             }

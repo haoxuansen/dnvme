@@ -18,6 +18,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -60,6 +61,8 @@ static SubCase_t sub_case_list[] = {
 
 int test_2_mix_case(void)
 {
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 
     test_loop = 2;
@@ -68,7 +71,7 @@ int test_2_mix_case(void)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
+        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -85,7 +88,8 @@ int test_2_mix_case(void)
 
 static int sub_case_pre(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -98,7 +102,8 @@ static int sub_case_pre(void)
 
 static int sub_case_end(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -108,10 +113,11 @@ static int sub_case_end(void)
 
 static int sub_case_io_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint8_t tmp_fg = 0;
 
-    for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
+    for (uint32_t ns_idx = 0; ns_idx < ndev->id_ctrl.nn; ns_idx++)
     {
         wr_nsid = ns_idx + 1;
         // wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
@@ -127,11 +133,11 @@ static int sub_case_io_cmd(void)
 
             if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
-                mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-                mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+                mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+                mem_set(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
                 cmd_cnt = 0;
-                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+                test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 if (test_flag == SUCCEED)
                 {
                     cmd_cnt++;
@@ -144,7 +150,7 @@ static int sub_case_io_cmd(void)
                 }
 
                 cmd_cnt = 0;
-                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+                test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
                 if (test_flag == SUCCEED)
                 {
                     cmd_cnt++;
@@ -155,15 +161,15 @@ static int sub_case_io_cmd(void)
                 {
                     goto out;
                 }
-                tmp_fg = dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+                tmp_fg = dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                 test_flag |= tmp_fg;
                 if (tmp_fg != SUCCEED)
                 {
                     pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
                     pr_info("\nwrite_buffer Data:\n");
-                    mem_disp(g_write_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+                    mem_disp(tool->wbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                     pr_info("\nRead_buffer Data:\n");
-                    mem_disp(g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+                    mem_disp(tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
                     break;
                 }
                 wr_slba += wr_nlb;
@@ -176,7 +182,8 @@ out:
 
 static int sub_case_fwdma_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t data_len = 0;
     uint32_t reap_num = 0;
     // uint32_t wr_nlb = 0;
@@ -193,7 +200,7 @@ static int sub_case_fwdma_cmd(void)
 #else
     fwdma_wr_buffer = malloc(8192);
     fwdma_rd_buffer = malloc(8192);
-    if ((g_write_buf == NULL) || (g_read_buf == NULL))
+    if ((tool->wbuf == NULL) || (tool->rbuf == NULL))
     {
         pr_err("Malloc Failed\n");
         return FAILED;

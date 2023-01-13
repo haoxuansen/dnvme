@@ -18,6 +18,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -54,6 +55,8 @@ static SubCase_t sub_case_list[] = {
 
 int test_1_fused(void)
 {
+    struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 
     test_loop = 2;
@@ -62,7 +65,7 @@ int test_1_fused(void)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
+        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -79,7 +82,8 @@ int test_1_fused(void)
 
 static int sub_case_pre(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -91,7 +95,8 @@ static int sub_case_pre(void)
 }
 static int sub_case_end(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -101,16 +106,17 @@ static int sub_case_end(void)
 
 static int sub_case_cmpare_write_fused_cmd(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
-    for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
+    for (uint32_t ns_idx = 0; ns_idx < ndev->id_ctrl.nn; ns_idx++)
     {
         wr_nsid = ns_idx + 1;
         wr_slba = 0;
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-        mem_set(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+        mem_set(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
 		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
@@ -119,7 +125,7 @@ static int sub_case_cmpare_write_fused_cmd(void)
         wr_nlb = 64;
 
         cmd_cnt = 0;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
@@ -132,7 +138,7 @@ static int sub_case_cmpare_write_fused_cmd(void)
         }
 
         cmd_cnt = 0;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         if (test_flag == SUCCEED)
         {
             cmd_cnt++;
@@ -146,8 +152,8 @@ static int sub_case_cmpare_write_fused_cmd(void)
         pr_info("write read done!\n");
 
         pr_info("start send cmpare & write fused cmd\n");
-        test_flag |= nvme_io_compare_cmd(ndev->fd, NVME_CMD_FUSE_FIRST, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
-        test_flag |= nvme_io_write_cmd(ndev->fd, NVME_CMD_FUSE_SECOND, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_compare_cmd(ndev->fd, NVME_CMD_FUSE_FIRST, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, NVME_CMD_FUSE_SECOND, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         if (test_flag == SUCCEED)
         {
             test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);

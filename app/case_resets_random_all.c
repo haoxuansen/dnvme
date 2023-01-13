@@ -10,11 +10,11 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
-#include "test_init.h"
 
 static int test_flag = SUCCEED;
 static uint8_t test_type = 1; //
@@ -29,7 +29,8 @@ static void test_sub(void)
     uint32_t cmd_cnt = 0;
     uint32_t io_sq_id = 1;
     uint32_t io_cq_id = 1;
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
     uint32_t cq_size = NVME_CAP_MQES(prop->cap);
     uint32_t sq_size = NVME_CAP_MQES(prop->cap);
@@ -48,7 +49,7 @@ static void test_sub(void)
     struct fwdma_parameter fwdma_parameter = {0};
 #endif
     /**********************************************************************/
-    io_sq_id = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
+    io_sq_id = BYTE_RAND() % ndev->max_sq_num + 1;
     pr_info("create SQ %d\n", io_sq_id);
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
@@ -90,11 +91,11 @@ static void test_sub(void)
 
         if (wr_slba + wr_nlb < ndev->nss[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, tool->wbuf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
             cmd_cnt++;
-            test_flag |= nvme_io_compare_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, g_write_buf);
+            test_flag |= nvme_io_compare_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, tool->wbuf);
             cmd_cnt++;
         }
     }
@@ -148,9 +149,9 @@ static void test_sub(void)
     else if (test_type == 4)
     {
         pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset ...\n");
-        test_flag |= set_pcie_power_state(g_nvme_dev.pmcap_ofst, D3hot);
+        test_flag |= set_pcie_power_state(ndev->pmcap_ofst, D3hot);
         assert(test_flag == SUCCEED);
-        test_flag |= set_pcie_power_state(g_nvme_dev.pmcap_ofst, D0);
+        test_flag |= set_pcie_power_state(ndev->pmcap_ofst, D0);
         assert(test_flag == SUCCEED);
         pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset Done\n");
     }

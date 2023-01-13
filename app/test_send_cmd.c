@@ -30,10 +30,10 @@
 #include "irq.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
-#include "test_init.h"
 
 #include "auto_header.h"
 
@@ -423,6 +423,7 @@ int nvme_firmware_download(int g_fd, uint32_t numd, uint32_t ofst, uint8_t *dptr
  */
 int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
 {
+    struct nvme_tool *tool = g_nvme_tool;
     int ret_val = FAILED;
 
     struct nvme_64b_cmd user_cmd = {0};
@@ -463,8 +464,8 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
     else
     {
         user_cmd.bit_mask = (NVME_MASK_PRP1_LIST);
-        user_cmd.data_buf_size = DISCONTIG_IO_CQ_SIZE;
-        user_cmd.data_buf_ptr = g_discontig_cq_buf;
+        user_cmd.data_buf_size = tool->cq_buf_size;
+        user_cmd.data_buf_ptr = tool->cq_buf;
     }
 
     ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
@@ -488,6 +489,7 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
  */
 int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
 {
+    struct nvme_tool *tool = g_nvme_tool;
     int ret_val = FAILED;
     struct nvme_64b_cmd user_cmd = {0};
     struct nvme_create_sq create_sq_cmd = {0};
@@ -529,8 +531,8 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
     else
     {
         user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
-        user_cmd.data_buf_size = DISCONTIG_IO_SQ_SIZE;
-        user_cmd.data_buf_ptr = g_discontig_sq_buf;
+        user_cmd.data_buf_size = tool->sq_buf_size;
+        user_cmd.data_buf_ptr = tool->sq_buf;
         user_cmd.data_dir = 2;
     }
 
@@ -795,7 +797,8 @@ uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id)
 
 int ctrl_pci_flr(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     uint32_t bar_reg[6];
     uint8_t idx = 0;
@@ -835,7 +838,8 @@ int ctrl_pci_flr(void)
 
 int set_pcie_power_state(uint8_t pmcap, uint8_t dstate)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret_val = FAILED;
     uint32_t retry_cnt = 0, retry_cnt1 = 0;
@@ -958,7 +962,8 @@ static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t *data_addr, uint32_t bu
 int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                       uint16_t control, void *data_addr)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_write,
@@ -988,7 +993,8 @@ int nvme_io_write_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, ui
 int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                      uint16_t control, void *data_addr)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_read,
@@ -1019,7 +1025,8 @@ int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uin
 int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                         uint16_t control, void *data_addr)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_compare,
@@ -1037,7 +1044,8 @@ int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, 
 int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                                    uint16_t control, uint32_t id, void *data_addr)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_write,
@@ -1065,7 +1073,8 @@ int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint
 int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                                   uint16_t control, uint32_t id, void *data_addr)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t data_size;
     struct nvme_rw_command io_cmd = {
         .opcode = nvme_cmd_read,
@@ -1419,7 +1428,8 @@ void pcie_retrain_link(void)
 /********** PCIe hot reset **********/
 uint32_t pcie_hot_reset(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val = FAILED;
     uint8_t idx = 0;
     uint32_t u32_tmp_data = 0;
@@ -1456,7 +1466,8 @@ uint32_t pcie_hot_reset(void)
 /********** PCIe link down **********/
 uint32_t pcie_link_down(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     uint32_t bar_reg[6];
     uint8_t idx = 0;
@@ -1516,7 +1527,8 @@ void pcie_RC_cfg_speed(int speed)
  */
 void pcie_set_width(int width)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t u32_tmp_data;
     
@@ -1537,7 +1549,8 @@ void pcie_set_width(int width)
 
 void pcie_random_speed_width(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     uint8_t set_speed, set_width, cur_speed, cur_width;
     uint8_t speed_arr[] = {1, 2, 3};
@@ -1547,13 +1560,13 @@ void pcie_random_speed_width(void)
     // get speed and width random
     set_speed = speed_arr[BYTE_RAND() % ARRAY_SIZE(speed_arr)];
     set_width = width_arr[BYTE_RAND() % ARRAY_SIZE(width_arr)];
-    if (g_nvme_dev.link_speed < set_speed)
+    if (ndev->link_speed < set_speed)
     {
-        set_speed = g_nvme_dev.link_speed;
+        set_speed = ndev->link_speed;
     }
-    if (g_nvme_dev.link_width < set_width)
+    if (ndev->link_width < set_width)
     {
-        set_width = g_nvme_dev.link_width;
+        set_width = ndev->link_width;
     }
     pr_info("Set_PCIe_Gen%d, lane width X%d\n", set_speed, set_width);
     // fflush(stdout);
@@ -1588,7 +1601,8 @@ void pcie_random_speed_width(void)
  */
 uint32_t nvme_msi_register_test(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t u32_tmp_data = 0;
 

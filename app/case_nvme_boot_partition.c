@@ -11,8 +11,8 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
-#include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -38,7 +38,8 @@ static SubCase_t sub_case_list[] = {
 
 int case_nvme_boot_partition(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
     test_loop = 1;
     pr_info("\ntest will loop number: %d\n", test_loop);
@@ -60,7 +61,8 @@ int case_nvme_boot_partition(void)
 
 static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val = 0;
     uint32_t u32_tmp_data = 0;
     uint32_t try_cnt = 0, try_max;
@@ -106,7 +108,8 @@ error_out:
 
 int reading_boot_partition(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val;
     int fd = 0;
     uint8_t ABPID = 0;
@@ -178,7 +181,8 @@ error_out:
 
 int writeing_boot_partition(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t reap_num = 0;
 
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
@@ -225,7 +229,8 @@ int writeing_boot_partition(void)
 
 static int rd_wr_boot_part_ccen_0(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val;
     uint64_t cap;
     // if(test_flag == FAILED)
@@ -266,7 +271,8 @@ skip_out:
 
 static int rd_wr_boot_part_ccen_1(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val;
     uint64_t cap;
     // if(test_flag == FAILED)

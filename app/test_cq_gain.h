@@ -1,8 +1,6 @@
 #ifndef _TEST_CQ_GAIN_H_
 #define _TEST_CQ_GAIN_H_
 
-#define BUFFER_CQ_ENTRY_SIZE (64 * 1024 * 16) // q_size 64K
-
 #define CQ_ENTRY_SIZE 16
 //                                          s
 #define CQ_REAP_TO_US (uint64_t)(100*1000* 10) // max timeout time
@@ -32,6 +30,6 @@ uint32_t get_higt_weight_q_min_num(void);
 enum nvme_sq_prio get_prio_order(uint8_t i);
 int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter);
 
-int disp_cq_data(unsigned char *cq_buffer, int reap_num);
+int disp_cq_data(struct nvme_completion *cq_entry, int reap_num);
 
 #endif

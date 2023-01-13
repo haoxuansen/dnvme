@@ -10,6 +10,7 @@
 #include "pci.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -22,7 +23,8 @@ static char *disp_this_case = "this case will tests PCIe Reset single\n";
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     uint8_t cur_speed, cur_width;
     int cmds;
@@ -110,7 +112,8 @@ static void test_sub(void)
 
 int case_pcie_reset_single(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;

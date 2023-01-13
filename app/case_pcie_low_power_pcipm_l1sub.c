@@ -10,6 +10,7 @@
 #include "pci.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -27,7 +28,8 @@ static char *disp_this_case = "this case for PCIe PCIPM low power l1.1/l1.2 flow
 
 static void pcipm_l11_enable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -66,7 +68,8 @@ static void pcipm_l11_enable(void)
 
 static void pcipm_l12_enable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -105,7 +108,8 @@ static void pcipm_l12_enable(void)
 
 static void pcipm_l1sub_disable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -144,7 +148,8 @@ static void pcipm_l1sub_disable(void)
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int cmds = 0;
     int ret;
     uint32_t u32_tmp_data = 0;
@@ -195,7 +200,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 
     // pr_info("\nL1 --> L0 --> L1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x10);       //access EP
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
     // scanf("%d", &cmds);
 
     pr_info("\ndisable PCIPM L1.1\n");
@@ -207,7 +212,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 
     // pr_info("\nL1 --> L0 --> L1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x10);       //access EP
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
     // scanf("%d", &cmds);
 
     pr_info("\ndisable PCIPM L1.2\n");
@@ -217,7 +222,8 @@ static void test_sub(void)
 
 int case_pcie_low_power_pcipm_l1sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t offset, u32_tmp_data = 0;
     int ret;

@@ -10,6 +10,7 @@
 #include "pci.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -23,7 +24,8 @@ static char *disp_this_case = "this case will tests PCIe low power L1sub step\n"
 
 void pcie_L11_enable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
 
     // RC enable L1
@@ -42,7 +44,8 @@ void pcie_L11_enable(void)
 
 void pcie_L11_disable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
 
     // EP disable L1
@@ -61,7 +64,8 @@ void pcie_L11_disable(void)
 
 void pcie_L12_enable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t u32_tmp_data = 0;
     uint32_t reg_data = 0;
@@ -89,7 +93,8 @@ void pcie_L12_enable(void)
 
 void pcie_L12_disable(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
 
     // EP disable L1
@@ -108,7 +113,8 @@ void pcie_L12_disable(void)
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int cmds;
     int ret;
     uint32_t tmp;
@@ -129,7 +135,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(g_fd, g_nvme_dev.pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, ndev->pxcap_ofst + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -153,7 +159,7 @@ static void test_sub(void)
 
     // //clkreq# rise
     // pr_info("\nL1.1 exit then enter\n");
-    //pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x10);       //access EP
+    //pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
 
     // scanf("%d", &cmds);
     // //clkreq# fall
@@ -186,7 +192,8 @@ static void test_sub(void)
 
 int case_pcie_low_power_L1sub_step(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;

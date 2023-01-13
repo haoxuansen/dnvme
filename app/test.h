@@ -1,0 +1,47 @@
+/**
+ * @file test.h
+ * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
+ * @brief 
+ * @version 0.1
+ * @date 2023-01-13
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
+#ifndef _APP_TEST_H_
+#define _APP_TEST_H_
+
+#include "sizes.h"
+#include "core.h"
+
+#define NVME_TOOL_CQ_ENTRY_SIZE		SZ_1M /* CQES(16) * elements(64K) */
+#define NVME_TOOL_SQ_BUF_SIZE		SZ_4M /* SQES(64) * elements(64K) */
+#define NVME_TOOL_CQ_BUF_SIZE		SZ_1M /* CQES(16) * elements(64K) */
+#define NVME_TOOL_RW_BUF_SIZE		SZ_2M
+
+struct nvme_usr_param {
+	const char	*devpath;
+};
+
+struct nvme_tool {
+	struct nvme_usr_param	param;
+	struct nvme_dev_info	*ndev;
+
+	struct nvme_completion	*entry;
+	uint32_t		entry_size;
+
+	void		*rbuf;
+	uint32_t	rbuf_size;
+	void		*wbuf;
+	uint32_t	wbuf_size;
+
+	void		*sq_buf;
+	uint32_t	sq_buf_size;
+	void		*cq_buf;
+	uint32_t	cq_buf_size;
+};
+
+extern struct nvme_tool *g_nvme_tool;
+
+#endif /* !_APP_TEST_H_ */

@@ -18,6 +18,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
@@ -57,7 +58,9 @@ static SubCase_t sub_case_list[] = {
 int test_3_adm_wr_cache_fua(void)
 {
     uint32_t round_idx = 0;
-    struct nvme_ctrl_property *prop = &g_nvme_dev.prop;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
+    struct nvme_ctrl_property *prop = &ndev->prop;
     
     cq_size = NVME_CAP_MQES(prop->cap);
     sq_size = NVME_CAP_MQES(prop->cap);
@@ -68,7 +71,7 @@ int test_3_adm_wr_cache_fua(void)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= g_nvme_dev.max_sq_num; index++)
+        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -85,7 +88,8 @@ int test_3_adm_wr_cache_fua(void)
 
 static int sub_case_pre(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
@@ -98,7 +102,8 @@ static int sub_case_pre(void)
 
 static int sub_case_end(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -108,7 +113,8 @@ static int sub_case_end(void)
 
 static int sub_case_disable_volatile_wc(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_VOLATILE_WC, false, 0);
     if (test_flag == FAILED)
@@ -116,7 +122,7 @@ static int sub_case_disable_volatile_wc(void)
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", false);
     test_flag |= nvme_admin_ring_dbl_reap_cq(ndev->fd);
     wr_nsid = 1;
-    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
     cmd_cnt = 0;
     for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
     {
@@ -124,7 +130,7 @@ static int sub_case_disable_volatile_wc(void)
         wr_nlb = WORD_RAND() % 255 + 1;
         if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             if (test_flag == FAILED)
                 return test_flag;
             cmd_cnt++;
@@ -138,7 +144,8 @@ static int sub_case_disable_volatile_wc(void)
 
 static int sub_case_enable_volatile_wc(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_VOLATILE_WC, true, 0);
     if (test_flag == FAILED)
@@ -146,7 +153,7 @@ static int sub_case_enable_volatile_wc(void)
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", true);
     test_flag |= nvme_admin_ring_dbl_reap_cq(ndev->fd);
     wr_nsid = 1;
-    mem_set(g_write_buf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
     cmd_cnt = 0;
     for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
     {
@@ -154,7 +161,7 @@ static int sub_case_enable_volatile_wc(void)
         wr_nlb = WORD_RAND() % 255 + 1;
         if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
         {
-            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             if (test_flag == FAILED)
                 return test_flag;
             cmd_cnt++;

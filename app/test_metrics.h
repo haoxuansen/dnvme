@@ -21,12 +21,7 @@
 #define DEFAULT_IO_QUEUE_SIZE (65535)
 #define NSIDX(n) (n - 1)
 
-#define IDENTIFY_DATA_SIZE (4096)
-#define RW_BUFFER_SIZE (2 * 1024 * 1024)
 #define LBA_DAT_SIZE (512)
-
-#define DISCONTIG_IO_SQ_SIZE (1023 * 4096)
-#define DISCONTIG_IO_CQ_SIZE (255 * 4096)
 
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
@@ -125,13 +120,6 @@ uint32_t pcie_link_down(void);
 uint32_t pcie_hot_reset(void);
 
 void test_encrypt_decrypt(void);
-
-extern void *g_cq_entry_buf;
-extern void *g_read_buf;
-extern void *g_write_buf;
-extern void *g_discontig_sq_buf;
-extern void *g_discontig_cq_buf;
-extern struct nvme_dev_info g_nvme_dev;
 
 #define TEST_PASS "\nppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
                   "pp       pp     aa       aa     ss              ss          \n"   \

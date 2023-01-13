@@ -19,6 +19,7 @@
 #include "cmd.h"
 #include "queue.h"
 #include "debug.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_cmd.h"
 
@@ -74,9 +75,10 @@ static int delete_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 	return 0;
 }
 
-static int send_io_read_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
+static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 
 	wrap.sqid = sq->sqid;
@@ -84,17 +86,18 @@ static int send_io_read_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.buf = g_read_buf;
+	wrap.buf = tool->rbuf;
 	wrap.size = wrap.nlb * ndev->nss[0].lbads;
 
-	BUG_ON(wrap.size > RW_BUFFER_SIZE);
+	BUG_ON(wrap.size > tool->rbuf_size);
 
 	return nvme_io_read(ndev->fd, &wrap);
 }
 
-static int send_io_write_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
+static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 	uint32_t i;
 
@@ -103,10 +106,10 @@ static int send_io_write_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *sq
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.buf = g_write_buf;
+	wrap.buf = tool->wbuf;
 	wrap.size = wrap.nlb * ndev->nss[0].lbads;
 
-	BUG_ON(wrap.size > RW_BUFFER_SIZE);
+	BUG_ON(wrap.size > tool->wbuf_size);
 
 	for (i = 0; i < (wrap.size / 4); i+= 4) {
 		*(uint32_t *)(wrap.buf + i) = (uint32_t)rand();
@@ -115,9 +118,10 @@ static int send_io_write_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *sq
 	return nvme_io_write(ndev->fd, &wrap);
 }
 
-static int send_io_compare_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
+static int send_io_compare_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 
 	wrap.sqid = sq->sqid;
@@ -125,17 +129,18 @@ static int send_io_compare_cmd(struct nvme_dev_info *ndev, struct nvme_sq_info *
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.buf = g_read_buf;
+	wrap.buf = tool->rbuf;
 	wrap.size = wrap.nlb * ndev->nss[0].lbads;
 
-	BUG_ON(wrap.size > RW_BUFFER_SIZE);
+	BUG_ON(wrap.size > tool->rbuf_size);
 
 	return nvme_io_compare(ndev->fd, &wrap);
 }
 
 int case_cmd_send_io_read_cmd(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	int ret;
@@ -150,7 +155,7 @@ int case_cmd_send_io_read_cmd(void)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_read_cmd(ndev, sq, 0, 8);
+	ret = send_io_read_cmd(tool, sq, 0, 8);
 	if (ret < 0) {
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out;
@@ -166,7 +171,8 @@ out:
 
 int case_cmd_send_io_write_cmd(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	int ret;
@@ -181,7 +187,7 @@ int case_cmd_send_io_write_cmd(void)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(ndev, sq, 0, 8);
+	ret = send_io_write_cmd(tool, sq, 0, 8);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out;
@@ -197,7 +203,8 @@ out:
 
 int case_cmd_send_io_compare_cmd(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	uint64_t slba = 0;
@@ -215,9 +222,9 @@ int case_cmd_send_io_compare_cmd(void)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(ndev, sq, slba, nlb);
-	ret |= send_io_read_cmd(ndev, sq, slba, nlb);
-	ret |= send_io_compare_cmd(ndev, sq, slba, nlb);
+	ret = send_io_write_cmd(tool, sq, slba, nlb);
+	ret |= send_io_read_cmd(tool, sq, slba, nlb);
+	ret |= send_io_compare_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to compare data!(%d)\n", ret);
 		goto out;
@@ -225,7 +232,7 @@ int case_cmd_send_io_compare_cmd(void)
 
 	/* check again */
 	size = ndev->nss[0].lbads * nlb;
-	ret = memcmp(g_write_buf, g_read_buf, size);
+	ret = memcmp(tool->wbuf, tool->rbuf, size);
 	if (ret != 0) {
 		pr_err("failed to compare read/write buffer!\n");
 		ret = -EIO;

@@ -10,6 +10,7 @@
 #include "pci.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -24,7 +25,8 @@ static uint8_t cur_speed = 0, cur_width = 0;
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t reg_value, u32_tmp_data = 0;
     // int cmds;
@@ -134,12 +136,12 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=43"); //RC enable L0s&L1
     // //EP enable L0s&L1
     // u32_tmp_data = reg_value | 0x03;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     // //scanf("%d", &cmds);
     // usleep(10000);
 
     // pr_info("\nL1 --> L0 --> L0s&L1\n");//access EP
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst + 0x10);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst + 0x10);
     //                                                                 //scanf("%d", &cmds);
     // usleep(10000);
 
@@ -147,14 +149,15 @@ static void test_sub(void)
     // system("setpci -s 0:1.1 b0.b=40"); //RC disable L0s&L1
     // //EP disable L0s&L1
     // u32_tmp_data = reg_value;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
     // //scanf("%d", &cmds);
     // usleep(10000);
 }
 
 int case_pcie_low_power_L0s_L1_cyc(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;

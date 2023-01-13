@@ -10,6 +10,7 @@
 #include "pci.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -22,7 +23,8 @@ static char *disp_this_case = "this case will tests PCIe Link Speed and Width st
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t u32_tmp_data = 0;
     // int cmds;
@@ -156,7 +158,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    ret = pci_read_config_word(ndev->fd, g_nvme_dev.pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -202,10 +204,10 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen1 *********************/
     pr_info("\nSet PCIe link speed: Gen1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000001;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(1); // RC cfg gen1
     pcie_retrain_link();
@@ -228,10 +230,10 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen2 *********************/
     pr_info("\nSet PCIe link speed: Gen2\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000002;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(2); // RC cfg gen2
     pcie_retrain_link();
@@ -254,10 +256,10 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen3 *********************/
     pr_info("\nSet PCIe link speed: Gen3\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000003;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(3); // RC cfg gen3
     pcie_retrain_link();
@@ -280,10 +282,10 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen2 *********************/
     pr_info("\nSet PCIe link speed: Gen2\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000002;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(2); // RC cfg gen2
     pcie_retrain_link();
@@ -306,10 +308,10 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen1 *********************/
     pr_info("\nSet PCIe link speed: Gen1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000001;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(1); // RC cfg gen1
     pcie_retrain_link();
@@ -332,10 +334,10 @@ static void test_sub(void)
 
     /************************** Set PCIe link speed: Gen3 *********************/
     pr_info("\nSet PCIe link speed: Gen3\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x30);
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x30);
     // u32_tmp_data &= 0xFFFFFFF0;
     // u32_tmp_data |= 0x00000003;
-    // pci_write_config_data(g_fd, g_nvme_dev.pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(3); // RC cfg gen3
     pcie_retrain_link();
@@ -359,7 +361,8 @@ static void test_sub(void)
 
 int case_pcie_link_speed_width_step(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;

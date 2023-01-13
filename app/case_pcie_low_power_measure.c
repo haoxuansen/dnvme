@@ -11,6 +11,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -25,7 +26,8 @@ static char *disp_this_case = "this case for PCIe low power measure\n";
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int cmds = 0;
     int ret;
     uint32_t reg_value = 0;
@@ -119,15 +121,15 @@ static void test_sub(void)
 
     scanf("%d", &cmds);
     pr_info("\nL1 --> L0 --> L1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x10);       //access EP
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
 
     /**********************************************************************/
     cmd_cnt = 0;
     //for (uint32_t index = 1; index < (sq_size/2); index++)
     {
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
         cmd_cnt++;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
     }
     /**********************************************************************/
@@ -158,7 +160,8 @@ static void test_sub(void)
 
 int case_pcie_low_power_measure(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;

@@ -10,6 +10,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -261,7 +262,8 @@ static void test_sub(void)
     uint32_t cmd_cnt = 0;
     uint32_t io_sq_id = 1;
     uint32_t io_cq_id = 1;
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+    struct nvme_tool *tool = g_nvme_tool;
+    struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
     uint32_t cq_size = NVME_CAP_MQES(prop->cap);
     uint32_t sq_size = NVME_CAP_MQES(prop->cap);
@@ -402,13 +404,13 @@ static void test_sub(void)
     for (index = 0; index < sq1_cmd_num; index++)
     {
         io_sq_id = 1;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
     }
     for (index = 0; index < sq2_cmd_num; index++)
     {
         io_sq_id = 2;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
     }
 
@@ -416,13 +418,13 @@ static void test_sub(void)
     for (index = 0; index < sq3_cmd_num; index++)
     {
         io_sq_id = 3;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
     }
     for (index = 0; index < sq4_cmd_num; index++)
     {
         io_sq_id = 4;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
     }
 
@@ -430,13 +432,13 @@ static void test_sub(void)
     // for (index = 0; index < sq5_cmd_num; index++)
     // {
     //     io_sq_id = 5;
-    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     //     cmd_cnt++;
     // }
     // for (index = 0; index < sq6_cmd_num; index++)
     // {
     //     io_sq_id = 6;
-    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     //     cmd_cnt++;
     // }
 
@@ -444,13 +446,13 @@ static void test_sub(void)
     // for (index = 0; index < sq7_cmd_num; index++)
     // {
     //     io_sq_id = 7;
-    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     //     cmd_cnt++;
     // }
     // for (index = 0; index < sq8_cmd_num; index++)
     // {
     //     io_sq_id = 8;
-    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    //     test_flag |= nvme_io_read_cmd(g_fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     //     cmd_cnt++;
     // }
 
@@ -497,7 +499,7 @@ static void test_sub(void)
 
     arb_parameter.expect_num = cmd_cnt;
     test_flag |= arb_reap_all_cq_2(4, &arb_parameter);
-    //g_nvme_dev.max_sq_num
+
     /*******************************************************************************************************************************/
     pr_info("delete all sq\n");
     for (q_index = 1; q_index <= 4; q_index++)
@@ -524,7 +526,8 @@ static void test_sub(void)
 
 int case_command_arbitration(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+    struct nvme_tool *tool = g_nvme_tool;
+    struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     uint32_t reap_num = 0;

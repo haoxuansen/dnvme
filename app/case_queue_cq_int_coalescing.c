@@ -10,11 +10,11 @@
 
 #include "common.h"
 #include "unittest.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
-#include "test_init.h"
 
 static int test_flag = SUCCEED;
 static uint32_t test_loop = 0;
@@ -46,7 +46,8 @@ uint16_t coals_disable = 0;
 
 int case_queue_cq_int_coalescing(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 
     test_loop = 10;
@@ -102,12 +103,13 @@ int case_queue_cq_int_coalescing(void)
 
 static int sub_case_cq_int_coalescing(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_sq_info *sqs = ndev->iosqs;
 	enum nvme_irq_type type;
 	int ret;
     uint32_t index = 0;
-    uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
+    uint8_t queue_num = BYTE_RAND() % ndev->max_sq_num + 1;
     wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
 
@@ -145,7 +147,7 @@ static int sub_case_cq_int_coalescing(void)
         {
             if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+                test_flag |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
                 sqs[i].cmd_cnt++;
             }
         }

@@ -21,7 +21,7 @@
 
 #include "core.h"
 #include "cmd.h"
-#include "test_metrics.h"
+#include "test.h"
 #include "test_pm.h"
 
 static int get_power_state(int fd, uint8_t *ps)
@@ -113,7 +113,8 @@ static uint8_t select_next_power_state(struct nvme_dev_info *ndev)
 
 int case_pm_switch_power_state(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_property *prop = &ndev->prop;
 	uint8_t ps, ps_new;
 	uint32_t loop = 100;

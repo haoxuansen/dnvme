@@ -11,11 +11,11 @@
 
 #include "auto_header.h"
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
-#include "test_init.h"
 
 static int test_flag = SUCCEED;
 
@@ -25,7 +25,8 @@ static char *disp_this_case = "this case will tests MASK CQ interrupt type : msi
                               "!!!!!!!!!!!!!!!BIOS must open VTD!!!!!!!!!!!!!!!!!\n";
 void int_mask_bit(uint32_t msi_mask_flag)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t mask_index = 0;
     uint32_t index_max = 9;
     uint32_t mask_bit = 0;
@@ -43,8 +44,8 @@ void int_mask_bit(uint32_t msi_mask_flag)
     }
 #endif
     nvme_set_irq(ndev->fd, irq_type, 9);
-    g_nvme_dev.irq_type = irq_type;
-    g_nvme_dev.nr_irq = 9;
+    ndev->irq_type = irq_type;
+    ndev->nr_irq = 9;
 
     /*
     nvme_mask_irq(g_fd, 1);
@@ -80,7 +81,8 @@ void int_mask_bit(uint32_t msi_mask_flag)
 }
 void test_all_cq_cmd(uint32_t msi_mask_flag)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t q_index = 0;
 
     uint32_t index = 0;
@@ -168,9 +170,9 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         cmd_cnt = 0;
         for (index = 0; index < 5; index++)
         {
-            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             cmd_cnt++;
-            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
             cmd_cnt++;
             wr_slba += wr_nlb;
         }
@@ -279,7 +281,8 @@ static void test_sub(void)
 
 int case_queue_cq_int_msi_multi_mask(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
     pr_info("%s", disp_this_case);

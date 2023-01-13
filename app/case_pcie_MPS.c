@@ -11,6 +11,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -36,7 +37,8 @@ static char *disp_this_case = "this case will tests PCIe Max Payload Size\n";
 
 static void set_pcie_mps_128(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -57,15 +59,16 @@ static void set_pcie_mps_128(void)
     	exit(-1);
 
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
-    //pr_info("\nread g_nvme_dev.pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
-    //u32_tmp_data = pci_read_dword(g_fd, g_nvme_dev.pxcap_ofst+0x4);
+    //pr_info("\nread ndev->pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
+    //u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x4);
     //u32_tmp_data &= 0x07;
     pr_info("\nEP Max Payload Size support 128 byte, 0x%x\n", u32_tmp_data);
 }
 
 static void set_pcie_mps_256(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -92,7 +95,8 @@ static void set_pcie_mps_256(void)
 
 static void pcie_packet(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("\nTest: Sending IO Read Command through sq_id %d\n", io_sq_id);
     wr_slba = 0;
@@ -100,7 +104,7 @@ static void pcie_packet(void)
     cmd_cnt = 0;
     for (i = 0; i < 10; i++)
     {
-        nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+        nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
         cmd_cnt++;
     }
     pr_info("Ringing Doorbell for sq_id %d\n", io_sq_id);
@@ -130,7 +134,8 @@ int case_pcie_MPS(void)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
     int ret;
 

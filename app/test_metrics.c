@@ -26,6 +26,7 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_send_cmd.h"
 #include "test_metrics.h"
 #include "test_cq_gain.h"
@@ -101,7 +102,8 @@ uint32_t crc32_mpeg_2(uint8_t *data, uint32_t length)
 
 void test_encrypt_decrypt(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t io_sq_id = 1;
     uint32_t io_cq_id = 1;
     uint32_t reap_num;
@@ -118,52 +120,52 @@ void test_encrypt_decrypt(void)
         for (i = 0, j = 0, k = 0; i < 16; i++)
         {
             k = i * 4 + 3;
-            *((uint32_t *)g_write_buf + k) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)g_write_buf + 64 + k) = *((uint32_t *)g_write_buf + k);
+            *((uint32_t *)tool->wbuf + k) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)tool->wbuf + 64 + k) = *((uint32_t *)tool->wbuf + k);
             j += 4;
-            *((uint32_t *)g_write_buf + k - 1) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)g_write_buf + 64 + k - 1) = *((uint32_t *)g_write_buf + k - 1);
+            *((uint32_t *)tool->wbuf + k - 1) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)tool->wbuf + 64 + k - 1) = *((uint32_t *)tool->wbuf + k - 1);
             j += 4;
-            *((uint32_t *)g_write_buf + k - 2) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)g_write_buf + 64 + k - 2) = *((uint32_t *)g_write_buf + k - 2);
+            *((uint32_t *)tool->wbuf + k - 2) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)tool->wbuf + 64 + k - 2) = *((uint32_t *)tool->wbuf + k - 2);
             j += 4;
-            *((uint32_t *)g_write_buf + k - 3) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
-            *((uint32_t *)g_write_buf + 64 + k - 3) = *((uint32_t *)g_write_buf + k - 3);
+            *((uint32_t *)tool->wbuf + k - 3) = (((j) << 24) | ((j + 1) << 16) | ((j + 2) << 8) | ((j + 3) << 0));
+            *((uint32_t *)tool->wbuf + 64 + k - 3) = *((uint32_t *)tool->wbuf + k - 3);
             j += 4;
-            //pr_info("k:%d,j:%d,i:%d,g_write_buf[%d]:0x%08x\n",k,j,i,i,((uint32_t *)g_write_buf)[i]);
+            //pr_info("k:%d,j:%d,i:%d,tool->wbuf[%d]:0x%08x\n",k,j,i,i,((uint32_t *)tool->wbuf)[i]);
         }
     // for(i=0; i<128; i++)
     // {
-    //     pr_info("g_write_buf[%d]:0x%08x\n",i,((uint32_t *)g_write_buf)[i]);
+    //     pr_info("tool->wbuf[%d]:0x%08x\n",i,((uint32_t *)tool->wbuf)[i]);
     // }
     #else
     // //ECB-AES128/256
-    // *((uint32_t *)g_write_buf) = 0x7393172a;
-    // *((uint32_t *)g_write_buf+1) = 0xe93d7e11;
-    // *((uint32_t *)g_write_buf+2) = 0x2e409f96;
-    // *((uint32_t *)g_write_buf+3) = 0x6bc1bee2;
+    // *((uint32_t *)tool->wbuf) = 0x7393172a;
+    // *((uint32_t *)tool->wbuf+1) = 0xe93d7e11;
+    // *((uint32_t *)tool->wbuf+2) = 0x2e409f96;
+    // *((uint32_t *)tool->wbuf+3) = 0x6bc1bee2;
 
     // //SM4-ECB128
-    // *((uint32_t *)g_write_buf) = 0xd468cdc9;
-    // *((uint32_t *)g_write_buf+1) = 0xc2d02d76;
-    // *((uint32_t *)g_write_buf+2) = 0x598a2797;
-    // *((uint32_t *)g_write_buf+3) = 0x115960c5;
+    // *((uint32_t *)tool->wbuf) = 0xd468cdc9;
+    // *((uint32_t *)tool->wbuf+1) = 0xc2d02d76;
+    // *((uint32_t *)tool->wbuf+2) = 0x598a2797;
+    // *((uint32_t *)tool->wbuf+3) = 0x115960c5;
     #endif
 
     wr_slba = 0xff;
     wr_nlb = 1;
     for (i = 0; i < (wr_nlb * LBA_DAT_SIZE); i++)
     {
-        // *(char *)(g_write_buf + i) = 0;
-        *(char *)(g_read_buf + i) = 0;
+        // *(char *)(tool->wbuf + i) = 0;
+        *(char *)(tool->rbuf + i) = 0;
     }
     cmd_cnt = 0;
-    nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+    nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
     cmd_cnt++;
     nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
     cmd_cnt = 0;
-    nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+    nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
     cmd_cnt++;
     nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     cq_gain(io_cq_id, cmd_cnt, &reap_num);
@@ -171,78 +173,78 @@ void test_encrypt_decrypt(void)
     err_flg = 0;
 #if 0
     // // ECB-AES128.Encrypt
-    // if(*((uint32_t *)g_read_buf) != 0x2466ef97)
+    // if(*((uint32_t *)tool->rbuf) != 0x2466ef97)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+1) != 0xa89ecaf3)
+    // if(*((uint32_t *)tool->rbuf+1) != 0xa89ecaf3)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+2) != 0x0d7a3660)
+    // if(*((uint32_t *)tool->rbuf+2) != 0x0d7a3660)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+3) != 0x3ad77bb4)
+    // if(*((uint32_t *)tool->rbuf+3) != 0x3ad77bb4)
     //     err_flg = 1;
 
     // //SM4-ECB128.Encrypt
-    // if(*((uint32_t *)g_read_buf) != 0x4dd7c50b)
+    // if(*((uint32_t *)tool->rbuf) != 0x4dd7c50b)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+1) != 0x00ce6c9a)
+    // if(*((uint32_t *)tool->rbuf+1) != 0x00ce6c9a)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+2) != 0x9b327396)
+    // if(*((uint32_t *)tool->rbuf+2) != 0x9b327396)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+3) != 0xa52485ce)
+    // if(*((uint32_t *)tool->rbuf+3) != 0xa52485ce)
     //     err_flg = 1;
 
     // //ECB-AES256.Encrypt
-    // if(*((uint32_t *)g_read_buf) != 0x3db181f8)
+    // if(*((uint32_t *)tool->rbuf) != 0x3db181f8)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+1) != 0x064b5a7e)
+    // if(*((uint32_t *)tool->rbuf+1) != 0x064b5a7e)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+2) != 0xb5d2a03c)
+    // if(*((uint32_t *)tool->rbuf+2) != 0xb5d2a03c)
     //     err_flg = 1;
-    // if(*((uint32_t *)g_read_buf+3) != 0xf3eed1bd)
+    // if(*((uint32_t *)tool->rbuf+3) != 0xf3eed1bd)
     //     err_flg = 1;
 
     // XTS-AES128.Encrypt
-    // if (*((uint32_t *)g_read_buf) != 0xd4cfa6e2)
+    // if (*((uint32_t *)tool->rbuf) != 0xd4cfa6e2)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 1) != 0x489f308c)
+    // if (*((uint32_t *)tool->rbuf + 1) != 0x489f308c)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 2) != 0xefa1d476)
+    // if (*((uint32_t *)tool->rbuf + 2) != 0xefa1d476)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 3) != 0x27a7479b)
+    // if (*((uint32_t *)tool->rbuf + 3) != 0x27a7479b)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 124) != 0x319d0568)
+    // if (*((uint32_t *)tool->rbuf + 124) != 0x319d0568)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 125) != 0xbe421ee5)
+    // if (*((uint32_t *)tool->rbuf + 125) != 0xbe421ee5)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 126) != 0x20147bea)
+    // if (*((uint32_t *)tool->rbuf + 126) != 0x20147bea)
     //     err_flg = 1;
-    // if (*((uint32_t *)g_read_buf + 127) != 0x0a282df9)
+    // if (*((uint32_t *)tool->rbuf + 127) != 0x0a282df9)
     //     err_flg = 1;
 
     // XTS-AES256.Encrypt
-    if (*((uint32_t *)g_read_buf) != 0xe370cf9b)
+    if (*((uint32_t *)tool->rbuf) != 0xe370cf9b)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 1) != 0xe4836c99)
+    if (*((uint32_t *)tool->rbuf + 1) != 0xe4836c99)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 2) != 0x2f770386)
+    if (*((uint32_t *)tool->rbuf + 2) != 0x2f770386)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 3) != 0x1c3b3a10)
+    if (*((uint32_t *)tool->rbuf + 3) != 0x1c3b3a10)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 124) != 0xe148c151)
+    if (*((uint32_t *)tool->rbuf + 124) != 0xe148c151)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 125) != 0xb9c6e693)
+    if (*((uint32_t *)tool->rbuf + 125) != 0xb9c6e693)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 126) != 0xa9fcea70)
+    if (*((uint32_t *)tool->rbuf + 126) != 0xa9fcea70)
         err_flg = 1;
-    if (*((uint32_t *)g_read_buf + 127) != 0xc4f36ffd)
+    if (*((uint32_t *)tool->rbuf + 127) != 0xc4f36ffd)
         err_flg = 1;
 
 #else
-    if (FAILED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE))
+    if (FAILED == dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * LBA_DAT_SIZE))
     {
         pr_info("\nwrite_buffer Data:\n");
-        mem_disp(g_write_buf, LBA_DAT_SIZE);
+        mem_disp(tool->wbuf, LBA_DAT_SIZE);
         pr_info("\nRead_buffer Data:\n");
-        mem_disp(g_read_buf, LBA_DAT_SIZE);
+        mem_disp(tool->rbuf, LBA_DAT_SIZE);
     }
 #endif
     if (err_flg)

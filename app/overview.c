@@ -23,10 +23,10 @@
 #include "pci.h"
 #include "meta.h"
 #include "queue.h"
+#include "test.h"
 #include "test_queue.h"
 #include "test_cmd.h"
 #include "test_pm.h"
-#include "test_init.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -68,7 +68,8 @@ static TestCase_t TestCaseList[] = {
 
 static int case_disable_ctrl_complete(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
 	return nvme_disable_controller_complete(ndev->fd);
 }
@@ -76,13 +77,14 @@ static int case_disable_ctrl_complete(void)
 static int case_reinit_device(void)
 {
 	/* !TODO: Check return value! */
-	nvme_init(&g_nvme_dev);
+	//nvme_init(&g_nvme_dev);
 	return 0;
 }
 
 static int case_create_discontig_queue(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint16_t sq_id = 1;
 	uint16_t cq_id = 1;
 	uint32_t sq_size = 65472; /* 64 * 1023 */
@@ -91,12 +93,12 @@ static int case_create_discontig_queue(void)
 	/* !TODO: Check return value! */
 	pr_notice("Create discontig cq_id:%d, cq_size = %d\n", cq_id, cq_size);
 	nvme_create_discontig_iocq(ndev->fd, cq_id, cq_size, true, 
-		cq_id, g_discontig_cq_buf, DISCONTIG_IO_CQ_SIZE);
+		cq_id, tool->cq_buf, tool->cq_buf_size);
 
 	pr_notice("Create discontig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", 
 		sq_id, cq_id, sq_size);
 	nvme_create_discontig_iosq(ndev->fd, sq_id, cq_id, sq_size, 
-		MEDIUM_PRIO, g_discontig_sq_buf, DISCONTIG_IO_SQ_SIZE);
+		MEDIUM_PRIO, tool->sq_buf, tool->sq_buf_size);
 	return 0;
 }
 
@@ -104,7 +106,8 @@ static int case_create_contig_queue(void)
 {
 	uint16_t sq_id = 1;
 	uint16_t cq_id = 1;
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_property *prop = &ndev->prop;
 	uint32_t sq_size = NVME_CAP_MQES(prop->cap);
 	uint32_t cq_size = NVME_CAP_MQES(prop->cap);
@@ -121,7 +124,8 @@ static int case_create_contig_queue(void)
 
 static int case_delete_queue(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint16_t sq_id = 1;
 	uint16_t cq_id = 1;
 
@@ -140,7 +144,8 @@ static int case_encrypt_decrypt(void)
 
 static int case_test_meta(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
 	test_meta(ndev->fd);
 	return 0;
@@ -148,7 +153,8 @@ static int case_test_meta(void)
 
 static int case_unknown1(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
 	uint64_t wr_slba = 0;
@@ -161,11 +167,11 @@ static int case_unknown1(void)
 	pr_color(LOG_COLOR_CYAN, "pls enter wr_nlb:");
 	fflush(stdout);
 	scanf("%d", (int *)&wr_nlb);
-	memset(g_write_buf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+	memset(tool->wbuf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 	create_meta_buf(ndev->fd, 0);
 
 	if(SUCCEED == send_nvme_write_using_metabuff(ndev->fd, 0, io_sq_id, 
-		wr_nsid, wr_slba, wr_nlb, 0, 0, g_write_buf))
+		wr_nsid, wr_slba, wr_nlb, 0, 0, tool->wbuf))
 	{
 		if (SUCCEED == nvme_ring_dbl_and_reap_cq(ndev->fd, 
 			io_sq_id, io_cq_id, 1))
@@ -179,18 +185,19 @@ static int case_unknown1(void)
 
 static int case_unknown2(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
 	uint64_t wr_slba = 0;
 	uint32_t wr_nsid = 1;
 	uint16_t wr_nlb = 8;
 
-	memset(g_read_buf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+	memset(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 	create_meta_buf(ndev->fd, 0);
 
 	if (SUCCEED == send_nvme_read_using_metabuff(ndev->fd, 0, io_sq_id, 
-		wr_nsid, wr_slba, wr_nlb, 0, 0,g_read_buf))
+		wr_nsid, wr_slba, wr_nlb, 0, 0,tool->rbuf))
 	{
 		if (SUCCEED == nvme_ring_dbl_and_reap_cq(ndev->fd, io_sq_id,
 			io_cq_id, 1))
@@ -204,7 +211,8 @@ static int case_unknown2(void)
 
 static int case_unknown3(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
@@ -222,7 +230,7 @@ static int case_unknown3(void)
 	scanf("%d", &test_loop);
 	while (test_loop--)
 	{
-		for (uint32_t ns_idx = 0; ns_idx < g_nvme_dev.id_ctrl.nn; ns_idx++)
+		for (uint32_t ns_idx = 0; ns_idx < ndev->id_ctrl.nn; ns_idx++)
 		{
 			/* !FIXME: nsid may not be continuous! It's better to 
 			 * get nsid list by send Identify Command with CNS(0x02)
@@ -230,12 +238,12 @@ static int case_unknown3(void)
 			wr_nsid = ns_idx + 1;
 			wr_slba = 0;
 			wr_nlb = BYTE_RAND() % 32;
-			memset(g_read_buf, 0, RW_BUFFER_SIZE);
-			memset(g_write_buf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+			memset(tool->rbuf, 0, tool->rbuf_size);
+			memset(tool->wbuf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
 			pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
 				wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
 			cmd_cnt = 0;
-			ret = nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+			ret = nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
 			cmd_cnt++;
 			if (ret == SUCCEED)
 			{
@@ -247,8 +255,8 @@ static int case_unknown3(void)
 			
 			data_len = 40 * 4;
 			pr_info("send_maxio_fwdma_wr\n");
-			//memset((uint8_t *)g_write_buf, rand() % 0xff, data_len);
-			fwdma_parameter.addr = g_write_buf;
+			//memset((uint8_t *)tool->wbuf, rand() % 0xff, data_len);
+			fwdma_parameter.addr = tool->wbuf;
 			fwdma_parameter.cdw10 = data_len;  //data_len
 			fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
 			nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
@@ -256,7 +264,7 @@ static int case_unknown3(void)
 			cq_gain(NVME_AQ_ID, 1, &reap_num);
 			pr_info("\nfwdma wr cmd send done!\n");
 
-			ret = nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+			ret = nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
 			cmd_cnt++;
 			if (ret == SUCCEED)
 			{
@@ -264,7 +272,7 @@ static int case_unknown3(void)
 				cq_gain(io_cq_id, cmd_cnt, &reap_num);
 				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 			}
-			if (SUCCEED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
+			if (SUCCEED == dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
 			{
 				pr_color(LOG_COLOR_GREEN, "dw_cmp pass!\n");
 			}
@@ -275,14 +283,15 @@ static int case_unknown3(void)
 
 static int case_unknown4(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t data_len = 0;
 	uint32_t reap_num;
 	struct fwdma_parameter fwdma_parameter = {0};
 
 	pr_info("host2reg tets send_maxio_fwdma_rd\n");
 	data_len = 4 * 4;
-	fwdma_parameter.addr = g_read_buf;
+	fwdma_parameter.addr = tool->rbuf;
 	fwdma_parameter.cdw10 = data_len;  //data_len
 	fwdma_parameter.cdw11 = 0x4055500; //axi_addr
 	//fwdma_parameter.cdw12 |= (1<<0);               //flag bit[0] crc chk,
@@ -293,8 +302,8 @@ static int case_unknown4(void)
 	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\tfwdma wr cmd send done!\n");
 	pr_info("host2reg tets send_maxio_fwdma_rd\n");
-	//memset((uint8_t *)g_write_buf, rand() % 0xff, data_len);
-	fwdma_parameter.addr = g_read_buf;
+	//memset((uint8_t *)tool->wbuf, rand() % 0xff, data_len);
+	fwdma_parameter.addr = tool->rbuf;
 	fwdma_parameter.cdw10 = data_len;  //data_len
 	fwdma_parameter.cdw11 = 0x4055500; //axi_addr
 	//fwdma_parameter.cdw12 |= (1<<0);              //flag bit[0] crc chk,
@@ -309,7 +318,8 @@ static int case_unknown4(void)
 
 static int case_write_fwdma(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t i = 0;
 	uint32_t index = 0;
 	uint32_t reap_num;
@@ -324,7 +334,7 @@ static int case_write_fwdma(void)
 	{
 		for (index = 0; index < 3000; index++)
 		{
-			fwdma_parameter.addr = g_write_buf;
+			fwdma_parameter.addr = tool->wbuf;
 			fwdma_parameter.cdw10 = 4096; //data_len
 			// fwdma_parameter.cdw11 = 0x4078000;              //axi_addr
 			// fwdma_parameter.cdw12 |= (1<<0);                //flag bit[0] crc chk,
@@ -341,14 +351,15 @@ static int case_write_fwdma(void)
 
 static int case_read_fwdma(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t data_len = 0;
 	uint32_t reap_num;
 	struct fwdma_parameter fwdma_parameter = {0};
 
 	pr_info("send_maxio_fwdma_rd\n");
 	data_len = 40 * 4;
-	fwdma_parameter.addr = g_read_buf;
+	fwdma_parameter.addr = tool->rbuf;
 	fwdma_parameter.cdw10 = data_len;  //data_len
 	fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
 	//fwdma_parameter.cdw12 |= (1<<0);               //flag bit[0] crc chk,
@@ -359,13 +370,14 @@ static int case_read_fwdma(void)
 	cq_gain(NVME_AQ_ID, 1, &reap_num);
 	pr_info("\nfwdma wr cmd send done!\n");
 
-	dw_cmp(g_write_buf, g_read_buf, data_len);
+	dw_cmp(tool->wbuf, tool->rbuf, data_len);
 	return 0;
 }
 
 static int case_unknown5(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t index = 0;
 	uint32_t reap_num;
 	uint16_t wr_nlb = 8;
@@ -376,29 +388,29 @@ static int case_unknown5(void)
 		pr_info("send_fwdma_wr/rd test cnt:%d\n", index);
 		wr_nlb = (BYTE_RAND() % 8) + 1;
 		pr_info("nlb:%d\n", wr_nlb);
-		memset((uint8_t *)g_write_buf, rand() % 0xff, wr_nlb * LBA_DAT_SIZE);
+		memset((uint8_t *)tool->wbuf, rand() % 0xff, wr_nlb * LBA_DAT_SIZE);
 		fwdma_parameter.cdw10 = wr_nlb * LBA_DAT_SIZE; //data_len
 		fwdma_parameter.cdw11 = 0x40754C0;             //axi_addr
 		fwdma_parameter.cdw12 |= (1 << 0);             //flag bit[0] crc chk,
 		fwdma_parameter.cdw12 |= (1 << 1);             //flag bit[1] hw data chk(only read)
 		fwdma_parameter.cdw12 |= (1 << 2);             //flag bit[2] enc/dec chk,
 
-		fwdma_parameter.addr = g_write_buf;
+		fwdma_parameter.addr = tool->wbuf;
 		nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
 		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 		cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-		fwdma_parameter.addr = g_read_buf;
+		fwdma_parameter.addr = tool->rbuf;
 		nvme_maxio_fwdma_rd(ndev->fd, &fwdma_parameter);
 		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 		cq_gain(NVME_AQ_ID, 1, &reap_num);
 
-		if (FAILED == dw_cmp(g_write_buf, g_read_buf, wr_nlb * LBA_DAT_SIZE))
+		if (FAILED == dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * LBA_DAT_SIZE))
 		{
 			pr_info("\nwrite_buffer Data:\n");
-			mem_disp(g_write_buf, wr_nlb * LBA_DAT_SIZE);
+			mem_disp(tool->wbuf, wr_nlb * LBA_DAT_SIZE);
 			pr_info("\nRead_buffer Data:\n");
-			mem_disp(g_read_buf, wr_nlb * LBA_DAT_SIZE);
+			mem_disp(tool->rbuf, wr_nlb * LBA_DAT_SIZE);
 			break;
 		}
 	}
@@ -430,20 +442,28 @@ static int case_disable_ltr(void)
 
 static int case_set_d0_state(void)
 {
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
+
 	pr_info("set to D0 state\n");
-	set_pcie_power_state(g_nvme_dev.pmcap_ofst, D0);
+	set_pcie_power_state(ndev->pmcap_ofst, D0);
 	return 0;
 }
 
 static int case_set_d3_state(void)
 {
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
+
 	pr_info("set to D3 state\n");
-	set_pcie_power_state(g_nvme_dev.pmcap_ofst, D3hot);
+	set_pcie_power_state(ndev->pmcap_ofst, D3hot);
 	return 0;
 }
 
 static int case_unknown6(void)
 {
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t test_loop = 1;
 
 	pr_color(LOG_COLOR_CYAN, "pcie_set_width:");
@@ -451,7 +471,7 @@ static int case_unknown6(void)
 	scanf("%d", &test_loop);
 	pcie_set_width(test_loop);
 	pcie_retrain_link();
-	g_nvme_dev.link_width = test_loop;
+	ndev->link_width = test_loop;
 	return 0;
 }
 
@@ -483,7 +503,8 @@ static int case_unknown9(void)
 
 static int case_all_cases(void)
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 	int loop = 0;
 	int ret;
 	uint32_t test_loop = 1;

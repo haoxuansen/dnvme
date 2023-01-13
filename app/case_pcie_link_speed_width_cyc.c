@@ -11,6 +11,7 @@
 #include "pci.h"
 
 #include "common.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -23,7 +24,8 @@ static char *disp_this_case = "this case will tests PCIe Link Speed and Width cy
 
 static void test_sub(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint16_t data;
     uint8_t set_speed, set_width, cur_speed, cur_width;
     int ret;
@@ -65,7 +67,8 @@ static void test_sub(void)
 
 int case_pcie_link_speed_width_cyc(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint16_t u32_tmp_data = 0;
     int ret;

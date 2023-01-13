@@ -26,94 +26,86 @@
 
 #include "overview.h"
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
-#include "test_metrics.h"
-#include "test_cq_gain.h"
-#include "test_init.h"
 #include "test_irq.h"
 
-void *g_read_buf;
-void *g_write_buf;
-void *g_cq_entry_buf;
-void *g_discontig_sq_buf;
-void *g_discontig_cq_buf;
+static struct nvme_tool s_nvme_tool = {0};
+struct nvme_tool *g_nvme_tool = &s_nvme_tool;
 
-struct nvme_dev_info g_nvme_dev = {0};
-
-static int test_mem_alloc(void)
+static int alloc_buffer(struct nvme_tool *tool)
 {
 	int ret;
 
-	/* !TODO: It's better to alloc this in "test_cq_gain.c"? */
-	g_cq_entry_buf = calloc(1, BUFFER_CQ_ENTRY_SIZE);
-	if (!g_cq_entry_buf) {
-		pr_err("failed to alloc cq_entry_buf(0x%x)!\n", 
-			BUFFER_CQ_ENTRY_SIZE);
+	tool->entry = calloc(1, NVME_TOOL_CQ_ENTRY_SIZE);
+	if (!tool->entry) {
+		pr_err("failed to alloc for CQ entry!\n");
 		return -ENOMEM;
 	}
+	tool->entry_size = NVME_TOOL_CQ_ENTRY_SIZE;
 
-	ret = posix_memalign(&g_discontig_sq_buf, 4096, DISCONTIG_IO_SQ_SIZE);
+	ret = posix_memalign(&tool->sq_buf, 4096, NVME_TOOL_SQ_BUF_SIZE);
 	if (ret) {
-		pr_err("failed to alloc discontig_sq_buf(0x%x)!\n", 
-			DISCONTIG_IO_SQ_SIZE);
+		pr_err("failed to alloc for SQ!\n");
 		goto out;
 	}
-	memset(g_discontig_sq_buf, 0, DISCONTIG_IO_SQ_SIZE);
+	memset(tool->sq_buf, 0, NVME_TOOL_SQ_BUF_SIZE);
+	tool->sq_buf_size = NVME_TOOL_SQ_BUF_SIZE;
 
-	ret = posix_memalign(&g_discontig_cq_buf, 4096, DISCONTIG_IO_CQ_SIZE);
+	ret = posix_memalign(&tool->cq_buf, 4096, NVME_TOOL_CQ_BUF_SIZE);
 	if (ret) {
-		pr_err("failed to alloc discontig_cq_buf(0x%x)!\n", 
-			DISCONTIG_IO_CQ_SIZE);
+		pr_err("failed to alloc for CQ!\n");
 		goto out2;
 	}
-	memset(g_discontig_cq_buf, 0, DISCONTIG_IO_CQ_SIZE);
+	memset(tool->cq_buf, 0, NVME_TOOL_CQ_BUF_SIZE);
+	tool->cq_buf_size = NVME_TOOL_CQ_BUF_SIZE;
 
-	ret = posix_memalign(&g_read_buf, CONFIG_UNVME_RW_BUF_ALIGN, 
-		RW_BUFFER_SIZE);
+	ret = posix_memalign(&tool->rbuf, CONFIG_UNVME_RW_BUF_ALIGN, 
+		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
-		pr_err("failed to alloc read buf(0x%x) with align 0x%x!\n",
-			RW_BUFFER_SIZE, CONFIG_UNVME_RW_BUF_ALIGN);
+		pr_err("failed to alloc read buf!\n");
 		goto out3;
 	}
-	memset(g_read_buf, 0, RW_BUFFER_SIZE);
+	memset(tool->rbuf, 0, NVME_TOOL_RW_BUF_SIZE);
+	tool->rbuf_size = NVME_TOOL_RW_BUF_SIZE;
 
-	ret = posix_memalign(&g_write_buf, CONFIG_UNVME_RW_BUF_ALIGN, 
-		RW_BUFFER_SIZE);
+	ret = posix_memalign(&tool->wbuf, CONFIG_UNVME_RW_BUF_ALIGN, 
+		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
-		pr_err("failed to alloc write buf(0x%x) with align 0x%x!\n",
-			RW_BUFFER_SIZE, CONFIG_UNVME_RW_BUF_ALIGN);
+		pr_err("failed to alloc write buf!\n");
 		goto out4;
 	}
-	memset(g_write_buf, 0, RW_BUFFER_SIZE);
+	memset(tool->wbuf, 0, NVME_TOOL_RW_BUF_SIZE);
+	tool->wbuf_size = NVME_TOOL_RW_BUF_SIZE;
 
 	return 0;
 out4:
-	free(g_read_buf);
-	g_read_buf = NULL;
+	free(tool->rbuf);
+	tool->rbuf = NULL;
 out3:
-	free(g_discontig_cq_buf);
-	g_discontig_cq_buf = NULL;
+	free(tool->cq_buf);
+	tool->cq_buf = NULL;
 out2:
-	free(g_discontig_sq_buf);
-	g_discontig_sq_buf = NULL;
+	free(tool->sq_buf);
+	tool->sq_buf = NULL;
 out:
-	free(g_cq_entry_buf);
-	g_cq_entry_buf = NULL;
+	free(tool->entry);
+	tool->entry = NULL;
 	return -ENOMEM;
 }
 
-void test_mem_free(void)
+void release_buffer(struct nvme_tool *tool)
 {
-	free(g_read_buf);
-	g_read_buf = NULL;
-	free(g_write_buf);
-	g_write_buf = NULL;
-	free(g_discontig_sq_buf);
-	g_discontig_sq_buf = NULL;
-	free(g_discontig_cq_buf);
-	g_discontig_cq_buf = NULL;
-	free(g_cq_entry_buf);
-	g_cq_entry_buf = NULL;
+	free(tool->rbuf);
+	tool->rbuf = NULL;
+	free(tool->wbuf);
+	tool->wbuf = NULL;
+	free(tool->sq_buf);
+	tool->sq_buf = NULL;
+	free(tool->cq_buf);
+	tool->cq_buf = NULL;
+	free(tool->entry);
+	tool->entry = NULL;
 }
 
 /**
@@ -126,51 +118,40 @@ void test_mem_free(void)
  */
 int main(int argc, char *argv[])
 {
-	struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev;
 	int ret;
 	char *log_file = "/tmp/nvme_log.txt";
-	uint32_t i = 0;
 
 	if (argc < 2) {
 		pr_err("Please specify a nvme device!\n");
 		return -EINVAL;
 	}
 
-	ndev->fd = open(argv[1], 0);
-	if (ndev->fd < 0) {
-		pr_err("failed to open %s: %s!\n", argv[1], strerror(errno));
-		return errno;
-	}
-	pr_info("Open %s OK!\n", argv[1]);
-
-	ret = test_mem_alloc();
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < RW_BUFFER_SIZE; i += 4)
-	{
-		// *((uint32_t *)(g_write_buf + i)) = DWORD_RAND();
-		*((uint32_t *)(g_write_buf + i)) = i;
-	}
-	//memset(&g_nvme_dev, 0xff, sizeof(struct nvme_dev_info));
-
 	srand(time(NULL));
 
-	ret = nvme_init(ndev);
+	ndev = nvme_init(argv[1]);
+	if (!ndev)
+		return -EPERM;
+
+	tool->ndev = ndev;
+
+	ret = alloc_buffer(tool);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	case_display_case_list();
 	nvme_select_case_to_execute();
 	nvme_dump_log(ndev->fd, log_file);
 
-	/* Exit gracefully */
-	pr_info("\nNow Exiting gracefully....\n");
 	nvme_disable_controller_complete(ndev->fd);
 	nvme_deinit(ndev);
-	test_mem_free();
-	pr_info("\n\n****** END OF TEST ******\n\n");
-	close(ndev->fd);
+	release_buffer(tool);
+
+	pr_notice("********** END OF TEST **********\n\n");
 	return 0;
+out:
+	nvme_deinit(ndev);
+	return ret;
 }
 

@@ -10,9 +10,9 @@
 #include "cmd.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
-#include "test_init.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
@@ -42,7 +42,8 @@ static SubCase_t sub_case_list[] = {
 
 int case_queue_admin(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 
     test_loop = 1;
@@ -64,7 +65,8 @@ int case_queue_admin(void)
 
 static int sub_case_asq_size_loop_array(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t sq_size_idx = 0;
     uint32_t cq_size_idx = 0;
@@ -158,7 +160,8 @@ static int sub_case_asq_size_loop_array(void)
 
 static int sub_case_asq_size_random(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     enum nvme_irq_type int_type = 0;
     int ret;
     uint32_t cmd_cnt = 0;

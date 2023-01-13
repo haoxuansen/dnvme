@@ -10,12 +10,12 @@
 #include "queue.h"
 
 #include "common.h"
+#include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
-#include "test_init.h"
 
 static int test_flag = SUCCEED;
 static uint32_t test_loop = 0;
@@ -44,7 +44,8 @@ static SubCase_t sub_case_list[] = {
 
 int case_queue_cq_int_all_mask(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 
     test_loop = 10;
@@ -67,7 +68,8 @@ int case_queue_cq_int_all_mask(void)
 static int sub_case_int_queue_mask(void)
 {
     uint32_t index = 0;
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_sq_info *sqs = ndev->iosqs;
     enum nvme_irq_type type;
     int ret;
@@ -81,7 +83,7 @@ static int sub_case_int_queue_mask(void)
     if (ret < 0)
         return ret;
 
-    uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
+    uint8_t queue_num = BYTE_RAND() % ndev->max_sq_num + 1;
 
     wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -94,7 +96,7 @@ static int sub_case_int_queue_mask(void)
         {
             if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+                test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
                 sqs[i].cmd_cnt++;
             }
         }
@@ -119,7 +121,8 @@ static int sub_case_int_queue_mask(void)
 
 int msi_cap_access(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val = FAILED;
     struct pcie_msi_cap msi_cap;
 
@@ -138,7 +141,8 @@ int msi_cap_access(void)
 
 static int sub_case_pending_bit(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_sq_info *sqs = ndev->iosqs;
     enum nvme_irq_type type;
     int ret;
@@ -152,7 +156,7 @@ static int sub_case_pending_bit(void)
     if (ret < 0)
         return ret;
     
-    uint8_t queue_num = BYTE_RAND() % g_nvme_dev.max_sq_num + 1;
+    uint8_t queue_num = BYTE_RAND() % ndev->max_sq_num + 1;
 
     wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
     wr_nlb = WORD_RAND() % 255 + 1;
@@ -165,7 +169,7 @@ static int sub_case_pending_bit(void)
         {
             if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
             {
-                test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, g_write_buf);
+                test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
                 sqs[i].cmd_cnt++;
             }
         }
@@ -180,7 +184,7 @@ static int sub_case_pending_bit(void)
     for (uint16_t i = 0; i < queue_num; i++)
     {
         io_cq_id = sqs[i].cqid;
-        if( (g_nvme_dev.irq_type == NVME_INT_MSI_SINGLE)||(g_nvme_dev.irq_type == NVME_INT_MSI_MULTI) )
+        if( (ndev->irq_type == NVME_INT_MSI_SINGLE)||(ndev->irq_type == NVME_INT_MSI_MULTI) )
         {
             msi_cap_access();
         }

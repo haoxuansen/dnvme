@@ -21,11 +21,11 @@
 
 #include "common.h"
 #include "unittest.h"
+#include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
-#include "test_init.h"
 #include "test_bug_trace.h"
 
 static int test_flag = SUCCEED;
@@ -41,7 +41,8 @@ static uint32_t reap_num = 0;
 
 static uint32_t sub_case_pre(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
@@ -52,7 +53,8 @@ static uint32_t sub_case_pre(void)
 
 static uint32_t sub_case_end(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
@@ -67,7 +69,8 @@ static uint32_t sub_case_end(void)
  */
 uint32_t iocmd_cstc_rdy_test(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t csts;
     uint32_t loop;
@@ -89,7 +92,7 @@ uint32_t iocmd_cstc_rdy_test(void)
         cmd_cnt = 0;
         for (int iocnt = 0; iocnt < 1000; iocnt++)
         {
-            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_write_buf);
+            test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             cmd_cnt++;
         }
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
@@ -107,7 +110,7 @@ uint32_t iocmd_cstc_rdy_test(void)
         cmd_cnt = 0;
         for (int iocnt = 0; iocnt < 1000; iocnt++)
         {
-            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, g_read_buf);
+            test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
             cmd_cnt++;
         }
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
@@ -133,7 +136,8 @@ uint32_t iocmd_cstc_rdy_test(void)
  */
 uint32_t reg_bug_trace(void)
 {
-    struct nvme_dev_info *ndev = &g_nvme_dev;
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
     int ret;
     uint32_t u32_tmp_data;
     pr_color(LOG_COLOR_RED, "tests device's dbl will error bug \r\n");
