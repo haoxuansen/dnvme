@@ -11,7 +11,6 @@
 #ifndef _TEST_METRICS_H_
 #define _TEST_METRICS_H_
 
-#include "auto_header.h"
 #include "dnvme_ioctl.h"
 #include "core.h"
 

@@ -9,7 +9,6 @@
 #include "irq.h"
 #include "queue.h"
 
-#include "auto_header.h"
 #include "common.h"
 #include "test.h"
 #include "test_metrics.h"

@@ -15,6 +15,7 @@ CFLAGS += -I$(TOP_DIR)/include/uapi
 CFLAGS += -I$(CUR_DIR)
 CFLAGS += -I$(CUR_DIR)/common
 CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
+CFLAGS += -include $(CUR_DIR)/auto_header.h
 
 LDFLAGS := -L$(TOP_DIR)/output/libs
 LDFLAGS += -static

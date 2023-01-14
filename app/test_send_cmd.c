@@ -35,8 +35,6 @@
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-#include "auto_header.h"
-
 /* CMD to delete IO Queue */
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid)
 {

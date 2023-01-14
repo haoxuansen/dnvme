@@ -17,7 +17,6 @@
 #include "log.h"
 #include "irq.h"
 #include "ioctl.h"
-#include "auto_header.h"
 
 static const char *nvme_irq_type_string(enum nvme_irq_type type)
 {
