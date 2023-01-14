@@ -220,9 +220,8 @@ static void test_sub(void)
     scanf("%d", &cmds);
 }
 
-int case_pcie_low_power_pcipm_l1sub(void)
+int case_pcie_low_power_pcipm_l1sub(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t offset, u32_tmp_data = 0;

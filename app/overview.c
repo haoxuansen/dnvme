@@ -37,7 +37,7 @@
 #define INIT_CASE(id, _func, _desc) \
 	[id] = {.name = #_func, .desc = _desc, .func = _func}
 
-typedef int (*case_func_t)(void);
+typedef int (*case_func_t)(struct nvme_tool *tool);
 
 struct nvme_case {
 	const char	*name;
@@ -72,39 +72,36 @@ static TestCase_t TestCaseList[] = {
 	TCD(test_6_all_ns_lbads_test),//case_60
 };
 
-static int case_disable_ctrl_complete(void)
+static int case_disable_ctrl_complete(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	return nvme_disable_controller_complete(ndev->fd);
 }
 
-static int case_reinit_device(void)
+static int case_reinit_device(struct nvme_tool *tool)
 {
-	/* !TODO: Check return value! */
-	//nvme_init(&g_nvme_dev);
-	return 0;
+	struct nvme_dev_info *ndev = tool->ndev;
+
+	return nvme_reinit(ndev, ndev->asq.size, ndev->acq.size, ndev->irq_type);
 }
 
-static int case_encrypt_decrypt(void)
+static int case_encrypt_decrypt(struct nvme_tool *tool)
 {
 	test_encrypt_decrypt();
 	return 0;
 }
 
-static int case_test_meta(void)
+static int case_test_meta(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	test_meta(ndev->fd);
 	return 0;
 }
 
-static int case_unknown1(void)
+static int case_unknown1(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
@@ -134,9 +131,8 @@ static int case_unknown1(void)
 	return 0;
 }
 
-static int case_unknown2(void)
+static int case_unknown2(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t io_sq_id = 1;
 	uint32_t io_cq_id = 1;
@@ -160,9 +156,8 @@ static int case_unknown2(void)
 	return 0;
 }
 
-static int case_unknown3(void)
+static int case_unknown3(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
 	uint32_t io_sq_id = 1;
@@ -232,9 +227,8 @@ static int case_unknown3(void)
 	return 0;
 }
 
-static int case_unknown4(void)
+static int case_unknown4(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t data_len = 0;
 	uint32_t reap_num;
@@ -267,9 +261,8 @@ static int case_unknown4(void)
 	return 0;
 }
 
-static int case_write_fwdma(void)
+static int case_write_fwdma(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t i = 0;
 	uint32_t index = 0;
@@ -300,9 +293,8 @@ static int case_write_fwdma(void)
 	return 0;
 }
 
-static int case_read_fwdma(void)
+static int case_read_fwdma(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t data_len = 0;
 	uint32_t reap_num;
@@ -325,9 +317,8 @@ static int case_read_fwdma(void)
 	return 0;
 }
 
-static int case_unknown5(void)
+static int case_unknown5(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t index = 0;
 	uint32_t reap_num;
@@ -368,7 +359,7 @@ static int case_unknown5(void)
 	return 0;
 }
 
-static int case_test_full_disk_wr(void)
+static int case_test_full_disk_wr(struct nvme_tool *tool)
 {
 	uint32_t cmd_cnt = 0;
 
@@ -377,12 +368,12 @@ static int case_test_full_disk_wr(void)
 	scanf("%d", &cmd_cnt);
 	while (cmd_cnt--)
 	{
-		test_0_full_disk_wr();
+		test_0_full_disk_wr(tool);
 	}
 	return 0;
 }
 
-static int case_disable_ltr(void)
+static int case_disable_ltr(struct nvme_tool *tool)
 {
 	/* !FIXME: The BDF of NVMe device cannot be fixed. It's better to use
 	 * device ID and vendor ID instead! 
@@ -391,9 +382,8 @@ static int case_disable_ltr(void)
 	return 0;
 }
 
-static int case_set_d0_state(void)
+static int case_set_d0_state(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	pr_info("set to D0 state\n");
@@ -401,9 +391,8 @@ static int case_set_d0_state(void)
 	return 0;
 }
 
-static int case_set_d3_state(void)
+static int case_set_d3_state(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	pr_info("set to D3 state\n");
@@ -411,9 +400,8 @@ static int case_set_d3_state(void)
 	return 0;
 }
 
-static int case_unknown6(void)
+static int case_unknown6(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t test_loop = 1;
 
@@ -426,7 +414,7 @@ static int case_unknown6(void)
 	return 0;
 }
 
-static int case_unknown7(void)
+static int case_unknown7(struct nvme_tool *tool)
 {
 	uint32_t test_loop = 1;
 
@@ -440,21 +428,20 @@ static int case_unknown7(void)
 	return 0;
 }
 
-static int case_unknown8(void)
+static int case_unknown8(struct nvme_tool *tool)
 {
 	iocmd_cstc_rdy_test();
 	return 0;
 }
 
-static int case_unknown9(void)
+static int case_unknown9(struct nvme_tool *tool)
 {
 	reg_bug_trace();
 	return 0;
 }
 
-static int case_all_cases(void)
+static int case_all_cases(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	int loop = 0;
 	int ret;
@@ -566,7 +553,7 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(255, case_all_cases, "test case list exe"),
 };
 
-int case_display_case_list(void)
+int case_display_case_list(struct nvme_tool *tool)
 {
 	int i;
 
@@ -580,7 +567,7 @@ int case_display_case_list(void)
 	return 0;
 }
 
-int nvme_select_case_to_execute(void)
+int nvme_select_case_to_execute(struct nvme_tool *tool)
 {
 	int ret;
 	int select;
@@ -602,7 +589,7 @@ int nvme_select_case_to_execute(void)
 			continue;
 		}
 
-		ret = g_case_table[select].func();
+		ret = g_case_table[select].func(tool);
 		if (ret < 0) {
 			pr_err("Failed to execute %s!(%d)\n", 
 				g_case_table[select].name, ret);

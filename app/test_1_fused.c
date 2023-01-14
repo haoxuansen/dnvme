@@ -53,9 +53,8 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_cmpare_write_fused_cmd, "send write read, then send compare&write fused cmd"),
 };
 
-int test_1_fused(void)
+int test_1_fused(struct nvme_tool *tool)
 {
-    struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 

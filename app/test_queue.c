@@ -186,9 +186,8 @@ static int send_io_write_to_asq(struct nvme_tool *tool)
 }
 #endif
 
-int case_queue_iocmd_to_asq(void)
+int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
 
@@ -218,9 +217,8 @@ int case_queue_iocmd_to_asq(void)
  * @note After the queue is created, a command is submitted to confirm
  *  that the created queue is working properly.
  */
-int case_queue_create_and_delete_contig_queue(void)
+int case_queue_create_and_delete_contig_queue(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
@@ -254,9 +252,8 @@ int case_queue_create_and_delete_contig_queue(void)
  * @note After the queue is created, a command is submitted to confirm
  *  that the created queue is working properly.
  */
-int case_queue_create_and_delete_discontig_queue(void)
+int case_queue_create_and_delete_discontig_queue(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;

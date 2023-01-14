@@ -140,8 +140,8 @@ int main(int argc, char *argv[])
 	if (ret < 0)
 		goto out;
 
-	case_display_case_list();
-	nvme_select_case_to_execute();
+	case_display_case_list(tool);
+	nvme_select_case_to_execute(tool);
 	nvme_dump_log(ndev->fd, log_file);
 
 	nvme_disable_controller_complete(ndev->fd);

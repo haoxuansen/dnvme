@@ -60,10 +60,9 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_write_read_fua_compare, "this case will tests write->read->fua_compare cmd"),
 };
 
-int test_5_fua_wr_rd_cmp(void)
+int test_5_fua_wr_rd_cmp(struct nvme_tool *tool)
 {
     uint32_t round_idx = 0;
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
 

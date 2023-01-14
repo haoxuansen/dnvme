@@ -52,9 +52,8 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_multi_cq_map_one_int_vct, "tests multi_cq_map_one_int_vct"),
 };
 
-int case_queue_cq_int_all(void)
+int case_queue_cq_int_all(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 

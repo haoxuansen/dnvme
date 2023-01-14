@@ -173,7 +173,7 @@ static void test_sub(void)
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 }
 
-int case_resets_random_all(void)
+int case_resets_random_all(struct nvme_tool *tool)
 {
     int test_round = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);

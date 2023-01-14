@@ -12,8 +12,10 @@
 #ifndef _OVERVIEW_H_
 #define _OVERVIEW_H_
 
-int case_display_case_list(void);
+struct nvme_tool;
 
-int nvme_select_case_to_execute(void);
+int case_display_case_list(struct nvme_tool *tool);
+
+int nvme_select_case_to_execute(struct nvme_tool *tool);
 
 #endif /* !_OVERVIEW_H_ */

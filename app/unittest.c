@@ -72,7 +72,7 @@ uint32_t test_list_exe(TestCase_t *CaseList, uint32_t NumOfCase)
         //     test_suite.TestCase[idx].PreFunc();
         // }
         test_report.executed++;
-        test_suite.TestCase[idx].Result = test_suite.TestCase[idx].CaseFunc();
+        test_suite.TestCase[idx].Result = test_suite.TestCase[idx].CaseFunc(g_nvme_tool);
         if (test_suite.TestCase[idx].Result == SUCCEED)
         {
             test_report.passed++;

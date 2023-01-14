@@ -190,9 +190,8 @@ static void test_sub(void)
     pcie_L12_disable();
 }
 
-int case_pcie_low_power_L1sub_step(void)
+int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;

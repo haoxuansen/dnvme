@@ -51,9 +51,8 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_write_read_2, "tests write read with reap 1 cq, but ring 10 doorbell"),
 };
 
-int case_iocmd_write_read(void)
+int case_iocmd_write_read(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 

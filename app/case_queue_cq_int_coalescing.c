@@ -44,9 +44,8 @@ uint16_t int_vertor = 0;
 uint16_t coals_disable = 0;
 
 
-int case_queue_cq_int_coalescing(void)
+int case_queue_cq_int_coalescing(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 

@@ -130,11 +130,10 @@ static void test_sub(void)
     scanf("%d", &cmds);
 }
 
-int case_pcie_MPS(void)
+int case_pcie_MPS(struct nvme_tool *tool)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
     int ret;

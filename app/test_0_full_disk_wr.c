@@ -58,12 +58,11 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_sgl_write_read_verify, "use sgl mode send write/read cmd, then compare data"),
 };
 
-int test_0_full_disk_wr(void)
+int test_0_full_disk_wr(struct nvme_tool *tool)
 {
     int test_flag = SUCCEED;
     uint32_t round_idx = 0;
     uint32_t test_loop = 1;
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
     sq_size = NVME_CAP_MQES(prop->cap);

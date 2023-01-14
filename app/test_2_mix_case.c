@@ -59,9 +59,8 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_fwdma_cmd, "send fwdma wr/rd cmd and check data"),
 };
 
-int test_2_mix_case(void)
+int test_2_mix_case(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 

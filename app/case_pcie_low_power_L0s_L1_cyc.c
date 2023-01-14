@@ -154,9 +154,8 @@ static void test_sub(void)
     // usleep(10000);
 }
 
-int case_pcie_low_power_L0s_L1_cyc(void)
+int case_pcie_low_power_L0s_L1_cyc(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;

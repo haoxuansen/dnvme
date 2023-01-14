@@ -88,9 +88,8 @@ static void test_sub(void)
     }
 }
 
-int case_pcie_reset_cyc(void)
+int case_pcie_reset_cyc(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;

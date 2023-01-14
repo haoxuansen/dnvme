@@ -12,6 +12,6 @@
 #ifndef _APP_TEST_PM_H_
 #define _APP_TEST_PM_H_
 
-int case_pm_switch_power_state(void);
+int case_pm_switch_power_state(struct nvme_tool *tool);
 
 #endif /* !_APP_TEST_PM_H_ */

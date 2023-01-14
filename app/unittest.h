@@ -2,6 +2,8 @@
 #ifndef _UNITTEST_H_
 #define _UNITTEST_H_
 
+#include "test.h"
+
 /* Test case definition macro */
 // #define FAILED (0)
 #define PASSED (1)
@@ -12,7 +14,7 @@
 // TestCaseDefine
 #define TCD(tf) {tf, #tf, FAILED}
 
-typedef int (*CaseFunc_t)(void);
+typedef int (*CaseFunc_t)(struct nvme_tool *tool);
 typedef void (*VoidFunc_t)(void);
 
 

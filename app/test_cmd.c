@@ -137,9 +137,8 @@ static int send_io_compare_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	return nvme_io_compare(ndev->fd, &wrap);
 }
 
-int case_cmd_send_io_read_cmd(void)
+int case_cmd_send_io_read_cmd(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
@@ -168,9 +167,8 @@ out:
 	return 0;
 }
 
-int case_cmd_send_io_write_cmd(void)
+int case_cmd_send_io_write_cmd(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
@@ -199,9 +197,8 @@ out:
 	return 0;
 }
 
-int case_cmd_send_io_compare_cmd(void)
+int case_cmd_send_io_compare_cmd(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;

@@ -98,7 +98,7 @@ static void test_sub(void)
     /*******************************************************************************************************************************/
 }
 
-int case_resets_link_down(void)
+int case_resets_link_down(struct nvme_tool *tool)
 {
     int test_round = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);

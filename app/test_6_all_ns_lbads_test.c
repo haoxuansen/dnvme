@@ -53,9 +53,8 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_all_ns_wr_rd_cmp, "this case will tests all namespece write->read then check data"),
 };
 
-int test_6_all_ns_lbads_test(void)
+int test_6_all_ns_lbads_test(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
 

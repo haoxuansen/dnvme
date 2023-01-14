@@ -111,9 +111,8 @@ static uint8_t select_next_power_state(struct nvme_dev_info *ndev)
 	}
 }
 
-int case_pm_switch_power_state(void)
+int case_pm_switch_power_state(struct nvme_tool *tool)
 {
-	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_property *prop = &ndev->prop;
 	uint8_t ps, ps_new;

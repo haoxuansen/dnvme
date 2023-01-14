@@ -12,8 +12,8 @@
 #ifndef _APP_TEST_CMD_H_
 #define _APP_TEST_CMD_H_
 
-int case_cmd_send_io_read_cmd(void);
-int case_cmd_send_io_write_cmd(void);
-int case_cmd_send_io_compare_cmd(void);
+int case_cmd_send_io_read_cmd(struct nvme_tool *tool);
+int case_cmd_send_io_write_cmd(struct nvme_tool *tool);
+int case_cmd_send_io_compare_cmd(struct nvme_tool *tool);
 
 #endif /* !_APP_TEST_CMD_H_ */
