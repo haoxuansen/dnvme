@@ -45,6 +45,12 @@ struct nvme_case {
 	case_func_t	func;
 };
 
+enum {
+	CASE_CMD = 101,
+	CASE_QUEUE = CASE_CMD + 20,
+	CASE_PM = CASE_QUEUE + 20,
+};
+
 static TestCase_t TestCaseList[] = {
 	TCD(case_register_test),//case_54
 	TCD(case_queue_admin),//case_52
@@ -78,61 +84,6 @@ static int case_reinit_device(void)
 {
 	/* !TODO: Check return value! */
 	//nvme_init(&g_nvme_dev);
-	return 0;
-}
-
-static int case_create_discontig_queue(void)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint16_t sq_id = 1;
-	uint16_t cq_id = 1;
-	uint32_t sq_size = 65472; /* 64 * 1023 */
-	uint32_t cq_size = 65280; /* 16 * 4080 */
-
-	/* !TODO: Check return value! */
-	pr_notice("Create discontig cq_id:%d, cq_size = %d\n", cq_id, cq_size);
-	nvme_create_discontig_iocq(ndev->fd, cq_id, cq_size, true, 
-		cq_id, tool->cq_buf, tool->cq_buf_size);
-
-	pr_notice("Create discontig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", 
-		sq_id, cq_id, sq_size);
-	nvme_create_discontig_iosq(ndev->fd, sq_id, cq_id, sq_size, 
-		MEDIUM_PRIO, tool->sq_buf, tool->sq_buf_size);
-	return 0;
-}
-
-static int case_create_contig_queue(void)
-{
-	uint16_t sq_id = 1;
-	uint16_t cq_id = 1;
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ctrl_property *prop = &ndev->prop;
-	uint32_t sq_size = NVME_CAP_MQES(prop->cap);
-	uint32_t cq_size = NVME_CAP_MQES(prop->cap);
-
-	/* !TODO: Check return value! */
-	pr_notice("Create contig cq_id:%d, cq_size = %d\n", cq_id, cq_size);
-	nvme_create_contig_iocq(ndev->fd, cq_id, cq_size, true, cq_id);
-
-	pr_notice("Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", 
-		sq_id, cq_id, sq_size);
-	nvme_create_contig_iosq(ndev->fd, sq_id, cq_id, sq_size, MEDIUM_PRIO);
-	return 0;
-}
-
-static int case_delete_queue(void)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint16_t sq_id = 1;
-	uint16_t cq_id = 1;
-
-	/* !TODO: Check return value! */
-	pr_notice("Deleting SQID:%d,CQID:%d\n", sq_id, cq_id);
-	nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, sq_id);
-	nvme_delete_ioq(ndev->fd, nvme_admin_delete_cq, cq_id);
 	return 0;
 }
 
@@ -539,25 +490,9 @@ static struct nvme_case g_case_table[] = {
 		"Disable the controller completely"),
 	INIT_CASE(2, case_reinit_device, 
 		"Reinitialize the device for running others later"),
-	INIT_CASE(3, case_create_discontig_queue, 
-		"Create discontiguous IOSQ and IOCQ"),
-	INIT_CASE(4, case_create_contig_queue, 
-		"Create contiguous IOSQ and IOCQ"),
-	INIT_CASE(5, case_delete_queue, 
-		"Delete IOSQ and IOCQ which is created in case 4"),
-	INIT_CASE(6, case_cmd_send_io_write_cmd, "Send IO write cmd to IOSQ"),
-	INIT_CASE(7, case_cmd_send_io_read_cmd, "Send IO read cmd to IOSQ"),
-	INIT_CASE(8, case_cmd_send_io_compare_cmd, "Send IO compare cmd to IOSQ"),
-	INIT_CASE(11, case_encrypt_decrypt, 
-		"Encrypt and decrypt (Obsolete?)"),
-	INIT_CASE(12, case_test_meta, "Test meta data (Obsolete?)"),
-	INIT_CASE(16, case_unknown1, "Unknown1 (Obsolete?)"),
-	INIT_CASE(17, case_unknown2, "Unknown2 (Obsolete?)"),
-	INIT_CASE(18, case_unknown3, "Unknown3 (Obsolete?)"),
-	INIT_CASE(19, case_unknown4, "Unknown4 (Obsolete?)"),
+
 	INIT_CASE(20, case_write_fwdma, "maxio_cmd_fwdma_write"),
 	INIT_CASE(21, case_read_fwdma, "maxio_cmd_fwdma_read"),
-	INIT_CASE(22, case_unknown5, "Unknown5 (Obsolete?)"),
 	INIT_CASE(29, test_4_peak_power, "hc peak power test"),
 	INIT_CASE(30, case_queue_create_q_size, "case_queue_create_q_size"),
 	INIT_CASE(31, case_queue_delete_q, "case_queue_delete_q"),
@@ -597,12 +532,37 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(89, case_pcie_low_power_pcipm_l1sub, "pcie_low_power_pcipm_l1sub"),
 	INIT_CASE(90, case_pcie_MPS, "pcie_MPS"),
 	INIT_CASE(91, case_pcie_MRRS, "pcie_MRRS"),
-	INIT_CASE(98, case_unknown6, "Unknown6 (Obsolete?)"),
-	INIT_CASE(99, case_unknown7, "Unknown7 (Obsolete?)"),
-	INIT_CASE(100, case_unknown8, "Unknown8 (Obsolete?)"),
-	INIT_CASE(101, case_unknown9, "Unknown9 (Obsolete?)"),
-	INIT_CASE(102, case_queue_iocmd_to_asq, "Submit IO command to Admin SQ"),
-	INIT_CASE(111, case_pm_switch_power_state, "Randomly switch power state"),
+
+	INIT_CASE(CASE_CMD, case_cmd_send_io_write_cmd, 
+		"Send IO write cmd to IOSQ"),
+	INIT_CASE(CASE_CMD + 1, case_cmd_send_io_read_cmd, 
+		"Send IO read cmd to IOSQ"),
+	INIT_CASE(CASE_CMD + 2, case_cmd_send_io_compare_cmd, 
+		"Send IO compare cmd to IOSQ"),
+
+	INIT_CASE(CASE_QUEUE, case_queue_iocmd_to_asq, 
+		"Submit IO command to Admin SQ"),
+	INIT_CASE(CASE_QUEUE + 1, case_queue_create_and_delete_contig_queue, 
+		"Create contiguous IOSQ & IOCQ, then delete it"),
+	INIT_CASE(CASE_QUEUE + 2, case_queue_create_and_delete_discontig_queue, 
+		"Create discontiguous IOSQ & IOCQ, then delete it"),
+
+	INIT_CASE(CASE_PM, case_pm_switch_power_state, "Randomly switch power state"),
+
+#if 1 // Obsolete?
+	INIT_CASE(211, case_encrypt_decrypt, 
+		"Encrypt and decrypt (Obsolete?)"),
+	INIT_CASE(212, case_test_meta, "Test meta data (Obsolete?)"),
+	INIT_CASE(216, case_unknown1, "Unknown1 (Obsolete?)"),
+	INIT_CASE(217, case_unknown2, "Unknown2 (Obsolete?)"),
+	INIT_CASE(218, case_unknown3, "Unknown3 (Obsolete?)"),
+	INIT_CASE(219, case_unknown4, "Unknown4 (Obsolete?)"),
+	INIT_CASE(222, case_unknown5, "Unknown5 (Obsolete?)"),
+	INIT_CASE(223, case_unknown6, "Unknown6 (Obsolete?)"),
+	INIT_CASE(224, case_unknown7, "Unknown7 (Obsolete?)"),
+	INIT_CASE(225, case_unknown8, "Unknown8 (Obsolete?)"),
+	INIT_CASE(226, case_unknown9, "Unknown9 (Obsolete?)"),
+#endif
 	INIT_CASE(255, case_all_cases, "test case list exe"),
 };
 
@@ -631,7 +591,7 @@ int nvme_select_case_to_execute(void)
 		scanf("%d", &select);
 
 		if (select >= ARRAY_SIZE(g_case_table)) {
-			pr_err("The selected case number is out of range(%lu)!"
+			pr_warn("The selected case number is out of range(%lu)!"
 				"Now will exit...\n", 
 				ARRAY_SIZE(g_case_table));
 			break;
@@ -648,6 +608,7 @@ int nvme_select_case_to_execute(void)
 				g_case_table[select].name, ret);
 			break;
 		}
+		pr_info("'%s' success!\n", g_case_table[select].desc);
 	} 
 
 	return 0;

@@ -14,4 +14,7 @@
 
 int case_queue_iocmd_to_asq(void);
 
+int case_queue_create_and_delete_contig_queue(void);
+int case_queue_create_and_delete_discontig_queue(void);
+
 #endif /* !_APP_TEST_QUEUE_H_ */

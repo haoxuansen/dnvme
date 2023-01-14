@@ -51,13 +51,12 @@ int nvme_get_cq_info(int fd, struct nvme_cq_public *cq)
 }
 
 /**
- * @brief Create admin submission queue
+ * @brief Create ASQ and update ASQ info to @ndev
  * 
- * @param fd NVMe device file descriptor
  * @param elements The number of entries
  * @return 0 on success, otherwise a negative errno
  */
-int nvme_create_asq(int fd, uint32_t elements)
+int nvme_create_asq(struct nvme_dev_info *ndev, uint32_t elements)
 {
 	struct nvme_admin_queue asq;
 	int ret;
@@ -65,22 +64,24 @@ int nvme_create_asq(int fd, uint32_t elements)
 	asq.type = NVME_ADMIN_SQ;
 	asq.elements = elements;
 
-	ret = ioctl(fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &asq);
+	ret = ioctl(ndev->fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &asq);
 	if (ret < 0) {
 		pr_err("failed to create asq!(%d)\n", ret);
 		return ret;
 	}
+	ndev->asq.sqid = NVME_AQ_ID;
+	ndev->asq.cqid = NVME_AQ_ID;
+	ndev->asq.size = elements;
 	return 0;
 }
 
 /**
- * @brief Create admin completion queue
+ * @brief Create ACQ and update ACQ info to @ndev
  * 
- * @param fd NVMe device file descriptor
  * @param elements The number of entries
  * @return 0 on success, otherwise a negative errno
  */
-int nvme_create_acq(int fd, uint32_t elements)
+int nvme_create_acq(struct nvme_dev_info *ndev, uint32_t elements)
 {
 	struct nvme_admin_queue acq;
 	int ret;
@@ -88,22 +89,31 @@ int nvme_create_acq(int fd, uint32_t elements)
 	acq.type = NVME_ADMIN_CQ;
 	acq.elements = elements;
 
-	ret = ioctl(fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &acq);
+	ret = ioctl(ndev->fd, NVME_IOCTL_CREATE_ADMIN_QUEUE, &acq);
 	if (ret < 0) {
 		pr_err("failed to create acq!(%d)\n", ret);
 		return ret;
 	}
+	ndev->acq.cqid = NVME_AQ_ID;
+	ndev->acq.size = elements;
 	return 0;
 }
 
-int nvme_create_aq_pair(int fd, uint32_t sqsz, uint32_t cqsz)
+/**
+ * @brief Create ASQ & ACQ, update ASQ & ACQ info to @ndev
+ * 
+ * @param sqsz Specify the size of ASQ in entries.
+ * @param cqsz Specify the size of ACQ in entries.
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_create_aq_pair(struct nvme_dev_info *ndev, uint32_t sqsz, uint32_t cqsz)
 {
 	int ret;
 
-	ret = nvme_create_acq(fd, cqsz);
+	ret = nvme_create_acq(ndev, cqsz);
 	if (ret < 0)
 		return ret;
-	ret = nvme_create_asq(fd, sqsz);
+	ret = nvme_create_asq(ndev, sqsz);
 	if (ret < 0)
 		return ret;
 	return 0;

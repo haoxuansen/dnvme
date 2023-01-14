@@ -38,13 +38,13 @@ struct nvme_ns_info {
  * 
  * @fd: NVMe device file descriptor
  * @vid: Vendor Identifier
- * @nss: An array for storing namespace info.
- * @ns_num_total: The maximum value of a valid NSID for the NVM subsystem
- * 
  * @io_sqes: Actual effective I/O Completion Queue Entry Size. The value
  *  is in bytes and is specified as a power of two (2^n).
  * @io_cqes: Actual effective I/O Submission Queue Entry Size. The value
  *  is in bytes and is specified as a power of two (2^n).
+ * @nss: An array for storing namespace info.
+ * @ns_num_total: The maximum value of a valid NSID for the NVM subsystem
+ * 
  * @irq_type: The type of interrupt configured
  * @nr_irq: The number of interrupts configured
  */
@@ -56,8 +56,13 @@ struct nvme_dev_info {
 	uint16_t	max_sq_num; // 1'base
 	uint16_t	max_cq_num; // 1'base
 
+	struct nvme_sq_info	asq;
+	struct nvme_cq_info	acq;
 	struct nvme_sq_info	*iosqs;
 	struct nvme_cq_info	*iocqs;
+
+	uint8_t		io_sqes;
+	uint8_t		io_cqes;
 
 	struct nvme_ns_info	*nss;
 	uint32_t	ns_num_total;
@@ -68,9 +73,6 @@ struct nvme_dev_info {
 	uint8_t		pmcap_ofst;
 	uint8_t		msicap_ofst;
 	uint8_t		pxcap_ofst;
-
-	uint8_t		io_sqes;
-	uint8_t		io_cqes;
 
 	enum nvme_irq_type	irq_type;
 	uint16_t		nr_irq;

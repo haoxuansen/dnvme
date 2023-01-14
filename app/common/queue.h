@@ -85,9 +85,9 @@ static inline void nvme_fill_prep_cq(struct nvme_prep_cq *pcq, uint16_t cqid,
 int nvme_get_sq_info(int fd, struct nvme_sq_public *sq);
 int nvme_get_cq_info(int fd, struct nvme_cq_public *cq);
 
-int nvme_create_asq(int fd, uint32_t elements);
-int nvme_create_acq(int fd, uint32_t elements);
-int nvme_create_aq_pair(int fd, uint32_t sqsz, uint32_t cqsz);
+int nvme_create_asq(struct nvme_dev_info *ndev, uint32_t elements);
+int nvme_create_acq(struct nvme_dev_info *ndev, uint32_t elements);
+int nvme_create_aq_pair(struct nvme_dev_info *ndev, uint32_t sqsz, uint32_t cqsz);
 
 int nvme_prepare_iosq(int fd, struct nvme_prep_sq *psq);
 int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq);

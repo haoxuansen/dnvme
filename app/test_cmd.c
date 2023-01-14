@@ -160,7 +160,6 @@ int case_cmd_send_io_read_cmd(void)
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out;
 	}
-	pr_info("IO read ok!\n");
 out:
 	ret = delete_ioq(ndev->fd, sq, cq);
 	if (ret < 0)
@@ -192,7 +191,6 @@ int case_cmd_send_io_write_cmd(void)
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out;
 	}
-	pr_info("IO write ok!\n");
 out:
 	ret = delete_ioq(ndev->fd, sq, cq);
 	if (ret < 0)
@@ -238,8 +236,6 @@ int case_cmd_send_io_compare_cmd(void)
 		ret = -EIO;
 		goto out;
 	}
-
-	pr_info("IO compare ok!\n");
 out:
 	ret = delete_ioq(ndev->fd, sq, cq);
 	if (ret < 0)

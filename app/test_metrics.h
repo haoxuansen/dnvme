@@ -121,24 +121,26 @@ uint32_t pcie_hot_reset(void);
 
 void test_encrypt_decrypt(void);
 
-#define TEST_PASS "\nppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
-                  "pp       pp     aa       aa     ss              ss          \n"   \
-                  "pp       pp     aa       aa     ss              ss          \n"   \
-                  "pp       pp     aa       aa     ss              ss          \n"   \
-                  "ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n"   \
-                  "pp              aa       aa              ss              ss \n"   \
-                  "pp              aa       aa              ss              ss \n"   \
-                  "pp              aa       aa              ss              ss \n"   \
-                  "pp              aa       aa     sssssssssss     sssssssssss \n"
+#define TEST_PASS "\n" \
+	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa     sssssssssss     sssssssssss \n"
 
-#define TEST_FAIL "\nfffffffffff     aaaaaaaaaaa     iiiiiiiiiii     ll          \n" \
-                  "ff              aa       aa         iii         ll          \n"   \
-                  "ff              aa       aa         iii         ll          \n"   \
-                  "ff              aa       aa         iii         ll          \n"   \
-                  "fffffffffff     aaaaaaaaaaa         iii         ll          \n"   \
-                  "ff              aa       aa         iii         ll          \n"   \
-                  "ff              aa       aa         iii         ll          \n"   \
-                  "ff              aa       aa         iii         ll          \n"   \
-                  "ff              aa       aa     iiiiiiiiiii     lllllllllll \n"
+#define TEST_FAIL "\n" \
+	"fffffffffff     aaaaaaaaaaa     iiiiiiiiiii     ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"fffffffffff     aaaaaaaaaaa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa     iiiiiiiiiii     lllllllllll \n"
 
 #endif

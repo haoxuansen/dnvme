@@ -234,7 +234,7 @@ static int nvme_init_stage1(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_create_aq_pair(ndev->fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
+	ret = nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
 	if (ret < 0)
 		return ret;
 
@@ -274,7 +274,7 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_create_aq_pair(ndev->fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
+	ret = nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
 	if (ret < 0)
 		return ret;
 
@@ -373,7 +373,7 @@ int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz,
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_create_aq_pair(ndev->fd, asqsz, acqsz);
+	ret = nvme_create_aq_pair(ndev, asqsz, acqsz);
 	if (ret < 0)
 		return ret;
 

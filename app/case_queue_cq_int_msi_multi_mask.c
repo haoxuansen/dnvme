@@ -34,7 +34,7 @@ void int_mask_bit(uint32_t msi_mask_flag)
     enum nvme_irq_type irq_type = NVME_INT_MSI_MULTI;
 
     nvme_disable_controller_complete(ndev->fd);
-    nvme_create_aq_pair(ndev->fd, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
+    nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
 
 #ifdef AMD_MB_EN
     if (irq_type == NVME_INT_MSI_MULTI)

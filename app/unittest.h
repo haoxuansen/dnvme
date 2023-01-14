@@ -94,31 +94,4 @@ int mem_cmp(uint32_t *mem_addr1, uint32_t *mem_addr2, uint32_t data_size);
 int dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size);
 int pat_cmp(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size);
 
-
-#define STR_PASS "\n"                                 \
-                  "PPPPPP   AAAA   SSSSSS  SSSSSS \n" \
-                  "PP  PP  AA  AA  SS      SS     \n" \
-                  "PPPPPP  AAAAAA  SSSSSS  SSSSSS \n" \
-                  "PP      AA  AA      SS      SS \n" \
-                  "PP      AA  AA  SSSSSS  SSSSSS \n\n"
-#define STR_FAIL "\n"                                 \
-                  "FFFFFF   AAAA   IIIIII  LL     \n" \
-                  "FF      AA  AA    II    LL     \n" \
-                  "FFFFFF  AAAAAA    II    LL     \n" \
-                  "FF      AA  AA    II    LL     \n" \
-                  "FF      AA  AA  IIIIII  LLLLLL \n\n"
-#define STR_WARN "\n"                                 \
-                  "W    W   AAAA   RRRRRR  NN  NN \n" \
-                  "W WW W  AA  AA  RR  RR  NNN NN \n" \
-                  " W  W   AAAAAA  RRRRRR  NN NNN \n" \
-                  " W  W   AA  AA  RR RR   NN  NN \n" \
-                  " W  W   AA  AA  RR  RR  NN  NN \n\n"
-#define STR_SKIP "\n"                                 \
-                  "SSSSSS  KK  KK  IIIIII  PPPPPP \n" \
-                  "SS      KK KK     II    PP  PP \n" \
-                  "SSSSSS  KKK       II    PPPPPP \n" \
-                  "    SS  KK KK     II    PP     \n" \
-                  "SSSSSS  KK  KK  IIIIII  PP     \n\n"
-
-
 #endif
