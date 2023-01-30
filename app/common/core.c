@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -28,6 +29,33 @@
 #include "cmd.h"
 #include "pci.h"
 #include "debug.h"
+
+/**
+ * @return 0 on success, otherwise a negative errno.
+ */
+int call_system(const char *command)
+{
+	int status;
+
+	status = system(command);
+	if (-1 == status) {
+		pr_err("system err!\n");
+		return -EPERM;
+	}
+
+	if (!WIFEXITED(status)) {
+		pr_err("abort with status:%d!\n", WEXITSTATUS(status));
+		return -EPERM;
+	}
+
+	if (WEXITSTATUS(status)) {
+		pr_err("failed to execute '%s'!(%d)\n", command, 
+			WEXITSTATUS(status));
+		return -EPERM;
+	}
+
+	return 0;
+}
 
 static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
 {
@@ -201,7 +229,7 @@ static int init_capability(struct nvme_dev_info *ndev)
 static int check_link_status(struct nvme_dev_info *ndev)
 {
 	int ret;
-	uint32_t link_sts;
+	uint16_t link_sts;
 
 	ret = pci_exp_read_link_status(ndev->fd, ndev->pxcap_ofst, &link_sts);
 	if (ret < 0) {

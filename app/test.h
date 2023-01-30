@@ -12,8 +12,32 @@
 #ifndef _APP_TEST_H_
 #define _APP_TEST_H_
 
+#include <stdint.h>
+
 #include "sizes.h"
 #include "core.h"
+
+#define TEST_PASS "\n" \
+	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa     sssssssssss     sssssssssss \n"
+
+#define TEST_FAIL "\n" \
+	"fffffffffff     aaaaaaaaaaa     iiiiiiiiiii     ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"fffffffffff     aaaaaaaaaaa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa     iiiiiiiiiii     lllllllllll \n"
 
 #define NVME_TOOL_CQ_ENTRY_SIZE		SZ_1M /* CQES(16) * elements(64K) */
 #define NVME_TOOL_SQ_BUF_SIZE		SZ_4M /* SQES(64) * elements(64K) */

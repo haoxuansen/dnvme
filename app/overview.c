@@ -17,16 +17,19 @@
 
 #include "defs.h"
 #include "log.h"
+#include "pci_regs_ext.h"
 
-#include "common_define.h"
 #include "overview.h"
 #include "pci.h"
+#include "pcie.h"
 #include "meta.h"
 #include "queue.h"
 #include "test.h"
 #include "test_queue.h"
 #include "test_cmd.h"
 #include "test_pm.h"
+
+#include "common_define.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
@@ -387,7 +390,7 @@ static int case_set_d0_state(struct nvme_tool *tool)
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	pr_info("set to D0 state\n");
-	set_pcie_power_state(ndev->pmcap_ofst, D0);
+	pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, PCI_PM_CTRL_STATE_D0);
 	return 0;
 }
 
@@ -396,7 +399,7 @@ static int case_set_d3_state(struct nvme_tool *tool)
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	pr_info("set to D3 state\n");
-	set_pcie_power_state(ndev->pmcap_ofst, D3hot);
+	pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, PCI_PM_CTRL_STATE_D3HOT);
 	return 0;
 }
 

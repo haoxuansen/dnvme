@@ -4,207 +4,271 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
+#include <errno.h>
 
+#include "log.h"
+#include "pci_regs_ext.h"
 #include "dnvme_ioctl.h"
+
+#include "core.h"
 #include "ioctl.h"
+#include "cmd.h"
 #include "queue.h"
-
-#include "common.h"
+#include "pcie.h"
 #include "test.h"
-#include "test_metrics.h"
-#include "test_send_cmd.h"
-#include "test_cq_gain.h"
-#include "test_irq.h"
 
-static int test_flag = SUCCEED;
-static uint8_t test_type = 1; //
-static char *disp_this_case = "this case will random tests: random disable / subsystem / flr reset reset\n"
-                              "this case will send random IO(w/r) cmd, wait random cmds back,\n"
-                              "then controller disable / subsystem / flr reset,and re-init\n";
-static void *fwdma_wr_buffer;
-static void *fwdma_rd_buffer;
+enum reset_type {
+	NVME_CTRL_RESET = 0,
+	NVME_SUBSYSTEM_RESET,
+	PCIE_FLR_RESET,
+	PCIE_D0D3_RESET,
+	PCIE_HOT_RESET,
+	PCIE_LINKDOWN_RESET,
+	RESET_TYPE_FENCE,
+};
 
-static void test_sub(void)
+static inline enum reset_type select_reset_type_random(void)
 {
-	uint32_t cmd_cnt = 0;
-	uint32_t io_sq_id = 1;
-	uint32_t io_cq_id = 1;
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ctrl_property *prop = &ndev->prop;
-	uint32_t cq_size = NVME_CAP_MQES(prop->cap);
-	uint32_t sq_size = NVME_CAP_MQES(prop->cap);
-	uint64_t wr_slba = 0;
-	uint16_t wr_nlb = 0;
-	uint32_t wr_nsid = 1;
-	uint16_t control = 0;
-	struct create_cq_parameter cq_parameter = {0};
-	struct create_sq_parameter sq_parameter = {0};
-	uint32_t reap_num = 0;
+	return rand() % RESET_TYPE_FENCE;
+}
 
-/**********************************************************************/
-#ifdef FWDMA_RST_OPEN
-	uint32_t data_len = 4096;
-	uint32_t axi_addr = 0x4070000;
-	struct fwdma_parameter fwdma_parameter = {0};
-#endif
-	/**********************************************************************/
-	io_sq_id = BYTE_RAND() % ndev->max_sq_num + 1;
-	pr_info("create SQ %d\n", io_sq_id);
-	/**********************************************************************/
-	cq_parameter.cq_id = io_cq_id;
-	cq_parameter.cq_size = cq_size;
-	cq_parameter.contig = 1;
-	cq_parameter.irq_en = 1;
-	cq_parameter.irq_no = io_cq_id;
-	test_flag |= create_iocq(ndev->fd, &cq_parameter);
-	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
+static const char *reset_type_string(enum reset_type type)
+{
+	switch (type) {
+	case NVME_CTRL_RESET:
+		return "NVMe Controller Reset";
+	case NVME_SUBSYSTEM_RESET:
+		return "NVMe Subsystem Reset";
+	case PCIE_FLR_RESET:
+		return "PCIe Function Level Reset";
+	case PCIE_D0D3_RESET:
+		return "PCIe D0&D3 Reset";
+	case PCIE_HOT_RESET:
+		return "PCIe Hot Reset";
+	case PCIE_LINKDOWN_RESET:
+		return "PCIe Linkdown Reset";
+	default:
+		return "Unknown";
+	}
+}
 
-	sq_parameter.cq_id = io_cq_id;
-	sq_parameter.sq_id = io_sq_id;
-	sq_parameter.sq_size = sq_size;
-	sq_parameter.contig = 1;
-	sq_parameter.sq_prio = MEDIUM_PRIO;
-	test_flag |= create_iosq(ndev->fd, &sq_parameter);
-	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
-	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
-	/**********************************************************************/
-	wr_slba = 0;
-	wr_nlb = 8;
-	cmd_cnt = 0;
-	/**********************************************************************/
-	for (int index = 0; index < (rand() % (512)) / 2 + 100; index++)
-	{
-		wr_slba = rand() % (ndev->nss[0].nsze / 2);
-		wr_nlb = 256; //WORD_RAND() % 255 + 1;
-		if (wr_slba % 2)
-		{
-			control = NVME_RW_FUA;
-		}
+static int do_reset_random(struct nvme_dev_info *ndev)
+{
+	enum reset_type rst;
+	int ret = -EPERM;
+
+	rst = select_reset_type_random();
+	pr_notice("%s ...\n", reset_type_string(rst));
+
+	switch (rst) {
+	case NVME_CTRL_RESET:
+		ret = nvme_disable_controller_complete(ndev->fd);
+		break;
+
+	case NVME_SUBSYSTEM_RESET:
+		ret = nvme_reset_subsystem(ndev->fd);
+		break;
+	
+	case PCIE_FLR_RESET:
+		ret = pcie_is_support_flr(ndev->fd, ndev->pxcap_ofst);
+		if (ret < 0)
+			break;
+		else if (ret > 0)
+			ret = pcie_do_flr(ndev->fd, ndev->pxcap_ofst);
 		else
-		{
-			control = 0;
+			pr_warn("Not support FLR!\n");
+		break;
+	
+	case PCIE_D0D3_RESET:
+		ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, 
+			PCI_PM_CTRL_STATE_D3HOT);
+		if (ret < 0) {
+			pr_err("failed to set D3 hot state!\n");
+			break;
 		}
 
-		if (wr_slba + wr_nlb < ndev->nss[0].nsze)
-		{
-			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, tool->wbuf);
-			cmd_cnt++;
-			test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
-			cmd_cnt++;
-			test_flag |= nvme_io_compare_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, control, tool->wbuf);
-			cmd_cnt++;
-		}
-	}
-#ifdef FWDMA_RST_OPEN
-	for (int index = 0; index < (rand() % 7) + 5; index++)
-	{
-		fwdma_parameter.cdw10 = data_len; //data_len
-		fwdma_parameter.cdw11 = axi_addr; //axi_addr
-		// fwdma_parameter.cdw12 |= (1 << 0); //flag bit[0] crc chk,
-		fwdma_parameter.cdw12 |= (1 << 1); //flag bit[1] hw data chk(only read)
-		fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] enc/dec chk,
-		fwdma_parameter.addr = fwdma_wr_buffer;
-		test_flag |= nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
-		fwdma_parameter.addr = fwdma_rd_buffer;
-		test_flag |= nvme_maxio_fwdma_rd(ndev->fd, &fwdma_parameter);
-	}
-#endif
+		ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst,
+			PCI_PM_CTRL_STATE_D0);
+		break;
+	
+	case PCIE_HOT_RESET:
+		ret = pcie_do_hot_reset(ndev->fd);
+		break;
 
-	/**********************************************************************/
-	test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-#ifdef FWDMA_RST_OPEN
-	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_ADMIN_SQ);
-#endif
-	/**********************************************************************/
-	//reap cq
-	// test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-	// test_flag |= cq_gain(io_cq_id, (rand() % (cmd_cnt-10) + 10), &reap_num);
-	// pr_info("send:%d reaped:%d\n", cmd_cnt, reap_num);
-#if 0 //def FWDMA_RST_OPEN
-	test_flag |= cq_gain(NVME_ADMIN_CQ, 2, &reap_num);
-#endif
-	test_type = BYTE_RAND() % 6 + 1;
-	if (test_type == 1)
-	{
-		pr_color(LOG_COLOR_YELLOW, "controller disable Reset ...\n");
-		test_flag |= nvme_disable_controller_complete(ndev->fd);
-		pr_color(LOG_COLOR_YELLOW, "controller disable Reset Done\n");
-	}
-	else if (test_type == 2)
-	{
-		pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset ...\n");
-		test_flag |= nvme_reset_subsystem(ndev->fd);
-		pr_color(LOG_COLOR_YELLOW, "NVM Subsystem Reset Done\n");
-	}
-	else if (test_type == 3)
-	{
-		pr_color(LOG_COLOR_YELLOW, "controller flr Reset ...\n");
-		test_flag |= ctrl_pci_flr();
-		pr_color(LOG_COLOR_YELLOW, "controller flr Reset Done\n");
-	}
-	else if (test_type == 4)
-	{
-		pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset ...\n");
-		test_flag |= set_pcie_power_state(ndev->pmcap_ofst, D3hot);
-		assert(test_flag == SUCCEED);
-		test_flag |= set_pcie_power_state(ndev->pmcap_ofst, D0);
-		assert(test_flag == SUCCEED);
-		pr_color(LOG_COLOR_YELLOW, "controller d0d3 Reset Done\n");
-	}
-	else if (test_type == 5)
-	{
-		pr_color(LOG_COLOR_YELLOW, "controller hot Reset ...\n");
-		pcie_hot_reset();
-		pr_color(LOG_COLOR_YELLOW, "controller hot Reset Done\n");
-	}
-	else if (test_type == 6)
-	{
-		pr_color(LOG_COLOR_YELLOW, "controller linkdown Reset ...\n");
-		pcie_link_down();
-		pr_color(LOG_COLOR_YELLOW, "controller linkdown Reset Done\n");
+	case PCIE_LINKDOWN_RESET:
+		ret = pcie_do_link_down(ndev->fd);
+		break;
+	
+	default:
+		pr_err("reset type %u is not support!\n", rst);
+		return -EINVAL;
 	}
 
-	usleep(10000);
+	if (ret < 0)
+		pr_err("%s err!(%d)\n", reset_type_string(rst), ret);
+	else
+		pr_info("%s ok!\n", reset_type_string(rst));
+	
+	return ret;
+}
 
-	nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
+static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
+{
+	struct nvme_ccq_wrapper ccq_wrap = {0};
+	struct nvme_csq_wrapper csq_wrap = {0};
+	int ret;
+
+	ccq_wrap.cqid = cq->cqid;
+	ccq_wrap.elements = cq->size;
+	ccq_wrap.irq_no = cq->irq_no;
+	ccq_wrap.irq_en = cq->irq_en;
+	ccq_wrap.contig = 1;
+
+	ret = nvme_create_iocq(fd, &ccq_wrap);
+	if (ret < 0) {
+		pr_err("failed to create iocq:%u!(%d)\n", cq->cqid, ret);
+		return ret;
+	}
+
+	csq_wrap.sqid = sq->sqid;
+	csq_wrap.cqid = sq->cqid;
+	csq_wrap.elements = sq->size;
+	csq_wrap.prio = NVME_SQ_PRIO_MEDIUM;
+	csq_wrap.contig = 1;
+
+	ret = nvme_create_iosq(fd, &csq_wrap);
+	if (ret < 0) {
+		pr_err("failed to create iosq:%u!(%d)\n", sq->sqid, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_rwc_wrapper wrap = {0};
+
+	wrap.sqid = sq->sqid;
+	wrap.cqid = sq->cqid;
+	wrap.nsid = ndev->nss[0].nsid;
+	wrap.slba = rand() % (ndev->nss[0].nsze / 2);
+	wrap.nlb = 256;
+	wrap.buf = tool->rbuf;
+	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+
+	if (rand() % 2)
+		wrap.control = NVME_RW_FUA;
+
+	BUG_ON(wrap.size > tool->rbuf_size);
+
+	return nvme_io_read(ndev->fd, &wrap);
+}
+
+static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_rwc_wrapper wrap = {0};
+
+	wrap.sqid = sq->sqid;
+	wrap.cqid = sq->cqid;
+	wrap.nsid = ndev->nss[0].nsid;
+	wrap.slba = rand() % (ndev->nss[0].nsze / 2);
+	wrap.nlb = 256;
+	wrap.buf = tool->wbuf;
+	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+
+	BUG_ON(wrap.size > tool->wbuf_size);
+
+	/* skip the initialization of write buffer */
+
+	return nvme_io_write(ndev->fd, &wrap);
+}
+
+static int send_io_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
+{
+	int nr_cmds = (rand() % 512) / 2 + 100;
+	int i;
+	int ret;
+
+	BUG_ON(nr_cmds > sq->size);
+
+	for (i = 0; i < nr_cmds; i++) {
+		if (i % 2)
+			ret = send_io_read_cmd(tool, sq);
+		else
+			ret = send_io_write_cmd(tool, sq);
+
+		if (ret < 0)
+			return ret;
+	}
+	return nr_cmds;
+}
+
+static void show_case_description(void)
+{
+	pr_info("Do random reset for 50 times!\n");
+	pr_debug("Before each reset, serveral IO Read/Write cmds are submitted to Queue.\n");
+	pr_debug("Each reset is randomly selected from the following types:\n"
+		"\t %s \n\t %s \n\t %s \n\t %s \n\t %s \n\t %s\n",
+		reset_type_string(NVME_CTRL_RESET), 
+		reset_type_string(NVME_SUBSYSTEM_RESET),
+		reset_type_string(PCIE_FLR_RESET),
+		reset_type_string(PCIE_D0D3_RESET),
+		reset_type_string(PCIE_HOT_RESET),
+		reset_type_string(PCIE_LINKDOWN_RESET));
 }
 
 int case_resets_random_all(struct nvme_tool *tool)
 {
-	int test_round = 0;
-	pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
-	pr_info("%s\n", disp_this_case);
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	int loop = 50;
+	int ret;
 
-	/* !FIXME: release memory after alloc fail! */
-	if ((posix_memalign(&fwdma_wr_buffer, CONFIG_UNVME_RW_BUF_ALIGN, 8192)) ||
-		(posix_memalign(&fwdma_rd_buffer, CONFIG_UNVME_RW_BUF_ALIGN, 8192)))
-	{
-		pr_err("Memalign Failed\n");
-		return FAILED;
+	show_case_description();
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		return -ENODEV;
 	}
 
-	memset((uint8_t *)fwdma_wr_buffer, rand() % 0xff, 8192);
-	memset((uint8_t *)fwdma_rd_buffer, 0, 8192);
+	do {
+		ret = create_ioq(ndev->fd, sq, cq);
+		if (ret < 0)
+			return ret;
 
-	/**********************************************************************/
-	for (test_round = 1; test_round <= 50; test_round++)
-	{
-		pr_info("\ntest_round: %d\n", test_round);
-		test_sub();
+		ret = send_io_cmd(tool, sq);
+		if (ret < 0)
+			return ret;
+		
+		ret = nvme_ring_sq_doorbell(ndev->fd, sq->sqid);
+		if (ret < 0)
+			return ret;
+		
+		/* skip reaping CQ entries */
+
+		ret = do_reset_random(ndev);
+		if (ret < 0)
+			return ret;
+
+		msleep(10);
+
+		ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, 
+			NVME_INT_MSIX);
+		if (ret < 0)
+			return ret;
+	} while (--loop > 0);
+
+	if (ret < 0) {
+		pr_err("%s\n", TEST_FAIL);
+		return ret;
 	}
-	if (test_flag != SUCCEED)
-	{
-		pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
-	}
-	else
-	{
-		pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
-	}
-	free(fwdma_wr_buffer);
-	free(fwdma_rd_buffer);
-	return test_flag;
+
+	pr_info("%s\n", TEST_PASS);
+	return 0;
 }
+

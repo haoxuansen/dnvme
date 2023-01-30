@@ -260,8 +260,8 @@ int pci_get_caps(struct pci_dev *pdev, struct pci_cap *caps)
 			break;
 		}
 
-		dev_dbg(dev, "Support Capability 0x%02x: %s\n", id, 
-			pci_cap_string(id));
+		dev_dbg(dev, "Support PCI Cap 0x%02x with Offset 0x%02x: %s\n",
+			id, now, pci_cap_string(id));
 		caps[id - 1].id = id;
 		caps[id - 1].offset = now;
 
@@ -317,12 +317,12 @@ int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps)
 			break;
 		}
 
-		dev_dbg(dev, "Support Express Extended Capability 0x%04x: %s\n",
-			id, pci_ext_cap_string(id));
+		dev_dbg(dev, "Support PCIe Cap 0x%04x with offset 0x%04x: %s\n",
+			id, now, pci_ext_cap_string(id));
 		caps[id - 1].id = id;
 		caps[id - 1].version = PCI_EXT_CAP_VER(header);
 		caps[id - 1].offset = now;
-		
+
 		now = next;
 	} while (next > PCI_CFG_SPACE_SIZE && next < PCI_CFG_SPACE_EXP_SIZE);
 

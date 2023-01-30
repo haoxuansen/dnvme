@@ -13,9 +13,12 @@
 #define _APP_CORE_H_
 
 #include <stdint.h>
+#include <unistd.h>
 
 #include "dnvme_ioctl.h"
 #include "queue.h"
+
+#define msleep(ms)			usleep(1000 * (ms))
 
 /**
  * @brief NVMe namespace information
@@ -82,6 +85,8 @@ struct nvme_dev_info {
 
 	struct nvme_ctrl_property	prop;
 };
+
+int call_system(const char *command);
 
 struct nvme_dev_info *nvme_init(const char *devpath);
 void nvme_deinit(struct nvme_dev_info *ndev);

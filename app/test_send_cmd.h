@@ -22,14 +22,6 @@ typedef struct _ADMIN_FORMAT_COMMAND_DW10
     uint32_t Reserved : 20;
 } ADMIN_FORMAT_COMMAND_DW10, *PADMIN_FORMAT_COMMAND_DW10;
 
-enum power_states_
-{
-    D0 = 0,
-    D1 = 1,
-    D2 = 2,
-    D3hot = 3,
-};
-
 struct pcie_msi_cap
 {
     __u8 cap_id;

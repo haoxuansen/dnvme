@@ -14,9 +14,6 @@
 #include "dnvme_ioctl.h"
 #include "core.h"
 
-// #define AMD_MB_EN //Warning: AMD MB may not support msi-multi, create by shell script in auto_heater.h
-// #define FWDMA_RST_OPEN
-
 #define DEFAULT_IO_QUEUE_SIZE (65535)
 #define NSIDX(n) (n - 1)
 
@@ -108,38 +105,11 @@ int ioctl_send_format(int g_fd, uint8_t lbaf);
 
 uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
 
-int ctrl_pci_flr(void);
-int set_pcie_power_state(uint8_t pmcap, uint8_t dstate);
-
 void pcie_retrain_link(void);
 void pcie_RC_cfg_speed(int speed);
 void pcie_set_width(int width);
 void pcie_random_speed_width(void);
-uint32_t pcie_link_down(void);
-uint32_t pcie_hot_reset(void);
 
 void test_encrypt_decrypt(void);
-
-#define TEST_PASS "\n" \
-	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
-	"pp       pp     aa       aa     ss              ss          \n" \
-	"pp       pp     aa       aa     ss              ss          \n" \
-	"pp       pp     aa       aa     ss              ss          \n" \
-	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
-	"pp              aa       aa              ss              ss \n" \
-	"pp              aa       aa              ss              ss \n" \
-	"pp              aa       aa              ss              ss \n" \
-	"pp              aa       aa     sssssssssss     sssssssssss \n"
-
-#define TEST_FAIL "\n" \
-	"fffffffffff     aaaaaaaaaaa     iiiiiiiiiii     ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"fffffffffff     aaaaaaaaaaa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa     iiiiiiiiiii     lllllllllll \n"
 
 #endif

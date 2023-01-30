@@ -25,6 +25,7 @@
 #include "dnvme_ioctl.h"
 #include "ioctl.h"
 #include "pci.h"
+#include "pcie.h"
 #include "queue.h"
 #include "cmd.h"
 #include "irq.h"
@@ -793,88 +794,6 @@ uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id)
     return (uint8_t)pci_cap;
 }
 
-int ctrl_pci_flr(void)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t u32_tmp_data = 0;
-    uint32_t bar_reg[6];
-    uint8_t idx = 0;
-    int ret_val = FAILED;
-    int ret;
-    
-    for (idx = 0; idx < 6; idx++)
-    {
-    	ret = pci_read_config_dword(ndev->fd, 0x10 + idx * 4, &bar_reg[idx]);
-	if (ret < 0)
-		exit(-1);
-    }
-    
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
-    if (ret < 0)
-    	exit(-1);
-    
-    u32_tmp_data |= 0x1 << 15; //Initiate Function Level Reset
-    ret_val = pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
-    if (ret_val < 0)
-        return FAILED;
-
-    usleep(2000);
-
-    u32_tmp_data = ((uint32_t)(7)); // bus master/memory space/io space enable
-    ret_val = pci_write_config_data(ndev->fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
-    if (ret_val < 0)
-        return FAILED;
-
-    for (idx = 0; idx < 6; idx++)
-    {
-        pci_write_config_data(ndev->fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
-    }
-
-    return SUCCEED;
-}
-
-int set_pcie_power_state(uint8_t pmcap, uint8_t dstate)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t u32_tmp_data = 0;
-    int ret_val = FAILED;
-    uint32_t retry_cnt = 0, retry_cnt1 = 0;
-    int ret;
-    // u32_tmp_data = pci_read_dword(g_fd, pmcap + 0x4);
-    // if ((u32_tmp_data & 0x3) == dstate)
-    //     return SUCCEED;
-    u32_tmp_data &= ~0x3;
-    u32_tmp_data |= dstate;
-write_again:
-    ret_val = pci_write_config_data(ndev->fd, pmcap + 0x4, 4, (uint8_t *)&u32_tmp_data);
-    if (ret_val < 0)
-    {
-        pr_err("pci_write_config_data failed:%d\n", ret_val);
-        usleep(10000);
-        if (++retry_cnt < 10)
-            goto write_again;
-        else
-            return FAILED;
-    }
-    usleep(10000); //spec define min 10ms wait ctrlr ready
-    ret = pci_read_config_dword(ndev->fd, pmcap + 0x4, &u32_tmp_data);
-    if (ret < 0)
-    	exit(-1);
-
-    if ((u32_tmp_data & 0x3) != dstate)
-    {
-        pr_err("set_state:%#x,but read:%#x\r\n", dstate, u32_tmp_data & 0x3);
-        if (++retry_cnt1 < 10)
-            goto write_again;    
-    }
-    assert((u32_tmp_data & 0x3) == dstate);
-    return SUCCEED;
-}
-
-//set_link_disable()
-
 /**
  * @brief  
  * @note   
@@ -1414,88 +1333,6 @@ int nvme_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid)
         return FAILED;
     }
     return nvme_admin_ring_dbl_reap_cq(g_fd);
-}
-
-/********** PCIe RC retrain link **********/
-void pcie_retrain_link(void)
-{
-    system("setpci -s " RC_CAP_LINK_CONTROL ".b=20:20");
-    usleep(100000); // 100 ms
-}
-
-/********** PCIe hot reset **********/
-uint32_t pcie_hot_reset(void)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-    int ret_val = FAILED;
-    uint8_t idx = 0;
-    uint32_t u32_tmp_data = 0;
-    uint32_t bar_reg[6];
-    int ret;
-
-    for (idx = 0; idx < 6; idx++)
-    {
-        ret = pci_read_config_dword(ndev->fd, 0x10 + idx * 4, &bar_reg[idx]);
-	if (ret < 0)
-		exit(-1);
-    }
-
-    system("setpci -s " RC_BRIDGE_CONTROL ".b=40:40");
-    usleep(50000); // 100 ms
-    system("setpci -s " RC_BRIDGE_CONTROL ".b=00:40");
-
-    usleep(50000); // 100 ms
-
-    u32_tmp_data = ((uint32_t)(0x7)); // bus master/memory space/io space enable
-    ret_val = pci_write_config_data(ndev->fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
-    if (ret_val < 0)
-        return FAILED;
-
-    for (idx = 0; idx < 6; idx++)
-    {
-        pci_write_config_data(ndev->fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
-    }
-
-    pcie_retrain_link();
-    return SUCCEED;
-}
-
-/********** PCIe link down **********/
-uint32_t pcie_link_down(void)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t u32_tmp_data = 0;
-    uint32_t bar_reg[6];
-    uint8_t idx = 0;
-    int ret_val = FAILED;
-    int ret;
-    
-    for (idx = 0; idx < 6; idx++)
-    {
-        ret = pci_read_config_dword(ndev->fd, 0x10 + idx * 4, &bar_reg[idx]);
-	if (ret < 0)
-		exit(-1);
-    }
-
-    system("setpci -s " RC_CAP_LINK_CONTROL ".b=10:10");
-    usleep(100000); // 100 ms
-    system("setpci -s " RC_CAP_LINK_CONTROL ".b=00:10");
-    usleep(100000); // 100 ms
-
-    u32_tmp_data = ((uint32_t)(0x7)); // bus master/memory space/io space enable
-    ret_val = pci_write_config_data(ndev->fd, 0x4, 4, (uint8_t *)&u32_tmp_data);
-    if (ret_val < 0)
-        return FAILED;
-
-    for (idx = 0; idx < 6; idx++)
-    {
-        pci_write_config_data(ndev->fd, 0x10 + idx * 4, 4, (uint8_t *)&bar_reg[idx]);
-    }
-
-    pcie_retrain_link();
-    return SUCCEED;
 }
 
 /********** PCIe RC cfg speed **********/

@@ -6,7 +6,9 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+
 #include "pci.h"
+#include "pcie.h"
 
 #include "common.h"
 #include "test.h"
@@ -31,7 +33,7 @@ static void test_sub(void)
 
     /************************** Issue hot reset *********************/
     pr_info("\nIssue hot reset\n");
-    pcie_hot_reset();
+    pcie_do_hot_reset(ndev->fd);
 
     // u32_tmp_data = pci_read_dword(g_fd, 0);
     // if ((u32_tmp_data >> 16) != 0x100)
@@ -68,7 +70,7 @@ static void test_sub(void)
 
     /************************** Issue link down *********************/
     pr_info("\nIssue link down\n");
-    pcie_link_down();
+    pcie_do_link_down(ndev->fd);
 
     // check status after re-link
     ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);

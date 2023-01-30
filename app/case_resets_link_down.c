@@ -6,7 +6,9 @@
 #include <string.h>
 
 #include "dnvme_ioctl.h"
+
 #include "queue.h"
+#include "pcie.h"
 
 #include "common.h"
 #include "test.h"
@@ -89,7 +91,7 @@ static void test_sub(void)
     /************************** Issue link down *********************/
     pr_info("\nIssue link down\n");
 
-    pcie_link_down();
+    pcie_do_link_down(ndev->fd);
 
     sleep(1);
 
