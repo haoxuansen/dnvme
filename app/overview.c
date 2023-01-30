@@ -385,24 +385,6 @@ static int case_disable_ltr(struct nvme_tool *tool)
 	return 0;
 }
 
-static int case_set_d0_state(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-
-	pr_info("set to D0 state\n");
-	pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, PCI_PM_CTRL_STATE_D0);
-	return 0;
-}
-
-static int case_set_d3_state(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-
-	pr_info("set to D3 state\n");
-	pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, PCI_PM_CTRL_STATE_D3HOT);
-	return 0;
-}
-
 static int case_unknown6(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
@@ -508,8 +490,6 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(59, test_5_fua_wr_rd_cmp, "test_5_fua_wr_rd_cmp test"),
 	INIT_CASE(60, test_6_all_ns_lbads_test, "test_6_all_ns_lbads_test"),
 	INIT_CASE(77, case_disable_ltr, "set LTR disable"),
-	INIT_CASE(78, case_set_d0_state, "set to D0 state"),
-	INIT_CASE(79, case_set_d3_state, "set to D3 state"),
 	INIT_CASE(80, case_pcie_link_speed_width_step, "pcie_link_speed_width step"),
 	INIT_CASE(81, case_pcie_link_speed_width_cyc, "pcie_link_speed_width cyc"),
 	INIT_CASE(82, case_pcie_reset_single, "pcie_reset single"),
@@ -537,7 +517,12 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(CASE_QUEUE + 2, case_queue_create_and_delete_discontig_queue, 
 		"Create discontiguous IOSQ & IOCQ, then delete it"),
 
-	INIT_CASE(CASE_PM, case_pm_switch_power_state, "Randomly switch power state"),
+	INIT_CASE(CASE_PM, case_pm_switch_power_state, 
+		"Switch NVMe power state randomly"),
+	INIT_CASE(CASE_PM + 1, case_pm_set_d0_state, 
+		"Set PCIe power state to D0"),
+	INIT_CASE(CASE_PM + 2, case_pm_set_d3hot_state, 
+		"Set PCIe power state to D3 hot"),
 
 #if 1 // Obsolete?
 	INIT_CASE(211, case_encrypt_decrypt, 

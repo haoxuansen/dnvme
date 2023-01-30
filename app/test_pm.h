@@ -14,4 +14,7 @@
 
 int case_pm_switch_power_state(struct nvme_tool *tool);
 
+int case_pm_set_d0_state(struct nvme_tool *tool);
+int case_pm_set_d3hot_state(struct nvme_tool *tool);
+
 #endif /* !_APP_TEST_PM_H_ */

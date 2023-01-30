@@ -18,9 +18,11 @@
 #include "byteorder.h"
 #include "dnvme_ioctl.h"
 #include "pci_ids_ext.h"
+#include "pci_regs_ext.h"
 
 #include "core.h"
 #include "cmd.h"
+#include "pcie.h"
 #include "test.h"
 #include "test_pm.h"
 
@@ -140,5 +142,33 @@ int case_pm_switch_power_state(struct nvme_tool *tool)
 
 	} while (--loop);
 
+	return 0;
+}
+
+int case_pm_set_d0_state(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	int ret;
+
+	ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, 
+		PCI_PM_CTRL_STATE_D0);
+	if (ret < 0) {
+		pr_err("failed to set PCIe power state to D0!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
+int case_pm_set_d3hot_state(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	int ret;
+
+	ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, 
+		PCI_PM_CTRL_STATE_D3HOT);
+	if (ret < 0) {
+		pr_err("failed to set PCIe power state to D3 hot!(%d)\n", ret);
+		return ret;
+	}
 	return 0;
 }
