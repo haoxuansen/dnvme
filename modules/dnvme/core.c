@@ -446,107 +446,48 @@ static const struct file_operations dnvme_fops = {
 	.mmap		= dnvme_mmap,
 };
 
+/**
+ * @brief map pci device resource
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ * @note Refer to NVMe over PCIe Transport Spec R1.0b - ch3.8.1
+ * 	BAR0 - Memory Register Base Address, lower 32-bits
+ * 	BAR1 - Memory Register Base Address, upper 32-bits
+ * 	BAR2 - Index/Data Pair Register Base Address or Vendor Specific
+ * 	BAR3..5 - Vendor Specific
+ */
 static int dnvme_map_resource(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->priv.pdev;
-	unsigned long bars = 0;
 	void __iomem *bar0 = NULL;
-	void __iomem *bar1 = NULL;
-	void __iomem *bar2 = NULL;
 	int ret;
 
-	/* Get the bitmask value of the BAR's supported by device */
-	bars = (unsigned long)pci_select_bars(pdev, IORESOURCE_MEM);
-
-	if (!test_bit(BAR0_BAR1, &bars)) {
+	if (!(pci_select_bars(pdev, IORESOURCE_MEM) & BIT(0))) {
 		dnvme_err("BAR0 (64-bit) is not support!\n");
 		return -ENODEV;
 	}
 
-	/* !TODO: Replace by @pci_request_mem_regions */
-	if (request_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-		pci_resource_len(pdev, BAR0_BAR1), DRIVER_NAME) == NULL) {
-		dnvme_err("BAR0 (64-bit) memory already in use!\n");
-		return -EBUSY;
+	ret = pci_request_region(pdev, 0, "bar0");
+	if (ret < 0) {
+		dnvme_err("BAR0 (64-bit) already in use!(%d)\n", ret);
+		return ret;
 	}
 
-	bar0 = ioremap(pci_resource_start(pdev, BAR0_BAR1),
-		pci_resource_len(pdev, BAR0_BAR1));
+	bar0 = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 	if (!bar0) {
-		dnvme_err("Failed to map BAR0 (64-bit)!\n");
-		ret = -EIO;
+		dnvme_err("failed to map BAR0 (64-bit)!\n");
+		ret = -ENOMEM;
 		goto out;
 	}
-	dnvme_info("BAR0 (64-bit) mapped to 0x%p ok!\n", bar0);
-
-	/* Map BAR2 & BAR3 (BAR1 for 64-bit); I/O mapped registers  */
-	if (test_bit(BAR2_BAR3, &bars)) {
-		if (request_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-            		pci_resource_len(pdev, BAR2_BAR3), DRIVER_NAME) == NULL) {
-			dnvme_err("BAR1 (64-bit) memory already in use!\n");
-			ret = -EBUSY;
-			goto out2;
-		}
-
-		bar1 = pci_iomap(pdev, BAR2_BAR3, pci_resource_len(pdev, BAR2_BAR3));
-		if (!bar1) {
-			dnvme_err("Failed to map BAR1 (64-bit)!\n");
-			ret = -EIO;
-			goto out3;
-		}
-		dnvme_info("BAR1 (64-bit) mapped to 0x%p ok!\n", bar1);
-	} else {
-		dnvme_warn("BAR1 (64-bit) is not support!\n");
-	}
-
-	/* Map BAR4 & BAR5 (BAR2 for 64-bit); MSIX table memory mapped */
-	if (test_bit(BAR4_BAR5, &bars)) {
-		if (request_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-			pci_resource_len(pdev, BAR4_BAR5), DRIVER_NAME) == NULL) {
-			dnvme_err("BAR2 (64-bit) memory already in use!\n");
-			ret = -EBUSY;
-			goto out4;
-		}
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)
-		bar2 = ioremap(pci_resource_start(pdev, BAR4_BAR5),
-			pci_resource_len(pdev, BAR4_BAR5));
-#else
-		bar2 = ioremap_nocache(pci_resource_start(pdev, BAR4_BAR5),
-			pci_resource_len(pdev, BAR4_BAR5));
-#endif
-		if (!bar2) {
-			dnvme_err("Failed to map BAR2 (64-bit)!\n");
-			ret = -EIO;
-			goto out5;
-		}
-		dnvme_info("BAR2 (64-bit) mapped to 0x%p ok!\n", bar2);
-	} else {
-		dnvme_warn("BAR2 (64-bit) is not support!\n");
-	}
+	dnvme_info("BAR0: 0x%llx + 0x%llx mapped to 0x%p!\n", 
+		pci_resource_start(pdev, 0), pci_resource_len(pdev, 0), bar0);
 
 	ndev->priv.bar0 = bar0;
-	ndev->priv.bar1 = bar1;
-	ndev->priv.bar2 = bar2;
 	ndev->priv.dbs = bar0 + NVME_REG_DBS;
 	return 0;
-out5:
-	if (test_bit(BAR4_BAR5, &bars))
-		release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-			pci_resource_len(pdev, BAR4_BAR5));
-out4:
-	if (bar1)
-		iounmap(bar1);
-out3:
-	if (test_bit(BAR2_BAR3, &bars))
-		release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-			pci_resource_len(pdev, BAR2_BAR3));
-out2:
-	iounmap(bar0);
 out:
-	release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-		pci_resource_len(pdev, BAR0_BAR1));
+	pci_release_region(pdev, 0);
 	return ret;
 }
 
@@ -555,25 +496,10 @@ static void dnvme_unmap_resource(struct nvme_context *ctx)
 	struct nvme_dev_private *priv = &ctx->dev->priv;
 	struct pci_dev *pdev = priv->pdev;
 
-	if (priv->bar2) {
-		iounmap(priv->bar2);
-		release_mem_region(pci_resource_start(pdev, BAR4_BAR5),
-			pci_resource_len(pdev, BAR4_BAR5));
-		priv->bar2 = NULL;
-	}
-
-	if (priv->bar1) {
-		iounmap(priv->bar1);
-		release_mem_region(pci_resource_start(pdev, BAR2_BAR3),
-			pci_resource_len(pdev, BAR2_BAR3));
-		priv->bar1 = NULL;
-	}
-
 	if (priv->bar0) {
 		iounmap(priv->bar0);
-		release_mem_region(pci_resource_start(pdev, BAR0_BAR1),
-			pci_resource_len(pdev, BAR0_BAR1));
 		priv->bar0 = NULL;
+		pci_release_region(pdev, 0);
 	}
 }
 

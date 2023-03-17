@@ -184,6 +184,22 @@ static const char *pci_ext_cap_string(u16 cap_id)
 	}
 }
 
+static int pci_parse_msi_cap(struct pci_dev *pdev, struct pci_cap *cap)
+{
+	struct device *dev = &pdev->dev;
+	u16 mc;
+	int ret;
+
+	ret = pci_msi_read_mc(pdev, cap->offset, &mc);
+	if (ret < 0) {
+		dev_err(dev, "failed to read msix capability!\n");
+		return ret;
+	}
+	dev_dbg(dev, "\tMessage Control Register: 0x%x\n", mc);
+	
+	return 0;
+}
+
 static int pci_parse_msix_cap(struct pci_dev *pdev, struct pci_cap *cap)
 {
 	struct device *dev = &pdev->dev;
@@ -203,10 +219,10 @@ static int pci_parse_msix_cap(struct pci_dev *pdev, struct pci_cap *cap)
 		dev_err(dev, "failed to read msix capability!\n");
 		goto out;
 	}
-	dev_dbg(dev, "Message Control Register: 0x%x\n", msix->mc);
-	dev_dbg(dev, "\tTable Size: %u\n", msix->mc & PCI_MSIX_FLAGS_QSIZE);
-	dev_dbg(dev, "Table Offset/BIR Register: 0x%x\n", msix->table);
-	dev_dbg(dev, "PBA Offset/BIR Register: 0x%x\n", msix->pba);
+	dev_dbg(dev, "\tMessage Control Register: 0x%x\n", msix->mc);
+	dev_dbg(dev, "\t\tTable Size: %u\n", msix->mc & PCI_MSIX_FLAGS_QSIZE);
+	dev_dbg(dev, "\tTable Offset/BIR Register: 0x%x\n", msix->table);
+	dev_dbg(dev, "\tPBA Offset/BIR Register: 0x%x\n", msix->pba);
 
 	cap->data = msix;
 	return 0;
@@ -220,6 +236,9 @@ static int pci_parse_cap(struct pci_dev *pdev, struct pci_cap *cap)
 	int ret = 0;
 
 	switch (cap->id) {
+	case PCI_CAP_ID_MSI:
+		ret = pci_parse_msi_cap(pdev, cap);
+		break;
 	case PCI_CAP_ID_MSIX:
 		ret = pci_parse_msix_cap(pdev, cap);
 		break;
