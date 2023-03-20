@@ -13,6 +13,7 @@
 
 #include <linux/limits.h>
 #include <linux/dma-mapping.h>
+#include <linux/cdev.h>
 
 #include "dnvme_ioctl.h"
 
@@ -193,14 +194,11 @@ struct nvme_meta {
  * or during probe.
  */
 struct nvme_dev_private {
-	struct pci_dev	*pdev; /* Pointer to the PCIe device */
-	struct device	*spcl_dev; /* Special device file */
 	void __iomem	*bar0; /* 64 bit BAR0 memory mapped ctrlr regs */
 	void __iomem	*bar1; /* 64 bit BAR1 I/O mapped registers */
 	void __iomem	*bar2; /* 64 bit BAR2 memory mapped MSIX table */
 	u32 __iomem	*dbs;
 	struct dma_pool	*prp_page_pool; /* Mem for PRP List */
-	int	minor; /* Minor no. of the device being used */
 	u8	opened; /* Allows device opening only once */
 };
 
@@ -212,6 +210,12 @@ struct nvme_dev_private {
  * @cmb_use_sqes: If true, use controller's memory buffer for I/O SQes.
  */
 struct nvme_device {
+	struct pci_dev	*pdev;
+	struct device	dev;
+	struct cdev	cdev;
+
+	int	instance;
+
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;

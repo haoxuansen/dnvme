@@ -102,7 +102,7 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 {
 	struct scatterlist *sgl;
 	struct page **pages;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	enum dma_data_direction dir = cmd->data_dir;
 	unsigned long addr = (unsigned long)cmd->data_buf_ptr;
 	unsigned int size = cmd->data_buf_size;
@@ -198,7 +198,7 @@ out:
 
 static void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *prps)
 {
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	struct page *pg;
 	int i;
 
@@ -836,7 +836,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	struct nvme_64b_cmd cmd;
 	struct nvme_common_command *ccmd;
 	struct nvme_meta *meta;
-	struct pci_dev *pdev = ctx->dev->priv.pdev;
+	struct pci_dev *pdev = ctx->dev->pdev;
 	void *cmd_buf;
 	int ret = 0;
 

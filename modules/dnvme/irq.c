@@ -586,7 +586,7 @@ static void destroy_irq_work_pair(struct nvme_irq_set *irq_set, u32 int_vec,
 static int set_int_pin(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->priv.bar0;
 	int ret;
 
@@ -619,7 +619,7 @@ out:
 static int set_int_msi_single(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->priv.bar0;
 	int ret;
 
@@ -668,7 +668,7 @@ out:
 static int set_int_msi_multi(struct nvme_context *ctx, u16 num_irqs)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->priv.bar0;
 	int ret, i, j;
 
@@ -731,7 +731,7 @@ static int set_int_msix(struct nvme_context *ctx, u16 num_irqs)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_irq_set *irq = &ctx->irq_set;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	struct msix_entry *entries;
 	int ret, i, j;
 
@@ -869,7 +869,7 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cap *cap = &ndev->cap;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
-	struct pci_dev *pdev = ctx->dev->priv.pdev;
+	struct pci_dev *pdev = ctx->dev->pdev;
 	void __iomem *bar0 = ndev->priv.bar0;
 	u32 offset;
 	u16 mc; /* Message Control */
@@ -957,7 +957,7 @@ void dnvme_clear_interrupt(struct nvme_context *ctx)
 {
 	struct nvme_irq *irq;
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	enum nvme_irq_type irq_type = ndev->pub.irq_active.irq_type;
 
 #if IS_ENABLED(CONFIG_DNVME_CHECK_MUTEX_LOCK)
@@ -1110,7 +1110,7 @@ int dnvme_inquiry_cqe_with_isr(struct nvme_cq *cq, u32 *num_remaining, u32 *isr_
 	/* Check if ISR is really fired for this CQ */
 	if (irq->isr_fired != 0) {
 		/* process reap inquiry for isr fired case */
-		*num_remaining = dnvme_get_cqe_remain(cq, &ctx->dev->priv.pdev->dev);
+		*num_remaining = dnvme_get_cqe_remain(cq, &ctx->dev->pdev->dev);
 	} else {
 		/* To deal with ISR's aggregation, not supposed to notify CE's yet */
 		*num_remaining = 0;
@@ -1127,7 +1127,7 @@ int dnvme_inquiry_cqe_with_isr(struct nvme_cq *cq, u32 *num_remaining, u32 *isr_
  */
 int dnvme_reset_isr_flag(struct nvme_context *ctx, u16 irq_no)
 {
-	struct pci_dev *pdev = ctx->dev->priv.pdev;
+	struct pci_dev *pdev = ctx->dev->pdev;
 	struct nvme_irq *irq;
 	struct nvme_icq *icq;
 	struct nvme_cq *cq;

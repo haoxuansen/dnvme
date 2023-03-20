@@ -159,7 +159,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 {
 	struct nvme_sq *sq;
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void *sq_buf;
 	u32 sq_size;
 	dma_addr_t dma;
@@ -208,7 +208,7 @@ out:
 void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (unlikely(!sq))
 		return;
@@ -247,7 +247,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 {
 	struct nvme_cq *cq;
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void *cq_buf;
 	u32 cq_size;
 	dma_addr_t dma;
@@ -296,7 +296,7 @@ out:
 void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *cq)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (unlikely(!cq))
 		return;
@@ -588,7 +588,7 @@ int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq
 
 	if (act_irq->irq_type == NVME_INT_NONE || cq->pub.irq_enabled == 0) {
 		dnvme_vdbg("Non-ISR Inquiry on CQ(%u)!\n", cq->pub.q_id);
-		inquiry.num_remaining = dnvme_get_cqe_remain(cq, &ndev->priv.pdev->dev);
+		inquiry.num_remaining = dnvme_get_cqe_remain(cq, &ndev->pdev->dev);
 	} else {
 
 		dnvme_vdbg("ISR Reap Inq on CQ = %d", cq->pub.q_id);
@@ -809,7 +809,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
 	struct nvme_interrupt *act_irq = &ndev->pub.irq_active;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_reap reap;
 	struct nvme_cq *cq;
 	u32 cqes, expect, actual, remain;

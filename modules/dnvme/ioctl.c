@@ -184,7 +184,7 @@ int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uacc
 	void *buf;
 	struct nvme_access access;
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
 		dnvme_err("Failed to copy from user space!\n");
@@ -252,7 +252,7 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 	void *buf;
 	struct nvme_access access;
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
 		dnvme_err("Failed to copy from user space!\n");
@@ -420,7 +420,7 @@ int dnvme_create_meta_pool(struct nvme_context *ctx, u32 size)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_meta_set *meta_set = &ctx->meta_set;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (meta_set->pool) {
 		if (size == meta_set->buf_size)

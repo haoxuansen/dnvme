@@ -44,6 +44,7 @@
 
 #define DEVICE_NAME			"nvme"
 #define DRIVER_NAME			"dnvme"
+#define NVME_MINORS			(1U << MINORBITS)
 
 #define API_VERSION                     0xfff10403
 #define DRIVER_VERSION			0x20221115
@@ -57,10 +58,6 @@
 /* bit[17:0] Identify */
 #define VMPGOFF_TO_ID(n)		(((n) >> 0) & 0x3ffff)
 
-#define BAR0_BAR1			0x0
-#define BAR2_BAR3			0x2
-#define BAR4_BAR5			0x4
-
 #ifndef VM_RESERVED
 #define VM_RESERVED			(VM_DONTEXPAND | VM_DONTDUMP)
 #endif
@@ -70,8 +67,8 @@
 
 LIST_HEAD(nvme_ctx_list);
 
-static int nvme_major;
-static int nvme_minor = 0;
+static DEFINE_IDA(nvme_instance_ida);
+static dev_t nvme_chr_devt;
 static struct class *nvme_class;
 static struct nvme_driver nvme_drv;
 
@@ -86,7 +83,7 @@ static struct nvme_context *find_context(struct inode *inode)
 
 	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
 
-		if (iminor(inode) == ctx->dev->priv.minor)
+		if (iminor(inode) == ctx->dev->instance)
 			return ctx;
 	}
 	return ERR_PTR(-ENODEV);
@@ -459,7 +456,7 @@ static const struct file_operations dnvme_fops = {
 static int dnvme_map_resource(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = NULL;
 	int ret;
 
@@ -493,8 +490,9 @@ out:
 
 static void dnvme_unmap_resource(struct nvme_context *ctx)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_dev_private *priv = &ctx->dev->priv;
-	struct pci_dev *pdev = priv->pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (priv->bar0) {
 		iounmap(priv->bar0);
@@ -515,21 +513,19 @@ static int dnvme_init_irq(struct nvme_context *ctx)
 /**
  * @brief Alloc nvme context and initialize it. 
  *  
- * @return &struct nvme_context on success, or ERR_PTR() on error. 
+ * @return &struct nvme_context on success, or NULL on error. 
  */
 static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 {
-	int ret = -ENOMEM;
-	struct device *dev;
+	int ret;
 	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	struct dma_pool *pool;
-	dev_t devno = MKDEV(nvme_major, nvme_minor);
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		dnvme_err("failed to alloc nvme_context!\n");
-		return ERR_PTR(ret);
+		return NULL;
 	}
 
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
@@ -539,7 +535,7 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	}
 
 	/* 1. Initialize nvme device first. */
-	ndev->priv.pdev = pdev;
+	ndev->pdev = pdev;
 
 	/* Used to create Coherent DMA mapping for PRP List */
 	pool = dma_pool_create("prp page", &pdev->dev, PAGE_SIZE, PAGE_SIZE, 0);
@@ -549,16 +545,25 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	}
 	ndev->priv.prp_page_pool = pool;
 
-	dev = device_create(nvme_class, NULL, devno, NULL, DEVICE_NAME"%d", nvme_minor);
-	if (IS_ERR(dev)) {
-		dnvme_err("failed to create device(%s%d)!\n", DEVICE_NAME, nvme_minor);
-		ret = PTR_ERR(dev);
+	ret = ida_simple_get(&nvme_instance_ida, 0, 0, GFP_KERNEL);
+	if (ret < 0)
 		goto out3;
-	}
-	dnvme_vdbg("Create device(%s%d) success!\n", DEVICE_NAME, nvme_minor);
-	ndev->priv.spcl_dev = dev;
-	ndev->priv.minor = nvme_minor;
-	nvme_minor++;
+	ndev->instance = ret;
+
+	device_initialize(&ndev->dev);
+	ndev->dev.devt = MKDEV(MAJOR(nvme_chr_devt), ndev->instance);
+	ndev->dev.class = nvme_class;
+	ndev->dev.parent = &pdev->dev;
+	dev_set_drvdata(&ndev->dev, ndev);
+	ret = dev_set_name(&ndev->dev, "nvme%d", ndev->instance);
+	if (ret)
+		goto out_release_instance;
+
+	cdev_init(&ndev->cdev, &dnvme_fops);
+	ndev->cdev.owner = THIS_MODULE;
+	ret = cdev_device_add(&ndev->cdev, &ndev->dev);
+	if (ret)
+		goto out_free_name;
 
 	/* 2. Then initialize nvme context. */
 	INIT_LIST_HEAD(&ctx->sq_list);
@@ -577,13 +582,17 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	dnvme_init_irq(ctx);
 
 	return ctx;
+out_free_name:
+	kfree_const(ndev->dev.kobj.name);
+out_release_instance:
+	ida_simple_remove(&nvme_instance_ida, ndev->instance);
 out3:
 	dma_pool_destroy(pool);
 out2:
 	kfree(ndev);
 out:
 	kfree(ctx);
-	return ERR_PTR(ret);
+	return NULL;
 }
 
 static void dnvme_release_context(struct nvme_context *ctx)
@@ -591,8 +600,9 @@ static void dnvme_release_context(struct nvme_context *ctx)
 	struct nvme_device *ndev = ctx->dev;
 	struct dma_pool *pool = ndev->priv.prp_page_pool;
 
-	device_destroy(nvme_class, MKDEV(nvme_major, ndev->priv.minor));
-	/* !FIXME: Shall recycle minor at here! */
+	cdev_device_del(&ndev->cdev, &ndev->dev);
+	kfree_const(ndev->dev.kobj.name);
+	ida_simple_remove(&nvme_instance_ida, ndev->instance);
 	dma_pool_destroy(pool);
 	kfree(ndev);
 	kfree(ctx);
@@ -626,7 +636,7 @@ static int dnvme_pci_enable(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_ctrl_property *prop = &ndev->prop;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->priv.bar0;
 	int ret;
 
@@ -649,7 +659,7 @@ static int dnvme_pci_enable(struct nvme_context *ctx)
 static void dnvme_pci_disable(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 
 	if (pci_is_enabled(pdev))
 		pci_disable_device(pdev);
@@ -663,7 +673,7 @@ static void dnvme_pci_disable(struct nvme_context *ctx)
  */
 static int dnvme_get_capability(struct nvme_device *ndev)
 {
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_cap *cap = &ndev->cap;
 	int ret;
 
@@ -685,7 +695,7 @@ static int dnvme_get_capability(struct nvme_device *ndev)
 
 static void dnvme_put_capability(struct nvme_device *ndev)
 {
-	struct pci_dev *pdev = ndev->priv.pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_cap *cap = &ndev->cap;
 
 	pci_put_caps(pdev, cap->pci);
@@ -705,10 +715,9 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 
 	ctx = dnvme_alloc_context(pdev);
-	if (IS_ERR(ctx)) {
-		ret = PTR_ERR(ctx);
-		dnvme_err("failed to alloc context!(%d)\n", ret);
-		return ret;
+	if (!ctx) {
+		dnvme_err("failed to alloc context!\n");
+		return -ENOMEM;
 	}
 
 	ret = dnvme_map_resource(ctx);
@@ -756,7 +765,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 		pdev->class);
 
 	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
-		if (pdev == ctx->dev->priv.pdev) {
+		if (pdev == ctx->dev->pdev) {
 			found = true;
 			break;
 		}
@@ -801,10 +810,10 @@ static int __init dnvme_init(void)
 	nvme_drv.api_version = API_VERSION;
 	nvme_drv.drv_version = DRIVER_VERSION;
 
-	nvme_major = register_chrdev(0, DEVICE_NAME, &dnvme_fops);
-	if (nvme_major < 0) {
-		dnvme_err("failed to register chrdev!(%d)\n", nvme_major);
-		return nvme_major;
+	ret = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, DEVICE_NAME);
+	if (ret < 0) {
+		dnvme_err("failed to alloc chrdev!(%d)\n", ret);
+		return ret;
 	}
 
 	nvme_class = class_create(THIS_MODULE, DEVICE_NAME);
@@ -827,7 +836,7 @@ static int __init dnvme_init(void)
 out2:
 	class_destroy(nvme_class);
 out:
-	unregister_chrdev(nvme_major, DEVICE_NAME);
+	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
 	return ret;
 }
 module_init(dnvme_init);
@@ -836,7 +845,8 @@ static void __exit dnvme_exit(void)
 {
 	pci_unregister_driver(&dnvme_driver);
 	class_destroy(nvme_class);
-	unregister_chrdev(nvme_major, DEVICE_NAME);
+	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+	ida_destroy(&nvme_instance_ida);
 	dnvme_info("exit ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
 		nvme_drv.drv_version);
 }
