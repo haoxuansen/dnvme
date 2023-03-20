@@ -36,7 +36,7 @@ static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
 {
 	u64 cap;
 	unsigned long timeout;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	u32 bit = enabled ? NVME_CSTS_RDY : 0;
 	u32 csts;
 
@@ -71,7 +71,7 @@ static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
 static int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 {
 	struct nvme_device *ndev = ctx->dev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	u32 cc;
 
 	cc = dnvme_readl(bar0, NVME_REG_CC);
@@ -91,7 +91,7 @@ static int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 static int dnvme_reset_subsystem(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	u32 rstval = 0x4e564d65; /* "NVMe" */
 
 	dnvme_writel(bar0, NVME_REG_NSSR, rstval);
@@ -220,7 +220,7 @@ int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uacc
 	case NVME_BAR0_BAR1:
 		dnvme_dbg(ndev, "READ NVMe BAR0~1: 0x%x+0x%x\n", 
 			access.offset, access.bytes);
-		ret = dnvme_read_from_bar(ndev->priv.bar0, &access, buf);
+		ret = dnvme_read_from_bar(ndev->bar0, &access, buf);
 		if (ret < 0)
 			goto out;
 		break;
@@ -294,7 +294,7 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 	case NVME_BAR0_BAR1:
 		dnvme_dbg(ndev, "WRITE NVMe BAR0~1: 0x%x+0x%x\n",
 			access.offset, access.bytes);
-		ret = dnvme_write_to_bar(ndev->priv.bar0, &access, buf);
+		ret = dnvme_write_to_bar(ndev->bar0, &access, buf);
 		if (ret < 0)
 			goto out;
 		break;

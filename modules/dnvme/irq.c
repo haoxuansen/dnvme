@@ -130,7 +130,7 @@ static bool pba_bits_is_set(void __iomem *pba_tbl, struct msix_entry *arr,
 int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 {
 	struct nvme_context *ctx = dnvme_irq_to_context(irq);
-	void __iomem *bar0 = ctx->dev->priv.bar0;
+	void __iomem *bar0 = ctx->dev->bar0;
 
 	switch (irq->irq_type) {
 	case NVME_INT_PIN:
@@ -162,7 +162,7 @@ int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 int dnvme_unmask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 {
 	struct nvme_context *ctx = dnvme_irq_to_context(irq);
-	void __iomem *bar0 = ctx->dev->priv.bar0;
+	void __iomem *bar0 = ctx->dev->bar0;
 
 	switch (irq->irq_type) {
 	case NVME_INT_PIN:
@@ -595,7 +595,7 @@ static int set_int_pin(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	int ret;
 
 	ret = request_irq(pdev->irq, dnvme_interrupt, IRQF_SHARED, "pin-base",
@@ -628,7 +628,7 @@ static int set_int_msi_single(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	int ret;
 
 	clear_int_mask(bar0, UINT_MAX);
@@ -677,7 +677,7 @@ static int set_int_msi_multi(struct nvme_context *ctx, u16 num_irqs)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	int ret, i, j;
 
 	clear_int_mask(bar0, UINT_MAX);
@@ -826,39 +826,20 @@ static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap *cap)
 
 	switch (msix_tbir) {
 	case 0x00:  /* BAR0 (64-bit) */
-		irq_set->msix.tb = ndev->priv.bar0 + msix_to;
+		irq_set->msix.tb = ndev->bar0 + msix_to;
 		break;
-	case 0x04:  /* BAR2 (64-bit) */
-		if (ndev->priv.bar2 == NULL) {
-			dnvme_err(ndev, "Not support BAR2!\n\n");
-			return -EINVAL;
-		}
-		irq_set->msix.tb = ndev->priv.bar2 + msix_to;
-		break;
-	case 0x05:
-		dnvme_err(ndev, "BAR5 not supported, implies 32-bit, TBIR requiring 64-bit");
-		return -EINVAL;
 	default:
-		dnvme_err(ndev, "BAR? not supported, check value in MSIXCAP.MTAB.TBIR");
+		dnvme_err(ndev, "BAR%u is not supported!\n", msix_tbir);
 		return -EINVAL;
 	}
 
 	switch (msix_pbir) {
 	case 0x00:  /* BAR0 (64-bit) */
-		irq_set->msix.pba = ndev->priv.bar0 + msix_pbao;
+		irq_set->msix.pba = ndev->bar0 + msix_pbao;
 		break;
-	case 0x04:  /* BAR2 (64-bit) */
-		if (ndev->priv.bar2 == NULL) {
-			dnvme_err(ndev, "BAR2 not implemented by DUT");
-			return -EINVAL;
-		}
-		irq_set->msix.pba = ndev->priv.bar2 + msix_pbao;
-		break;
-	case 0x05:
-		dnvme_err(ndev, "BAR5 not supported, implies 32-bit, MPBA requiring 64-bit");
-		return -EINVAL;
+
 	default:
-		dnvme_err(ndev, "BAR? not supported, check value in MSIXCAP.MPBA.PBIR");
+		dnvme_err(ndev, "BAR%u is not supported!\n", msix_pbir);
 		return -EINVAL;
 	}
 	
@@ -878,7 +859,7 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 	struct nvme_cap *cap = &ndev->cap;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
 	struct pci_dev *pdev = ctx->dev->pdev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	u32 offset;
 	u16 mc; /* Message Control */
 

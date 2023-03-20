@@ -195,7 +195,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 	sq->priv.size = sq_size;
 	sq->priv.unique_cmd_id = 0;
 	sq->priv.contig = prep->contig;
-	sq->priv.dbs = &ndev->priv.dbs[prep->sq_id * 2 * ndev->db_stride];
+	sq->priv.dbs = &ndev->dbs[prep->sq_id * 2 * ndev->db_stride];
 
 	dnvme_print_sq(sq);
 
@@ -283,7 +283,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 
 	cq->priv.size = cq_size;
 	cq->priv.contig = prep->contig;
-	cq->priv.dbs = &ndev->priv.dbs[(prep->cq_id * 2 + 1) * ndev->db_stride];
+	cq->priv.dbs = &ndev->dbs[(prep->cq_id * 2 + 1) * ndev->db_stride];
 
 	dnvme_print_cq(cq);
 
@@ -338,7 +338,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_prep_sq prep;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	u32 cc, aqa;
 	u16 asq_id = 0; /* admin queue ID is always 0 */
 	int ret;
@@ -384,7 +384,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq *cq;
 	struct nvme_prep_cq prep;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	u32 cc, aqa;
 	u16 acq_id = 0; /* admin queue ID is always 0 */
 	int ret;
@@ -484,7 +484,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 	struct nvme_sq *sq_tmp;
 	struct nvme_cq *cq;
 	struct nvme_cq *cq_tmp;
-	void *bar0 = ctx->dev->priv.bar0;
+	void *bar0 = ctx->dev->bar0;
 	bool save_aq = (state == NVME_ST_DISABLE_COMPLETE) ? false : true;
 
 	list_for_each_entry_safe(sq, sq_tmp, &ctx->sq_list, sq_entry) {

@@ -361,13 +361,9 @@ static int log_context(struct nvme_context *ctx, int idx, struct file *fp,
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s pdev: 0x%lx\n", 
 		log_indent_level(indent + 1), (unsigned long)ndev->pdev);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s bar0: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)ndev->priv.bar0);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s bar1: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)ndev->priv.bar1);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s bar2: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)ndev->priv.bar2);
+		log_indent_level(indent + 1), (unsigned long)ndev->bar0);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s dbs: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)ndev->priv.dbs);
+		log_indent_level(indent + 1), (unsigned long)ndev->dbs);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s prp_page_pool: 0x%lx\n", 
 		log_indent_level(indent + 1), (unsigned long)ndev->priv.prp_page_pool);
 

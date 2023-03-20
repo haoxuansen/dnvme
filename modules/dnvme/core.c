@@ -485,8 +485,8 @@ static int dnvme_map_resource(struct nvme_context *ctx)
 	dnvme_info(ndev, "BAR0: 0x%llx + 0x%llx mapped to 0x%p!\n", 
 		pci_resource_start(pdev, 0), pci_resource_len(pdev, 0), bar0);
 
-	ndev->priv.bar0 = bar0;
-	ndev->priv.dbs = bar0 + NVME_REG_DBS;
+	ndev->bar0 = bar0;
+	ndev->dbs = bar0 + NVME_REG_DBS;
 	return 0;
 out:
 	pci_release_region(pdev, 0);
@@ -496,12 +496,11 @@ out:
 static void dnvme_unmap_resource(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_dev_private *priv = &ctx->dev->priv;
 	struct pci_dev *pdev = ndev->pdev;
 
-	if (priv->bar0) {
-		iounmap(priv->bar0);
-		priv->bar0 = NULL;
+	if (ndev->bar0) {
+		iounmap(ndev->bar0);
+		ndev->bar0 = NULL;
 		pci_release_region(pdev, 0);
 	}
 }
@@ -644,7 +643,7 @@ static int dnvme_pci_enable(struct nvme_context *ctx)
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_ctrl_property *prop = &ndev->prop;
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->priv.bar0;
+	void __iomem *bar0 = ndev->bar0;
 	int ret;
 
 	pci_set_master(pdev);

@@ -190,10 +190,6 @@ struct nvme_meta {
  * or during probe.
  */
 struct nvme_dev_private {
-	void __iomem	*bar0; /* 64 bit BAR0 memory mapped ctrlr regs */
-	void __iomem	*bar1; /* 64 bit BAR1 I/O mapped registers */
-	void __iomem	*bar2; /* 64 bit BAR2 memory mapped MSIX table */
-	u32 __iomem	*dbs;
 	struct dma_pool	*prp_page_pool; /* Mem for PRP List */
 	u8	opened; /* Allows device opening only once */
 };
@@ -201,6 +197,7 @@ struct nvme_dev_private {
 /**
  * @brief Representation of a NVMe device
  * 
+ * @dbs: Refer to "NVMe over PCIe Transport Spec R1.0b - ch3.1.2"
  * @cmb_size: Actually mapped CMB size, may less than CMBSZ which is indicated
  *  in Controller Properities. 
  * @cmb_use_sqes: If true, use controller's memory buffer for I/O SQes.
@@ -211,6 +208,9 @@ struct nvme_device {
 	struct cdev	cdev;
 
 	int	instance;
+
+	void __iomem	*bar0;
+	u32 __iomem	*dbs;
 
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
