@@ -198,30 +198,26 @@ static int init_ctrl_property(int fd, struct nvme_ctrl_property *prop)
 static int init_capability(struct nvme_dev_info *ndev)
 {
 	int ret;
-	struct nvme_cap *cap = &ndev->cap;
-	struct pci_cap *pci = cap->pci;
 
-	ret = nvme_get_capability(ndev->fd, cap);
+	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_MSI, 
+					&ndev->msi, sizeof(ndev->msi));
 	if (ret < 0)
 		return ret;
-	
-	if (pci[PCI_CAP_ID_PM - 1].id != PCI_CAP_ID_PM) {
-		pr_err("Not Support Power Management!\n");
-		return -ENOTSUP;
-	}
-	ndev->pmcap_ofst = pci[PCI_CAP_ID_PM - 1].offset;
 
-	if (pci[PCI_CAP_ID_MSI - 1].id != PCI_CAP_ID_MSI) {
-		pr_err("Not Support Message Signalled Interrupts!\n");
-		return -ENOTSUP;
-	}
-	ndev->msicap_ofst = pci[PCI_CAP_ID_MSI - 1].offset;
+	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_MSIX,
+					&ndev->msix, sizeof(ndev->msix));
+	if (ret < 0)
+		return ret;
 
-	if (pci[PCI_CAP_ID_EXP - 1].id != PCI_CAP_ID_EXP) {
-		pr_err("Not Support PCI Express!\n");
-		return -ENOTSUP;
-	}
-	ndev->pxcap_ofst = pci[PCI_CAP_ID_EXP - 1].offset;
+	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_PM,
+					&ndev->msix, sizeof(ndev->msix));
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_EXP,
+					&ndev->msix, sizeof(ndev->msix));
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -231,7 +227,7 @@ static int check_link_status(struct nvme_dev_info *ndev)
 	int ret;
 	uint16_t link_sts;
 
-	ret = pci_exp_read_link_status(ndev->fd, ndev->pxcap_ofst, &link_sts);
+	ret = pci_exp_read_link_status(ndev->fd, ndev->express.offset, &link_sts);
 	if (ret < 0) {
 		pr_err("failed to read link status reg!(%d)\n", ret);
 		return ret;

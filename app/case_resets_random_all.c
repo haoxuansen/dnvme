@@ -70,24 +70,24 @@ static int do_reset_random(struct nvme_dev_info *ndev)
 		break;
 	
 	case PCIE_FLR_RESET:
-		ret = pcie_is_support_flr(ndev->fd, ndev->pxcap_ofst);
+		ret = pcie_is_support_flr(ndev->fd, ndev->express.offset);
 		if (ret < 0)
 			break;
 		else if (ret > 0)
-			ret = pcie_do_flr(ndev->fd, ndev->pxcap_ofst);
+			ret = pcie_do_flr(ndev->fd, ndev->express.offset);
 		else
 			pr_warn("Not support FLR!\n");
 		break;
 	
 	case PCIE_D0D3_RESET:
-		ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, 
+		ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
 			PCI_PM_CTRL_STATE_D3HOT);
 		if (ret < 0) {
 			pr_err("failed to set D3 hot state!\n");
 			break;
 		}
 
-		ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst,
+		ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset,
 			PCI_PM_CTRL_STATE_D0);
 		break;
 	

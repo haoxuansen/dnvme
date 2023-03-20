@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/cdev.h>
 
+#include "pci_caps.h"
 #include "dnvme_ioctl.h"
 
 #define NVME_SQ_ID_MAX			U16_MAX
@@ -194,6 +195,13 @@ struct nvme_dev_private {
 	u8	opened; /* Allows device opening only once */
 };
 
+struct nvme_capability {
+	struct pci_cap_pm	*pm;
+	struct pci_cap_msi	*msi;
+	struct pci_cap_msix	*msix;
+	struct pci_cap_express	*express;
+};
+
 /**
  * @brief Representation of a NVMe device
  * 
@@ -203,6 +211,7 @@ struct nvme_dev_private {
  * @cmb_use_sqes: If true, use controller's memory buffer for I/O SQes.
  */
 struct nvme_device {
+	struct nvme_context	*ctx;
 	struct pci_dev	*pdev;
 	struct device	dev;
 	struct cdev	cdev;
@@ -215,8 +224,8 @@ struct nvme_device {
 	struct nvme_dev_private	priv;
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
-	struct nvme_cap	cap;
-	struct nvme_context	*ctx;
+	struct nvme_capability	cap;
+
 	u32	q_depth;
 	u32	db_stride;
 	u64	cmb_size;

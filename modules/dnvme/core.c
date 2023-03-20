@@ -315,10 +315,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_GET_CAPABILITY:
-		if (copy_to_user(argp, &ndev->cap, sizeof(ndev->cap))) {
-			dnvme_err(ndev, "failed to copy to user space!\n");
-			ret = -EFAULT;
-		}
+		ret = dnvme_get_capability(ndev, argp);
 		break;
 
 	case NVME_IOCTL_CREATE_ADMIN_QUEUE:
@@ -677,35 +674,43 @@ static void dnvme_pci_disable(struct nvme_context *ctx)
  * @param ndev NVMe device
  * @return 0 on success, otherwise a negative errno.
  */
-static int dnvme_get_capability(struct nvme_device *ndev)
+static int dnvme_init_capability(struct nvme_device *ndev)
 {
 	struct pci_dev *pdev = ndev->pdev;
-	struct nvme_cap *cap = &ndev->cap;
-	int ret;
+	struct nvme_capability *cap = &ndev->cap;
 
-	ret = pci_get_caps(pdev, cap->pci);
-	if (ret < 0)
-		return ret;
-
-	if (!cap->pci[PCI_CAP_ID_EXP - 1].id) {
-		dnvme_err(ndev, "Not support pci express capability!\n");
-		return -EPERM;
-	}
-
-	ret = pci_get_ext_caps(pdev, cap->pcie);
-	if (ret < 0)
-		return ret;
+	cap->msi = pci_get_msi_cap(pdev, 
+		pci_find_capability(pdev, PCI_CAP_ID_MSI));
+	cap->msix = pci_get_msix_cap(pdev,
+		pci_find_capability(pdev, PCI_CAP_ID_MSIX));
+	cap->pm = pci_get_pm_cap(pdev,
+		pci_find_capability(pdev, PCI_CAP_ID_PM));
+	cap->express = pci_get_express_cap(pdev,
+		pci_find_capability(pdev, PCI_CAP_ID_EXP));
 
 	return 0;
 }
 
-static void dnvme_put_capability(struct nvme_device *ndev)
+static void dnvme_deinit_capability(struct nvme_device *ndev)
 {
-	struct pci_dev *pdev = ndev->pdev;
-	struct nvme_cap *cap = &ndev->cap;
+	struct nvme_capability *cap = &ndev->cap;
 
-	pci_put_caps(pdev, cap->pci);
-	pci_put_ext_caps(pdev, cap->pcie);
+	if (cap->msi) {
+		kfree(cap->msi);
+		cap->msi = NULL;
+	}
+	if (cap->msix) {
+		kfree(cap->msix);
+		cap->msix = NULL;
+	}
+	if (cap->pm) {
+		kfree(cap->pm);
+		cap->pm = NULL;
+	}
+	if (cap->express) {
+		kfree(cap->express);
+		cap->express = NULL;
+	}
 }
 
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -729,19 +734,19 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = dnvme_map_resource(ctx);
 	if (ret < 0)
-		goto out;
+		goto out_release_ctx;
 
 	ret = dnvme_pci_enable(ctx);
 	if (ret < 0)
-		goto out2;
+		goto out_unmap_res;
 
-	ret = dnvme_get_capability(ctx->dev);
+	ret = dnvme_init_capability(ctx->dev);
 	if (ret < 0)
-		goto out3;
+		goto out_disable_pci;
 
 	ret = dnvme_map_cmb(ctx->dev);
 	if (ret < 0)
-		goto out3;
+		goto out_deinit_cap;
 
 	/* Finalize this device and prepare for next one */
 	dev_info(dev, "NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
@@ -751,11 +756,14 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		pdev->class);
 	list_add_tail(&ctx->entry, &nvme_ctx_list);
 	return 0;
-out3:
+
+out_deinit_cap:
+	dnvme_deinit_capability(ctx->dev);
+out_disable_pci:
 	dnvme_pci_disable(ctx);
-out2:
+out_unmap_res:
 	dnvme_unmap_resource(ctx);
-out:
+out_release_ctx:
 	dnvme_release_context(ctx);
 	return ret;
 }
@@ -791,7 +799,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_unmap_cmb(ctx->dev);
-	dnvme_put_capability(ctx->dev);
+	dnvme_deinit_capability(ctx->dev);
 	pci_disable_device(pdev);
 
 	dnvme_unmap_resource(ctx);

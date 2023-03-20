@@ -168,7 +168,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -189,7 +189,7 @@ static void test_sub(void)
     pr_color(LOG_COLOR_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &reg_value);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &reg_value);
     if (ret < 0)
     	exit(-1);
 
@@ -200,7 +200,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 
     // pr_info("\nL1 --> L0 --> L1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->express.offset+0x10);       //access EP
     // scanf("%d", &cmds);
 
     pr_info("\ndisable PCIPM L1.1\n");
@@ -212,7 +212,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 
     // pr_info("\nL1 --> L0 --> L1\n");
-    // u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
+    // u32_tmp_data = pci_read_dword(g_fd, ndev->express.offset+0x10);       //access EP
     // scanf("%d", &cmds);
 
     pr_info("\ndisable PCIPM L1.2\n");
@@ -231,7 +231,7 @@ int case_pcie_low_power_pcipm_l1sub(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

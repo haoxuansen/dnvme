@@ -153,22 +153,16 @@ struct nvme_access {
 	uint32_t		offset;
 };
 
-struct pci_cap {
-	uint8_t			id;
-	uint8_t			offset;
-	void			*data;
+enum nvme_cap_type {
+	NVME_CAP_TYPE_PCI = 1,
+	NVME_CAP_TYPE_PCIE,
 };
 
-struct pcie_cap {
-	uint16_t		id;
-	uint8_t			version;
-	uint16_t		offset;
-	void			*data;
-};
-
-struct nvme_cap {
-	struct pci_cap	pci[PCI_CAP_ID_MAX];
-	struct pcie_cap	pcie[PCI_EXT_CAP_ID_MAX];
+struct nvme_get_cap {
+	enum nvme_cap_type	type;
+	uint32_t		id;
+	void			*buf;
+	uint32_t		size;
 };
 
 /**
@@ -323,7 +317,7 @@ struct nvme_log_file {
 	_IOWR('N', NVME_GET_CQ_INFO, struct nvme_cq_public)
 
 #define NVME_IOCTL_GET_CAPABILITY \
-	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_cap)
+	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_get_cap)
 
 #define NVME_IOCTL_READ_GENERIC \
 	_IOWR('N', NVME_READ_GENERIC, struct nvme_access)

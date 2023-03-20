@@ -574,3 +574,100 @@ int dnvme_get_cq_info(struct nvme_context *ctx, struct nvme_cq_public __user *uc
 	return 0;
 }
 
+static int dnvme_get_pci_capability(struct nvme_device *ndev, 
+	struct nvme_get_cap *gcap)
+{
+	struct nvme_capability *cap = &ndev->cap;
+	struct pci_dev *pdev = ndev->pdev;
+	u8 offset;
+
+	switch (gcap->id) {
+	case PCI_CAP_ID_PM:
+		if (unlikely(!cap->pm))
+			return -ENOENT;
+		if (gcap->size < sizeof(*cap->pm))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, cap->pm, sizeof(*cap->pm)))
+			return -EFAULT;
+		break;
+	case PCI_CAP_ID_MSI:
+		if (unlikely(!cap->msi))
+			return -ENOENT;
+		if (gcap->size < sizeof(*cap->msi))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, cap->msi, sizeof(*cap->msi)))
+			return -EFAULT;
+		break;
+	case PCI_CAP_ID_EXP:
+		if (unlikely(!cap->express))
+			return -ENOENT;
+		if (gcap->size < sizeof(*cap->express))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, cap->express, sizeof(*cap->express)))
+			return -EFAULT;
+		break;
+	case PCI_CAP_ID_MSIX:
+		if (unlikely(!cap->msix))
+			return -ENOENT;
+		if (gcap->size < sizeof(*cap->msix))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, cap->msix, sizeof(*cap->msix)))
+			return -EFAULT;
+		break;
+	default:
+		offset = pci_find_capability(pdev, gcap->id);
+		if (!offset) {
+			dnvme_err(ndev, "ID:%u is not support!\n", gcap->id);
+			return -EINVAL;
+		}
+		if (gcap->size < sizeof(offset))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, &offset, sizeof(offset)))
+			return -EFAULT;
+		break;
+	}
+	return 0;
+}
+
+static int dnvme_get_pcie_capability(struct nvme_device *ndev, 
+	struct nvme_get_cap *gcap)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	u16 offset;
+
+	switch (gcap->id) {
+	default:
+		offset = pci_find_ext_capability(pdev, gcap->id);
+		if (!offset) {
+			dnvme_err(ndev, "ID:%u is not support!\n", gcap->id);
+			return -EINVAL;
+		}
+		if (gcap->size < sizeof(offset))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, &offset, sizeof(offset)))
+			return -EFAULT;
+		break;
+	}
+	return 0;
+}
+
+int dnvme_get_capability(struct nvme_device *ndev, struct nvme_get_cap __user *ucap)
+{
+	struct nvme_get_cap gcap;
+	int ret;
+
+	if (copy_from_user(&gcap, ucap, sizeof(gcap))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	if (gcap.type == NVME_CAP_TYPE_PCI)
+		ret = dnvme_get_pci_capability(ndev, &gcap);
+	else if (gcap.type == NVME_CAP_TYPE_PCIE)
+		ret = dnvme_get_pcie_capability(ndev, &gcap);
+	else
+		ret = -EINVAL;
+
+	return ret;
+}
+

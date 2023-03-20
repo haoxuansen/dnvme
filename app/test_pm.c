@@ -150,7 +150,7 @@ int case_pm_set_d0_state(struct nvme_tool *tool)
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
 
-	ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, 
+	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
 		PCI_PM_CTRL_STATE_D0);
 	if (ret < 0) {
 		pr_err("failed to set PCIe power state to D0!(%d)\n", ret);
@@ -164,7 +164,7 @@ int case_pm_set_d3hot_state(struct nvme_tool *tool)
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
 
-	ret = pcie_set_power_state(ndev->fd, ndev->pmcap_ofst, 
+	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
 		PCI_PM_CTRL_STATE_D3HOT);
 	if (ret < 0) {
 		pr_err("failed to set PCIe power state to D3 hot!(%d)\n", ret);

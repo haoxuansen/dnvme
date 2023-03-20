@@ -18,7 +18,20 @@
 int nvme_get_driver_info(int fd, struct nvme_driver *drv);
 int nvme_get_device_info(int fd, struct nvme_dev_public *dev);
 
-int nvme_get_capability(int fd, struct nvme_cap *cap);
+int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 
+	enum nvme_cap_type type);
+
+static inline int nvme_get_pci_capability(int fd, uint32_t id, void *buf, 
+	uint32_t size)
+{
+	return nvme_get_capability(fd, id, buf, size, NVME_CAP_TYPE_PCI);
+}
+
+static inline int nvme_get_pcie_capability(int fd, uint32_t id, void *buf, 
+	uint32_t size)
+{
+	return nvme_get_capability(fd, id, buf, size, NVME_CAP_TYPE_PCIE);
+}
 
 int nvme_read_generic(int fd, enum nvme_region region, uint32_t oft, 
 	uint32_t len, void *buf);

@@ -30,7 +30,7 @@ static void test_sub(void)
     int cmds;
 
     // get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &reg_value);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &reg_value);
     if (ret < 0)
     	exit(-1);
 
@@ -40,13 +40,13 @@ static void test_sub(void)
     // pr_info("\nL0 --> L0s\n");
     // //EP enable L0s
     // u32_tmp_data = reg_value | 0x01;
-    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x10, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->express.offset+0x10, 4, (uint8_t *)&u32_tmp_data);
     // scanf("%d", &cmds);
 
     // pr_info("\nDisable L0s\n");
     // //EP disable L0s
     // u32_tmp_data = reg_value;
-    // pci_write_config_data(g_fd, ndev->pxcap_ofst+0x10, 4, (uint8_t *)&u32_tmp_data);
+    // pci_write_config_data(g_fd, ndev->express.offset+0x10, 4, (uint8_t *)&u32_tmp_data);
     // scanf("%d", &cmds);
 
     pr_info("\n/************************** L0 --> L1 --> L0 --> L1 *********************/\n");
@@ -55,11 +55,11 @@ static void test_sub(void)
     system("setpci -s 0:1.1 b0.b=42"); //RC enable L1
     //EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
     scanf("%d", &cmds);
 
     pr_info("\nL1 --> L0 --> L1\n");
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -69,7 +69,7 @@ static void test_sub(void)
     system("setpci -s 0:1.1 b0.b=40"); //RC disable L1
     //EP disable L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
     scanf("%d", &cmds);
 
     pr_info("\n/************************** L0 --> L0s&L1 --> L0 --> L0s&L1 *********************/\n");
@@ -78,11 +78,11 @@ static void test_sub(void)
     system("setpci -s 0:1.1 b0.b=43"); //RC enable L0s&L1
     //EP enable L0s&L1
     u32_tmp_data = reg_value | 0x03;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
     scanf("%d", &cmds);
 
     pr_info("\nL1 --> L0 --> L0s&L1\n");
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -92,7 +92,7 @@ static void test_sub(void)
     system("setpci -s 0:1.1 b0.b=40"); //RC disable L0s&L1
     //EP disable L0s&L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
     scanf("%d", &cmds);
 }
 
@@ -107,7 +107,7 @@ int case_pcie_low_power_L0s_L1_step(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

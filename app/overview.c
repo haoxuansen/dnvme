@@ -440,7 +440,7 @@ static int case_all_cases(struct nvme_tool *tool)
 	{
 		loop++;
 		pr_color(LOG_COLOR_CYAN, "auto_case_loop_cnt:%d\r\n",loop);
-		ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+		ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
 		if (ret < 0)
 			exit(-1);
 

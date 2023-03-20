@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include "pci_caps.h"
 #include "dnvme_ioctl.h"
 #include "queue.h"
 
@@ -73,14 +74,15 @@ struct nvme_dev_info {
 
 	uint32_t	link_speed;
 	uint32_t	link_width;
-	uint8_t		pmcap_ofst;
-	uint8_t		msicap_ofst;
-	uint8_t		pxcap_ofst;
+
+	struct pci_cap_pm	pm;
+	struct pci_cap_express	express;
+	struct pci_cap_msi	msi;
+	struct pci_cap_msix	msix;
 
 	enum nvme_irq_type	irq_type;
 	uint16_t		nr_irq;
-	
-	struct nvme_cap		cap;
+
 	struct nvme_id_ctrl	id_ctrl;
 
 	struct nvme_ctrl_property	prop;

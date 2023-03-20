@@ -803,11 +803,10 @@ out:
 	return ret;
 }
 
-static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap *cap)
+static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap_msix *cap)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
-	struct pci_msix_cap *msix = cap->data;
 	u32 msix_to; /* MSIXCAP.MTAB.TO */
 	u32 msix_tbir; /* MSIXCAP.MTAB.TBIR */
 	u32 msix_pbir; /* MSIXCAP.MPBA.PBIR */
@@ -817,12 +816,12 @@ static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap *cap)
 		return 0; /* already initialized */
 
 	/* Table Size is 0's based */
-	irq_set->msix.irqs = (msix->mc & PCI_MSIX_FLAGS_QSIZE) + 1;
+	irq_set->msix.irqs = (cap->mc & PCI_MSIX_FLAGS_QSIZE) + 1;
 
-	msix_tbir = msix->table & PCI_MSIX_TABLE_BIR;
-	msix_to = msix->table & PCI_MSIX_TABLE_OFFSET;
-	msix_pbir = msix->pba & PCI_MSIX_PBA_BIR;
-	msix_pbao = msix->pba & PCI_MSIX_PBA_OFFSET;
+	msix_tbir = cap->table & PCI_MSIX_TABLE_BIR;
+	msix_to = cap->table & PCI_MSIX_TABLE_OFFSET;
+	msix_pbir = cap->pba & PCI_MSIX_PBA_BIR;
+	msix_pbao = cap->pba & PCI_MSIX_PBA_OFFSET;
 
 	switch (msix_tbir) {
 	case 0x00:  /* BAR0 (64-bit) */
@@ -856,7 +855,7 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 {
 	int ret = 0;
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_cap *cap = &ndev->cap;
+	struct nvme_capability *cap = &ndev->cap;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
 	struct pci_dev *pdev = ctx->dev->pdev;
 	void __iomem *bar0 = ndev->bar0;
@@ -875,7 +874,7 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 			return -EINVAL;
 		}
 
-		if (!cap->pci[PCI_CAP_ID_MSI - 1].id) {
+		if (!cap->msi || !cap->msi->offset) {
 			dnvme_err(ndev, "Not support MSI capability!\n");
 			return -EINVAL;
 		}
@@ -888,11 +887,11 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 			return -EINVAL;
 		}
 
-		if (!cap->pci[PCI_CAP_ID_MSI - 1].id) {
+		if (!cap->msi || !cap->msi->offset) {
 			dnvme_err(ndev, "Not support MSI capability!\n");
 			return -EINVAL;
 		}
-		offset = cap->pci[PCI_CAP_ID_MSI - 1].offset;
+		offset = cap->msi->offset;
 
 		ret = pci_msi_read_mc(pdev, offset, &mc);
 		if (ret < 0) {
@@ -914,12 +913,12 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 			return -EINVAL;
 		}
 
-		if (!cap->pci[PCI_CAP_ID_MSIX - 1].id) {
+		if (!cap->msix || !cap->msix->offset) {
 			dnvme_err(ndev, "Not support MSI-X capability!\n");
 			return -EINVAL;
 		}
 
-		ret = init_msix_ptr(ctx, &cap->pci[PCI_CAP_ID_MSIX - 1]);
+		ret = init_msix_ptr(ctx, cap->msix);
 		if (ret < 0)
 			return ret;
 		

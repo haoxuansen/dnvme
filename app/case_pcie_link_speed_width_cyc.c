@@ -48,7 +48,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, &data);
+    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, &data);
     if (ret < 0)
     	exit(-1);
     
@@ -77,7 +77,7 @@ int case_pcie_link_speed_width_cyc(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, &u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

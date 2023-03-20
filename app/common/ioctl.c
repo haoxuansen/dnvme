@@ -78,11 +78,19 @@ int nvme_get_device_info(int fd, struct nvme_dev_public *dev)
 	return 0;
 }
 
-int nvme_get_capability(int fd, struct nvme_cap *cap)
+int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 
+	enum nvme_cap_type type)
 {
 	int ret;
 
-	ret = ioctl(fd, NVME_IOCTL_GET_CAPABILITY, cap);
+	struct nvme_get_cap gcap = {0};
+
+	gcap.type = type;
+	gcap.id = id;
+	gcap.buf = buf;
+	gcap.size = size;
+
+	ret = ioctl(fd, NVME_IOCTL_GET_CAPABILITY, &gcap);
 	if (ret < 0) {
 		pr_err("failed to get capability!(%d)\n", ret);
 		return ret;

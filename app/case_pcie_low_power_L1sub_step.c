@@ -39,7 +39,7 @@ void pcie_L11_enable(void)
 
     // EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_L11_disable(void)
@@ -50,7 +50,7 @@ void pcie_L11_disable(void)
 
     // EP disable L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     // EP disable L1.1
     system("setpci -s 2:0.0 1d8.b=00");
@@ -70,12 +70,12 @@ void pcie_L12_enable(void)
     uint32_t u32_tmp_data = 0;
     uint32_t reg_data = 0;
     // get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x28, &reg_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x28, &reg_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data = reg_data | 0x400; // bit[10] LTR enable
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x28, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x28, 4, (uint8_t *)&u32_tmp_data);
 
     // RC enable L1
     system("setpci -s 0:1b.4 50.b=42");
@@ -88,7 +88,7 @@ void pcie_L12_enable(void)
 
     // EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_L12_disable(void)
@@ -99,7 +99,7 @@ void pcie_L12_disable(void)
 
     // EP disable L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     // EP disable L1.2
     system("setpci -s 2:0.0 188.b=00");
@@ -135,7 +135,7 @@ static void test_sub(void)
     pcie_retrain_link();
 
     // check Link status register
-    u32_tmp_data = pci_read_word(g_fd, ndev->pxcap_ofst + 0x12);
+    u32_tmp_data = pci_read_word(g_fd, ndev->express.offset + 0x12);
     cur_speed = u32_tmp_data & 0x0F;
     cur_width = (u32_tmp_data >> 4) & 0x3F;
     if (cur_speed == set_speed && cur_width == set_width)
@@ -159,7 +159,7 @@ static void test_sub(void)
 
     // //clkreq# rise
     // pr_info("\nL1.1 exit then enter\n");
-    //pci_read_dword(g_fd, ndev->pxcap_ofst+0x10);       //access EP
+    //pci_read_dword(g_fd, ndev->express.offset+0x10);       //access EP
 
     // scanf("%d", &cmds);
     // //clkreq# fall
@@ -179,7 +179,7 @@ static void test_sub(void)
     //clkreq# rise
     pr_info("\nL1.2 exit then enter\n");
 
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &tmp);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &tmp);
     if (ret < 0)
     	exit(-1);
 
@@ -201,7 +201,7 @@ int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->pxcap_ofst + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -210,7 +210,7 @@ int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
 
     // get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x10, &reg_value);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &reg_value);
     if (ret < 0)
     	exit(-1);
 

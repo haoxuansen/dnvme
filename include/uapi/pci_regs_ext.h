@@ -19,4 +19,10 @@
 #define PCI_PM_CTRL_STATE_D2		2
 #define PCI_PM_CTRL_STATE_D3HOT		3
 
+
+/* ==================== Cap: MSI ==================== */
+
+#define PCI_MSI_FLAGS_EXT_MSG_DATA_CAP	0x200
+
 #endif /* !_UAPI_PCI_REGS_EXT_H_ */
+

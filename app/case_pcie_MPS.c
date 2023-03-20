@@ -46,21 +46,21 @@ static void set_pcie_mps_128(void)
     //system("setpci -s 0:1b.4 48.b=0f");
 
     // EP set MPS 128
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFF1F;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data = (u32_tmp_data & 0xE0) >> 5;
-    //pr_info("\nread ndev->pxcap_ofst+0x8 0x%x\n", u32_tmp_data);
-    //u32_tmp_data = pci_read_dword(g_fd, ndev->pxcap_ofst+0x4);
+    //pr_info("\nread ndev->express.offset+0x8 0x%x\n", u32_tmp_data);
+    //u32_tmp_data = pci_read_dword(g_fd, ndev->express.offset+0x4);
     //u32_tmp_data &= 0x07;
     pr_info("\nEP Max Payload Size support 128 byte, 0x%x\n", u32_tmp_data);
 }
@@ -76,16 +76,16 @@ static void set_pcie_mps_256(void)
     //system("setpci -s 0:1b.4 48.b=2f");
 
     // EP set MPS 256
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFF1F;
     u32_tmp_data |= 0x20;
-    pci_write_config_data(ndev->fd, ndev->pxcap_ofst + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link();
 
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -169,7 +169,7 @@ int case_pcie_MPS(struct nvme_tool *tool)
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Payload Size support
-    ret = pci_read_config_dword(ndev->fd, ndev->pxcap_ofst + 0x4, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x4, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 

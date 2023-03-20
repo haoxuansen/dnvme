@@ -16,6 +16,8 @@
 #include <linux/pci_regs.h>
 #include <linux/pci_ids.h>
 
+#include "pci_caps.h"
+#include "pci_regs_ext.h"
 #include "dnvme_ioctl.h"
 
 #define PCI_CAP_ID_MASK			0x00ff
@@ -33,12 +35,6 @@ struct pci_class_code {
 	u8	base;
 	u8	sub;
 	u8	prog;
-};
-
-struct pci_msix_cap {
-	u16	mc;
-	u32	table;
-	u32	pba;
 };
 
 static inline int pci_read_vendor_id(struct pci_dev *pdev, u16 *data)
@@ -147,12 +143,10 @@ int pci_read_class_code(struct pci_dev *pdev, struct pci_class_code *data);
 int pci_enable_int_pin(struct pci_dev *pdev);
 int pci_disable_int_pin(struct pci_dev *pdev);
 
-int pci_get_caps(struct pci_dev *pdev, struct pci_cap *caps);
-void pci_put_caps(struct pci_dev *pdev, struct pci_cap *caps);
-
-int pci_get_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps);
-void pci_put_ext_caps(struct pci_dev *pdev, struct pcie_cap *caps);
-
-void pci_parse_status(struct pci_dev *pdev, u16 status);
+struct pci_cap_msi *pci_get_msi_cap(struct pci_dev *pdev, u8 offset);
+struct pci_cap_msix *pci_get_msix_cap(struct pci_dev *pdev, u16 offset);
+struct pci_cap_pm *pci_get_pm_cap(struct pci_dev *pdev, u8 offset);
+struct pci_cap_express *pci_get_express_cap(struct pci_dev *pdev, u8 offset);
 
 #endif /* !_DNVME_PCI_H_ */
+
