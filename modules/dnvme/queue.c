@@ -79,19 +79,20 @@ struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id)
 int dnvme_check_qid_unique(struct nvme_context *ctx, 
 	enum nvme_queue_type type, u16 id)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
 
 	if (type == NVME_SQ) {
 		sq = dnvme_find_sq(ctx, id);
 		if (sq) {
-			dnvme_err("SQ ID(%u) already exists!\n", id);
+			dnvme_err(ndev, "SQ ID(%u) already exists!\n", id);
 			return -EEXIST;
 		}
 	} else if (type == NVME_CQ) {
 		cq = dnvme_find_cq(ctx, id);
 		if (cq) {
-			dnvme_err("SQ ID(%u) already exists!\n", id);
+			dnvme_err(ndev, "SQ ID(%u) already exists!\n", id);
 			return -EEXIST;
 		}
 	}
@@ -166,7 +167,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 
 	sq = kzalloc(sizeof(*sq), GFP_KERNEL);
 	if (!sq) {
-		dnvme_err("failed to alloc nvme_sq!\n");
+		dnvme_err(ndev, "failed to alloc nvme_sq!\n");
 		return NULL;
 	}
 
@@ -175,7 +176,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 	if (prep->contig) {
 		sq_buf = dma_alloc_coherent(&pdev->dev, sq_size, &dma, GFP_KERNEL);
 		if (!sq_buf) {
-			dnvme_err("failed to alloc DMA addr for SQ!\n");
+			dnvme_err(ndev, "failed to alloc DMA addr for SQ!\n");
 			goto out;
 		}
 		memset(sq_buf, 0, sq_size);
@@ -235,7 +236,7 @@ static void dnvme_delete_sq(struct nvme_context *ctx, u16 sq_id)
 
 	sq = dnvme_find_sq(ctx, sq_id);
 	if (!sq) {
-		dnvme_vdbg("SQ(%u) doesn't exist!\n", sq_id);
+		dnvme_vdbg(ctx->dev, "SQ(%u) doesn't exist!\n", sq_id);
 		return;
 	}
 
@@ -254,7 +255,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
-		dnvme_err("failed to alloc nvme_cq!\n");
+		dnvme_err(ndev, "failed to alloc nvme_cq!\n");
 		return NULL;
 	}
 
@@ -263,7 +264,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 	if (prep->contig) {
 		cq_buf = dma_alloc_coherent(&pdev->dev, cq_size, &dma, GFP_KERNEL);
 		if (!cq_buf) {
-			dnvme_err("failed to alloc DMA addr for CQ!\n");
+			dnvme_err(ndev, "failed to alloc DMA addr for CQ!\n");
 			goto out;
 		}
 		memset(cq_buf, 0, cq_size);
@@ -321,7 +322,7 @@ static void dnvme_delete_cq(struct nvme_context *ctx, u16 cq_id)
 
 	cq = dnvme_find_cq(ctx, cq_id);
 	if (!cq) {
-		dnvme_vdbg("CQ(%u) doesn't exist!\n", cq_id);
+		dnvme_vdbg(ctx->dev, "CQ(%u) doesn't exist!\n", cq_id);
 		return;
 	}
 
@@ -343,7 +344,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 	int ret;
 
 	if (!elements || elements > NVME_AQ_MAX_SIZE) {
-		dnvme_err("ASQ elements(%u) is invalid!\n", elements);
+		dnvme_err(ndev, "ASQ elements(%u) is invalid!\n", elements);
 		return -EINVAL;
 	}
 
@@ -353,7 +354,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 
 	cc = dnvme_readl(bar0, NVME_REG_CC);
 	if (cc & NVME_CC_ENABLE) {
-		dnvme_err("NVMe already enabled!\n");
+		dnvme_err(ndev, "NVMe already enabled!\n");
 		return -EPERM;
 	}
 
@@ -374,7 +375,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 
 	dnvme_writeq(bar0, NVME_REG_ASQ, sq->priv.dma);
 
-	dnvme_dbg("WRITE AQA:0x%x, ASQ:0x%llx\n", aqa, sq->priv.dma);
+	dnvme_dbg(ndev, "WRITE AQA:0x%x, ASQ:0x%llx\n", aqa, sq->priv.dma);
 	return 0;
 }
 
@@ -389,7 +390,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 	int ret;
 
 	if (!elements || elements > NVME_AQ_MAX_SIZE) {
-		dnvme_err("ACQ elements(%u) is invalid!\n", elements);
+		dnvme_err(ndev, "ACQ elements(%u) is invalid!\n", elements);
 		return -EINVAL;
 	}
 
@@ -399,7 +400,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 
 	cc = dnvme_readl(bar0, NVME_REG_CC);
 	if (cc & NVME_CC_ENABLE) {
-		dnvme_err("NVMe already enabled!\n");
+		dnvme_err(ndev, "NVMe already enabled!\n");
 		return -EPERM;
 	}
 
@@ -421,7 +422,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 
 	dnvme_writeq(bar0, NVME_REG_ACQ, cq->priv.dma);
 
-	dnvme_dbg("WRITE AQA:0x%x, ACQ:0x%llx\n", aqa, cq->priv.dma);
+	dnvme_dbg(ndev, "WRITE AQA:0x%x, ACQ:0x%llx\n", aqa, cq->priv.dma);
 	return 0;
 }
 
@@ -460,11 +461,11 @@ int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id)
 
 	sq = dnvme_find_sq(ctx, sq_id);
 	if (!sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", sq_id);
+		dnvme_err(ctx->dev, "SQ(%u) doesn't exist!\n", sq_id);
 		return -EINVAL;
 	}
 
-	dnvme_dbg("RING SQ(%u) %u => %lx (old:%u)\n", sq_id, 
+	dnvme_dbg(ctx->dev, "RING SQ(%u) %u => %lx (old:%u)\n", sq_id, 
 		sq->pub.tail_ptr_virt, (unsigned long)sq->priv.dbs,
 		sq->pub.tail_ptr);
 	sq->pub.tail_ptr = sq->pub.tail_ptr_virt;
@@ -488,7 +489,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 
 	list_for_each_entry_safe(sq, sq_tmp, &ctx->sq_list, sq_entry) {
 		if (save_aq && sq->pub.sq_id == NVME_AQ_ID) {
-			dnvme_vdbg("Retaining ASQ from deallocation\n");
+			dnvme_vdbg(ctx->dev, "Retaining ASQ from deallocation\n");
 			/* drop sq cmds and set to zero the public metrics of asq */
 			dnvme_reinit_asq(ctx, sq);
 		} else {
@@ -498,7 +499,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 
 	list_for_each_entry_safe(cq, cq_tmp, &ctx->cq_list, cq_entry) {
 		if (save_aq && cq->pub.q_id == NVME_AQ_ID) {
-			dnvme_vdbg("Retaining ACQ from deallocation");
+			dnvme_vdbg(ctx->dev, "Retaining ACQ from deallocation");
 			/* set to zero the public metrics of acq */
 			dnvme_reinit_acq(cq);
 		} else {
@@ -522,6 +523,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
  */
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 {
+	struct nvme_context *ctx = cq->ctx;
 	struct nvme_prps *prps = &cq->priv.prps;
 	struct nvme_completion *entry;
 	void *cq_addr;
@@ -554,7 +556,7 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 		entry = (struct nvme_completion *)cq_addr + cq->pub.tail_ptr;
 	}
 
-	dnvme_vdbg("Inquiry CQ(%u) element:%u, head:%u, tail:%u, remain:%u\n",
+	dnvme_vdbg(ctx->dev, "Inquiry CQ(%u) element:%u, head:%u, tail:%u, remain:%u\n",
 		cq->pub.q_id, cq->pub.elements, cq->pub.head_ptr,
 		cq->pub.tail_ptr, remain);
 	return remain;
@@ -573,13 +575,13 @@ int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq
 	int ret = 0;
 
 	if (copy_from_user(&inquiry, uinq, sizeof(inquiry))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	cq = dnvme_find_cq(ctx, inquiry.q_id);
 	if (!cq) {
-		dnvme_err("CQ(%u) doesn't exist!\n", inquiry.q_id);
+		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", inquiry.q_id);
 		return -EINVAL;
 	}
 
@@ -587,11 +589,11 @@ int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq
 	inquiry.isr_count = 0;
 
 	if (act_irq->irq_type == NVME_INT_NONE || cq->pub.irq_enabled == 0) {
-		dnvme_vdbg("Non-ISR Inquiry on CQ(%u)!\n", cq->pub.q_id);
+		dnvme_vdbg(ndev, "Non-ISR Inquiry on CQ(%u)!\n", cq->pub.q_id);
 		inquiry.num_remaining = dnvme_get_cqe_remain(cq, &ndev->pdev->dev);
 	} else {
 
-		dnvme_vdbg("ISR Reap Inq on CQ = %d", cq->pub.q_id);
+		dnvme_vdbg(ndev, "ISR Reap Inq on CQ = %d", cq->pub.q_id);
 
 		mutex_lock(&ctx->irq_set.mtx_lock);
 		ret = dnvme_inquiry_cqe_with_isr(cq, &inquiry.num_remaining, &inquiry.isr_count);
@@ -602,13 +604,13 @@ int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq
 	}
 
 	if (copy_to_user(uinq, &inquiry, sizeof(inquiry))) {
-		dnvme_err("failed to copy to user space!\n");
+		dnvme_err(ndev, "failed to copy to user space!\n");
 		return -EFAULT;
 	}
 
 	/* Check for hw violation of full Q definition */
 	if (inquiry.num_remaining >= cq->pub.elements) {
-		dnvme_err("HW violating full Q definition!\n");
+		dnvme_err(ndev, "HW violating full Q definition!\n");
 		return -EPERM;
 	}
 
@@ -622,16 +624,17 @@ static int handle_queue_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	enum nvme_queue_type type, bool free_queue)
 {
 	struct nvme_context *ctx = sq->ctx;
+	struct nvme_device *ndev = ctx->dev;
 	int ret = 0;
 
-	dnvme_vdbg("Queue:%u, CMD:%u, Free:%s\n", cmd->target_qid,
+	dnvme_vdbg(ndev, "Queue:%u, CMD:%u, Free:%s\n", cmd->target_qid,
 		cmd->id, free_queue ? "true" : "false");
 
 	if (!free_queue)
 		goto del_cmd;
 
 	if (cmd->target_qid == NVME_AQ_ID) {
-		dnvme_err("Trying to delete Admin Queue is blunder!\n");
+		dnvme_err(ndev, "Trying to delete Admin Queue is blunder!\n");
 		ret = -EINVAL;
 		goto del_cmd;
 	}
@@ -691,6 +694,7 @@ static int handle_admin_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 static int handle_cmd_completion(struct nvme_context *ctx, 
 	struct nvme_completion *cq_entry)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cmd *cmd;
 	u16 status;
@@ -698,7 +702,7 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 
 	sq = dnvme_find_sq(ctx, cq_entry->sq_id);
 	if (!sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", cq_entry->sq_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cq_entry->sq_id);
 		return -EBADSLT;
 	}
 
@@ -708,12 +712,12 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 
 	cmd = dnvme_find_cmd(sq, cq_entry->command_id);
 	if (!cmd) {
-		dnvme_err("CMD(%u) doesn't exist in SQ(%u)!\n",
+		dnvme_err(ndev, "CMD(%u) doesn't exist in SQ(%u)!\n",
 			cq_entry->command_id, cq_entry->sq_id);
 		return -EBADSLT;
 	}
 
-	dnvme_vdbg("SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
+	dnvme_vdbg(ndev, "SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
 		cq_entry->sq_id, cq_entry->command_id, 
 		cmd->opcode, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 
@@ -732,6 +736,7 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 {
 	struct nvme_context *ctx = cq->ctx;
+	struct nvme_device *ndev = ctx->dev;
 	void *cq_head;
 	void *cq_base;
 	u32 cqes = 1 << cq->pub.cqes;
@@ -745,17 +750,17 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 	cq_head = cq_base + ((u32)cq->pub.head_ptr << cq->pub.cqes);
 
 	while (*nr_reap) {
-		dnvme_vdbg("Reaping CE's, %d left to reap", *nr_reap);
+		dnvme_vdbg(ndev, "Reaping CE's, %d left to reap", *nr_reap);
 
 		/* Call the process reap algos based on CE entry */
 		latentErr = handle_cmd_completion(ctx, cq_head);
 		if (latentErr) {
-			dnvme_err("Unable to find CE.SQ_id in dnvme metrics");
+			dnvme_err(ndev, "Unable to find CE.SQ_id in dnvme metrics");
 		}
 
 		/* Copy to user even on err; allows seeing latent err */
 		if (copy_to_user(buffer, cq_head, cqes)) {
-			dnvme_err("Unable to copy request data to user space");
+			dnvme_err(ndev, "Unable to copy request data to user space");
 			return -EFAULT;
 		}
 
@@ -776,7 +781,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 			* entire IOCTL should error, but we successfully reaped some CE's
 			* which allows tnvme to inspect and trust the copied CE's for debug
 			*/
-			dnvme_err("Detected a partial reap situation; some, not all reaped");
+			dnvme_err(ndev, "Detected a partial reap situation; some, not all reaped");
 			return latentErr;
 		}
 	}
@@ -790,6 +795,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
  */
 static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 {
+	struct nvme_context *ctx = cq->ctx;
 	u32 head = cq->pub.head_ptr;
 
 	head += num_reaped;
@@ -800,8 +806,8 @@ static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 
 	cq->pub.head_ptr = (u16)head;
 
-	dnvme_vdbg("CQ(%u) head:%u, tail:%u\n", cq->pub.q_id, cq->pub.head_ptr,
-		cq->pub.tail_ptr);
+	dnvme_vdbg(ctx->dev, "CQ(%u) head:%u, tail:%u\n", cq->pub.q_id, 
+		cq->pub.head_ptr, cq->pub.tail_ptr);
 }
 
 int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
@@ -816,14 +822,14 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 	int ret;
 
 	if (copy_from_user(&reap, ureap, sizeof(reap))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 	reap.isr_count = 0;
 
 	cq = dnvme_find_cq(ctx, reap.q_id);
 	if (!cq) {
-		dnvme_err("CQ(%u) doesn't exist!\n", reap.q_id);
+		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", reap.q_id);
 		return -EBADSLT;
 	}
 	cqes = 1 << cq->pub.cqes;
@@ -846,7 +852,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 	}
 
 	if (remain >= cq->pub.elements) {
-		dnvme_err("HW violating full Q definition!\n");
+		dnvme_err(ndev, "HW violating full Q definition!\n");
 		return -EPERM;
 	}
 
@@ -861,7 +867,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 
 	/* update data to user */
 	if (copy_to_user(ureap, &reap, sizeof(reap))) {
-		dnvme_err("failed to copy to user space!\n");
+		dnvme_err(ndev, "failed to copy to user space!\n");
 		return (ret == 0) ? -EFAULT : ret;
 	}
 
@@ -877,7 +883,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);
 		mutex_unlock(&irq_set->mtx_lock);
 		if (ret < 0) {
-			dnvme_err("reset isr fired flag failed\n");
+			dnvme_err(ndev, "reset isr fired flag failed\n");
 			return ret;
 		}
 	}

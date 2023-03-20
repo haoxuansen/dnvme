@@ -100,7 +100,7 @@ static struct nvme_context *lock_context(struct inode *inode)
 
 	ctx = find_context(inode);
 	if (IS_ERR(ctx)) {
-		dnvme_err("Cannot find the device with minor no. %d\n", iminor(inode));
+		pr_err("Cannot find the device with minor no. %d!\n", iminor(inode));
 		return ctx;
 	}
 
@@ -113,7 +113,7 @@ static void unlock_context(struct nvme_context *ctx)
 	if (mutex_is_locked(&ctx->lock)) {
 		mutex_unlock(&ctx->lock);
 	} else {
-		dnvme_warn("already unlocked, lock missmatch!\n");
+		dnvme_warn(ctx->dev, "already unlocked, lock missmatch!\n");
 	}
 }
 
@@ -127,6 +127,7 @@ static void unlock_context(struct nvme_context *ctx)
 static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 	void **kva, u32 *size)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
 	struct nvme_meta *meta;
@@ -136,18 +137,18 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 	switch (type) {
 	case VMPGOFF_TYPE_CQ:
 		if (id > NVME_CQ_ID_MAX) {
-			dnvme_err("CQ ID(%u) is out of range!\n", id);
+			dnvme_err(ndev, "CQ ID(%u) is out of range!\n", id);
 			return -EINVAL;
 		}
 
 		cq = dnvme_find_cq(ctx, id);
 		if (!cq) {
-			dnvme_err("Cannot find CQ(%u)!\n", id);
+			dnvme_err(ndev, "Cannot find CQ(%u)!\n", id);
 			return -EBADSLT;
 		}
 
 		if (cq->priv.contig == 0) {
-			dnvme_err("Cannot mmap non-contig CQ!\n");
+			dnvme_err(ndev, "Cannot mmap non-contig CQ!\n");
 			return -ENOTSUP;
 		}
 		*kva = cq->priv.buf;
@@ -156,18 +157,18 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 
 	case VMPGOFF_TYPE_SQ:
 		if (id > NVME_SQ_ID_MAX) {
-			dnvme_err("SQ ID(%u) is out of range!\n", id);
+			dnvme_err(ndev, "SQ ID(%u) is out of range!\n", id);
 			return -EINVAL;
 		}
 
 		sq = dnvme_find_sq(ctx, id);
 		if (!sq) {
-			dnvme_err("Cannot find SQ(%u)!\n", id);
+			dnvme_err(ndev, "Cannot find SQ(%u)!\n", id);
 			return -EBADSLT;
 		}
 
 		if (sq->priv.contig == 0) {
-			dnvme_err("Cannot mmap non-contig SQ!\n");
+			dnvme_err(ndev, "Cannot mmap non-contig SQ!\n");
 			return -ENOTSUP;
 		}
 		*kva = sq->priv.buf;
@@ -176,13 +177,13 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 
 	case VMPGOFF_TYPE_META:
 		if (id > NVME_META_ID_MAX) {
-			dnvme_err("Meta ID(%u) is out of range!\n", id);
+			dnvme_err(ndev, "Meta ID(%u) is out of range!\n", id);
 			return -EINVAL;
 		}
 
 		meta = dnvme_find_meta(ctx, id);
 		if (!meta) {
-			dnvme_err("Cannot find Meta(%u)!\n", id);
+			dnvme_err(ndev, "Cannot find Meta(%u)!\n", id);
 			return -EBADSLT;
 		}
 		*kva = meta->buf;
@@ -190,7 +191,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 		break;
 
 	default:
-		dnvme_err("type(%u) is unknown!\n", type);
+		dnvme_err(ndev, "type(%u) is unknown!\n", type);
 		return -EINVAL;
 	}
 
@@ -219,6 +220,7 @@ void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state)
 static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	void *mmap_addr;
 	u32 mmap_range;
@@ -229,6 +231,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 	ctx = lock_context(inode);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
+	ndev = ctx->dev;
 
 	vma->vm_flags |= (VM_IO | VM_RESERVED);
 
@@ -239,25 +242,25 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 	/* !NOTE: Why add 1? Could replace by ALIGN()? */
 	npages = (mmap_range / PAGE_SIZE) + 1;
 	if ((npages * PAGE_SIZE) < (vma->vm_end - vma->vm_start)) {
-		dnvme_err("Request to Map more than allocated pages...\n");
+		dnvme_err(ndev, "Request to Map more than allocated pages...\n");
 		ret = -EINVAL;
 		goto out;
 	}
-	dnvme_vdbg("K.V.A = 0x%lx, PAGES = %d\n", (unsigned long)mmap_addr, npages);
+	dnvme_vdbg(ndev, "K.V.A = 0x%lx, PAGES = %d\n", (unsigned long)mmap_addr, npages);
 
 	/* Associated struct page ptr for kernel logical address */
 	pfn = virt_to_phys(mmap_addr) >> PAGE_SHIFT;
 	if (!pfn) {
-		dnvme_err("virt_to_phys err!\n");
+		dnvme_err(ndev, "virt_to_phys err!\n");
 		ret = -EFAULT;
 		goto out;
 	}
-	dnvme_vdbg("PFN = 0x%lx", pfn);
+	dnvme_vdbg(ndev, "PFN = 0x%lx", pfn);
 
 	ret = remap_pfn_range(vma, vma->vm_start, pfn, 
 		vma->vm_end - vma->vm_start, vma->vm_page_prot);
 	if (ret < 0)
-		dnvme_err("remap_pfn_rage err!(%d)\n", ret);
+		dnvme_err(ndev, "remap_pfn_rage err!(%d)\n", ret);
 
 out:
 	unlock_context(ctx);
@@ -272,7 +275,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	struct inode *inode = inode = filp->f_path.dentry->d_inode;
 	void __user *argp = (void __user *)arg;
 
-	dnvme_dbg("cmd num:%u, arg:0x%lx (%s)\n", _IOC_NR(cmd), arg,
+	dnvme_dbg(ndev, "cmd num:%u, arg:0x%lx (%s)\n", _IOC_NR(cmd), arg,
 		dnvme_ioctl_cmd_string(cmd));
 
 	ctx = lock_context(inode);
@@ -283,14 +286,14 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case NVME_IOCTL_GET_DRIVER_INFO:
 		if (copy_to_user(argp, &nvme_drv, sizeof(struct nvme_driver))) {
-			dnvme_err("failed to copy to user space!\n");
+			dnvme_err(ndev, "failed to copy to user space!\n");
 			ret = -EFAULT;
 		}
 		break;
 
 	case NVME_IOCTL_GET_DEVICE_INFO:
 		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
-			dnvme_err("failed to copy to user space!\n");
+			dnvme_err(ndev, "failed to copy to user space!\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -313,7 +316,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_GET_CAPABILITY:
 		if (copy_to_user(argp, &ndev->cap, sizeof(ndev->cap))) {
-			dnvme_err("failed to copy to user space!\n");
+			dnvme_err(ndev, "failed to copy to user space!\n");
 			ret = -EFAULT;
 		}
 		break;
@@ -343,7 +346,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_DUMP_LOG_FILE:
-		ret = dnvme_dump_log_file(argp);
+		ret = dnvme_dump_log_file(ndev, argp);
 		break;
 
 	case NVME_IOCTL_INQUIRY_CQE:
@@ -383,7 +386,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	default:
-		dnvme_err("cmd(%u) is unknown!\n", _IOC_NR(cmd));
+		dnvme_err(ndev, "cmd(%u) is unknown!\n", _IOC_NR(cmd));
 		ret = -EINVAL;
 	}
 
@@ -394,14 +397,16 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static int dnvme_open(struct inode *inode, struct file *filp)
 {
 	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 	int ret = 0;
 
 	ctx = lock_context(inode);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
+	ndev = ctx->dev;
 
 	if (ctx->dev->priv.opened) {
-		dnvme_err("It's not allowed to open device more than once!\n");
+		dnvme_err(ndev, "It's not allowed to open device more than once!\n");
 		ret = -EPERM;
 		goto out;
 	}
@@ -409,7 +414,7 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 	ctx->dev->priv.opened = 1;
 	/* !TODO: There is no need to clean device */
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
-	dnvme_info("Open NVMe device ok!\n");
+	dnvme_info(ndev, "Open NVMe device ok!\n");
 out:
 	unlock_context(ctx);
 	return ret;
@@ -423,7 +428,7 @@ static int dnvme_release(struct inode *inode, struct file *filp)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	dnvme_info("Close NVMe device ...\n");
+	dnvme_info(ctx->dev, "Close NVMe device ...\n");
 
 	ctx->dev->priv.opened = 0;
 	/* !TODO: shall reset nvme device before delete I/O queue?
@@ -461,23 +466,23 @@ static int dnvme_map_resource(struct nvme_context *ctx)
 	int ret;
 
 	if (!(pci_select_bars(pdev, IORESOURCE_MEM) & BIT(0))) {
-		dnvme_err("BAR0 (64-bit) is not support!\n");
+		dnvme_err(ndev, "BAR0 (64-bit) is not support!\n");
 		return -ENODEV;
 	}
 
 	ret = pci_request_region(pdev, 0, "bar0");
 	if (ret < 0) {
-		dnvme_err("BAR0 (64-bit) already in use!(%d)\n", ret);
+		dnvme_err(ndev, "BAR0 (64-bit) already in use!(%d)\n", ret);
 		return ret;
 	}
 
 	bar0 = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 	if (!bar0) {
-		dnvme_err("failed to map BAR0 (64-bit)!\n");
+		dnvme_err(ndev, "failed to map BAR0 (64-bit)!\n");
 		ret = -ENOMEM;
 		goto out;
 	}
-	dnvme_info("BAR0: 0x%llx + 0x%llx mapped to 0x%p!\n", 
+	dnvme_info(ndev, "BAR0: 0x%llx + 0x%llx mapped to 0x%p!\n", 
 		pci_resource_start(pdev, 0), pci_resource_len(pdev, 0), bar0);
 
 	ndev->priv.bar0 = bar0;
@@ -518,36 +523,37 @@ static int dnvme_init_irq(struct nvme_context *ctx)
 static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 {
 	int ret;
+	struct device *dev = &pdev->dev;
 	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	struct dma_pool *pool;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		dnvme_err("failed to alloc nvme_context!\n");
+		dev_err(dev, "failed to alloc nvme_context!\n");
 		return NULL;
 	}
 
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
 	if (!ndev) {
-		dnvme_err("failed to alloc nvme_device!\n");
-		goto out;
+		dev_err(dev, "failed to alloc nvme_device!\n");
+		goto out_free_ctx;
 	}
 
 	/* 1. Initialize nvme device first. */
 	ndev->pdev = pdev;
 
 	/* Used to create Coherent DMA mapping for PRP List */
-	pool = dma_pool_create("prp page", &pdev->dev, PAGE_SIZE, PAGE_SIZE, 0);
+	pool = dma_pool_create("prp page", dev, PAGE_SIZE, PAGE_SIZE, 0);
 	if (!pool) {
-		dnvme_err("failed to create dma pool!\n");
-		goto out2;
+		dev_err(dev, "failed to create dma pool!\n");
+		goto out_free_ndev;
 	}
 	ndev->priv.prp_page_pool = pool;
 
-	ret = ida_simple_get(&nvme_instance_ida, 0, 0, GFP_KERNEL);
+	ret = ida_simple_get(&nvme_instance_ida, 0, NVME_MINORS, GFP_KERNEL);
 	if (ret < 0)
-		goto out3;
+		goto out_destroy_pool;
 	ndev->instance = ret;
 
 	device_initialize(&ndev->dev);
@@ -586,11 +592,11 @@ out_free_name:
 	kfree_const(ndev->dev.kobj.name);
 out_release_instance:
 	ida_simple_remove(&nvme_instance_ida, ndev->instance);
-out3:
+out_destroy_pool:
 	dma_pool_destroy(pool);
-out2:
+out_free_ndev:
 	kfree(ndev);
-out:
+out_free_ctx:
 	kfree(ctx);
 	return NULL;
 }
@@ -611,21 +617,22 @@ static void dnvme_release_context(struct nvme_context *ctx)
 static int dnvme_set_dma_mask(struct pci_dev *pdev)
 {
 	int ret;
+	struct device *dev = &pdev->dev;
 
 	if (dma_supported(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
-		dnvme_err("The device unable to address 64 bits of DMA\n");
+		dev_err(dev, "The device unable to address 64 bits of DMA\n");
 		return -EPERM;
 	}
 
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret < 0) {
-		dnvme_err("Request 64-bit DMA has been rejected!\n");
+		dev_err(dev, "Request 64-bit DMA has been rejected!\n");
 		return ret;
 	}
 
 	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret < 0) {
-		dnvme_err("Request 64-bit coherent memory has been rejected!\n");
+		dev_err(dev, "Request 64-bit coherent memory has been rejected!\n");
 		return ret;
 	}
 
@@ -644,7 +651,7 @@ static int dnvme_pci_enable(struct nvme_context *ctx)
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
-		dnvme_err("failed to enable pci device!(%d)\n", ret);
+		dnvme_err(ndev, "failed to enable pci device!(%d)\n", ret);
 		return ret;
 	}
 
@@ -652,7 +659,7 @@ static int dnvme_pci_enable(struct nvme_context *ctx)
 	ndev->q_depth = NVME_CAP_MQES(prop->cap) + 1;
 	ndev->db_stride = 1 << NVME_CAP_STRIDE(prop->cap);
 
-	dnvme_dbg("db_stride:%u, q_depth:%u\n", ndev->db_stride, ndev->q_depth);
+	dnvme_dbg(ndev, "db_stride:%u, q_depth:%u\n", ndev->db_stride, ndev->q_depth);
 	return 0;
 }
 
@@ -682,7 +689,7 @@ static int dnvme_get_capability(struct nvme_device *ndev)
 		return ret;
 
 	if (!cap->pci[PCI_CAP_ID_EXP - 1].id) {
-		dnvme_err("Not support pci express capability!\n");
+		dnvme_err(ndev, "Not support pci express capability!\n");
 		return -EPERM;
 	}
 
@@ -705,9 +712,10 @@ static void dnvme_put_capability(struct nvme_device *ndev)
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int ret;
+	struct device *dev = &pdev->dev;
 	struct nvme_context *ctx;
 
-	dnvme_info("probe pdev...(cpu:%d %d %d)\n", num_possible_cpus(), 
+	dev_info(dev, "probe pdev...(cpu:%d %d %d)\n", num_possible_cpus(), 
 		num_present_cpus(), num_active_cpus());
 
 	ret = dnvme_set_dma_mask(pdev);
@@ -716,7 +724,7 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ctx = dnvme_alloc_context(pdev);
 	if (!ctx) {
-		dnvme_err("failed to alloc context!\n");
+		dev_err(dev, "failed to alloc context!\n");
 		return -ENOMEM;
 	}
 
@@ -737,10 +745,10 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out3;
 
 	/* Finalize this device and prepare for next one */
-	dnvme_info("NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
-	dnvme_vdbg("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
+	dev_info(dev, "NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
+	dev_vdbg(dev, "NVMe bus #%d, dev slot: %d", pdev->bus->number, 
 		PCI_SLOT(pdev->devfn));
-	dnvme_vdbg("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+	dev_vdbg(dev, "NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
 	list_add_tail(&ctx->entry, &nvme_ctx_list);
 	return 0;
@@ -756,12 +764,13 @@ out:
 static void dnvme_remove(struct pci_dev *pdev)
 {
 	bool found = false;
+	struct device *dev = &pdev->dev;
 	struct nvme_context *ctx;
 
-	dnvme_info("Remove NVMe device(0x%x:0x%x) ...\n", pdev->vendor, pdev->device);
-	dnvme_vdbg("NVMe bus #%d, dev slot: %d", pdev->bus->number, 
+	dev_info(dev, "Remove NVMe device(0x%x:0x%x) ...\n", pdev->vendor, pdev->device);
+	dev_vdbg(dev, "NVMe bus #%d, dev slot: %d", pdev->bus->number, 
 		PCI_SLOT(pdev->devfn));
-	dnvme_vdbg("NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
+	dev_vdbg(dev, "NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
 
 	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
@@ -772,7 +781,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 	}
 
 	if (!found) {
-		dnvme_warn("Cannot found dev in list!\n");
+		dev_warn(dev, "Cannot found dev in list!\n");
 		return;
 	}
 
@@ -812,24 +821,24 @@ static int __init dnvme_init(void)
 
 	ret = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, DEVICE_NAME);
 	if (ret < 0) {
-		dnvme_err("failed to alloc chrdev!(%d)\n", ret);
+		pr_err("failed to alloc chrdev!(%d)\n", ret);
 		return ret;
 	}
 
 	nvme_class = class_create(THIS_MODULE, DEVICE_NAME);
 	if (IS_ERR(nvme_class)) {
 		ret = PTR_ERR(nvme_class);
-		dnvme_err("failed to create %s class!(%d)\n", DEVICE_NAME, ret);
+		pr_err("failed to create %s class!(%d)\n", DEVICE_NAME, ret);
 		goto out;
 	}
 
 	ret = pci_register_driver(&dnvme_driver);
 	if (ret < 0) {
-		dnvme_err("failed to register pci driver!(%d)\n", ret);
+		pr_err("failed to register pci driver!(%d)\n", ret);
 		goto out2;
 	}
 
-	dnvme_info("init ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
+	pr_info("init ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
 		nvme_drv.drv_version);
 	return 0;
 
@@ -847,7 +856,7 @@ static void __exit dnvme_exit(void)
 	class_destroy(nvme_class);
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
 	ida_destroy(&nvme_instance_ida);
-	dnvme_info("exit ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
+	pr_info("exit ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
 		nvme_drv.drv_version);
 }
 module_exit(dnvme_exit);

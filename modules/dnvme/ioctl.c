@@ -53,7 +53,7 @@ static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
 		usleep_range(1000, 2000);
 
 		if (time_after(jiffies, timeout)) {
-			dnvme_err("Device not ready; aborting %s, CSTS=0x%x\n",
+			dnvme_err(ndev, "Device not ready; aborting %s, CSTS=0x%x\n",
 				enabled ? "init" : "reset", csts);
 			return -ETIME;
 		}
@@ -101,6 +101,7 @@ static int dnvme_reset_subsystem(struct nvme_context *ctx)
 
 int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
 {
+	struct nvme_device *ndev = ctx->dev;
 	int ret;
 
 	switch (state) {
@@ -112,7 +113,7 @@ int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
 	case NVME_ST_DISABLE_COMPLETE:
 		ret = dnvme_set_ctrl_state(ctx, false);
 		if (ret < 0) {
-			dnvme_err("failed to set ctrl state(%d)!\n", state);
+			dnvme_err(ndev, "failed to set ctrl state(%d)!\n", state);
 		} else {
 			dnvme_cleanup_context(ctx, state);
 		}
@@ -124,7 +125,7 @@ int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
 		break;
 
 	default:
-		dnvme_err("nvme state(%d) is unkonw!\n", state);
+		dnvme_err(ndev, "nvme state(%d) is unkonw!\n", state);
 		ret = -EINVAL;
 	}
 
@@ -136,12 +137,13 @@ int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
  * 
  * @return 0 if check success, otherwise a negative errno.
  */
-static int dnvme_check_access_align(struct nvme_access *access)
+static int dnvme_check_access_align(struct nvme_device *ndev, 
+	struct nvme_access *access)
 {
 	switch (access->type) {
 	case NVME_ACCESS_QWORD:
 		if ((access->bytes % 8) != 0 || (access->offset % 4) != 0) {
-			dnvme_err("offset(%u) shall dword-align, "
+			dnvme_err(ndev, "offset(%u) shall dword-align, "
 				"bytes(%u) shall qword-align!\n", 
 				access->offset, access->bytes);
 			return -EINVAL;
@@ -150,7 +152,7 @@ static int dnvme_check_access_align(struct nvme_access *access)
 
 	case NVME_ACCESS_DWORD:
 		if ((access->bytes % 4) != 0 || (access->offset % 4) != 0) {
-			dnvme_err("offset(%u) or bytes(%u) shall dword-align!\n",
+			dnvme_err(ndev, "offset(%u) or bytes(%u) shall dword-align!\n",
 				access->offset, access->bytes);
 			return -EINVAL;
 		}
@@ -158,7 +160,7 @@ static int dnvme_check_access_align(struct nvme_access *access)
 	
 	case NVME_ACCESS_WORD:
 		if ((access->bytes % 2) != 0 || (access->offset % 2) != 0) {
-			dnvme_err("offset(%u) or bytes(%u) shall word-align!\n",
+			dnvme_err(ndev, "offset(%u) or bytes(%u) shall word-align!\n",
 				access->offset, access->bytes);
 			return -EINVAL;
 		}
@@ -187,28 +189,28 @@ int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uacc
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
-		dnvme_err("Failed to copy from user space!\n");
+		dnvme_err(ndev, "Failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	if (!access.bytes) {
-		dnvme_dbg("Access size is zero!\n");
+		dnvme_dbg(ndev, "Access size is zero!\n");
 		return 0;
 	}
 
-	ret = dnvme_check_access_align(&access);
+	ret = dnvme_check_access_align(ndev, &access);
 	if (ret < 0)
 		return ret;
 
 	buf = kzalloc(access.bytes, GFP_KERNEL);
 	if (!buf) {
-		dnvme_err("Failed to alloc %ubytes!\n", access.bytes);
+		dnvme_err(ndev, "Failed to alloc %ubytes!\n", access.bytes);
 		return -ENOMEM;
 	}
 
 	switch (access.region) {
 	case NVME_PCI_CONFIG:
-		dnvme_dbg("READ PCI Header Space: 0x%x+0x%x\n", 
+		dnvme_dbg(ndev, "READ PCI Header Space: 0x%x+0x%x\n", 
 			access.offset, access.bytes);
 		ret = dnvme_read_from_config(pdev, &access, buf);
 		if (ret < 0)
@@ -216,7 +218,7 @@ int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uacc
 		break;
 
 	case NVME_BAR0_BAR1:
-		dnvme_dbg("READ NVMe BAR0~1: 0x%x+0x%x\n", 
+		dnvme_dbg(ndev, "READ NVMe BAR0~1: 0x%x+0x%x\n", 
 			access.offset, access.bytes);
 		ret = dnvme_read_from_bar(ndev->priv.bar0, &access, buf);
 		if (ret < 0)
@@ -224,13 +226,13 @@ int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uacc
 		break;
 
 	default:
-		dnvme_err("Access region(%d) is unkonwn!\n", access.region);
+		dnvme_err(ndev, "Access region(%d) is unkonwn!\n", access.region);
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (copy_to_user(access.buffer, buf, access.bytes)) {
-		dnvme_err("Failed to copy to user space!\n");
+		dnvme_err(ndev, "Failed to copy to user space!\n");
 		ret = -EFAULT;
 		goto out;
 	}
@@ -255,34 +257,34 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
-		dnvme_err("Failed to copy from user space!\n");
+		dnvme_err(ndev, "Failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	if (!access.bytes) {
-		dnvme_dbg("Access size is zero!\n");
+		dnvme_dbg(ndev, "Access size is zero!\n");
 		return 0;
 	}
 
-	ret = dnvme_check_access_align(&access);
+	ret = dnvme_check_access_align(ndev, &access);
 	if (ret < 0)
 		return ret;
 
 	buf = kzalloc(access.bytes, GFP_KERNEL);
 	if (!buf) {
-		dnvme_err("Failed to alloc %ubytes!\n", access.bytes);
+		dnvme_err(ndev, "Failed to alloc %ubytes!\n", access.bytes);
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(buf, access.buffer, access.bytes)) {
-		dnvme_err("Failed to copy from user space!\n");
+		dnvme_err(ndev, "Failed to copy from user space!\n");
 		ret = -EFAULT;
 		goto out;
 	}
 
 	switch (access.region) {
 	case NVME_PCI_CONFIG:
-		dnvme_dbg("WRITE PCI Header Space: 0x%x+0x%x\n",
+		dnvme_dbg(ndev, "WRITE PCI Header Space: 0x%x+0x%x\n",
 			access.offset, access.bytes);
 		ret = dnvme_write_to_config(pdev, &access, buf);
 		if (ret < 0)
@@ -290,7 +292,7 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 		break;
 	
 	case NVME_BAR0_BAR1:
-		dnvme_dbg("WRITE NVMe BAR0~1: 0x%x+0x%x\n",
+		dnvme_dbg(ndev, "WRITE NVMe BAR0~1: 0x%x+0x%x\n",
 			access.offset, access.bytes);
 		ret = dnvme_write_to_bar(ndev->priv.bar0, &access, buf);
 		if (ret < 0)
@@ -298,7 +300,7 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 		break;
 
 	default:
-		dnvme_err("Access region(%d) is unkonwn!\n", access.region);
+		dnvme_err(ndev, "Access region(%d) is unkonwn!\n", access.region);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -317,10 +319,11 @@ int dnvme_create_admin_queue(struct nvme_context *ctx,
 	struct nvme_admin_queue __user *uaq)
 {
 	int ret;
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_admin_queue aq;
 
 	if (copy_from_user(&aq, uaq, sizeof(aq))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
@@ -329,7 +332,7 @@ int dnvme_create_admin_queue(struct nvme_context *ctx,
 	} else if (aq.type == NVME_ADMIN_CQ) {
 		ret = dnvme_create_acq(ctx, aq.elements);
 	} else {
-		dnvme_err("queue type(%d) is unknown!\n", aq.type);
+		dnvme_err(ndev, "queue type(%d) is unknown!\n", aq.type);
 		return -EINVAL;
 	}
 
@@ -344,12 +347,12 @@ int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep
 	int ret;
 
 	if (copy_from_user(&prep, uprep, sizeof(prep))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	if (!prep.elements || prep.elements > ndev->q_depth) {
-		dnvme_err("SQ elements(%u) is invalid!\n", prep.elements);
+		dnvme_err(ndev, "SQ elements(%u) is invalid!\n", prep.elements);
 		return -EINVAL;
 	}
 
@@ -358,7 +361,7 @@ int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep
 		return ret;
 
 	if (ndev->prop.cap & NVME_CAP_CQR && !prep.contig) {
-		dnvme_err("SQ shall be contig!\n");
+		dnvme_err(ndev, "SQ shall be contig!\n");
 		return -EINVAL;
 	}
 
@@ -378,12 +381,12 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 	int ret;
 
 	if (copy_from_user(&prep, uprep, sizeof(prep))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	if (!prep.elements || prep.elements > ndev->q_depth) {
-		dnvme_err("CQ elements(%u) is invalid!\n", prep.elements);
+		dnvme_err(ndev, "CQ elements(%u) is invalid!\n", prep.elements);
 		return -EINVAL;
 	}
 
@@ -392,7 +395,7 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 		return ret;
 
 	if (ndev->prop.cap & NVME_CAP_CQR && !prep.contig) {
-		dnvme_err("CQ shall be contig!\n");
+		dnvme_err(ndev, "CQ shall be contig!\n");
 		return -EINVAL;
 	}
 
@@ -405,7 +408,7 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 	if (cq->pub.irq_enabled) {
 		ret = dnvme_create_icq_node(&ctx->irq_set, cq->pub.q_id, cq->pub.irq_no);
 		if (ret < 0) {
-			dnvme_err("failed to create icq node!(%d)\n", ret);
+			dnvme_err(ndev, "failed to create icq node!(%d)\n", ret);
 			goto out;
 		}
 	}
@@ -426,7 +429,7 @@ int dnvme_create_meta_pool(struct nvme_context *ctx, u32 size)
 		if (size == meta_set->buf_size)
 			return 0;
 
-		dnvme_err("meta pool already exists!(size: %u vs %u)\n",
+		dnvme_err(ndev, "meta pool already exists!(size: %u vs %u)\n",
 			meta_set->buf_size, size);
 		return -EINVAL;
 	}
@@ -434,7 +437,7 @@ int dnvme_create_meta_pool(struct nvme_context *ctx, u32 size)
 	meta_set->pool = dma_pool_create("meta_buf", &pdev->dev, size, 
 		NVME_META_BUF_ALIGN, 0);
 	if (!meta_set->pool) {
-		dnvme_err("failed to create meta pool with size %u!\n", size);
+		dnvme_err(ndev, "failed to create meta pool with size %u!\n", size);
 		return -ENOMEM;
 	}
 
@@ -466,31 +469,32 @@ void dnvme_destroy_meta_pool(struct nvme_context *ctx)
 
 int dnvme_create_meta_node(struct nvme_context *ctx, u32 id)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_meta_set *meta_set = &ctx->meta_set;
 	struct nvme_meta *meta;
 	int ret;
 
 	if (!meta_set->pool) {
-		dnvme_err("meta pool doesn't exist!\n");
-		dnvme_notice("please create meta pool first!\n");
+		dnvme_err(ndev, "meta pool doesn't exist!\n");
+		dnvme_notice(ndev, "please create meta pool first!\n");
 		return -EPERM;
 	}
 
 	meta = dnvme_find_meta(ctx, id);
 	if (meta) {
-		dnvme_err("meta node(%u) already exist!\n", id);
+		dnvme_err(ndev, "meta node(%u) already exist!\n", id);
 		return -EINVAL;
 	}
 
 	meta = kzalloc(sizeof(*meta), GFP_KERNEL);
 	if (!meta) {
-		dnvme_err("failed to alloc meta node!\n");
+		dnvme_err(ndev, "failed to alloc meta node!\n");
 		return -ENOMEM;
 	}
 
 	meta->buf = dma_pool_alloc(meta_set->pool, GFP_ATOMIC, &meta->dma);
 	if (!meta->buf) {
-		dnvme_err("failed to alloc meta buf!\n");
+		dnvme_err(ndev, "failed to alloc meta buf!\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -510,7 +514,7 @@ void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id)
 
 	meta = dnvme_find_meta(ctx, id);
 	if (!meta) {
-		dnvme_warn("meta node(%u) doesn't exist! "
+		dnvme_warn(ctx->dev, "meta node(%u) doesn't exist! "
 			"it may be deleted already\n", id);
 		return;
 	}
@@ -522,22 +526,23 @@ void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id)
 
 int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *usqp)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq_public sqp;
 	struct nvme_sq *sq;
 
 	if (copy_from_user(&sqp, usqp, sizeof(sqp))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	sq = dnvme_find_sq(ctx, sqp.sq_id);
 	if (!sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", sqp.sq_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", sqp.sq_id);
 		return -EBADSLT;
 	}
 
 	if (copy_to_user(usqp, &sq->pub, sizeof(struct nvme_sq_public))) {
-		dnvme_err("failed to copy to user space!\n");
+		dnvme_err(ndev, "failed to copy to user space!\n");
 		return -EFAULT;
 	}
 
@@ -546,22 +551,23 @@ int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *us
 
 int dnvme_get_cq_info(struct nvme_context *ctx, struct nvme_cq_public __user *ucqp)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq_public cqp;
 	struct nvme_cq *cq;
 
 	if (copy_from_user(&cqp, ucqp, sizeof(cqp))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	cq = dnvme_find_cq(ctx, cqp.q_id);
 	if (!cq) {
-		dnvme_err("CQ(%u) doesn't exist!\n", cqp.q_id);
+		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", cqp.q_id);
 		return -EBADSLT;
 	}
 
 	if (copy_to_user(ucqp, &cq->pub, sizeof(struct nvme_cq_public))) {
-		dnvme_err("failed to copy to user space!\n");
+		dnvme_err(ndev, "failed to copy to user space!\n");
 		return -EFAULT;
 	}
 

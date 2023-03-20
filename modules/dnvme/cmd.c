@@ -66,7 +66,8 @@ static void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr,
 	}
 }
 
-static struct scatterlist *dnvme_pages_to_sgl(struct page **pages, int nr_pages, 
+static struct scatterlist *dnvme_pages_to_sgl(struct nvme_device *ndev, 
+	struct page **pages, int nr_pages, 
 	unsigned int offset, unsigned int len)
 {
 	struct scatterlist *sgl;
@@ -74,14 +75,14 @@ static struct scatterlist *dnvme_pages_to_sgl(struct page **pages, int nr_pages,
 
 	sgl = kmalloc(nr_pages * sizeof(*sgl), GFP_KERNEL);
 	if (!sgl) {
-		dnvme_err("failed to alloc SGL!\n");
+		dnvme_err(ndev, "failed to alloc SGL!\n");
 		return NULL;
 	}
 
 	sg_init_table(sgl, nr_pages);
 	for (i = 0; i < nr_pages; i++) {
 		if (!pages[i]) {
-			dnvme_err("page%d is NULL!\n", i);
+			dnvme_err(ndev, "page%d is NULL!\n", i);
 			goto out;
 		}
 		sg_set_page(&sgl[i], pages[i], 
@@ -112,7 +113,7 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 	int ret, i;
 
 	if (!addr || !IS_ALIGNED(addr, 4) || !size) {
-		dnvme_err("data buf ptr:0x%lx or size:%u is invalid!\n", 
+		dnvme_err(ndev, "data buf ptr:0x%lx or size:%u is invalid!\n", 
 			addr, size);
 		return -EINVAL;
 	}
@@ -125,12 +126,12 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 	 */
 	offset = offset_in_page(addr);
 	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
-	dnvme_vdbg("User buf ptr 0x%lx(0x%x) size:0x%x => nr_pages:0x%x\n",
+	dnvme_vdbg(ndev, "User buf ptr 0x%lx(0x%x) size:0x%x => nr_pages:0x%x\n",
 		addr, offset, size, nr_pages);
 
 	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages) {
-		dnvme_err("failed to alloc pages!\n");
+		dnvme_err(ndev, "failed to alloc pages!\n");
 		return -ENOMEM;
 	}
 
@@ -140,7 +141,7 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 	 */
 	ret = get_user_pages_fast(addr, nr_pages, FOLL_WRITE, pages);
 	if (ret < nr_pages) {
-		dnvme_err("failed to pin down user pages!\n");
+		dnvme_err(ndev, "failed to pin down user pages!\n");
 		nr_pages = ret;
 		ret = -EFAULT;
 		goto out;
@@ -155,21 +156,21 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
         	 *       Q's are required to be page aligned this isn't an issue */
 		buf = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
 		if (!buf) {
-			dnvme_err("failed to map user space to kernel space!\n");
+			dnvme_err(ndev, "failed to map user space to kernel space!\n");
 			ret = -EFAULT;
 			goto out;
 		}
-		dnvme_vdbg("Map user to kernel(0x%lx)\n", (unsigned long)buf);
+		dnvme_vdbg(ndev, "Map user to kernel(0x%lx)\n", (unsigned long)buf);
 	}
 
 	/* Generate SG List from pinned down pages */
-	sgl = dnvme_pages_to_sgl(pages, nr_pages, offset, size);
+	sgl = dnvme_pages_to_sgl(ndev, pages, nr_pages, offset, size);
 	if (!sgl)
 		goto out2;
 
 	ret = dma_map_sg(&pdev->dev, sgl, nr_pages, dir);
 	if (ret != nr_pages) {
-		dnvme_err("%d pages => %d sg\n", nr_pages, ret);
+		dnvme_err(ndev, "%d pages => %d sg\n", nr_pages, ret);
 		ret = -ENOMEM;
 		goto out3;
 	}
@@ -255,20 +256,20 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command 
 
 	prp_list = kzalloc(sizeof(void *) * nr_seg, GFP_ATOMIC);
 	if (!prp_list) {
-		dnvme_err("failed to alloc for prp list!\n");
+		dnvme_err(ndev, "failed to alloc for prp list!\n");
 		return -ENOMEM;
 	}
 
 	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_seg, GFP_ATOMIC);
 	if (!prp_dma) {
-		dnvme_err("failed to alloc for prp dma!\n");
+		dnvme_err(ndev, "failed to alloc for prp dma!\n");
 		goto out;
 	}
 
 	for (i = 0; i < nr_seg; i++) {
 		prp_list[i] = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma[i]);
 		if (!prp_list[i]) {
-			dnvme_err("failed to alloc for sgl page!\n");
+			dnvme_err(ndev, "failed to alloc for sgl page!\n");
 			goto out2;
 		}
 	}
@@ -350,7 +351,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		ccmd->opcode == nvme_admin_create_cq)) {
 
 		if (!(prp_mask & NVME_MASK_PRP1_LIST)) {
-			dnvme_err("cmd mask doesn't support PRP1 list!\n");
+			dnvme_err(ndev, "cmd mask doesn't support PRP1 list!\n");
 			return -EINVAL;
 		}
 		flag = NVME_MASK_PRP1_LIST;
@@ -358,7 +359,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	}
 
 	if (!(prp_mask & NVME_MASK_PRP1_PAGE)) {
-		dnvme_err("cmd mask doesn't support PRP1 page!\n");
+		dnvme_err(ndev, "cmd mask doesn't support PRP1 page!\n");
 		return -EINVAL;
 	}
 	ccmd->dptr.prp1 = cpu_to_le64(dma_addr);
@@ -380,7 +381,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 
 	if (buf_len <= PAGE_SIZE) {
 		if (!(prp_mask & NVME_MASK_PRP2_PAGE)) {
-			dnvme_err("cmd mask doesn't support PRP2 page!\n");
+			dnvme_err(ndev, "cmd mask doesn't support PRP2 page!\n");
 			return -EINVAL;
 		}
 
@@ -389,7 +390,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	}
 
 	if (!(prp_mask & NVME_MASK_PRP2_LIST)) {
-		dnvme_err("cmd mask doesn't support PRP2 list!\n");
+		dnvme_err(ndev, "cmd mask doesn't support PRP2 list!\n");
 		return -EINVAL;
 	}
 	flag = NVME_MASK_PRP2_LIST;
@@ -401,20 +402,20 @@ prp_list:
 	
 	prp_list = kzalloc(sizeof(void *) * nr_pages, GFP_ATOMIC);
 	if (!prp_list) {
-		dnvme_err("failed to alloc for prp list!\n");
+		dnvme_err(ndev, "failed to alloc for prp list!\n");
 		return -ENOMEM;
 	}
 
 	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_pages, GFP_ATOMIC);
 	if (!prp_dma) {
-		dnvme_err("failed to alloc for prp dma!\n");
+		dnvme_err(ndev, "failed to alloc for prp dma!\n");
 		goto out;
 	}
 
 	for (i = 0; i < nr_pages; i++) {
 		prp_list[i] = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma[i]);
 		if (!prp_list[i]) {
-			dnvme_err("failed to alloc for prp page!\n");
+			dnvme_err(ndev, "failed to alloc for prp page!\n");
 			goto out2;
 		}
 	}
@@ -454,7 +455,7 @@ prp_list:
 			if (dma_len > 0) {
 				dma_addr += (PAGE_SIZE - pg_oft);
 			} else if (dma_len < 0) {
-				dnvme_err("DMA data length is illegal!\n");
+				dnvme_err(ndev, "DMA data length is illegal!\n");
 				ret = -EFAULT;
 				goto out2;
 			} else {
@@ -487,13 +488,13 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 
 	sq = dnvme_find_sq(ctx, cmd->q_id);
 	if (!sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", cmd->q_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->q_id);
 		return -EBADSLT;
 	}
 
 	node = kzalloc(sizeof(*node), GFP_ATOMIC);
 	if (!node) {
-		dnvme_err("failed to alloc cmd node!\n");
+		dnvme_err(ndev, "failed to alloc cmd node!\n");
 		return -ENOMEM;
 	}
 
@@ -546,7 +547,7 @@ static int dnvme_data_buf_to_sgl(struct nvme_device *ndev, struct nvme_64b_cmd *
 {
 	int ret;
 
-	dnvme_dbg("CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
+	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
 
 	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
@@ -573,7 +574,7 @@ static int dnvme_data_buf_to_prp(struct nvme_device *ndev, struct nvme_64b_cmd *
 {
 	int ret;
 
-	dnvme_dbg("CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
+	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
 
 	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
@@ -628,13 +629,13 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *
 	if (dnvme_use_sgls(ccmd, cmd)) {
 		ret = dnvme_data_buf_to_sgl(ndev, cmd, ccmd, prps);
 		if (ret < 0) {
-			dnvme_err("data buffer to SGL err!(%d)\n", ret);
+			dnvme_err(ndev, "data buffer to SGL err!(%d)\n", ret);
 			return ret;
 		}
 	} else {
 		ret = dnvme_data_buf_to_prp(ndev, cmd, ccmd, prps);
 		if (ret < 0) {
-			dnvme_err("data buffer to PRP err!(%d)\n", ret);
+			dnvme_err(ndev, "data buffer to PRP err!(%d)\n", ret);
 			return ret;
 		}
 	}
@@ -678,31 +679,31 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	wait_sq = dnvme_find_sq(ctx, csq->sqid);
 	if (!wait_sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", csq->sqid);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", csq->sqid);
 		return -EINVAL;
 	}
 
 	if ((csq->sq_flags & NVME_CSQ_F_PC && wait_sq->priv.contig == 0) ||
 		(!(csq->sq_flags & NVME_CSQ_F_PC) && wait_sq->priv.contig != 0)) {
-		dnvme_err("Sanity Check: sq_flags & contig mismatch!\n");
+		dnvme_err(ndev, "Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
 
 	if ((wait_sq->priv.contig == 0 && cmd->data_buf_ptr == NULL) ||
 		(wait_sq->priv.contig != 0 && wait_sq->priv.buf == NULL)) {
-		dnvme_err("Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
+		dnvme_err(ndev, "Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
 		return -EINVAL;
 	}
 
 	if ((wait_sq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE) == 0) {
-		dnvme_err("SQ(%u) already created!\n", csq->sqid);
+		dnvme_err(ndev, "SQ(%u) already created!\n", csq->sqid);
 		return -EPERM;
 	}
 	memset(&prps, 0, sizeof(prps));
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
-		dnvme_err("failed to prepare 64-byte cmd!\n");
+		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 
@@ -729,7 +730,7 @@ static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
-		dnvme_err("failed to prepare 64-byte cmd!\n");
+		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 
@@ -747,31 +748,31 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	wait_cq = dnvme_find_cq(ctx, ccq->cqid);
 	if (!wait_cq) {
-		dnvme_err("The waiting CQ(%u) doesn't exist!\n", ccq->cqid);
+		dnvme_err(ndev, "The waiting CQ(%u) doesn't exist!\n", ccq->cqid);
 		return -EBADSLT;
 	}
 
 	if ((ccq->cq_flags & NVME_CCQ_F_PC && wait_cq->priv.contig == 0) ||
 		(!(ccq->cq_flags & NVME_CCQ_F_PC) && wait_cq->priv.contig != 0)) {
-		dnvme_err("Sanity Check: sq_flags & contig mismatch!\n");
+		dnvme_err(ndev, "Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
 
 	if ((wait_cq->priv.contig == 0 && cmd->data_buf_ptr == NULL) ||
 		(wait_cq->priv.contig != 0 && wait_cq->priv.buf == NULL)) {
-		dnvme_err("Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
+		dnvme_err(ndev, "Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
 		return -EINVAL;
 	}
 
 	if (!(wait_cq->priv.bit_mask & NVME_QF_WAIT_FOR_CREATE)) {
-		dnvme_err("CQ(%u) already created!\n", ccq->cqid);
+		dnvme_err(ndev, "CQ(%u) already created!\n", ccq->cqid);
 		return -EINVAL;
 	}
 
 	/* Check if interrupts should be enabled for IO CQ */
 	if (ccq->cq_flags & NVME_CCQ_F_IEN) {
 		if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
-			dnvme_err("act irq_type is none!\n");
+			dnvme_err(ndev, "act irq_type is none!\n");
 			return -EINVAL;
 		}
 	}
@@ -779,7 +780,7 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
-		dnvme_err("failed to prepare 64-byte cmd!\n");
+		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 
@@ -806,7 +807,7 @@ static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
-		dnvme_err("failed to prepare 64-byte cmd!\n");
+		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 	return 0;
@@ -823,7 +824,7 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
 	if (ret < 0) {
-		dnvme_err("failed to prepare 64-byte cmd!\n");
+		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
 	}
 
@@ -832,50 +833,51 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_64b_cmd cmd;
 	struct nvme_common_command *ccmd;
 	struct nvme_meta *meta;
-	struct pci_dev *pdev = ctx->dev->pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	void *cmd_buf;
 	int ret = 0;
 
 	if (copy_from_user(&cmd, ucmd, sizeof(cmd))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	if (!cmd.cmd_buf_ptr) {
-		dnvme_err("cmd buf ptr is NULL!\n");
+		dnvme_err(ndev, "cmd buf ptr is NULL!\n");
 		return -EFAULT;
 	}
 
 	if ((cmd.data_buf_size && !cmd.data_buf_ptr) || 
 		(!cmd.data_buf_size && cmd.data_buf_ptr)) {
-		dnvme_err("data buf size and ptr are inconsistent!\n");
+		dnvme_err(ndev, "data buf size and ptr are inconsistent!\n");
 		return -EINVAL;
 	}
 
 	/* Get the SQ for sending this command */
 	sq = dnvme_find_sq(ctx, cmd.q_id);
 	if (!sq) {
-		dnvme_err("SQ(%u) doesn't exist!\n", cmd.q_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd.q_id);
 		return -EBADSLT;
 	}
 
 	if (dnvme_sq_is_full(sq)) {
-		dnvme_err("SQ(%u) is full!\n", cmd.q_id);
+		dnvme_err(ndev, "SQ(%u) is full!\n", cmd.q_id);
 		return -EBUSY;
 	}
 
 	cmd_buf = kzalloc(1 << sq->pub.sqes, GFP_ATOMIC);
 	if (!cmd_buf) {
-		dnvme_err("failed to alloc cmd buf!\n");
+		dnvme_err(ndev, "failed to alloc cmd buf!\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(cmd_buf, cmd.cmd_buf_ptr, 1 << sq->pub.sqes)) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		ret = -EFAULT;
 		goto out;
 	}
@@ -886,7 +888,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	ccmd->command_id = cmd.unique_id;
 
 	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
-		dnvme_err("failed to copy to user space!\n");
+		dnvme_err(ndev, "failed to copy to user space!\n");
 		ret = -EFAULT;
 		goto out;
 	}
@@ -894,7 +896,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	if (cmd.bit_mask & NVME_MASK_MPTR) {
 		meta = dnvme_find_meta(ctx, cmd.meta_buf_id);
 		if (!meta) {
-			dnvme_err("Meta(%u) doesn't exist!\n", cmd.meta_buf_id);
+			dnvme_err(ndev, "Meta(%u) doesn't exist!\n", cmd.meta_buf_id);
 			ret = -EINVAL;
 			goto out;
 		}

@@ -14,6 +14,7 @@
 
 #include "dnvme_ioctl.h"
 
-int dnvme_dump_log_file(struct nvme_log_file __user *ulog_file);
+int dnvme_dump_log_file(struct nvme_device *ndev,
+	struct nvme_log_file __user *ulog_file);
 
 #endif /* !_DNVME_LOG_H_ */

@@ -31,23 +31,19 @@
 #if !IS_ENABLED(CONFIG_PRINTK_COLOR)
 #include "log/color.h"
 
-#define dnvme_err(fmt, ...) \
-	pr_err(LOG_COLOR_RED fmt, ##__VA_ARGS__)
-#define dnvme_warn(fmt, ...) \
-	pr_warn(LOG_COLOR_YELLOW fmt, ##__VA_ARGS__)
-#define dnvme_notice(fmt, ...) \
-	pr_notice(LOG_COLOR_BLUE fmt, ##__VA_ARGS__)
-#define dnvme_info(fmt, ...) \
-	pr_info(LOG_COLOR_GREEN fmt, ##__VA_ARGS__)
-#define dnvme_dbg(fmt, ...) \
-	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+#define dnvme_err(ndev, fmt, ...) \
+	dev_err(&ndev->dev, LOG_COLOR_RED fmt, ##__VA_ARGS__)
+#define dnvme_warn(ndev, fmt, ...) \
+	dev_warn(&ndev->dev, LOG_COLOR_YELLOW fmt, ##__VA_ARGS__)
+#define dnvme_notice(ndev, fmt, ...) \
+	dev_notice(&ndev->dev, LOG_COLOR_BLUE fmt, ##__VA_ARGS__)
+#define dnvme_info(ndev, fmt, ...) \
+	dev_info(&ndev->dev, LOG_COLOR_GREEN fmt, ##__VA_ARGS__)
+#define dnvme_dbg(ndev, fmt, ...) \
+	dev_dbg(&ndev->dev, LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+#define dnvme_vdbg(ndev, fmt, ...) \
+	dev_vdbg(&ndev->dev, LOG_COLOR_NONE fmt, ##__VA_ARGS__)
 
-#ifdef VERBOSE_DEBUG
-#define dnvme_vdbg(fmt, ...) \
-	pr_debug(LOG_COLOR_NONE fmt, ##__VA_ARGS__)
-#else
-#define dnvme_vdbg(fmt, ...)
-#endif /* !VERBOSE_DEBUG */
 #endif
 
 /**

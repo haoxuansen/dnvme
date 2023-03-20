@@ -401,7 +401,8 @@ static int log_context(struct nvme_context *ctx, int idx, struct file *fp,
 	return 0;
 }
 
-int dnvme_dump_log_file(struct nvme_log_file __user *ulog_file)
+int dnvme_dump_log_file(struct nvme_device *ndev, 
+	struct nvme_log_file __user *ulog_file)
 {
 	struct nvme_log_file log_file;
 	struct nvme_context *ctx;
@@ -413,19 +414,19 @@ int dnvme_dump_log_file(struct nvme_log_file __user *ulog_file)
 	int i;
 
 	if (copy_from_user(&log_file, ulog_file, sizeof(log_file))) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
 	/* Alloc memory for the data in kernel space, add 1 for a NULL term */
 	name = kzalloc(log_file.len + 1, GFP_KERNEL);
 	if (!name) {
-		dnvme_err("failed to alloc for file name!\n");
+		dnvme_err(ndev, "failed to alloc for file name!\n");
 		return -ENOMEM;
 	}
 
 	if (copy_from_user(name, log_file.name, log_file.len)) {
-		dnvme_err("failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy from user space!\n");
 		ret = -EFAULT;
 		goto out;
 	}
@@ -433,7 +434,7 @@ int dnvme_dump_log_file(struct nvme_log_file __user *ulog_file)
 	/* If the user didn't provide a NULL term, we will to avoid problems */
 	name[log_file.len] = '\0';
 
-	dnvme_vdbg("dump log file to %s!\n", name);
+	dnvme_vdbg(ndev, "dump log file to %s!\n", name);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 	fs = force_uaccess_begin();
@@ -443,7 +444,7 @@ int dnvme_dump_log_file(struct nvme_log_file __user *ulog_file)
 #endif
 	fp = filp_open(name, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (!fp) {
-		dnvme_err("failed to create log file(%s)!\n", name);
+		dnvme_err(ndev, "failed to create log file(%s)!\n", name);
 		ret = -EPERM;
 		goto out2;
 	}

@@ -49,7 +49,7 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 	int ret;
 
 	if (ndev->cmb_size) {
-		dnvme_warn("CMB has been mapped! So skip here\n");
+		dnvme_warn(ndev, "CMB has been mapped! So skip here\n");
 		return 0;
 	}
 
@@ -63,7 +63,7 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 
 	prop->cmbsz = dnvme_readl(priv->bar0, NVME_REG_CMBSZ);
 	if (!prop->cmbsz) {
-		dnvme_warn("Not support to map CMB which size is zero!\n");
+		dnvme_warn(ndev, "Not support to map CMB which size is zero!\n");
 		return 0;
 	}
 	prop->cmbloc = dnvme_readl(priv->bar0, NVME_REG_CMBLOC);
@@ -74,7 +74,7 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 	bar_size = pci_resource_len(pdev, bar);
 
 	if (offset > bar_size) {
-		dnvme_err("CMB offset(0x%llx) greater than BAR size(0x%llx)\n",
+		dnvme_err(ndev, "CMB offset(0x%llx) greater than BAR size(0x%llx)\n",
 			offset, bar_size);
 		return -EPERM;
 	}
@@ -98,7 +98,7 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 
 	ret = pci_p2pdma_add_resource(pdev, bar, size, offset);
 	if (ret < 0) {
-		dnvme_err("pci_p2pdma_add_resource err!(%d)\n", ret);
+		dnvme_err(ndev, "pci_p2pdma_add_resource err!(%d)\n", ret);
 		return ret;
 	}
 
@@ -109,7 +109,7 @@ int dnvme_map_cmb(struct nvme_device *ndev)
 			(NVME_CMBSZ_WDS | NVME_CMBSZ_RDS))
 		pci_p2pmem_publish(pdev, true);
 	
-	dnvme_dbg("CMB is mapped ok!\n");
+	dnvme_dbg(ndev, "CMB is mapped ok!\n");
 	return 0;
 }
 

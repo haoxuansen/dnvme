@@ -54,7 +54,7 @@ void dnvme_print_ccmd(struct nvme_common_command *ccmd)
 		"cdw14: 0x%x\n", le32_to_cpu(ccmd->cdw14));
 	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
 		"cdw15: 0x%x\n", le32_to_cpu(ccmd->cdw15));
-	dnvme_dbg("%s", buf);
+	dnvme_dbg(ndev, "%s", buf);
 }
 
 void dnvme_print_sq(struct nvme_sq *sq)
@@ -71,7 +71,7 @@ void dnvme_print_sq(struct nvme_sq *sq)
 	oft += snprintf(buf + oft, DBG_STR_SIZE - oft,
 		"\tdbs:0x%llx, slot:%u, sqes:%u\n",
 		(dma_addr_t)sq->priv.dbs, sq->pub.elements, sq->pub.sqes);
-	dnvme_dbg("%s", buf);
+	dnvme_dbg(ndev, "%s", buf);
 }
 
 void dnvme_print_cq(struct nvme_cq *cq)
@@ -87,7 +87,7 @@ void dnvme_print_cq(struct nvme_cq *cq)
 	oft += snprintf(buf + oft, DBG_STR_SIZE - oft,
 		"\tdbs:0x%llx, slot:%u, cqes:%u\n",
 		(dma_addr_t)cq->priv.dbs, cq->pub.elements, cq->pub.cqes);
-	dnvme_dbg("%s", buf);
+	dnvme_dbg(ndev, "%s", buf);
 }
 
 const char *dnvme_ioctl_cmd_string(unsigned int cmd)
