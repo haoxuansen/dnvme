@@ -1069,47 +1069,6 @@ out:
 	return ret;
 }
 
-/*
- * dnvme_inquiry_cqe_with_isr - will process reap inquiry for the given cq using irq_vec
- * and isr_fired flags from two nodes, public cq node and nvme_irq list node.
- * NOTE: This function should be called with irq mutex locked otherwise it
- * will error out.
- */
-int dnvme_inquiry_cqe_with_isr(struct nvme_cq *cq, u32 *num_remaining, u32 *isr_count)
-{
-	u16 irq_no = cq->pub.irq_no; /* irq_no for CQ   */
-	struct nvme_irq *irq;
-	struct nvme_context *ctx = cq->ctx;
-	struct nvme_device *ndev = ctx->dev;
-
-#if IS_ENABLED(CONFIG_DNVME_CHECK_MUTEX_LOCK)
-	if (!mutex_is_locked(&ctx->irq_set.mtx_lock)) {
-		dnvme_err(ndev, "Mutex should have been locked before this...\n");
-		return -EPERM;
-	}
-#endif
-
-	/* Get the Irq node for given irq vector */
-	irq = find_irq_node_by_id(&ctx->irq_set, irq_no);
-	if (irq == NULL) {
-		dnvme_err(ndev, "Node for IRQ No = %d does not exist in IRQ list!", irq_no);
-		return -EINVAL;
-	}
-
-	/* Check if ISR is really fired for this CQ */
-	if (irq->isr_fired != 0) {
-		/* process reap inquiry for isr fired case */
-		*num_remaining = dnvme_get_cqe_remain(cq, &ctx->dev->pdev->dev);
-	} else {
-		/* To deal with ISR's aggregation, not supposed to notify CE's yet */
-		*num_remaining = 0;
-	}
-
-	/* return the isr_count flag */
-	*isr_count = irq->isr_count;
-	return 0;
-}
-
 /**
  * @brief Loop through all CQ's associated with irq_no and check whehter
  *  they are empty and if empty reset the isr_flag for that particular irq_no
@@ -1150,7 +1109,7 @@ int dnvme_reset_isr_flag(struct nvme_context *ctx, u16 irq_no)
 
 irqreturn_t dnvme_interrupt(int int_vec, void *data)
 {
-	struct nvme_irq_set *irq_set = (struct  nvme_irq_set *)data;
+	struct nvme_irq_set *irq_set = (struct nvme_irq_set *)data;
 	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_work *wk_node;

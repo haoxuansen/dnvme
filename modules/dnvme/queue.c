@@ -569,39 +569,21 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_interrupt *act_irq = &ndev->pub.irq_active;
 	struct nvme_cq *cq;
 	struct nvme_inquiry inquiry;
-	int ret = 0;
 
 	if (copy_from_user(&inquiry, uinq, sizeof(inquiry))) {
 		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
 
-	cq = dnvme_find_cq(ctx, inquiry.q_id);
+	cq = dnvme_find_cq(ctx, inquiry.cqid);
 	if (!cq) {
-		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", inquiry.q_id);
+		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", inquiry.cqid);
 		return -EINVAL;
 	}
 
-	/* Initializing ISR count for all the possible cases */
-	inquiry.isr_count = 0;
-
-	if (act_irq->irq_type == NVME_INT_NONE || cq->pub.irq_enabled == 0) {
-		dnvme_vdbg(ndev, "Non-ISR Inquiry on CQ(%u)!\n", cq->pub.q_id);
-		inquiry.num_remaining = dnvme_get_cqe_remain(cq, &ndev->pdev->dev);
-	} else {
-
-		dnvme_vdbg(ndev, "ISR Reap Inq on CQ = %d", cq->pub.q_id);
-
-		mutex_lock(&ctx->irq_set.mtx_lock);
-		ret = dnvme_inquiry_cqe_with_isr(cq, &inquiry.num_remaining, &inquiry.isr_count);
-		mutex_unlock(&ctx->irq_set.mtx_lock);
-
-		if (ret < 0)
-			return ret;
-	}
+	inquiry.nr_cqe = dnvme_get_cqe_remain(cq, &ndev->pdev->dev);
 
 	if (copy_to_user(uinq, &inquiry, sizeof(inquiry))) {
 		dnvme_err(ndev, "failed to copy to user space!\n");
@@ -609,7 +591,7 @@ int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq
 	}
 
 	/* Check for hw violation of full Q definition */
-	if (inquiry.num_remaining >= cq->pub.elements) {
+	if (inquiry.nr_cqe >= cq->pub.elements) {
 		dnvme_err(ndev, "HW violating full Q definition!\n");
 		return -EPERM;
 	}
@@ -825,45 +807,34 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
 	}
-	reap.isr_count = 0;
 
-	cq = dnvme_find_cq(ctx, reap.q_id);
+	cq = dnvme_find_cq(ctx, reap.cqid);
 	if (!cq) {
-		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", reap.q_id);
+		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", reap.cqid);
 		return -EBADSLT;
 	}
 	cqes = 1 << cq->pub.cqes;
 
 	/* calculate the number of CQ entries that the user expects to reap */
-	if (reap.elements)
-		expect = min_t(u32, reap.elements, reap.size >> cq->pub.cqes);
+	if (reap.expect)
+		expect = min_t(u32, reap.expect, reap.size >> cq->pub.cqes);
 	else
 		expect = reap.size >> cq->pub.cqes;
 
-	if (act_irq->irq_type == NVME_INT_NONE || cq->pub.irq_enabled == 0) {
-		remain = dnvme_get_cqe_remain(cq, &pdev->dev);
-	} else {
-		mutex_lock(&irq_set->mtx_lock);
-		ret = dnvme_inquiry_cqe_with_isr(cq, &remain, &reap.isr_count);
-		mutex_unlock(&irq_set->mtx_lock);
-
-		if (ret < 0)
-			return ret;
-	}
-
+	remain = dnvme_get_cqe_remain(cq, &pdev->dev);
 	if (remain >= cq->pub.elements) {
 		dnvme_err(ndev, "HW violating full Q definition!\n");
 		return -EPERM;
 	}
 
-	reap.num_reaped = min_t(u32, expect, remain);
-	reap.num_remaining = remain - reap.num_reaped;
-	actual = reap.num_reaped;
+	reap.reaped = min_t(u32, expect, remain);
+	reap.remained = remain - reap.reaped;
+	actual = reap.reaped;
 
-	ret = copy_cq_data(cq, &actual, reap.buffer);
+	ret = copy_cq_data(cq, &actual, reap.buf);
 
-	reap.num_reaped -= actual;
-	reap.num_remaining += actual;
+	reap.reaped -= actual;
+	reap.remained += actual;
 
 	/* update data to user */
 	if (copy_to_user(ureap, &reap, sizeof(reap))) {
@@ -871,13 +842,13 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 		return (ret == 0) ? -EFAULT : ret;
 	}
 
-	if (reap.num_reaped) {
-		update_cq_head(cq, reap.num_reaped);
+	if (reap.reaped) {
+		update_cq_head(cq, reap.reaped);
 		writel(cq->pub.head_ptr, cq->priv.dbs);
 	}
 
 	if (act_irq->irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
-		reap.num_remaining == 0) {
+		reap.remained == 0) {
 
 		mutex_lock(&irq_set->mtx_lock);
 		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);

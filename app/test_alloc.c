@@ -69,11 +69,11 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display)
     struct nvme_reap rp_cq = {0};
 
     int ret_val = 0;
-    rp_cq.q_id = cq_id;
-    rp_cq.elements = elements;
+    rp_cq.cqid = cq_id;
+    rp_cq.expect = elements;
     rp_cq.size = (size * elements);
-    rp_cq.buffer = malloc(sizeof(char) * rp_cq.size);
-    if (rp_cq.buffer == NULL)
+    rp_cq.buf = malloc(sizeof(char) * rp_cq.size);
+    if (rp_cq.buf == NULL)
     {
         pr_err("Malloc Failed");
         return -1;
@@ -85,12 +85,12 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display)
     }
     else
     {
-        pr_div("  Reaped on CQ ID = %d, No Request = %d, No Reaped = %d, No Rem = %d, ISR_count = %d\n",
-            rp_cq.q_id, rp_cq.elements, rp_cq.num_reaped, rp_cq.num_remaining, rp_cq.isr_count);
-        if (display_cq_data(rp_cq.buffer, rp_cq.num_reaped, display))
+        pr_div("  Reaped on CQ ID = %d, No Request = %d, No Reaped = %d, No Rem = %d\n",
+            rp_cq.cqid, rp_cq.expect, rp_cq.reaped, rp_cq.remained);
+        if (display_cq_data(rp_cq.buf, rp_cq.reaped, display))
             ret_val = -1;
     }
-    free(rp_cq.buffer);
+    free(rp_cq.buf);
     return ret_val;
 }
 

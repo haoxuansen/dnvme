@@ -75,10 +75,10 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 		return FAILED;
 	}
 
-	rp_cq.q_id = cq_id;
-	rp_cq.elements = expect_num;
+	rp_cq.cqid = cq_id;
+	rp_cq.expect = expect_num;
 	rp_cq.size = tool->entry_size;
-	rp_cq.buffer = (uint8_t *)tool->entry;
+	rp_cq.buf = tool->entry;
 
 	while (*reaped_num < expect_num)
 	{
@@ -89,13 +89,13 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 			return FAILED;
 		}
 
-		if (rp_cq.num_reaped)
+		if (rp_cq.reaped)
 		{
-			*reaped_num += rp_cq.num_reaped;
+			*reaped_num += rp_cq.reaped;
 			//full parameter for next
-			rp_cq.elements = expect_num - (*reaped_num);
-			rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.num_reaped * CQ_ENTRY_SIZE);
-			rp_cq.buffer = (uint8_t *)(rp_cq.buffer + rp_cq.num_reaped * CQ_ENTRY_SIZE);
+			rp_cq.expect = expect_num - (*reaped_num);
+			rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.reaped * CQ_ENTRY_SIZE);
+			rp_cq.buf = (rp_cq.buf + rp_cq.reaped * CQ_ENTRY_SIZE);
 			cq_to_cnt = 0; //if reaped, timeout cnt clear to 0;
 			// pr_info("num_reaped:%d\n",rp_cq.num_reaped); //XXXX for test cq int coalescing , pls open this
 		}
@@ -136,10 +136,10 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 		return FAILED;
 	}
 
-	rp_cq.q_id = cq_id;
-	rp_cq.elements = expect_num;
+	rp_cq.cqid = cq_id;
+	rp_cq.expect = expect_num;
 	rp_cq.size = tool->entry_size;
-	rp_cq.buffer = (uint8_t *)tool->entry;
+	rp_cq.buf = tool->entry;
 
 	while (*reaped_num < expect_num)
 	{
@@ -150,13 +150,13 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 			return FAILED;
 		}
 
-		if (rp_cq.num_reaped)
+		if (rp_cq.reaped)
 		{
-			*reaped_num += rp_cq.num_reaped;
+			*reaped_num += rp_cq.reaped;
 			//full parameter for next
-			rp_cq.elements = expect_num - (*reaped_num);
-			rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.num_reaped * sizeof(struct nvme_completion));
-			rp_cq.buffer = (uint8_t *)(rp_cq.buffer + rp_cq.num_reaped * sizeof(struct nvme_completion));
+			rp_cq.expect = expect_num - (*reaped_num);
+			rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.reaped * sizeof(struct nvme_completion));
+			rp_cq.buf = (rp_cq.buf + rp_cq.reaped * sizeof(struct nvme_completion));
 			cq_to_cnt = 0; //if reaped, timeout cnt clear to 0;
 		}
 
@@ -230,15 +230,15 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 
 	// uint32_t cmd_sum_num = 0;
 
-	rp_cq.elements = 0; //
+	rp_cq.expect = 0; //
 	rp_cq.size = tool->entry_size;
-	rp_cq.buffer = (uint8_t *)tool->entry;
+	rp_cq.buf = tool->entry;
 	while (reaped_num < arb_parameter->expect_num)
 	{
 		for (i = 1; i <= 8; i++)
 		{
 			cq_id = i;
-			rp_cq.q_id = cq_id;
+			rp_cq.cqid = cq_id;
 			ret_val = nvme_reap_cq_entries(ndev->fd, &rp_cq);
 			if (ret_val < 0)
 			{
@@ -247,12 +247,12 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 				exit(-1);
 				return ret_val;
 			}
-			if (rp_cq.num_reaped)
+			if (rp_cq.reaped)
 			{
-				reaped_num += rp_cq.num_reaped;
+				reaped_num += rp_cq.reaped;
 				//full parameter for next
-				rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.num_reaped * CQ_ENTRY_SIZE);
-				rp_cq.buffer = (uint8_t *)(rp_cq.buffer + rp_cq.num_reaped * CQ_ENTRY_SIZE);
+				rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.reaped * CQ_ENTRY_SIZE);
+				rp_cq.buf = (rp_cq.buf + rp_cq.reaped * CQ_ENTRY_SIZE);
 				cq_to_cnt = 0; //if reaped, timeout cnt clear to 0;
 			}
 		}
@@ -511,15 +511,15 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 	uint32_t medium_cnt = 0;
 	uint32_t low_cnt = 0;
 
-	rp_cq.elements = 0; //
+	rp_cq.expect = 0; //
 	rp_cq.size = tool->entry_size;
-	rp_cq.buffer = (uint8_t *)tool->entry;
+	rp_cq.buf = tool->entry;
 	while (reaped_num < arb_parameter->expect_num)
 	{
 		for (i = 1; i <= qnum; i++)
 		{
 			cq_id = i;
-			rp_cq.q_id = cq_id;
+			rp_cq.cqid = cq_id;
 			ret_val = nvme_reap_cq_entries(ndev->fd, &rp_cq);
 			if (ret_val < 0)
 			{
@@ -527,12 +527,12 @@ int arb_reap_all_cq_2(uint8_t qnum, struct arbitration_parameter *arb_parameter)
 				exit(-1);
 				return ret_val;
 			}
-			if (rp_cq.num_reaped)
+			if (rp_cq.reaped)
 			{
-				reaped_num += rp_cq.num_reaped;
+				reaped_num += rp_cq.reaped;
 				//full parameter for next
-				rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.num_reaped * CQ_ENTRY_SIZE);
-				rp_cq.buffer = (uint8_t *)(rp_cq.buffer + rp_cq.num_reaped * CQ_ENTRY_SIZE);
+				rp_cq.size = (uint32_t)(rp_cq.size - rp_cq.reaped * CQ_ENTRY_SIZE);
+				rp_cq.buf = (rp_cq.buf + rp_cq.reaped * CQ_ENTRY_SIZE);
 				cq_to_cnt = 0; //if reaped, timeout cnt clear to 0;
 			}
 		}

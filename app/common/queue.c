@@ -499,7 +499,7 @@ int nvme_inquiry_cq_entries(int fd, uint16_t cqid)
 	struct nvme_inquiry inq = {0};
 	int ret;
 
-	inq.q_id = cqid;
+	inq.cqid = cqid;
 
 	ret = ioctl(fd, NVME_IOCTL_INQUIRY_CQE, &inq);
 	if (ret < 0) {
@@ -507,7 +507,7 @@ int nvme_inquiry_cq_entries(int fd, uint16_t cqid)
 		return ret;
 	}
 
-	return (int)inq.num_remaining;
+	return (int)inq.nr_cqe;
 }
 
 int nvme_reap_cq_entries(int fd, struct nvme_reap *rp)
@@ -516,7 +516,7 @@ int nvme_reap_cq_entries(int fd, struct nvme_reap *rp)
 
 	ret = ioctl(fd, NVME_IOCTL_REAP_CQE, rp);
 	if (ret < 0) {
-		pr_err("failed to reap CQ(%u)!(%d)\n", rp->q_id, ret);
+		pr_err("failed to reap CQ(%u)!(%d)\n", rp->cqid, ret);
 		return ret;
 	}
 	return 0;
@@ -546,9 +546,9 @@ int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf,
 		return -EINVAL;
 	}
 
-	rp.q_id = cqid;
-	rp.elements = expect;
-	rp.buffer = buf;
+	rp.cqid = cqid;
+	rp.expect = expect;
+	rp.buf = buf;
 	rp.size = size;
 
 	while (reaped < expect) {
@@ -556,12 +556,12 @@ int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf,
 		if (ret < 0)
 			break;
 
-		if (rp.num_reaped) {
-			reaped += rp.num_reaped;
-			rp.elements = expect - reaped;
-			rp.buffer += (rp.num_reaped << cqes);
-			rp.size -= (rp.num_reaped << cqes);
-			rp.num_reaped = 0;
+		if (rp.reaped) {
+			reaped += rp.reaped;
+			rp.expect = expect - reaped;
+			rp.buf += (rp.reaped << cqes);
+			rp.size -= (rp.reaped << cqes);
+			rp.reaped = 0;
 
 			timeout = 0;
 		}

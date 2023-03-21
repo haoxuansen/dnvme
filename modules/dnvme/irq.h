@@ -22,8 +22,6 @@
 #include "core.h"
 #include "dnvme_ioctl.h"
 
-int dnvme_inquiry_cqe_with_isr(struct nvme_cq *cq, u32 *num_remaining, u32 *isr_count);
-
 int dnvme_reset_isr_flag(struct nvme_context *nvme_ctx_list, u16 irq_no);
 
 int dnvme_create_icq_node(struct nvme_irq_set *irq_set, u16 cq_id, u16 irq_no);

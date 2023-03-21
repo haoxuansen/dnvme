@@ -232,14 +232,12 @@ struct nvme_64b_cmd {
 /**
  * @brief Inquiry the number of ready CQ entries and save it.
  *
- * @q_id: CQ identify
- * @num_remaining: return the number of cmds waiting to be reaped
- * @isr_count: return the number of times the irq fired which bind to CQ
+ * @cqid: Completion Queue Identify
+ * @nr_cqe: The number of CQ entries are ready to be reaped
  */
 struct nvme_inquiry {
-	uint16_t	q_id;
-	uint32_t	num_remaining;
-	uint32_t	isr_count;
+	uint16_t	cqid;
+	uint32_t	nr_cqe;
 };
 
 /**
@@ -285,17 +283,22 @@ struct nvme_sq_public {
 };
 
 /**
- * Interface structure for reap ioctl. Admin Q and all IO Q's are supported.
+ * @brief Reap CQ entries
+ * 
+ * @cqid: Completion Queue Identify
+ * @expect: The number of CQ entries expected to be reaped
+ * @remained: The number of CQ entries remained to be reaped
+ * @reaped: The number of CQ entries actually reaped
+ * @buf: The buffer holds CQ entries
+ * @size: buffer size
  */
 struct nvme_reap {
-	uint16_t q_id;          /* CQ ID to reap commands for */
-	uint32_t elements;      /* Get the no. of elements to be reaped */
-	uint32_t num_remaining; /* return no. of cmds waiting for this cq */
-	uint32_t num_reaped;    /* Return no. of elements reaped */
-	uint8_t  *buffer;       /* Buffer to copy reaped data */
-	/* no of times isr was fired which is associated with cq reaped on */
-	uint32_t isr_count;
-	uint32_t size;          /* Size of buffer to fill data to */
+	uint16_t	cqid;
+	uint32_t	expect;
+	uint32_t	remained;
+	uint32_t	reaped;
+	void		*buf;
+	uint32_t	size;
 };
 
 /**
