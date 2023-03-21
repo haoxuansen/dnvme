@@ -357,7 +357,7 @@ static int log_context(struct nvme_context *ctx, int idx, struct file *fp,
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s minor: %d\n", 
 		log_indent_level(indent + 1), ndev->instance);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s opened: %u\n", 
-		log_indent_level(indent + 1), ndev->priv.opened);
+		log_indent_level(indent + 1), ndev->opened);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s pdev: 0x%lx\n", 
 		log_indent_level(indent + 1), (unsigned long)ndev->pdev);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s bar0: 0x%lx\n", 
@@ -365,7 +365,7 @@ static int log_context(struct nvme_context *ctx, int idx, struct file *fp,
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s dbs: 0x%lx\n", 
 		log_indent_level(indent + 1), (unsigned long)ndev->dbs);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s prp_page_pool: 0x%lx\n", 
-		log_indent_level(indent + 1), (unsigned long)ndev->priv.prp_page_pool);
+		log_indent_level(indent + 1), (unsigned long)ndev->page_pool);
 
 	/* NVMe device public info */
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s ndev->priv[%d]:\n", 

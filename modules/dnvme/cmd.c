@@ -235,7 +235,7 @@ static void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *pr
 static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command *ccmd, 
 	struct nvme_prps *prps)
 {
-	struct dma_pool *pool = ndev->priv.prp_page_pool;
+	struct dma_pool *pool = ndev->page_pool;
 	struct nvme_sgl_desc *sgl_desc;
 	struct scatterlist *sg = prps->sg;
 	void **prp_list;
@@ -309,7 +309,7 @@ out:
 
 static void dnvme_free_prp_list(struct nvme_device *ndev, struct nvme_prps *prps)
 {
-	struct dma_pool *pool = ndev->priv.prp_page_pool;
+	struct dma_pool *pool = ndev->page_pool;
 	int i;
 
 	if (!prps)
@@ -334,7 +334,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct scatterlist *sg = prps->sg;
 	void **prp_list;
 	dma_addr_t *prp_dma;
-	struct dma_pool *pool = ndev->priv.prp_page_pool;
+	struct dma_pool *pool = ndev->page_pool;
 	__le64 *prp_entry;
 	int buf_len = prps->data_buf_size;
 	u32 nr_pages, nr_entry, pg_oft;

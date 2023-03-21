@@ -402,13 +402,13 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 		return PTR_ERR(ctx);
 	ndev = ctx->dev;
 
-	if (ctx->dev->priv.opened) {
+	if (ctx->dev->opened) {
 		dnvme_err(ndev, "It's not allowed to open device more than once!\n");
 		ret = -EPERM;
 		goto out;
 	}
 
-	ctx->dev->priv.opened = 1;
+	ctx->dev->opened = 1;
 	/* !TODO: There is no need to clean device */
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_info(ndev, "Open NVMe device ok!\n");
@@ -427,7 +427,7 @@ static int dnvme_release(struct inode *inode, struct file *filp)
 
 	dnvme_info(ctx->dev, "Close NVMe device ...\n");
 
-	ctx->dev->priv.opened = 0;
+	ctx->dev->opened = 0;
 	/* !TODO: shall reset nvme device before delete I/O queue?
 	 * Otherwise, the information saved by the driver may be inconsistent
 	 * with the device.
@@ -545,7 +545,7 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 		dev_err(dev, "failed to create dma pool!\n");
 		goto out_free_ndev;
 	}
-	ndev->priv.prp_page_pool = pool;
+	ndev->page_pool = pool;
 
 	ret = ida_simple_get(&nvme_instance_ida, 0, NVME_MINORS, GFP_KERNEL);
 	if (ret < 0)
@@ -600,7 +600,7 @@ out_free_ctx:
 static void dnvme_release_context(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct dma_pool *pool = ndev->priv.prp_page_pool;
+	struct dma_pool *pool = ndev->page_pool;
 
 	cdev_device_del(&ndev->cdev, &ndev->dev);
 	kfree_const(ndev->dev.kobj.name);

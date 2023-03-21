@@ -185,16 +185,6 @@ struct nvme_meta {
 	dma_addr_t		dma;
 };
 
-/*
- * Structure for Nvme device private parameters. These parameters are
- * device specific and populated while the nvme device is being opened
- * or during probe.
- */
-struct nvme_dev_private {
-	struct dma_pool	*prp_page_pool; /* Mem for PRP List */
-	u8	opened; /* Allows device opening only once */
-};
-
 struct nvme_capability {
 	struct pci_cap_pm	*pm;
 	struct pci_cap_msi	*msi;
@@ -221,7 +211,8 @@ struct nvme_device {
 	void __iomem	*bar0;
 	u32 __iomem	*dbs;
 
-	struct nvme_dev_private	priv;
+	struct dma_pool	*page_pool;
+
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
 	struct nvme_capability	cap;
@@ -230,6 +221,8 @@ struct nvme_device {
 	u32	db_stride;
 	u64	cmb_size;
 	bool	cmb_use_sqes;
+
+	unsigned int	opened:1;
 };
 
 /**
