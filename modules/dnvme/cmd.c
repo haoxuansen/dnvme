@@ -40,7 +40,7 @@ static bool dnvme_use_sgls(struct nvme_common_command *ccmd, struct nvme_64b_cmd
 	if (!(ccmd->flags & NVME_CMD_SGL_ALL))
 		return false;
 
-	if (!cmd->q_id) /* admin sq won't use sgls */
+	if (!cmd->sqid) /* admin sq won't use sgls */
 		return false;
 
 	return true;
@@ -150,7 +150,7 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 	/*
 	 * Kernel needs direct access to all Q memory, so discontiguously backed
 	 */
-	if (cmd->q_id == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq || 
+	if (cmd->sqid == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq || 
 		ccmd->opcode == nvme_admin_create_cq)) {
 		/* Note: Not suitable for pages with offsets, but since discontig back'd
         	 *       Q's are required to be page aligned this isn't an issue */
@@ -347,7 +347,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	dma_len = sg_dma_len(sg);
 	pg_oft = offset_in_page(dma_addr);
 
-	if (cmd->q_id == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq ||
+	if (cmd->sqid == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq ||
 		ccmd->opcode == nvme_admin_create_cq)) {
 
 		if (!(prp_mask & NVME_MASK_PRP1_LIST)) {
@@ -486,9 +486,9 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 	struct nvme_sq *sq;
 	struct nvme_cmd *node;
 
-	sq = dnvme_find_sq(ctx, cmd->q_id);
+	sq = dnvme_find_sq(ctx, cmd->sqid);
 	if (!sq) {
-		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->q_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->sqid);
 		return -EBADSLT;
 	}
 
@@ -500,9 +500,9 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 
 	node->id = ccmd->command_id;
 	node->opcode = ccmd->opcode;
-	node->sqid = cmd->q_id;
+	node->sqid = cmd->sqid;
 
-	if (cmd->q_id == NVME_AQ_ID) {
+	if (cmd->sqid == NVME_AQ_ID) {
 		struct nvme_create_sq *csq;
 		struct nvme_create_cq *ccq;
 		struct nvme_delete_queue *dq;
@@ -547,7 +547,7 @@ static int dnvme_data_buf_to_sgl(struct nvme_device *ndev, struct nvme_64b_cmd *
 {
 	int ret;
 
-	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
+	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->cid, cmd->sqid);
 
 	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
@@ -574,7 +574,7 @@ static int dnvme_data_buf_to_prp(struct nvme_device *ndev, struct nvme_64b_cmd *
 {
 	int ret;
 
-	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->unique_id, cmd->q_id);
+	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->cid, cmd->sqid);
 
 	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
@@ -602,7 +602,7 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *
 	bool need_prp = false;
 	int ret;
 
-	if (cmd->q_id == NVME_AQ_ID) {
+	if (cmd->sqid == NVME_AQ_ID) {
 		switch (ccmd->opcode) {
 		case nvme_admin_create_sq:
 		case nvme_admin_create_cq:
@@ -859,14 +859,14 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	}
 
 	/* Get the SQ for sending this command */
-	sq = dnvme_find_sq(ctx, cmd.q_id);
+	sq = dnvme_find_sq(ctx, cmd.sqid);
 	if (!sq) {
-		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd.q_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd.sqid);
 		return -EBADSLT;
 	}
 
 	if (dnvme_sq_is_full(sq)) {
-		dnvme_err(ndev, "SQ(%u) is full!\n", cmd.q_id);
+		dnvme_err(ndev, "SQ(%u) is full!\n", cmd.sqid);
 		return -EBUSY;
 	}
 
@@ -884,8 +884,8 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 
 	ccmd = (struct nvme_common_command *)cmd_buf;
 
-	cmd.unique_id = sq->priv.unique_cmd_id++;
-	ccmd->command_id = cmd.unique_id;
+	cmd.cid = sq->priv.unique_cmd_id++;
+	ccmd->command_id = cmd.cid;
 
 	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
 		dnvme_err(ndev, "failed to copy to user space!\n");
@@ -904,7 +904,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 		ccmd->metadata = cpu_to_le64(meta->dma);
 	}
 
-	if (cmd.q_id == NVME_AQ_ID) {
+	if (cmd.sqid == NVME_AQ_ID) {
 		switch (ccmd->opcode) {
 		case nvme_admin_delete_sq:
 			ret = dnvme_delete_iosq(ctx, &cmd, ccmd);

@@ -15,6 +15,7 @@
 #include "compiler.h"
 #include "nvme/property.h"
 #include "nvme/feature.h"
+#include "nvme/identify.h"
 #include "nvme/command.h"
 
 /* NQN names in commands fields specified one size */
@@ -319,22 +320,6 @@ struct nvme_id_ns_zns {
 struct nvme_id_ctrl_zns {
 	__u8	zasl;
 	__u8	rsvd1[4095];
-};
-
-enum {
-	NVME_ID_CNS_NS			= 0x00,
-	NVME_ID_CNS_CTRL		= 0x01,
-	NVME_ID_CNS_NS_ACTIVE_LIST	= 0x02,
-	NVME_ID_CNS_NS_DESC_LIST	= 0x03,
-	NVME_ID_CNS_CS_NS		= 0x05,
-	NVME_ID_CNS_CS_CTRL		= 0x06,
-	NVME_ID_CNS_NS_PRESENT_LIST	= 0x10,
-	NVME_ID_CNS_NS_PRESENT		= 0x11,
-	NVME_ID_CNS_CTRL_NS_LIST	= 0x12,
-	NVME_ID_CNS_CTRL_LIST		= 0x13,
-	NVME_ID_CNS_SCNDRY_CTRL_LIST	= 0x15,
-	NVME_ID_CNS_NS_GRANULARITY	= 0x16,
-	NVME_ID_CNS_UUID_LIST		= 0x17,
 };
 
 enum {

@@ -40,10 +40,10 @@ int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd)
 	ret = ioctl(fd, NVME_IOCTL_SUBMIT_64B_CMD, cmd);
 	if (ret < 0) {
 		pr_err("failed to submit cmd(0x%x) to SQ(%u)!(%d)\n", 
-			ccmd->opcode, cmd->q_id, ret);
+			ccmd->opcode, cmd->sqid, ret);
 		return ret;
 	}
-	return (int)cmd->unique_id;
+	return (int)cmd->cid;
 }
 
 /* !TODO: delete it later */
@@ -61,7 +61,7 @@ int nvme_submit_64b_cmd_legacy(int fd, struct nvme_64b_cmd *cmd)
 	ret = ioctl(fd, NVME_IOCTL_SUBMIT_64B_CMD, cmd);
 	if (ret < 0) {
 		pr_err("failed to submit cmd(0x%x) to SQ(%u)!(%d)\n", 
-			ccmd->opcode, cmd->q_id, ret);
+			ccmd->opcode, cmd->sqid, ret);
 		return ret;
 	}
 	return 0;
@@ -78,7 +78,7 @@ int nvme_cmd_keep_alive(int fd)
 
 	ccmd.opcode = nvme_admin_keep_alive;
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &ccmd;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
@@ -95,7 +95,7 @@ int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,
 {
 	struct nvme_64b_cmd cmd = {0};
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = csq;
 	/* !TODO: Although it is always right to use bidirection, it is
 	 * better to choose the right direction */
@@ -123,7 +123,7 @@ int nvme_cmd_create_iocq(int fd, struct nvme_create_cq *ccq, uint8_t contig,
 {
 	struct nvme_64b_cmd cmd = {0};
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = ccq;
 	/* !TODO: Although it is always right to use bidirection, it is
 	 * better to choose the right direction */
@@ -148,7 +148,7 @@ int nvme_cmd_delete_iosq(int fd, uint16_t sqid)
 	dq.opcode = nvme_admin_delete_sq;
 	dq.qid = cpu_to_le16(sqid);
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &dq;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
@@ -162,7 +162,7 @@ int nvme_cmd_delete_iocq(int fd, uint16_t cqid)
 	dq.opcode = nvme_admin_delete_cq;
 	dq.qid = cpu_to_le16(cqid);
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &dq;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
@@ -182,7 +182,7 @@ int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
 	feat.fid = cpu_to_le32(fid);
 	feat.dword11 = cpu_to_le32(dw11);
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &feat;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
@@ -202,7 +202,7 @@ int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
 	feat.fid = cpu_to_le32(fid);
 	feat.dword11 = cpu_to_le32(dw11);
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &feat;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
@@ -219,7 +219,7 @@ int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf,
 	
 	BUG_ON(size != NVME_IDENTIFY_DATA_SIZE);
 
-	cmd.q_id = NVME_AQ_ID;
+	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = identify;
 	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP2_PAGE;
 	cmd.data_dir = DMA_BIDIRECTIONAL,
@@ -659,7 +659,7 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 	rwc.length = cpu_to_le16((uint16_t)(wrap->nlb - 1)); /* 0'base */
 	rwc.control = cpu_to_le16(wrap->control);
 	
-	cmd.q_id = wrap->sqid;
+	cmd.sqid = wrap->sqid;
 	cmd.cmd_buf_ptr = &rwc;
 	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
 		NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST;

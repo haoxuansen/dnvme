@@ -212,10 +212,13 @@ struct nvme_prep_cq {
 /**
  * This struct is the basic structure which has important parameter for
  * sending 64 Bytes command to both admin and IO SQ's and CQ's
+ *
+ * @sqid: Queue ID where the cmd_buf command should go
+ * @cid: Command Identifier
  */
 struct nvme_64b_cmd {
-	uint16_t	q_id;	       /* Queue ID where the cmd_buf command should go */
-	uint16_t	unique_id;     /* Value returned back to user space */
+	uint16_t	sqid;
+	uint16_t	cid;
 	void 		*cmd_buf_ptr;	/* Virtual Address pointer to 64B command */
 
 	/* BIT MASK for PRP1,PRP2 and metadata pointer */

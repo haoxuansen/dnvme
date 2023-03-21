@@ -65,7 +65,7 @@ int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
     create_cq_cmd.rsvd1[0] = 0x00;
 
     /* Fill the user command */
-    user_cmd.q_id = 0;
+    user_cmd.sqid = 0;
     user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_cq_cmd;
     user_cmd.data_buf_size = PAGE_SIZE_I * 16;
@@ -102,7 +102,7 @@ int irq_for_io_contig(int g_fd, int cq_id, int irq_no,
     create_cq_cmd.rsvd1[0] = 0x00;
 
     /* Fill the user command */
-    user_cmd.q_id = 0;
+    user_cmd.sqid = 0;
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_cq_cmd;
     user_cmd.data_buf_size = 0;
@@ -138,7 +138,7 @@ void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
     nvme_read.length = 15;
 
     /* Fill the user command */
-    user_cmd.q_id = sq_id;
+    user_cmd.sqid = sq_id;
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
                          NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
@@ -174,7 +174,7 @@ void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
     nvme_read.length = 15;
 
     /* Fill the user command */
-    user_cmd.q_id = sq_id; /* Contig SQ ID */
+    user_cmd.sqid = sq_id; /* Contig SQ ID */
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
                          NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
@@ -212,7 +212,7 @@ int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
     create_cq_cmd.irq_vector = irq_no;
 
     /* Fill the user command */
-    user_cmd.q_id = 0;
+    user_cmd.sqid = 0;
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_cq_cmd;
     user_cmd.data_buf_size = 0;
@@ -306,7 +306,7 @@ int irq_cr_contig_io_sq(int fd, int sq_id, int assoc_cq_id, uint16_t elems)
     create_sq_cmd.sq_flags = 0x01;
 
     /* Fill the user command */
-    user_cmd.q_id = 0;
+    user_cmd.sqid = 0;
     user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE);
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_sq_cmd;
     user_cmd.data_buf_size = 0;
@@ -342,7 +342,7 @@ int irq_cr_disc_io_sq(int fd, void *addr, int sq_id,
     create_sq_cmd.sq_flags = 0x00;
 
     /* Fill the user command */
-    user_cmd.q_id = 0;
+    user_cmd.sqid = 0;
     user_cmd.bit_mask = NVME_MASK_PRP1_LIST;
     user_cmd.cmd_buf_ptr = (u_int8_t *)&create_sq_cmd;
     user_cmd.data_buf_size = PAGE_SIZE_I * 64;
