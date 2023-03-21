@@ -156,14 +156,17 @@ struct nvme_icq {
  * @irq_entry: nvme_irq is managed by nvme_meta_set
  * @icq_list: manage nvme_icq nodes
  * @irq_id: irq identify, always 0 based
+ * @isr_fired: indicate whether the irq is fired
+ * @isr_count: count the number of times irq fired
  */
 struct nvme_irq {
 	struct list_head	irq_entry;
 	struct list_head	icq_list;
 	u16			irq_id;
 	u32			int_vec; /* vec number; assigned by OS */
-	u8			isr_fired; /* flag to indicate if irq has fired */
-	u32			isr_count; /* total no. of times irq fired */
+
+	atomic_t		isr_fired;
+	atomic_t		isr_count;
 };
 
 /*
@@ -242,11 +245,7 @@ struct nvme_work {
  * Irq Processing structure to hold all the irq parameters per device.
  */
 struct nvme_irq_set {
-	/* mtx_lock is used only while traversing/editing/deleting the
-	 * irq_list
-	 */
 	struct list_head	irq_list; /* IRQ list; sorted by irq_no */
-	struct mutex	mtx_lock; /* Mutex for access to irq_list */
 
 	/* To resolve contention for ISR's getting scheduled on different cores */
 	spinlock_t	spin_lock;

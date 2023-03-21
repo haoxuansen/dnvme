@@ -42,8 +42,6 @@
 #include "log.h"
 #include "debug.h"
 
-#define DEVICE_NAME			"nvme"
-#define DRIVER_NAME			"dnvme"
 #define NVME_MINORS			(1U << MINORBITS)
 
 #define API_VERSION                     0xfff10403
@@ -66,6 +64,7 @@
 #endif
 
 LIST_HEAD(nvme_ctx_list);
+static DEFINE_MUTEX(nvme_ctx_list_lock);
 
 static DEFINE_IDA(nvme_instance_ida);
 static dev_t nvme_chr_devt;
@@ -83,8 +82,9 @@ static struct nvme_context *find_context(struct inode *inode)
 
 	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
 
-		if (iminor(inode) == ctx->dev->instance)
+		if (iminor(inode) == ctx->dev->instance) {
 			return ctx;
+		}
 	}
 	return ERR_PTR(-ENODEV);
 }
@@ -575,7 +575,6 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	INIT_LIST_HEAD(&ctx->irq_set.work_list);
 
 	mutex_init(&ctx->lock);
-	mutex_init(&ctx->irq_set.mtx_lock);
 	/* Spinlock to protect from kernel preemption in ISR handler */
 	spin_lock_init(&ctx->irq_set.spin_lock);
 
@@ -754,7 +753,10 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		PCI_SLOT(pdev->devfn));
 	dev_vdbg(dev, "NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
+
+	mutex_lock(&nvme_ctx_list_lock);
 	list_add_tail(&ctx->entry, &nvme_ctx_list);
+	mutex_unlock(&nvme_ctx_list_lock);
 	return 0;
 
 out_deinit_cap:
@@ -792,10 +794,13 @@ static void dnvme_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	/* Wait for any other dnvme access to finish */
-	mutex_lock(&ctx->lock);
+	mutex_lock(&nvme_ctx_list_lock);
 	list_del(&ctx->entry);
-	mutex_unlock(&ctx->lock);
+	mutex_unlock(&nvme_ctx_list_lock);
+
+	if (mutex_is_locked(&ctx->lock)) {
+		dev_warn(dev, "nvme context lock is held by user?\n");
+	}
 
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_unmap_cmb(ctx->dev);
@@ -813,7 +818,7 @@ static struct pci_device_id dnvme_id_table[] = {
 MODULE_DEVICE_TABLE(pci, dnvme_id_table);
 
 static struct pci_driver dnvme_driver = {
-	.name		= DRIVER_NAME,
+	.name		= "dnvme",
 	.id_table	= dnvme_id_table,
 	.probe		= dnvme_probe,
 	.remove		= dnvme_remove,
@@ -826,16 +831,16 @@ static int __init dnvme_init(void)
 	nvme_drv.api_version = API_VERSION;
 	nvme_drv.drv_version = DRIVER_VERSION;
 
-	ret = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, DEVICE_NAME);
+	ret = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, "nvme");
 	if (ret < 0) {
 		pr_err("failed to alloc chrdev!(%d)\n", ret);
 		return ret;
 	}
 
-	nvme_class = class_create(THIS_MODULE, DEVICE_NAME);
+	nvme_class = class_create(THIS_MODULE, "nvme");
 	if (IS_ERR(nvme_class)) {
 		ret = PTR_ERR(nvme_class);
-		pr_err("failed to create %s class!(%d)\n", DEVICE_NAME, ret);
+		pr_err("failed to create class!(%d)\n", ret);
 		goto out;
 	}
 
@@ -869,7 +874,6 @@ static void __exit dnvme_exit(void)
 module_exit(dnvme_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:"DRIVER_NAME);
 MODULE_AUTHOR("nvmecompliance@intel.com");
 MODULE_DESCRIPTION("NVMe compliance suite kernel driver");
 MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));

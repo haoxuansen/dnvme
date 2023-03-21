@@ -290,25 +290,20 @@ static int create_icq_node(struct nvme_irq *irq, u16 cq_id)
 int dnvme_create_icq_node(struct nvme_irq_set *irq_set, u16 cq_id, u16 irq_no)
 {
 	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
-	int ret = 0;
+	int ret;
 	struct nvme_irq *irq;
-
-	mutex_lock(&irq_set->mtx_lock);
 
 	irq = find_irq_node_by_id(irq_set, irq_no);
 	if (!irq) {
 		dnvme_err(ctx->dev, "failed to find irq node %u!\n", irq_no);
-		ret = -EINVAL;
-		goto unlock;
+		return -EINVAL;
 	}
 
 	ret = create_icq_node(irq, cq_id);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
-unlock:
-	mutex_unlock(&irq_set->mtx_lock);
-	return ret;
+	return 0;
 }
 
 static void delete_icq_node(struct nvme_icq *icq)
@@ -386,8 +381,8 @@ static int create_irq_node(struct nvme_irq_set *irq_set, u32 int_vec, u16 irq_id
 
 	irq->int_vec = int_vec; /* int vector number   */
 	irq->irq_id = irq_id;
-	irq->isr_fired = 0;
-	irq->isr_count = 0;
+	atomic_set(&irq->isr_fired, 0);
+	atomic_set(&irq->isr_count, 0);
 	INIT_LIST_HEAD(&irq->icq_list);
 
 	list_add_tail(&irq->irq_entry, &irq_set->irq_list);
@@ -429,11 +424,11 @@ static void inc_isr_count(struct nvme_irq_set *irq_set, u16 irq_id)
 		return;
 	}
 
-	/* !TODO: isr_fired & isr_count are redundant? */
-	node->isr_fired = 1;
-	node->isr_count++;
+	atomic_set(&node->isr_fired, 1);
+	atomic_add(1, &node->isr_count);
+
 	dnvme_vdbg(ctx->dev, "irq node(ID:%u) count is %u\n", node->irq_id, 
-		node->isr_count);
+		atomic_read(&node->isr_count));
 }
 
 /**
@@ -443,9 +438,7 @@ static void update_irq_flag(struct work_struct *wk)
 {
 	struct nvme_work *pwork = container_of(wk, struct nvme_work, work);
 
-	mutex_lock(&pwork->irq_set->mtx_lock);
 	inc_isr_count(pwork->irq_set, pwork->irq_id);
-	mutex_unlock(&pwork->irq_set->mtx_lock);
 }
 
 /**
@@ -948,11 +941,6 @@ void dnvme_clear_interrupt(struct nvme_context *ctx)
 	struct pci_dev *pdev = ndev->pdev;
 	enum nvme_irq_type irq_type = ndev->pub.irq_active.irq_type;
 
-#if IS_ENABLED(CONFIG_DNVME_CHECK_MUTEX_LOCK)
-	if (!mutex_is_locked(&ctx->irq_set.mtx_lock))
-		dnvme_warn(ndev, "Mutex should have been locked before this...\n");
-#endif
-
 	list_for_each_entry(irq, &ctx->irq_set.irq_list, irq_entry) {
 		free_irq(irq->int_vec, &ctx->irq_set);
 	}
@@ -1017,16 +1005,13 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 		return ret;
 	}
 
-	/* lock onto IRQ linked list mutex as we would access the IRQ list */
-	mutex_lock(&irq_set->mtx_lock);
-
 	if (act_irq != NVME_INT_NONE)
 		dnvme_clear_interrupt(ctx);
 
 	ret = create_irq_work_queue(irq_set);
 	if (ret < 0) {
 		dnvme_err(ndev, "Failed to initialize resources for work queue/items");
-		goto out;
+		return ret;
 	}
 
 	switch (irq.irq_type) {
@@ -1052,7 +1037,7 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to set irq_type:%d!\n",irq.irq_type);
-		goto out2;
+		goto out_destroy_wq;
 	}
 
 	/* update active irq info */
@@ -1060,12 +1045,10 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 	ndev->pub.irq_active.num_irqs = irq.num_irqs;
 	irq_set->irq_type = irq.irq_type;
 
-	mutex_unlock(&irq_set->mtx_lock);
 	return 0;
-out2:
+
+out_destroy_wq:
 	destroy_irq_work_queue(irq_set);
-out:
-	mutex_unlock(&irq_set->mtx_lock);
 	return ret;
 }
 
@@ -1102,7 +1085,7 @@ int dnvme_reset_isr_flag(struct nvme_context *ctx, u16 irq_no)
 
 	/* reset the isr flag */
 	if (remain == 0) {
-		irq->isr_fired = 0;
+		atomic_set(&irq->isr_fired, 0);
 	}
 	return 0;
 }
@@ -1123,8 +1106,8 @@ irqreturn_t dnvme_interrupt(int int_vec, void *data)
 	/* To resolve contention between ISR's getting fired on different cores */
 	spin_lock(&irq_set->spin_lock);
 	dnvme_vdbg(ndev, "TH:IRQNO = %d is serviced", wk_node->irq_id);
-	/* Mask the interrupts which was fired till BH */
-	//MengYu add. if tests interrupt, should commit this line
+
+	/* Mask this interrupt until we have reaped all CQ entries */
 	dnvme_mask_interrupt(irq_set, wk_node->irq_id);
 
 	if (queue_work(irq_set->wq, &wk_node->work) == 0)
@@ -1134,3 +1117,4 @@ irqreturn_t dnvme_interrupt(int int_vec, void *data)
 	spin_unlock(&irq_set->spin_lock);
 	return IRQ_HANDLED;
 }
+

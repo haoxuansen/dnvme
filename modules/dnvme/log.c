@@ -279,10 +279,10 @@ static int log_irq_node(struct nvme_irq *irq, int idx, struct file *fp,
 		log_indent_level(indent + 1), irq->irq_id);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s int_vec: %u\n", 
 		log_indent_level(indent + 1), irq->int_vec);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s isr_fired: %u\n", 
-		log_indent_level(indent + 1), irq->isr_fired);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s isr_count: %u\n", 
-		log_indent_level(indent + 1), irq->isr_count);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s isr_fired: %d\n", 
+		log_indent_level(indent + 1), atomic_read(&irq->isr_fired));
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s isr_count: %d\n", 
+		log_indent_level(indent + 1), atomic_read(&irq->isr_count));
 	__kernel_write(fp, buf, oft, pos);
 
 	i = 0;
@@ -320,8 +320,6 @@ static int log_irq_set(struct nvme_context *ctx, struct file *fp,
 	char *buf = log_buf;
 	int oft, i;
 
-	mutex_lock(&irq_set->mtx_lock);
-
 	oft = snprintf(buf, LOG_BUF_SIZE, "%s irq_set->irq_type: %u\n", 
 		log_indent_level(indent), irq_set->irq_type);
 	__kernel_write(fp, buf, oft, pos);
@@ -338,7 +336,6 @@ static int log_irq_set(struct nvme_context *ctx, struct file *fp,
 		i++;
 	}
 
-	mutex_unlock(&irq_set->mtx_lock);
 	return 0;
 }
 
