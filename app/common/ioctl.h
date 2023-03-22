@@ -84,7 +84,7 @@ static inline int nvme_disable_controller_complete(int fd)
 
 static inline int nvme_reset_subsystem(int fd)
 {
-	return nvme_set_device_state(fd, NVME_ST_RESET_SUBSYSTEM);
+	return nvme_set_device_state(fd, NVME_ST_SUBSYSTEM_RESET);
 }
 
 int nvme_dump_log(int fd, char *file);

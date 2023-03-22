@@ -70,13 +70,11 @@ static int do_reset_random(struct nvme_dev_info *ndev)
 		break;
 	
 	case PCIE_FLR_RESET:
-		ret = pcie_is_support_flr(ndev->fd, ndev->express.offset);
-		if (ret < 0)
-			break;
-		else if (ret > 0)
-			ret = pcie_do_flr(ndev->fd, ndev->express.offset);
-		else
-			pr_warn("Not support FLR!\n");
+		ret = pcie_do_flr(ndev->fd);
+		if (ret == -EOPNOTSUPP) {
+			pr_warn("dev not support FLR!\n");
+			ret = 0;
+		}
 		break;
 	
 	case PCIE_D0D3_RESET:

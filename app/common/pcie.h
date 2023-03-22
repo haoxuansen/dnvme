@@ -13,12 +13,22 @@
 #define _APP_PCIE_H_
 
 #include <stdint.h>
+#include "ioctl.h"
 
-int pcie_is_support_flr(int fd, uint8_t pxcap);
+static inline int pcie_do_flr(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_PCIE_FLR_RESET);
+}
 
-int pcie_do_flr(int fd, uint8_t pxcap);
-int pcie_do_hot_reset(int fd);
-int pcie_do_link_down(int fd);
+static inline int pcie_do_hot_reset(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_PCIE_HOT_RESET);
+}
+
+static inline int pcie_do_link_down(int fd)
+{
+	return nvme_set_device_state(fd, NVME_ST_PCIE_LINKDOWN_RESET);
+}
 
 int pcie_set_power_state(int fd, uint8_t pmcap, uint16_t ps);
 

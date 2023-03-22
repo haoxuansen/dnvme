@@ -4,12 +4,13 @@ CUR_DIR := $(TOP_DIR)/modules/dnvme
 TARGET					:= dnvme.ko
 obj-m					:= dnvme.o
 dnvme-y					:= core.o
+dnvme-y					+= cmd.o
 dnvme-y					+= io.o
 dnvme-y					+= ioctl.o
-dnvme-y					+= pci.o
-dnvme-y					+= cmd.o
-dnvme-y					+= log.o
 dnvme-y					+= irq.o
+dnvme-y					+= log.o
+dnvme-y					+= pci.o
+dnvme-y					+= proc.o
 dnvme-y					+= queue.o
 ifneq ($(CONFIG_DNVME_CMB),)
 dnvme-y					+= cmb.o

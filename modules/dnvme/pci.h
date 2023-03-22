@@ -138,6 +138,7 @@ static inline int pci_msix_read_pba(struct pci_dev *pdev, u32 oft, u32 *data)
 		pci_read_config_dword(pdev, oft + PCI_MSIX_PBA, data));
 }
 
+int pci_read_cfg_data(struct pci_dev *pdev, void *buf, u32 len);
 int pci_read_class_code(struct pci_dev *pdev, struct pci_class_code *data);
 
 int pci_enable_int_pin(struct pci_dev *pdev);
@@ -147,6 +148,10 @@ struct pci_cap_msi *pci_get_msi_cap(struct pci_dev *pdev, u8 offset);
 struct pci_cap_msix *pci_get_msix_cap(struct pci_dev *pdev, u16 offset);
 struct pci_cap_pm *pci_get_pm_cap(struct pci_dev *pdev, u8 offset);
 struct pci_cap_express *pci_get_express_cap(struct pci_dev *pdev, u8 offset);
+
+int pcie_do_flr_reset(struct pci_dev *pdev);
+int pcie_do_hot_reset(struct pci_dev *pdev);
+int pcie_do_linkdown_reset(struct pci_dev *pdev);
 
 #endif /* !_DNVME_PCI_H_ */
 

@@ -25,7 +25,7 @@ static const char *nvme_state_string(enum nvme_state state)
 	case NVME_ST_DISABLE:
 	case NVME_ST_DISABLE_COMPLETE:
 		return "disable controller";
-	case NVME_ST_RESET_SUBSYSTEM:
+	case NVME_ST_SUBSYSTEM_RESET:
 		return "reset subsystem";
 	default:
 		return "unknown";

@@ -14,6 +14,7 @@
 #include <linux/limits.h>
 #include <linux/dma-mapping.h>
 #include <linux/cdev.h>
+#include <linux/proc_fs.h>
 
 #include "pci_caps.h"
 #include "dnvme_ioctl.h"
@@ -26,8 +27,8 @@
 
 #define NVME_PRP_ENTRY_SIZE		8 /* in bytes */
 
-#undef pr_fmt
-#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
+//#undef pr_fmt
+//#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
 
 #if !IS_ENABLED(CONFIG_PRINTK_COLOR)
 #include "log/color.h"
@@ -208,6 +209,7 @@ struct nvme_device {
 	struct pci_dev	*pdev;
 	struct device	dev;
 	struct cdev	cdev;
+	struct proc_dir_entry	*proc;
 
 	int	instance;
 

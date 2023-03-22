@@ -45,8 +45,10 @@ static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
 
 	while (1) {
 		csts = dnvme_readl(bar0, NVME_REG_CSTS);
-		if (csts == ~0)
+		if (csts == ~0) {
+			dnvme_err(ndev, "csts = 0x%x, dev not exist?\n", csts);
 			return -ENODEV;
+		}
 		if ((csts & NVME_CSTS_RDY) == bit)
 			break;
 		
@@ -113,15 +115,28 @@ int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
 	case NVME_ST_DISABLE_COMPLETE:
 		ret = dnvme_set_ctrl_state(ctx, false);
 		if (ret < 0) {
-			dnvme_err(ndev, "failed to set ctrl state(%d)!\n", state);
+			dnvme_err(ndev, "failed to set ctrl state:%d!(%d)\n", 
+				state, ret);
 		} else {
 			dnvme_cleanup_context(ctx, state);
 		}
 		break;
 
-	case NVME_ST_RESET_SUBSYSTEM:
+	case NVME_ST_SUBSYSTEM_RESET:
 		ret = dnvme_reset_subsystem(ctx);
 		/* !NOTICE: It's necessary to clean device here? */
+		break;
+
+	case NVME_ST_PCIE_FLR_RESET:
+		ret = pcie_do_flr_reset(ndev->pdev);
+		break;
+
+	case NVME_ST_PCIE_HOT_RESET:
+		ret = pcie_do_hot_reset(ndev->pdev);
+		break;
+
+	case NVME_ST_PCIE_LINKDOWN_RESET:
+		ret = pcie_do_linkdown_reset(ndev->pdev);
 		break;
 
 	default:

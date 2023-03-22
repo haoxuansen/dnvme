@@ -210,12 +210,12 @@ static int init_capability(struct nvme_dev_info *ndev)
 		return ret;
 
 	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_PM,
-					&ndev->msix, sizeof(ndev->msix));
+					&ndev->pm, sizeof(ndev->pm));
 	if (ret < 0)
 		return ret;
 
 	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_EXP,
-					&ndev->msix, sizeof(ndev->msix));
+					&ndev->express, sizeof(ndev->express));
 	if (ret < 0)
 		return ret;
 

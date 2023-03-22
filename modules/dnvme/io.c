@@ -44,7 +44,7 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_DWORD:
 			ret= pci_read_config_dword(pdev, access->offset + idx, 
 				buf + idx);
-			dev_dbg(dev, "READ CFG offset:0x%08x data:0x%08x\n",
+			dev_dbg(dev, "READ  CFG offset:0x%08x data:0x%08x\n",
 				(access->offset + idx), *(u32 *)(buf + idx));
 			idx += 4;
 			break;
@@ -52,7 +52,7 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_WORD:
 			ret = pci_read_config_word(pdev, access->offset + idx, 
 				buf + idx);
-			dev_dbg(dev, "READ CFG offset:0x%08x data:0x%08x\n",
+			dev_dbg(dev, "READ  CFG offset:0x%08x data:0x%04x\n",
 				(access->offset + idx), *(u16 *)(buf + idx));
 			idx += 2;
 			break;
@@ -60,7 +60,7 @@ int dnvme_read_from_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_BYTE:
 			ret = pci_read_config_byte(pdev, access->offset + idx, 
 				buf + idx);
-			dev_dbg(dev, "READ CFG offset:0x%08x data:0x%08x\n",
+			dev_dbg(dev, "READ  CFG offset:0x%08x data:0x%02x\n",
 				(access->offset + idx), *(u8 *)(buf + idx));
 			idx++;
 			break;
@@ -116,7 +116,7 @@ int dnvme_write_to_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_WORD:
 			ret = pci_write_config_word(pdev, access->offset + idx, 
 				*(u16 *)(buf + idx));
-			dev_dbg(dev, "WRITE CFG offset:0x%08x data:0x%08x\n",
+			dev_dbg(dev, "WRITE CFG offset:0x%08x data:0x%04x\n",
 				(access->offset + idx), *(u16 *)(buf + idx));
 			idx += 2;
 			break;
@@ -124,7 +124,7 @@ int dnvme_write_to_config(struct pci_dev *pdev, struct nvme_access *access,
 		case NVME_ACCESS_BYTE:
 			ret = pci_write_config_byte(pdev, access->offset + idx, 
 				*(u8 *)(buf + idx));
-			dev_dbg(dev, "WRITE CFG offset:0x%08x data:0x%08x\n",
+			dev_dbg(dev, "WRITE CFG offset:0x%08x data:0x%02x\n",
 				(access->offset + idx), *(u8 *)(buf + idx));
 			idx++;
 			break;
@@ -170,16 +170,22 @@ int dnvme_read_from_bar(void __iomem *bar, struct nvme_access *access, void *buf
 
 		case NVME_ACCESS_DWORD:
 			*(u32 *)(buf + idx) = dnvme_readl(bar, access->offset + idx);
+			pr_debug("READ  BAR offset:0x%08x data:0x%08x\n",
+				(access->offset + idx), *(u32 *)(buf + idx));
 			idx += 4;
 			break;
 		
 		case NVME_ACCESS_WORD:
 			*(u16 *)(buf + idx) = dnvme_readw(bar, access->offset + idx);
+			pr_debug("READ  BAR offset:0x%08x data:0x%04x\n",
+				(access->offset + idx), *(u16 *)(buf + idx));
 			idx += 2;
 			break;
 
 		case NVME_ACCESS_BYTE:
 			*(u8 *)(buf + idx) = dnvme_readb(bar, access->offset + idx);
+			pr_debug("READ  BAR offset:0x%08x data:0x%02x\n",
+				(access->offset + idx), *(u8 *)(buf + idx));
 			idx++;
 			break;
 		
@@ -217,16 +223,22 @@ int dnvme_write_to_bar(void __iomem *bar, struct nvme_access *access, void *buf)
 
 		case NVME_ACCESS_DWORD:
 			dnvme_writel(bar, access->offset + idx, *(u32 *)(buf + idx));
+			pr_debug("WRITE BAR offset:0x%08x data:0x%08x\n",
+				(access->offset + idx), *(u32 *)(buf + idx));
 			idx += 4;
 			break;
 		
 		case NVME_ACCESS_WORD:
 			dnvme_writew(bar, access->offset + idx, *(u16 *)(buf + idx));
+			pr_debug("WRITE BAR offset:0x%08x data:0x%04x\n",
+				(access->offset + idx), *(u16 *)(buf + idx));
 			idx += 2;
 			break;
 
 		case NVME_ACCESS_BYTE:
 			dnvme_writeb(bar, access->offset + idx, *(u8 *)(buf + idx));
+			pr_debug("WRITE BAR offset:0x%08x data:0x%02x\n",
+				(access->offset + idx), *(u8 *)(buf + idx));
 			idx++;
 			break;
 		

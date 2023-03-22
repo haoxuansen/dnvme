@@ -31,7 +31,9 @@
 #include <linux/version.h>
 
 #include "dnvme_ioctl.h"
+
 #include "core.h"
+#include "proc.h"
 #include "pci.h"
 #include "io.h"
 #include "cmb.h"
@@ -65,6 +67,7 @@
 
 LIST_HEAD(nvme_ctx_list);
 static DEFINE_MUTEX(nvme_ctx_list_lock);
+static struct proc_dir_entry *nvme_proc_dir;
 
 static DEFINE_IDA(nvme_instance_ida);
 static dev_t nvme_chr_devt;
@@ -747,6 +750,8 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		goto out_deinit_cap;
 
+	dnvme_create_proc_entry(ctx->dev, nvme_proc_dir);
+
 	/* Finalize this device and prepare for next one */
 	dev_info(dev, "NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
 	dev_vdbg(dev, "NVMe bus #%d, dev slot: %d", pdev->bus->number, 
@@ -801,6 +806,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 	if (mutex_is_locked(&ctx->lock)) {
 		dev_warn(dev, "nvme context lock is held by user?\n");
 	}
+	dnvme_destroy_proc_entry(ctx->dev);
 
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_unmap_cmb(ctx->dev);
@@ -844,6 +850,10 @@ static int __init dnvme_init(void)
 		goto out;
 	}
 
+	nvme_proc_dir = proc_mkdir("nvme", NULL);
+	if (!nvme_proc_dir)
+		pr_warn("failed to create proc dir!\n");
+
 	ret = pci_register_driver(&dnvme_driver);
 	if (ret < 0) {
 		pr_err("failed to register pci driver!(%d)\n", ret);
@@ -865,6 +875,7 @@ module_init(dnvme_init);
 static void __exit dnvme_exit(void)
 {
 	pci_unregister_driver(&dnvme_driver);
+	proc_remove(nvme_proc_dir);
 	class_destroy(nvme_class);
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
 	ida_destroy(&nvme_instance_ida);

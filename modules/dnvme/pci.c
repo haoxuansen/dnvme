@@ -12,8 +12,36 @@
 #define DEBUG
 
 #include <linux/kernel.h>
+#include <linux/delay.h>
 
 #include "pci.h"
+
+int pci_read_cfg_data(struct pci_dev *pdev, void *buf, u32 len)
+{
+	u32 oft = 0;
+	int ret = 0;
+
+	while (len >= 4) {
+		ret |= pcibios_err_to_errno(
+			pci_read_config_dword(pdev, oft, buf + oft));
+		oft += 4;
+		len -= 4;
+	}
+
+	if (len >= 2) {
+		ret |= pcibios_err_to_errno(
+			pci_read_config_word(pdev, oft, buf + oft));
+		oft += 2;
+		len -= 2;
+	}
+
+	if (len >= 1) {
+		ret |= pcibios_err_to_errno(
+			pci_read_config_byte(pdev, oft, buf + oft));
+	}
+
+	return ret;
+}
 
 /**
  * @brief Read pci class code
@@ -231,5 +259,57 @@ struct pci_cap_express *pci_get_express_cap(struct pci_dev *pdev, u8 offset)
 	print_express_cap(pdev, cap);
 
 	return cap;
+}
+
+/*
+ * NOTE: don't use @pcie_has_flr, system may not support this func in 
+ *   different version!
+ */
+int pcie_do_flr_reset(struct pci_dev *pdev)
+{
+	u32 cap;
+
+	pcie_capability_read_dword(pdev, PCI_EXP_DEVCAP, &cap);
+	if (!(cap & PCI_EXP_DEVCAP_FLR))
+		return -EOPNOTSUPP;
+
+	pci_save_state(pdev);
+	pcie_flr(pdev);
+	pci_restore_state(pdev);
+	return 0;
+}
+
+int pcie_do_hot_reset(struct pci_dev *pdev)
+{
+	struct pci_dev *bridge = pdev->bus->self;
+
+	pci_save_state(pdev);
+	pci_bridge_secondary_bus_reset(bridge);
+	pci_restore_state(pdev);
+	return 0;
+}
+
+static int pcie_set_link(struct pci_dev *pdev, bool enable)
+{
+	u16 lnk_ctrl;
+
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &lnk_ctrl);
+	if (enable)
+		lnk_ctrl &= ~PCI_EXP_LNKCTL_LD;
+	else
+		lnk_ctrl |= PCI_EXP_LNKCTL_LD;
+
+	pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, lnk_ctrl);
+	return 0;
+}
+
+int pcie_do_linkdown_reset(struct pci_dev *pdev)
+{
+	pci_save_state(pdev);
+	pcie_set_link(pdev, false);
+	msleep(100);
+	pcie_set_link(pdev, true);
+	pci_restore_state(pdev);
+	return 0;
 }
 

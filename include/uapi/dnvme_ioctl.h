@@ -98,7 +98,10 @@ enum nvme_state {
 	NVME_ST_ENABLE, /* Set the NVME Controller to enable state */
 	NVME_ST_DISABLE, /* Controller reset without affecting Admin Q */
 	NVME_ST_DISABLE_COMPLETE, /* Completely destroy even Admin Q's */
-	NVME_ST_RESET_SUBSYSTEM, /* NVM Subsystem reset without affecting Admin Q */
+	NVME_ST_SUBSYSTEM_RESET, /* NVM Subsystem reset without affecting Admin Q */
+	NVME_ST_PCIE_FLR_RESET,
+	NVME_ST_PCIE_HOT_RESET,
+	NVME_ST_PCIE_LINKDOWN_RESET,
 };
 
 enum nvme_64b_cmd_mask {
@@ -214,7 +217,7 @@ struct nvme_prep_cq {
  * sending 64 Bytes command to both admin and IO SQ's and CQ's
  *
  * @sqid: Queue ID where the cmd_buf command should go
- * @cid: Command Identifier
+ * @cid: Command Identifier assigned by driver
  */
 struct nvme_64b_cmd {
 	uint16_t	sqid;
