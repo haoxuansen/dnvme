@@ -683,8 +683,8 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 		return -EINVAL;
 	}
 
-	if ((csq->sq_flags & NVME_CSQ_F_PC && wait_sq->priv.contig == 0) ||
-		(!(csq->sq_flags & NVME_CSQ_F_PC) && wait_sq->priv.contig != 0)) {
+	if ((csq->sq_flags & NVME_QUEUE_PHYS_CONTIG && wait_sq->priv.contig == 0) ||
+		(!(csq->sq_flags & NVME_QUEUE_PHYS_CONTIG) && wait_sq->priv.contig != 0)) {
 		dnvme_err(ndev, "Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
@@ -752,8 +752,8 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 		return -EBADSLT;
 	}
 
-	if ((ccq->cq_flags & NVME_CCQ_F_PC && wait_cq->priv.contig == 0) ||
-		(!(ccq->cq_flags & NVME_CCQ_F_PC) && wait_cq->priv.contig != 0)) {
+	if ((ccq->cq_flags & NVME_QUEUE_PHYS_CONTIG && wait_cq->priv.contig == 0) ||
+		(!(ccq->cq_flags & NVME_QUEUE_PHYS_CONTIG) && wait_cq->priv.contig != 0)) {
 		dnvme_err(ndev, "Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
@@ -770,7 +770,7 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	}
 
 	/* Check if interrupts should be enabled for IO CQ */
-	if (ccq->cq_flags & NVME_CCQ_F_IEN) {
+	if (ccq->cq_flags & NVME_CQ_IRQ_ENABLED) {
 		if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
 			dnvme_err(ndev, "act irq_type is none!\n");
 			return -EINVAL;

@@ -47,7 +47,7 @@ static inline void nvme_cmd_fill_create_sq(struct nvme_create_sq *csq,
 	csq->sqid = cpu_to_le16(sqid);
 	csq->qsize = cpu_to_le16(elements - 1); /* 0's based */
 	if (contig)
-		csq->sq_flags |= cpu_to_le16(NVME_CSQ_F_PC);
+		csq->sq_flags |= cpu_to_le16(NVME_QUEUE_PHYS_CONTIG);
 	csq->sq_flags |= cpu_to_le16(prio);
 	csq->cqid = cpu_to_le16(cqid);
 }
@@ -60,9 +60,9 @@ static inline void nvme_cmd_fill_create_cq(struct nvme_create_cq *ccq,
 	ccq->cqid = cpu_to_le16(cqid);
 	ccq->qsize = cpu_to_le16(elements - 1); /* 0's based */
 	if (contig)
-		ccq->cq_flags |= cpu_to_le16(NVME_CCQ_F_PC);
+		ccq->cq_flags |= cpu_to_le16(NVME_QUEUE_PHYS_CONTIG);
 	if (irq_en)
-		ccq->cq_flags |= cpu_to_le16(NVME_CCQ_F_IEN);
+		ccq->cq_flags |= cpu_to_le16(NVME_CQ_IRQ_ENABLED);
 	ccq->irq_vector = cpu_to_le16(irq_no);
 }
 

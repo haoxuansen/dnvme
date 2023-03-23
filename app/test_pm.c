@@ -32,7 +32,7 @@ static int get_power_state(int fd, uint8_t *ps)
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_get_feat_power_mgmt(fd, NVME_FEATURE_SEL_CURRENT);
+	ret = nvme_cmd_get_feat_power_mgmt(fd, NVME_FEAT_SEL_CUR);
 	if (ret < 0)
 		return ret;
 	cid = ret;
