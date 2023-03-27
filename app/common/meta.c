@@ -65,3 +65,21 @@ int nvme_delete_meta_node(int fd, uint32_t id)
 	}
 	return 0;
 }
+
+int nvme_compare_meta_node(int fd, uint32_t id1, uint32_t id2)
+{
+	struct nvme_cmp_meta cmp;
+	int ret;
+
+	cmp.id1 = id1;
+	cmp.id2 = id2;
+
+	ret = ioctl(fd, NVME_IOCTL_COMPARE_META_NODE, &cmp);
+	if (ret < 0) {
+		pr_err("The meta data of %u and %u are different?(%d)\n", 
+			id1, id2, ret);
+		return ret;
+	}
+	return 0;
+}
+

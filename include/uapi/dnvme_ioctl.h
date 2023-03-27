@@ -55,6 +55,7 @@ enum {
 	NVME_DESTROY_META_POOL,
 	NVME_CREATE_META_NODE,
 	NVME_DELETE_META_NODE,
+	NVME_COMPARE_META_NODE,
 
 	NVME_SET_IRQ,
 	NVME_MASK_IRQ,
@@ -307,6 +308,11 @@ struct nvme_reap {
 	uint32_t	size;
 };
 
+struct nvme_cmp_meta {
+	uint32_t	id1;
+	uint32_t	id2;
+};
+
 /**
  * @name: The file name includes its path information.
  * @len: The length of file name (in bytes).
@@ -353,6 +359,7 @@ struct nvme_log_file {
 #define NVME_IOCTL_INQUIRY_CQE		_IOWR('N', NVME_INQUIRY_CQE, struct nvme_inquiry)
 #define NVME_IOCTL_REAP_CQE		_IOWR('N', NVME_REAP_CQE, struct nvme_reap)
 
+#define NVME_IOCTL_COMPARE_META_NODE	_IOW('N', NVME_COMPARE_META_NODE, struct nvme_cmp_meta)
 /* uint16_t: assign meta node identify */
 #define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, uint32_t)
 /* uint16_t: assign meta node identify */

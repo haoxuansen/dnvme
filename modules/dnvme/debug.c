@@ -20,43 +20,6 @@
 
 static char dbgstr[DBG_STR_SIZE];
 
-void dnvme_print_ccmd(struct nvme_common_command *ccmd)
-{
-	char *buf = dbgstr;
-	int oft = 0;
-
-	oft = snprintf(buf, DBG_STR_SIZE, "opcode: 0x%x\n", ccmd->opcode);
-
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"flags: 0x%x\n", ccmd->flags);
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"command_id: %u\n", ccmd->command_id);
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"nsid: 0x%x\n", le32_to_cpu(ccmd->nsid));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw2: 0x%x 0x%x\n", le32_to_cpu(ccmd->cdw2[0]), 
-		le32_to_cpu(ccmd->cdw2[1]));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"metadata: 0x%llx\n", le64_to_cpu(ccmd->metadata));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"prp1: 0x%llx\n", le64_to_cpu(ccmd->dptr.prp1));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"prp2: 0x%llx\n", le64_to_cpu(ccmd->dptr.prp2));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw10: 0x%x\n", le32_to_cpu(ccmd->cdw10));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw11: 0x%x\n", le32_to_cpu(ccmd->cdw11));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw12: 0x%x\n", le32_to_cpu(ccmd->cdw12));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw13: 0x%x\n", le32_to_cpu(ccmd->cdw13));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw14: 0x%x\n", le32_to_cpu(ccmd->cdw14));
-	oft += snprintf(buf + oft, DBG_STR_SIZE - oft, 
-		"cdw15: 0x%x\n", le32_to_cpu(ccmd->cdw15));
-	dnvme_dbg(ndev, "%s", buf);
-}
-
 void dnvme_print_sq(struct nvme_sq *sq)
 {
 	char *buf = dbgstr;
@@ -131,6 +94,8 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 	case NVME_IOCTL_REAP_CQE:
 		return "NVME_REAP_CQE";
 
+	case NVME_IOCTL_COMPARE_META_NODE:
+		return "NVME_COMPARE_META_NODE"
 	case NVME_IOCTL_CREATE_META_NODE:
 		return "NVME_CREATE_META_NODE";
 	case NVME_IOCTL_DELETE_META_NODE:

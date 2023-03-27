@@ -542,6 +542,36 @@ void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id)
 	kfree(meta);
 }
 
+int dnvme_compare_meta_node(struct nvme_context *ctx, 
+	struct nvme_cmp_meta __user *ucmp)
+{
+	struct nvme_device *ndev = ctx->dev;
+	struct nvme_meta *meta1;
+	struct nvme_meta *meta2;
+	struct nvme_cmp_meta cmp;
+
+	if (copy_from_user(&cmp, ucmp, sizeof(cmp))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	meta1 = dnvme_find_meta(ctx, cmp.id1);
+	meta2 = dnvme_find_meta(ctx, cmp.id2);
+	if (!meta1 || !meta2) {
+		dnvme_err(ndev, "meta %u or %u doesn't exist!\n", 
+			cmp.id1, cmp.id2);
+		return -ENOENT;
+	}
+
+	if (memcmp(meta1->buf, meta2->buf, ctx->meta_set.buf_size)) {
+		dnvme_err(ndev, "The meta data of %u and %u are different!\n",
+			cmp.id1, cmp.id2);
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *usqp)
 {
 	struct nvme_device *ndev = ctx->dev;

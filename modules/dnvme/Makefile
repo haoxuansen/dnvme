@@ -1,6 +1,9 @@
 include $(TOP_DIR)/modules/Rules.mk
 CUR_DIR := $(TOP_DIR)/modules/dnvme
 
+# tell define_trace.h where to find the nvme trace header
+CFLAGS_trace.o := -I$(src)
+
 TARGET					:= dnvme.ko
 obj-m					:= dnvme.o
 dnvme-y					:= core.o
@@ -12,6 +15,7 @@ dnvme-y					+= log.o
 dnvme-y					+= pci.o
 dnvme-y					+= proc.o
 dnvme-y					+= queue.o
+dnvme-y					+= trace.o
 ifneq ($(CONFIG_DNVME_CMB),)
 dnvme-y					+= cmb.o
 endif

@@ -22,6 +22,7 @@
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
 
+#include "trace.h"
 #include "core.h"
 #include "cmd.h"
 #include "queue.h"
@@ -884,7 +885,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 
 	ccmd = (struct nvme_common_command *)cmd_buf;
 
-	cmd.cid = sq->priv.unique_cmd_id++;
+	cmd.cid = sq->priv.next_cid++;
 	ccmd->command_id = cmd.cid;
 
 	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
@@ -941,7 +942,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 		if (ret < 0)
 			goto out2;
 	}
-	dnvme_print_ccmd(ccmd);
+	trace_dnvme_submit_64b_cmd(&ndev->dev, ccmd, cmd.sqid);
 
 	/* Copying the command in to appropriate SQ and handling sync issues */
 	if (sq->priv.contig) {
@@ -962,7 +963,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	kfree(cmd_buf);
 	return 0;
 out2:
-	sq->priv.unique_cmd_id--;
+	sq->priv.next_cid--;
 out:
 	kfree(cmd_buf);
 	return ret;

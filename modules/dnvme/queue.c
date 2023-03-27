@@ -193,7 +193,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 
 	INIT_LIST_HEAD(&sq->priv.cmd_list);
 	sq->priv.size = sq_size;
-	sq->priv.unique_cmd_id = 0;
+	sq->priv.next_cid = 0;
 	sq->priv.contig = prep->contig;
 	sq->priv.dbs = &ndev->dbs[prep->sq_id * 2 * ndev->db_stride];
 
@@ -438,7 +438,7 @@ static void dnvme_reinit_asq(struct nvme_context *ctx, struct nvme_sq *sq)
 	sq->pub.head_ptr = 0;
 	sq->pub.tail_ptr = 0;
 	sq->pub.tail_ptr_virt = 0;
-	sq->priv.unique_cmd_id = 0;
+	sq->priv.next_cid = 0;
 	memset(sq->priv.buf, 0, sq->priv.size);
 }
 

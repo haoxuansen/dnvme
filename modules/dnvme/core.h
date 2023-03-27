@@ -117,7 +117,7 @@ struct nvme_sq_private {
 	dma_addr_t	dma; /* dma mapped address using dma_alloc */
 	u32		size; /* len in bytes of allocated Q in kernel */
 	u32 __iomem	*dbs; /* Door Bell stride */
-	u16		unique_cmd_id; /* unique counter for each comand in SQ */
+	u16		next_cid; /* unique counter for each comand in SQ */
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
 	struct nvme_prps	prps;

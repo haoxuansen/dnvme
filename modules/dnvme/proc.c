@@ -10,6 +10,7 @@
  */
 #define DEBUG
 
+#include "trace.h"
 #include "proc.h"
 #include "pci.h"
 #include "io.h"
@@ -135,7 +136,7 @@ static int cmd_dump_metadata(struct nvme_device *ndev, char *argv[], int argc)
 		return -EFAULT;
 	}
 
-	dnvme_info(ndev, "meta data (ID:0x%x):\n", id);
+	dnvme_info(ndev, "meta data (ID:0x%x, DMA addr:0x%llx):\n", id, meta->dma);
 	dnvme_dump_data(meta->buf, ctx->meta_set.buf_size, 0);
 	return 0;
 }
@@ -303,8 +304,9 @@ static ssize_t dnvme_proc_write(struct file *file, const char __user *buf,
 		kfree(cmd);
 		return -EFAULT;
 	}
-	tmp = cmd;
+	trace_dnvme_proc_write(&ndev->dev, cmd);
 
+	tmp = cmd;
 	for (i = 0; i < CMD_SEG_MAX; i++) {
 		args[i] = strsep(&tmp, " ");
 		if (!args[i])

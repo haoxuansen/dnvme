@@ -373,6 +373,10 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		dnvme_delete_meta_node(ctx, (u32)arg);
 		break;
 
+	case NVME_IOCTL_COMPARE_META_NODE:
+		ret = dnvme_compare_meta_node(ctx, argp);
+		break;
+
 	case NVME_IOCTL_SET_IRQ:
 		ret = dnvme_set_interrupt(ctx, argp);
 		break;

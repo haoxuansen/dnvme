@@ -20,4 +20,6 @@ int nvme_destroy_meta_pool(int fd);
 int nvme_create_meta_node(int fd, uint32_t id);
 int nvme_delete_meta_node(int fd, uint32_t id);
 
+int nvme_compare_meta_node(int fd, uint32_t id1, uint32_t id2);
+
 #endif /* !_APP_META_H_ */

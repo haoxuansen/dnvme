@@ -76,8 +76,6 @@ int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nl
 
 int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display);
 
-void test_meta(int g_fd);
-
 int display_cq_data(unsigned char *cq_buffer, int reap_ele, int display);
 void test_irq_review568(int fd);
 

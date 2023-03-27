@@ -142,8 +142,8 @@ static int log_sq(struct nvme_sq *sq, int idx, struct file *fp, loff_t *pos,
 		log_indent_level(indent + 1), sq->priv.size, sq->priv.size);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s dbs: 0x%lx\n", 
 		log_indent_level(indent + 1), (unsigned long)sq->priv.dbs);
-	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s unique_cmd_id: %u\n", 
-		log_indent_level(indent + 1), sq->priv.unique_cmd_id);
+	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s next_cid: %u\n", 
+		log_indent_level(indent + 1), sq->priv.next_cid);
 	oft += snprintf(buf + oft, LOG_BUF_SIZE - oft, "%s contig: %u\n", 
 		log_indent_level(indent + 1), sq->priv.contig);
 	__kernel_write(fp, buf, oft, pos);

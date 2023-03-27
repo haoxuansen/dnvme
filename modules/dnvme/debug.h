@@ -17,15 +17,11 @@
 #include "core.h"
 
 #if IS_ENABLED(CONFIG_DNVME_DEBUG)
-void dnvme_print_ccmd(struct nvme_common_command *ccmd);
-
 void dnvme_print_sq(struct nvme_sq *sq);
 void dnvme_print_cq(struct nvme_cq *cq);
 
 const char *dnvme_ioctl_cmd_string(unsigned int cmd);
 #else
-static inline void dnvme_print_ccmd(struct nvme_common_command *ccmd) {}
-
 static inline void dnvme_print_sq(struct nvme_sq *sq) {}
 static inline void dnvme_print_cq(struct nvme_cq *cq) {}
 
