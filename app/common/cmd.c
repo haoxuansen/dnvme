@@ -208,6 +208,50 @@ int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
+int nvme_cmd_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_format_cmd fmt = {0};
+
+	fmt.opcode = nvme_admin_format_nvm;
+	fmt.flags = flags;
+	fmt.nsid = cpu_to_le32(nsid);
+	fmt.cdw10 = cpu_to_le32(dw10);
+
+	cmd.sqid = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &fmt;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_format_nvm(fd, nsid, flags, dw10);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 /**
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
@@ -666,6 +710,9 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 	cmd.data_buf_ptr = wrap->buf;
 	cmd.data_buf_size = wrap->size;
 	cmd.data_dir = DMA_BIDIRECTIONAL;
+	cmd.meta_id = wrap->meta_id;
+	if (cmd.meta_id)
+		cmd.bit_mask |= NVME_MASK_MPTR;
 
 	return nvme_submit_64b_cmd(fd, &cmd);
 }

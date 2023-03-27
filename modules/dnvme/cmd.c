@@ -894,9 +894,9 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	}
 
 	if (cmd.bit_mask & NVME_MASK_MPTR) {
-		meta = dnvme_find_meta(ctx, cmd.meta_buf_id);
+		meta = dnvme_find_meta(ctx, cmd.meta_id);
 		if (!meta) {
-			dnvme_err(ndev, "Meta(%u) doesn't exist!\n", cmd.meta_buf_id);
+			dnvme_err(ndev, "Meta(%u) doesn't exist!\n", cmd.meta_id);
 			ret = -EINVAL;
 			goto out;
 		}

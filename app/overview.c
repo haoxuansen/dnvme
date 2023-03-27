@@ -28,6 +28,7 @@
 #include "test_queue.h"
 #include "test_cmd.h"
 #include "test_pm.h"
+#include "test_meta.h"
 
 #include "common_define.h"
 #include "test_metrics.h"
@@ -52,6 +53,7 @@ enum {
 	CASE_CMD = 101,
 	CASE_QUEUE = CASE_CMD + 20,
 	CASE_PM = CASE_QUEUE + 20,
+	CASE_META = CASE_PM + 20,
 };
 
 static TestCase_t TestCaseList[] = {
@@ -92,70 +94,6 @@ static int case_reinit_device(struct nvme_tool *tool)
 static int case_encrypt_decrypt(struct nvme_tool *tool)
 {
 	test_encrypt_decrypt();
-	return 0;
-}
-
-static int case_test_meta(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-
-	test_meta(ndev->fd);
-	return 0;
-}
-
-static int case_unknown1(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t io_sq_id = 1;
-	uint32_t io_cq_id = 1;
-	uint64_t wr_slba = 0;
-	uint32_t wr_nsid = 1;
-	uint16_t wr_nlb = 8;
-
-	pr_color(LOG_COLOR_CYAN, "pls enter wr_slba:");
-	fflush(stdout);
-	scanf("%d", (int *)&wr_slba);
-	pr_color(LOG_COLOR_CYAN, "pls enter wr_nlb:");
-	fflush(stdout);
-	scanf("%d", (int *)&wr_nlb);
-	memset(tool->wbuf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-	create_meta_buf(ndev->fd, 0);
-
-	if(SUCCEED == send_nvme_write_using_metabuff(ndev->fd, 0, io_sq_id, 
-		wr_nsid, wr_slba, wr_nlb, 0, 0, tool->wbuf))
-	{
-		if (SUCCEED == nvme_ring_dbl_and_reap_cq(ndev->fd, 
-			io_sq_id, io_cq_id, 1))
-		{
-			pr_info("io write succeed\n");
-		}
-	}
-	nvme_delete_meta_node(ndev->fd, 0);
-	return 0;
-}
-
-static int case_unknown2(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t io_sq_id = 1;
-	uint32_t io_cq_id = 1;
-	uint64_t wr_slba = 0;
-	uint32_t wr_nsid = 1;
-	uint16_t wr_nlb = 8;
-
-	memset(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-	create_meta_buf(ndev->fd, 0);
-
-	if (SUCCEED == send_nvme_read_using_metabuff(ndev->fd, 0, io_sq_id, 
-		wr_nsid, wr_slba, wr_nlb, 0, 0,tool->rbuf))
-	{
-		if (SUCCEED == nvme_ring_dbl_and_reap_cq(ndev->fd, io_sq_id,
-			io_cq_id, 1))
-		{
-			pr_info("io read succeed\n");
-		}
-	}
-	nvme_delete_meta_node(ndev->fd, 0);
 	return 0;
 }
 
@@ -524,12 +462,23 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(CASE_PM + 2, case_pm_set_d3hot_state, 
 		"Set PCIe power state to D3 hot"),
 
+	/* Test meta data */
+	INIT_CASE(CASE_META, case_meta_create_pool,
+		"Create a meta pool based on the specified Size"),
+	INIT_CASE(CASE_META + 1, case_meta_destroy_pool,
+		"Destroy the meta pool that has been created"),
+	INIT_CASE(CASE_META + 2, case_meta_create_node,
+		"Create a meta node based on the specified ID"),
+	INIT_CASE(CASE_META + 3, case_meta_delete_node,
+		"Delete a meta node based on the specified ID"),
+	INIT_CASE(CASE_META + 4, case_meta_xfer_separate, 
+		"Meta data transferred as separate buffer"),
+	INIT_CASE(CASE_META + 5, case_meta_xfer_extlba,
+		"Meta data transferred contiguous with LBA data"),
+
 #if 1 // Obsolete?
 	INIT_CASE(211, case_encrypt_decrypt, 
 		"Encrypt and decrypt (Obsolete?)"),
-	INIT_CASE(212, case_test_meta, "Test meta data (Obsolete?)"),
-	INIT_CASE(216, case_unknown1, "Unknown1 (Obsolete?)"),
-	INIT_CASE(217, case_unknown2, "Unknown2 (Obsolete?)"),
 	INIT_CASE(218, case_unknown3, "Unknown3 (Obsolete?)"),
 	INIT_CASE(219, case_unknown4, "Unknown4 (Obsolete?)"),
 	INIT_CASE(222, case_unknown5, "Unknown5 (Obsolete?)"),

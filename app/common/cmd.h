@@ -37,6 +37,8 @@ struct nvme_rwc_wrapper {
 
 	void		*buf;
 	uint32_t	size;
+
+	uint32_t	meta_id;
 };
 
 static inline void nvme_cmd_fill_create_sq(struct nvme_create_sq *csq, 
@@ -109,6 +111,9 @@ static inline int nvme_cmd_get_feat_power_mgmt(int fd, uint32_t sel)
 {
 	return nvme_cmd_get_feature(fd, 0, sel | NVME_FEAT_POWER_MGMT, 0);
 }
+
+int nvme_cmd_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10);
+int nvme_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10);
 
 int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf, 
 	uint32_t size);

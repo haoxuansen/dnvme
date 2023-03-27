@@ -8,10 +8,14 @@
  * @copyright Copyright (c) 2023
  * 
  */
+#define DEBUG
 
 #include "proc.h"
 #include "pci.h"
 #include "io.h"
+#include "queue.h"
+
+#define CMD_SEG_MAX		8
 
 static void dnvme_dump_data(void *buf, u32 size, u32 flag)
 {
@@ -94,16 +98,171 @@ static void print_cfg_data(struct nvme_device *ndev)
 	kfree(buf);
 }
 
-static void print_bar_data(struct nvme_device *ndev)
+static int is_align(u32 offset, u32 len)
 {
+	if (len >= 4) {
+		if (!(offset % 4))
+			return 1;
+	} else if (len >= 2) {
+		if (!(offset % 2))
+			return 1;
+	} else if (len == 1) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static int cmd_dump_metadata(struct nvme_device *ndev, char *argv[], int argc)
+{
+	struct nvme_context *ctx = ndev->ctx;
+	struct nvme_meta *meta;
 	u32 id;
-	u16 sts;
+	int ret;
 
-	id = dnvme_readl(ndev->bar0, 0);
-	dnvme_info(ndev, "ID: 0x%08x\n", id);
+	if (argc < 1)
+		return -EINVAL;
 
-	sts = dnvme_readl(ndev->bar0, 6);
-	dnvme_info(ndev, "STS: 0x%04x\n", sts);
+	ret = kstrtouint(argv[0], 0, &id);
+	if (ret < 0) {
+		dnvme_err(ndev, "arg:%s is invalid!\n", argv[0]);
+		return -EINVAL;
+	}
+
+	meta = dnvme_find_meta(ctx, id);
+	if (!meta) {
+		dnvme_err(ndev, "failed to find meta(0x%x) node!\n", id);
+		return -EFAULT;
+	}
+
+	dnvme_info(ndev, "meta data (ID:0x%x):\n", id);
+	dnvme_dump_data(meta->buf, ctx->meta_set.buf_size, 0);
+	return 0;
+}
+
+static int cmd_dump(struct nvme_device *ndev, char *argv[], int argc)
+{
+	if (argc < 1)
+		return -EINVAL;
+
+	if (!strncmp(argv[0], "cfg", strlen("cfg")))
+		print_cfg_data(ndev);
+	else if (!strncmp(argv[0], "meta", strlen("meta")))
+		cmd_dump_metadata(ndev, &argv[1], argc - 1);
+
+	return 0;
+}
+
+static int cmd_read_bar(struct nvme_device *ndev, char *argv[], int argc)
+{
+	void __iomem *ptr = ndev->bar0;
+	u8 bar = 0;
+	u32 offset = 0;
+	u32 len = 0;
+	int ret;
+
+	if (argc < 1)
+		return -EINVAL;
+
+	switch (argc) {
+	default:
+		dnvme_warn(ndev, "The number of args are out of limit!\n");
+		/* FALLTHROUGH */
+	case 3:
+		ret = kstrtouint(argv[2], 0, &len);
+		if (ret < 0) {
+			dnvme_err(ndev, "arg:%s is invalid!\n", argv[0]);
+			return -EINVAL;
+		}
+		/* FALLTHROUGH */
+	case 2:
+		ret = kstrtouint(argv[1], 0, &offset);
+		if (ret < 0) {
+			dnvme_err(ndev, "arg:%s is invalid!\n", argv[0]);
+			return -EINVAL;
+		}
+		/* FALLTHROUGH */
+	case 1:
+		ret = kstrtou8(argv[0], 0, &bar);
+		if (ret < 0) {
+			dnvme_err(ndev, "arg:%s is invalid!\n", argv[0]);
+			return -EINVAL;
+		}
+		break;
+	}
+
+	if (!len)
+		len = (offset % 4) ? ((offset % 2) ? 1 : 2) : 4;
+
+	if (!is_align(offset, len)) {
+		dnvme_err(ndev, "offset:0x%x or len:0x%x is not align!\n",
+			offset, len);
+		return -EINVAL;
+	}
+
+	if (bar > 0) {
+		dnvme_err(ndev, "Not support bar%u!\n", bar);
+		return -EINVAL;
+	}
+
+	while (len > 0) {
+		if (len >= 4) {
+			dnvme_dbg(ndev, "0x%08x: 0x%08x\n", offset, 
+				dnvme_readl(ptr, offset));
+			offset += 4;
+			len -= 4;
+		} else if (len >= 2) {
+			dnvme_dbg(ndev, "0x%08x: 0x%04x\n", offset,
+				dnvme_readw(ptr, offset));
+			offset += 2;
+			len -= 2;
+		} else {
+			dnvme_dbg(ndev, "0x%08x: 0x%02x\n", offset,
+				dnvme_readb(ptr, offset));
+			offset++;
+			len--;
+		}
+	}
+	return 0;
+}
+
+static int cmd_read(struct nvme_device *ndev, char *argv[], int argc)
+{
+	if (argc < 1)
+		return -EINVAL;
+
+	if (!strncmp(argv[0], "bar", strlen("bar")))
+		cmd_read_bar(ndev, &argv[1], argc - 1);
+	else
+		dnvme_warn(ndev, "arg:%s is unknown!\n", argv[0]);
+
+	return 0;
+}
+
+static int cmd_write(struct nvme_device *ndev, char *argv[], int argc)
+{
+	if (argc < 1)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int execute_command(struct nvme_device *ndev, char *argv[], int argc)
+{
+	if (argc < 1)
+		return -EINVAL;
+
+	if (!strncmp(argv[0], "dump", strlen("dump"))) {
+		cmd_dump(ndev, &argv[1], argc - 1);
+	} else if (!strncmp(argv[0], "read", strlen("read"))) {
+		cmd_read(ndev, &argv[1], argc - 1);
+	} else if (!strncmp(argv[0], "write", strlen("write"))) {
+		cmd_write(ndev, &argv[1], argc - 1);
+	} else {
+		dnvme_warn(ndev, "arg:%s is unknown!\n", argv[0]);
+	}
+
+	return 0;
 }
 
 static ssize_t dnvme_proc_read(struct file *file, char __user *buf, 
@@ -115,8 +274,10 @@ static ssize_t dnvme_proc_read(struct file *file, char __user *buf,
 
 	dnvme_info(ndev, "echo \"dump cfg\" > /proc/nvme/%s "
 		":dump configuration space data\n", dev_name(dev));
-	dnvme_info(ndev, "echo \"dump bar\" > /proc/nvme/%s "
-		":dump bar0 space data\n", dev_name(dev));
+	dnvme_info(ndev, "echo \"dump meta [meta_id]\" > /proc/nvme/%s "
+		":dump meta data\n", dev_name(dev));
+	dnvme_info(ndev, "echo \"read bar [bar] [offset] [len]\" > /proc/nvme/%s "
+		":read bar space data\n", dev_name(dev));
 
 	return 0;
 }
@@ -126,7 +287,10 @@ static ssize_t dnvme_proc_write(struct file *file, const char __user *buf,
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct nvme_device *ndev = PDE_DATA(inode);
+	char *args[CMD_SEG_MAX] = {NULL};
 	char *cmd;
+	char *tmp;
+	int i;
 
 	cmd = kmalloc(size, GFP_KERNEL);
 	if (!cmd) {
@@ -139,18 +303,14 @@ static ssize_t dnvme_proc_write(struct file *file, const char __user *buf,
 		kfree(cmd);
 		return -EFAULT;
 	}
+	tmp = cmd;
 
-	if (!strncmp(cmd, "dump cfg", strlen("dump cfg"))) {
-		print_cfg_data(ndev);
-	} else if (!strncmp(cmd, "dump bar", strlen("dump bar"))) {
-		print_bar_data(ndev);
-	} else if (!strncmp(cmd, "do pcie hot reset", strlen("do pcie hot reset"))) {
-		pcie_do_hot_reset(ndev->pdev);
-	} else if (!strncmp(cmd, "do pcie linkdown reset", strlen("do pcie linkdown reset"))) {
-		pcie_do_linkdown_reset(ndev->pdev);
-	} else {
-		dnvme_warn(ndev, "cmd(%s) is unknown!\n", cmd);
+	for (i = 0; i < CMD_SEG_MAX; i++) {
+		args[i] = strsep(&tmp, " ");
+		if (!args[i])
+			break;
 	}
+	execute_command(ndev, args, i);
 
 	kfree(cmd);
 	return size;

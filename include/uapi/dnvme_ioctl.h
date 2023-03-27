@@ -232,7 +232,7 @@ struct nvme_64b_cmd {
 	/* 0=none; 1=to_device, 2=from_device, 3=bidirectional, others illegal */
 	enum dma_data_direction	data_dir;
 
-	uint32_t	meta_buf_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
+	uint32_t	meta_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
 };
 
 /**

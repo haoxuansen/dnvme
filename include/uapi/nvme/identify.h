@@ -82,8 +82,9 @@ enum {
  * 
  * @note See "struct nvme_id_ns -> flbas" for details.
  */
+#define NVME_NS_FLBAS_LBA(x)		((((x) & 0x60) >> 1) | ((x) & 0xf))
+
 enum {
-	NVME_NS_FLBAS_LBA_MASK	= 0xf,
 	NVME_NS_FLBAS_META_EXT	= 0x10,
 };
 
@@ -93,8 +94,8 @@ enum {
  * @note See "struct nvme_id_ns -> mc" for details.
  */
 enum {
-	NVME_MC_EXTENDED_LBA	= (1 << 0),
-	NVME_MC_METADATA_PTR	= (1 << 1),
+	NVME_MC_EXTENDED_LBA	= 1 << 0,
+	NVME_MC_METADATA_PTR	= 1 << 1,
 };
 
 /**
@@ -151,6 +152,7 @@ enum {
  * @note See "struct nvme_lbaf -> rp" for details.
  */
 enum {
+	NVME_LBAF_RP_MASK	= 3,
 	NVME_LBAF_RP_BEST	= 0,
 	NVME_LBAF_RP_BETTER	= 1,
 	NVME_LBAF_RP_GOOD	= 2,
@@ -178,7 +180,7 @@ struct nvme_id_ns {
 	__le64			ncap;
 	__le64			nuse;
 	__u8			nsfeat;
-	__u8			nlbaf;
+	__u8			nlbaf; /* 0's based */
 	__u8			flbas;
 	__u8			mc;
 	__u8			dpc;
@@ -208,8 +210,7 @@ struct nvme_id_ns {
 	__le16			endgid;
 	__u8			nguid[16];
 	__u8			eui64[8];
-	struct nvme_lbaf	lbaf[16];
-	__u8			rsvd192[192];
+	struct nvme_lbaf	lbaf[64];
 	__u8			vs[3712];
 };
 

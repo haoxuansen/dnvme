@@ -33,6 +33,7 @@ struct nvme_ns_info {
 	uint32_t	nsid;
 	uint64_t	nsze;
 	uint32_t	lbads;
+	uint16_t	ms;
 
 	struct nvme_id_ns	id_ns;
 };
@@ -95,5 +96,7 @@ void nvme_deinit(struct nvme_dev_info *ndev);
 
 int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
 	enum nvme_irq_type type);
+
+int nvme_update_ns_info(int fd, struct nvme_ns_info *ns);
 
 #endif /* !_APP_CORE_H_ */

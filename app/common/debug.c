@@ -91,22 +91,56 @@ void nvme_display_id_ctrl(struct nvme_id_ctrl *ctrl)
 	pr_debug("\n");
 }
 
+static const char *lbaf_rp_string(uint8_t rp)
+{
+	switch (rp) {
+	case NVME_LBAF_RP_BEST:
+		return "Best";
+	case NVME_LBAF_RP_BETTER:
+		return "Better";
+	case NVME_LBAF_RP_GOOD:
+		return "Good";
+	case NVME_LBAF_RP_DEGRADED:
+		return "Degraded";
+	}
+	return "";
+}
+
+static void nvme_display_lbaf(struct nvme_lbaf *lbaf)
+{
+	pr_debug("Metadata Size: %u byte(s)\n", le16_to_cpu(lbaf->ms));
+	pr_debug("LBA Data Size: %u byte(s)\n", 1 << lbaf->ds);
+	pr_debug("%s Performance\n\n", 
+		lbaf_rp_string(lbaf->rp & NVME_LBAF_RP_MASK));
+}
+
 void nvme_display_id_ns(struct nvme_id_ns *ns, uint32_t nsid)
 {
-	uint8_t flbas = ns->flbas & 0xf;
+	uint32_t i;
 
 	pr_debug("===== Identify Namespace(%u) Data =====\n", nsid);
 
 	pr_debug("Namespace Size: 0x%llx\n", le64_to_cpu(ns->nsze));
 
-	pr_debug("Number of LBA Formats: %u\n", ns->nlbaf);
-	pr_debug("Formatted LBA Size: 0x%02x\n", ns->flbas);
+	pr_debug("Number of LBA Formats: %u\n", ns->nlbaf + 1);
+	pr_debug("FLBAS:\n");
+	pr_debug("\t Format Index: %u\n", NVME_NS_FLBAS_LBA(ns->flbas));
+	pr_debug("\t Meta Data %s\n", (ns->flbas & NVME_NS_FLBAS_META_EXT) ? 
+		"Contiguous with LBA Data" : "Transferred as Separate Buffer");
 
-	pr_debug("----- LBA Format Data -----\n");
-	pr_debug("Metadata Size: %u\n", le16_to_cpu(ns->lbaf[flbas].ms));
-	pr_debug("LBA Data Size: %u\n", ns->lbaf[flbas].ds);
-	pr_debug("Relative Performance: 0x%x\n", ns->lbaf[flbas].rp & 0x3);
-	pr_debug("\n");
+	pr_debug("Metadata Capability: 0x%02x\n", ns->mc);
+	pr_debug("\t Support Contiguous with LBA Data: %s\n",
+		(ns->mc & NVME_MC_EXTENDED_LBA) ? "true" : "false");
+	pr_debug("\t Support Transferred as Separate Buffer: %s\n",
+		(ns->mc & NVME_MC_METADATA_PTR) ? "true" : "false");
+
+	pr_debug("End-to-end Data Protection Capability: 0x%02x\n", ns->dpc);
+	pr_debug("End-to-end Data Protection Type Setting: 0x%02x\n", ns->dps);
+
+	for (i = 0; i <= ns->nlbaf; i++) {
+		pr_debug("----- LBA Format Data(%u) -----\n", i);
+		nvme_display_lbaf(&ns->lbaf[i]);
+	}
 }
 
 void nvme_display_cap(uint64_t cap)

@@ -57,6 +57,24 @@ int call_system(const char *command)
 	return 0;
 }
 
+int nvme_update_ns_info(int fd, struct nvme_ns_info *ns)
+{
+	int ret;
+	uint8_t flbas;
+
+	ret = nvme_identify_ns_active(fd, &ns->id_ns, ns->nsid);
+	if (ret < 0) {
+		pr_err("failed to get ns(%u) data!(%d)\n", ns->nsid, ret);
+		return ret;
+	}
+
+	ns->nsze = le64_to_cpu(ns->id_ns.nsze);
+	flbas = NVME_NS_FLBAS_LBA(ns->id_ns.flbas);
+	ns->lbads = 1 << ns->id_ns.lbaf[flbas].ds;
+	ns->ms = le16_to_cpu(ns->id_ns.lbaf[flbas].ms);
+	return 0;
+}
+
 static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
 {
 	struct nvme_completion entry = {0};
@@ -138,8 +156,9 @@ static int init_ns_data(struct nvme_dev_info *ndev)
 		nvme_display_id_ns(&ns[i].id_ns, ns[i].nsid);
 
 		ns[i].nsze = le64_to_cpu(ns[i].id_ns.nsze);
-		flbas = ns[i].id_ns.flbas & 0xf;
+		flbas = NVME_NS_FLBAS_LBA(ns[i].id_ns.flbas);
 		ns[i].lbads = 1 << ns[i].id_ns.lbaf[flbas].ds;
+		ns[i].ms = le16_to_cpu(ns[i].id_ns.lbaf[flbas].ms);
 
 		if (!ns[i].nsze || ns[i].lbads < 512) {
 			pr_err("invlid nsze(%llu) or lbads(%u) in ns(%u)\n", 

@@ -159,43 +159,6 @@ void test_irq_send_nvme_read(int g_fd, int sq_id, void *addr)
     }
 }
 
-void send_nvme_read_mb(int g_fd, int sq_id, void *addr, uint32_t id)
-{
-    int ret_val = -1;
-    struct nvme_64b_cmd user_cmd = {0};
-    struct nvme_rw_command nvme_read = {0};
-
-    /* Fill the command for create discontig IOSQ*/
-    nvme_read.opcode = 0x02;
-    nvme_read.flags = 0;
-    nvme_read.nsid = 1;
-    nvme_read.metadata = 0;
-    nvme_read.slba = 0;
-    nvme_read.length = 15;
-
-    /* Fill the user command */
-    user_cmd.sqid = sq_id; /* Contig SQ ID */
-    user_cmd.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
-                         NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST);
-    user_cmd.cmd_buf_ptr = (u_int8_t *)&nvme_read;
-    user_cmd.data_buf_size = NVME_TOOL_RW_BUF_SIZE;
-    user_cmd.data_buf_ptr = addr;
-    user_cmd.meta_buf_id = id;
-    user_cmd.data_dir = 0;
-
-    pr_info("User Call to send command\n");
-
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (ret_val < 0)
-    {
-        pr_err("Sending of Command \033[31mfailed!\033[0m\n");
-    }
-    else
-    {
-        pr_div("Command sent \033[32msuccesfully\033[0m\n");
-    }
-}
-
 int admin_create_iocq_irq(int fd, int cq_id, int irq_no, int cq_flags)
 {
     struct nvme_64b_cmd user_cmd = {0};
@@ -405,41 +368,6 @@ void set_sq_irq(int fd, void *addr)
 
     nvme_ring_sq_doorbell(fd, 0);
     test_reap_cq(fd, 0, 3, 1);
-}
-
-void test_contig_threeio_irq(int fd, void *addr0, void *addr1, void *addr2)
-{
-    static uint32_t meta_index = 10;
-    int sq_id, assoc_cq_id = {0};
-    uint32_t num;
-
-    /* Send read command through 3 IO SQ's */
-
-    /* SQ:CQ 32:21 */
-    sq_id = 32;
-    assoc_cq_id = 21;
-    create_meta_buf(fd, meta_index);
-    send_nvme_read_mb(fd, sq_id, addr0, meta_index);
-    nvme_ring_sq_doorbell(fd, sq_id);
-
-    /* SQ:CQ 33:22 */
-    sq_id = 33;
-    assoc_cq_id = 22;
-    test_irq_send_nvme_read(fd, sq_id, addr1);
-    nvme_ring_sq_doorbell(fd, sq_id);
-
-    /* SQ:CQ 34:23 */
-
-    sq_id = 34;
-    assoc_cq_id = 23;
-    num = nvme_inquiry_cq_entries(fd, assoc_cq_id);
-    test_irq_send_nvme_read(fd, sq_id, addr2);
-    nvme_ring_sq_doorbell(fd, sq_id);
-    while (nvme_inquiry_cq_entries(fd, assoc_cq_id) != num + 1)
-        ;
-    ioctl_reap_cq(fd, assoc_cq_id, 1, 16, 0);
-
-    meta_index++;
 }
 
 void test_discontig_io_irq(int fd, void *addr)

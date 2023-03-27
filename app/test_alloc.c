@@ -94,14 +94,6 @@ int ioctl_reap_cq(int g_fd, int cq_id, int elements, int size, int display)
     return ret_val;
 }
 
-uint32_t create_meta_buf(int g_fd, uint32_t id)
-{
-    int ret_val;
-    ret_val = nvme_create_meta_pool(g_fd, 4096);
-    ret_val = nvme_create_meta_node(g_fd, id);
-    return ret_val;
-}
-
 void test_meta(int g_fd)
 {
     uint32_t size;

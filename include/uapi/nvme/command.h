@@ -245,6 +245,25 @@ struct nvme_directive_cmd {
 
 /* ==================== nvme_admin_format_nvm(0x80) ==================== */
 
+#define NVME_FMT_LBAFL(x)	((x) & 0xf)
+#define NVME_FMT_LBAFU(x)	(((x) & 0x30) << 8) /* bit[13:12] */
+
+enum {
+	NVME_FMT_MSET_EXT	= 1 << 4,
+};
+
+/**
+ * @brief Secure Erase Settings
+ * 
+ * @note See "struct nvme_format_cmd -> cdw10" for details.
+ */
+enum {
+	NVME_FMT_SES_MASK	= 7 << 9,
+	NVME_FMT_SES_NONE	= 0 << 9,
+	NVME_FMT_SES_USER	= 1 << 9,
+	NVME_FMT_SES_CRYP	= 2 << 9,
+};
+
 struct nvme_format_cmd {
 	__u8			opcode;
 	__u8			flags;

@@ -24,6 +24,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/random.h>
 
 #include "dnvme_ioctl.h"
 #include "io.h"
@@ -514,6 +515,8 @@ int dnvme_create_meta_node(struct nvme_context *ctx, u32 id)
 		goto out;
 	}
 	meta->id = id;
+	get_random_bytes(meta->buf, meta_set->buf_size);
+
 	list_add_tail(&meta->entry, &meta_set->meta_list);
 
 	return 0;

@@ -980,7 +980,7 @@ int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint
         .cmd_buf_ptr = (u_int8_t *)&io_cmd,
         .data_buf_size = data_size,
         .data_buf_ptr = data_addr,
-        .meta_buf_id = id,
+        .meta_id = id,
         .data_dir = DMA_FROM_DEVICE,
     };
     return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
@@ -1009,7 +1009,7 @@ int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint3
         .cmd_buf_ptr = (u_int8_t *)&io_cmd,
         .data_buf_size = data_size,
         .data_buf_ptr = data_addr,
-        .meta_buf_id = id,
+        .meta_id = id,
         .data_dir = DMA_BIDIRECTIONAL,
     };
     return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
