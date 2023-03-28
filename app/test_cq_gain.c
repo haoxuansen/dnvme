@@ -40,10 +40,6 @@ int disp_cq_data(struct nvme_completion *cq_entry, int reap_num)
 				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
 				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 			ret_val = FAILED;
-			/*for debug*/
-			// nvme_dump_log(g_fd, tmpfile_dump);
-			// exit(-1);
-			/*for debug*/
 		}
 		else
 		{

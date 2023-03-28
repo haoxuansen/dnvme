@@ -47,7 +47,6 @@ enum {
 	NVME_PREPARE_IOSQ,
 	NVME_PREPARE_IOCQ,
 	NVME_RING_SQ_DOORBELL,
-	NVME_DUMP_LOG_FILE,
 	NVME_INQUIRY_CQE,
 	NVME_REAP_CQE,
 
@@ -313,14 +312,6 @@ struct nvme_cmp_meta {
 	uint32_t	id2;
 };
 
-/**
- * @name: The file name includes its path information.
- * @len: The length of file name (in bytes).
- */
-struct nvme_log_file {
-	const char	*name;
-	uint16_t	len;
-};
 
 #define NVME_IOCTL_GET_DRIVER_INFO \
 	_IOR('N', NVME_GET_DRIVER_INFO, struct nvme_driver)
@@ -373,8 +364,5 @@ struct nvme_log_file {
 #define NVME_IOCTL_MASK_IRQ		_IOW('N', NVME_MASK_IRQ, uint16_t)
 /* uint16_t: specified irq identify */
 #define NVME_IOCTL_UNMASK_IRQ		_IOW('N', NVME_UNMASK_IRQ, uint16_t)
-
-#define NVME_IOCTL_DUMP_LOG_FILE \
-	_IOWR('N', NVME_DUMP_LOG_FILE, struct nvme_log_file)
 
 #endif /* _UAPI_DNVME_IOCTLS_H_ */

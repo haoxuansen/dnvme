@@ -165,20 +165,3 @@ int nvme_set_device_state(int fd, enum nvme_state state)
 	}
 	return 0;
 }
-
-int nvme_dump_log(int fd, char *file)
-{
-	struct nvme_log_file log;
-	int ret;
-
-	log.name = file;
-	log.len = strlen(file);
-
-	ret = ioctl(fd, NVME_IOCTL_DUMP_LOG_FILE, &log);
-	if (ret < 0) {
-		pr_err("failed to dump log to %s!(%d)\n", file, ret);
-		return ret;
-	}
-	pr_info("dump log file to %s ok!\n", file);
-	return 0;
-}

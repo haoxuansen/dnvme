@@ -105,9 +105,6 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 	case NVME_IOCTL_DESTROY_META_POOL:
 		return "NVME_DESTROY_META_POOL";
 
-	case NVME_IOCTL_DUMP_LOG_FILE:
-		return "NVME_DUMP_LOG_FILE";
-
 	default:
 		return "UNKNOWN";
 	}

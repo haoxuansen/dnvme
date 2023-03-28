@@ -27,28 +27,6 @@
 #include "test_irq.h"
 #include "test_cq_gain.h"
 
-void test_irq_review568(int fd)
-{
-	struct nvme_tool *tool = g_nvme_tool;
-	struct nvme_dev_info *ndev = tool->ndev;
-    int i;
-    i = 10000;
-    while (i)
-    {
-        pr_info("\nIRQ Loop Test = %d\n", i + 1);
-        nvme_set_irq(fd, NVME_INT_MSIX, 2);
-        ndev->irq_type = NVME_INT_MSIX;
-	    ndev->nr_irq = 2;
-        i--;
-    }
-    nvme_set_irq(ndev->fd, NVME_INT_NONE, 0);
-    ndev->irq_type = NVME_INT_NONE;
-    pr_info("\nCalling Dump Metrics to irq_loop_test\n");
-    nvme_dump_log(fd, "/tmp/test_rev568.txt");
-    pr_info("\nPressAny key..\n");
-    getchar();
-}
-
 int irq_for_io_discontig(int g_fd, int cq_id, int irq_no, int cq_flags,
                          uint16_t elem, void *addr)
 {

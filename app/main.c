@@ -121,7 +121,6 @@ int main(int argc, char *argv[])
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev;
 	int ret;
-	char *log_file = "/tmp/nvme_log.txt";
 
 	if (argc < 2) {
 		pr_err("Please specify a nvme device!\n");
@@ -142,7 +141,6 @@ int main(int argc, char *argv[])
 
 	case_display_case_list(tool);
 	nvme_select_case_to_execute(tool);
-	nvme_dump_log(ndev->fd, log_file);
 
 	nvme_disable_controller_complete(ndev->fd);
 	nvme_deinit(ndev);

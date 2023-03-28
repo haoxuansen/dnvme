@@ -250,7 +250,7 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 	int ret;
 
 	pr_notice("Please enter the meta size: ");
-	scanf("%u", &cfg.ms);
+	scanf("%hu", &cfg.ms);
 
 	cfg.lbads = 512;
 	cfg.meta_ext = 0;

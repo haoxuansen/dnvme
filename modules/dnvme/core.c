@@ -41,7 +41,6 @@
 #include "ioctl.h"
 #include "irq.h"
 #include "queue.h"
-#include "log.h"
 #include "debug.h"
 
 #define NVME_MINORS			(1U << MINORBITS)
@@ -343,10 +342,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_SUBMIT_64B_CMD:
 		ret = dnvme_submit_64b_cmd(ctx, argp);
-		break;
-
-	case NVME_IOCTL_DUMP_LOG_FILE:
-		ret = dnvme_dump_log_file(ndev, argp);
 		break;
 
 	case NVME_IOCTL_INQUIRY_CQE:
