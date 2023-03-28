@@ -483,11 +483,10 @@ out:
 static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
 	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
-	struct nvme_context *ctx = ndev->ctx;
 	struct nvme_sq *sq;
 	struct nvme_cmd *node;
 
-	sq = dnvme_find_sq(ctx, cmd->sqid);
+	sq = dnvme_find_sq(ndev, cmd->sqid);
 	if (!sq) {
 		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->sqid);
 		return -EBADSLT;
@@ -678,7 +677,7 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_prps prps;
 	int ret;
 
-	wait_sq = dnvme_find_sq(ctx, csq->sqid);
+	wait_sq = dnvme_find_sq(ndev, csq->sqid);
 	if (!wait_sq) {
 		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", csq->sqid);
 		return -EINVAL;
@@ -747,7 +746,7 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_create_cq *ccq = (struct nvme_create_cq *)ccmd;
 	int ret;
 
-	wait_cq = dnvme_find_cq(ctx, ccq->cqid);
+	wait_cq = dnvme_find_cq(ndev, ccq->cqid);
 	if (!wait_cq) {
 		dnvme_err(ndev, "The waiting CQ(%u) doesn't exist!\n", ccq->cqid);
 		return -EBADSLT;
@@ -860,7 +859,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	}
 
 	/* Get the SQ for sending this command */
-	sq = dnvme_find_sq(ctx, cmd.sqid);
+	sq = dnvme_find_sq(ndev, cmd.sqid);
 	if (!sq) {
 		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd.sqid);
 		return -EBADSLT;

@@ -143,7 +143,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 			return -EINVAL;
 		}
 
-		cq = dnvme_find_cq(ctx, id);
+		cq = dnvme_find_cq(ndev, id);
 		if (!cq) {
 			dnvme_err(ndev, "Cannot find CQ(%u)!\n", id);
 			return -EBADSLT;
@@ -163,7 +163,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 			return -EINVAL;
 		}
 
-		sq = dnvme_find_sq(ctx, id);
+		sq = dnvme_find_sq(ndev, id);
 		if (!sq) {
 			dnvme_err(ndev, "Cannot find SQ(%u)!\n", id);
 			return -EBADSLT;
@@ -205,7 +205,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
  */
 void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state)
 {
-	dnvme_clear_interrupt(ctx);
+	dnvme_clean_interrupt(ctx);
 	/* Clean Up the data structures */
 	dnvme_delete_all_queues(ctx, state);
 	dnvme_destroy_meta_pool(ctx);
@@ -301,11 +301,11 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_GET_SQ_INFO:
-		ret = dnvme_get_sq_info(ctx, argp);
+		ret = dnvme_get_sq_info(ndev, argp);
 		break;
 
 	case NVME_IOCTL_GET_CQ_INFO:
-		ret = dnvme_get_cq_info(ctx, argp);
+		ret = dnvme_get_cq_info(ndev, argp);
 		break;
 
 	case NVME_IOCTL_READ_GENERIC:
@@ -337,7 +337,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_RING_SQ_DOORBELL:
-		ret = dnvme_ring_sq_doorbell(ctx, (u16)arg);
+		ret = dnvme_ring_sq_doorbell(ndev, (u16)arg);
 		break;
 
 	case NVME_IOCTL_SUBMIT_64B_CMD:
@@ -345,7 +345,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_INQUIRY_CQE:
-		ret = dnvme_inquiry_cqe(ctx, argp);
+		ret = dnvme_inquiry_cqe(ndev, argp);
 		break;
 
 	case NVME_IOCTL_REAP_CQE:
@@ -411,8 +411,6 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 	}
 
 	ctx->dev->opened = 1;
-	/* !TODO: There is no need to clean device */
-	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
 	dnvme_info(ndev, "Open NVMe device ok!\n");
 out:
 	unlock_context(ctx);
@@ -569,9 +567,10 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	if (ret)
 		goto out_free_name;
 
+	xa_init(&ndev->sqs);
+	xa_init(&ndev->cqs);
+
 	/* 2. Then initialize nvme context. */
-	INIT_LIST_HEAD(&ctx->sq_list);
-	INIT_LIST_HEAD(&ctx->cq_list);
 	INIT_LIST_HEAD(&ctx->meta_set.meta_list);
 	INIT_LIST_HEAD(&ctx->irq_set.irq_list);
 	INIT_LIST_HEAD(&ctx->irq_set.work_list);

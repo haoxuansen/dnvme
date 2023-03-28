@@ -35,62 +35,24 @@
 #include "debug.h"
 
 /**
- * @brief Find the SQ node in the given SQ list by the given SQID
- * 
- * @param ctx NVMe device context
- * @param id submission queue identify
- * @return pointer to the SQ node on success. Otherwise returns NULL.
- */
-struct nvme_sq *dnvme_find_sq(struct nvme_context *ctx, u16 id)
-{
-	struct nvme_sq *sq;
-
-	list_for_each_entry(sq, &ctx->sq_list, sq_entry) {
-		if (id == sq->pub.sq_id)
-			return sq;
-	}
-	return NULL;
-}
-
-/**
- * @brief Find the CQ node in the given CQ list by the given CQID
- * 
- * @param ctx NVMe device context
- * @param id completion queue identify
- * @return pointer to the CQ node on success. Otherwise returns NULL.
- */
-struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id)
-{
-	struct nvme_cq *cq;
-
-	list_for_each_entry(cq, &ctx->cq_list, cq_entry) {
-		if (id == cq->pub.q_id)
-			return cq;
-	}
-	return NULL;
-}
-
-
-/**
  * @brief Check whether the Queue ID is unique.
  * 
  * @return 0 if qid is unique, otherwise a negative errno
  */
-int dnvme_check_qid_unique(struct nvme_context *ctx, 
+int dnvme_check_qid_unique(struct nvme_device *ndev, 
 	enum nvme_queue_type type, u16 id)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
 
 	if (type == NVME_SQ) {
-		sq = dnvme_find_sq(ctx, id);
+		sq = dnvme_find_sq(ndev, id);
 		if (sq) {
 			dnvme_err(ndev, "SQ ID(%u) already exists!\n", id);
 			return -EEXIST;
 		}
 	} else if (type == NVME_CQ) {
-		cq = dnvme_find_cq(ctx, id);
+		cq = dnvme_find_cq(ndev, id);
 		if (cq) {
 			dnvme_err(ndev, "SQ ID(%u) already exists!\n", id);
 			return -EEXIST;
@@ -164,6 +126,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 	void *sq_buf;
 	u32 sq_size;
 	dma_addr_t dma;
+	int ret;
 
 	sq = kzalloc(sizeof(*sq), GFP_KERNEL);
 	if (!sq) {
@@ -198,21 +161,31 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 	sq->priv.dbs = &ndev->dbs[prep->sq_id * 2 * ndev->db_stride];
 
 	dnvme_print_sq(sq);
-
-	list_add_tail(&sq->sq_entry, &ctx->sq_list);
+	
+	ret = xa_insert(&ndev->sqs, sq->pub.sq_id, sq, GFP_KERNEL);
+	if (ret < 0) {
+		dnvme_err(ndev, "failed to insert sq:%u!(%d)\n", 
+			sq->pub.sq_id, ret);
+		goto out2;
+	}
 	return sq;
+out2:
+	if (sq->priv.contig)
+		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
+			sq->priv.dma);
 out:
 	kfree(sq);
 	return NULL;
 }
 
-void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
+void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (unlikely(!sq))
 		return;
+
+	xa_erase(&ndev->sqs, sq->pub.sq_id);
 
 	dnvme_delete_cmd_list(ndev, sq);
 
@@ -223,7 +196,6 @@ void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
 		dnvme_release_prps(ndev, &sq->priv.prps);
 	}
 
-	list_del(&sq->sq_entry);
 	kfree(sq);
 }
 
@@ -233,14 +205,15 @@ void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq)
 static void dnvme_delete_sq(struct nvme_context *ctx, u16 sq_id)
 {
 	struct nvme_sq *sq;
+	struct nvme_device *ndev = ctx->dev;
 
-	sq = dnvme_find_sq(ctx, sq_id);
+	sq = dnvme_find_sq(ndev, sq_id);
 	if (!sq) {
-		dnvme_vdbg(ctx->dev, "SQ(%u) doesn't exist!\n", sq_id);
+		dnvme_vdbg(ndev, "SQ(%u) doesn't exist!\n", sq_id);
 		return;
 	}
 
-	dnvme_release_sq(ctx, sq);
+	dnvme_release_sq(ndev, sq);
 }
 
 struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx, 
@@ -252,6 +225,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 	void *cq_buf;
 	u32 cq_size;
 	dma_addr_t dma;
+	int ret;
 
 	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
 	if (!cq) {
@@ -287,20 +261,31 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 
 	dnvme_print_cq(cq);
 
-	list_add_tail(&cq->cq_entry, &ctx->cq_list);
+	ret = xa_insert(&ndev->cqs, cq->pub.q_id, cq, GFP_KERNEL);
+	if (ret < 0) {
+		dnvme_err(ndev, "failed to insert cq:%u!(%d)\n", 
+			cq->pub.q_id, ret);
+		goto out2;
+	}
 	return cq;
+out2:
+	if (cq->priv.contig) {
+		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
+			cq->priv.dma);
+	}
 out:
 	kfree(cq);
 	return NULL;
 }
 
-void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *cq)
+void dnvme_release_cq(struct nvme_device *ndev, struct nvme_cq *cq)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (unlikely(!cq))
 		return;
+
+	xa_erase(&ndev->cqs, cq->pub.q_id);
 
 	if (cq->priv.contig) {
 		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
@@ -309,7 +294,6 @@ void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *cq)
 		dnvme_release_prps(ndev, &cq->priv.prps);
 	}
 
-	list_del(&cq->cq_entry);
 	kfree(cq);
 }
 
@@ -318,18 +302,19 @@ void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *cq)
  */
 static void dnvme_delete_cq(struct nvme_context *ctx, u16 cq_id)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq *cq;
 
-	cq = dnvme_find_cq(ctx, cq_id);
+	cq = dnvme_find_cq(ndev, cq_id);
 	if (!cq) {
-		dnvme_vdbg(ctx->dev, "CQ(%u) doesn't exist!\n", cq_id);
+		dnvme_vdbg(ndev, "CQ(%u) doesn't exist!\n", cq_id);
 		return;
 	}
 
 	/* try to delete icq node associated with the CQ */
 	dnvme_delete_icq_node(&ctx->irq_set, cq_id, cq->pub.irq_no);
 
-	dnvme_release_cq(ctx, cq);
+	dnvme_release_cq(ndev, cq);
 }
 
 
@@ -348,7 +333,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 		return -EINVAL;
 	}
 
-	ret = dnvme_check_qid_unique(ctx, NVME_SQ, asq_id);
+	ret = dnvme_check_qid_unique(ndev, NVME_SQ, asq_id);
 	if (ret < 0)
 		return ret;
 
@@ -394,7 +379,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 		return -EINVAL;
 	}
 
-	ret = dnvme_check_qid_unique(ctx, NVME_CQ, acq_id);
+	ret = dnvme_check_qid_unique(ndev, NVME_CQ, acq_id);
 	if (ret < 0)
 		return ret;
 
@@ -455,17 +440,17 @@ static void dnvme_reinit_acq(struct nvme_cq *cq)
 	memset(cq->priv.buf, 0, cq->priv.size);
 }
 
-int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id)
+int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id)
 {
 	struct nvme_sq *sq;
 
-	sq = dnvme_find_sq(ctx, sq_id);
+	sq = dnvme_find_sq(ndev, sq_id);
 	if (!sq) {
-		dnvme_err(ctx->dev, "SQ(%u) doesn't exist!\n", sq_id);
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", sq_id);
 		return -EINVAL;
 	}
 
-	dnvme_dbg(ctx->dev, "RING SQ(%u) %u => %lx (old:%u)\n", sq_id, 
+	dnvme_dbg(ndev, "RING SQ(%u) %u => %lx (old:%u)\n", sq_id, 
 		sq->pub.tail_ptr_virt, (unsigned long)sq->priv.dbs,
 		sq->pub.tail_ptr);
 	sq->pub.tail_ptr = sq->pub.tail_ptr_virt;
@@ -480,30 +465,30 @@ int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id)
  */
 void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 {
+	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
-	struct nvme_sq *sq_tmp;
 	struct nvme_cq *cq;
-	struct nvme_cq *cq_tmp;
 	void *bar0 = ctx->dev->bar0;
 	bool save_aq = (state == NVME_ST_DISABLE_COMPLETE) ? false : true;
+	unsigned long i;
 
-	list_for_each_entry_safe(sq, sq_tmp, &ctx->sq_list, sq_entry) {
+	xa_for_each(&ndev->sqs, i, sq) {
 		if (save_aq && sq->pub.sq_id == NVME_AQ_ID) {
-			dnvme_vdbg(ctx->dev, "Retaining ASQ from deallocation\n");
+			dnvme_vdbg(ndev, "Retaining ASQ from deallocation\n");
 			/* drop sq cmds and set to zero the public metrics of asq */
 			dnvme_reinit_asq(ctx, sq);
 		} else {
-			dnvme_release_sq(ctx, sq);
+			dnvme_release_sq(ndev, sq);
 		}
 	}
 
-	list_for_each_entry_safe(cq, cq_tmp, &ctx->cq_list, cq_entry) {
+	xa_for_each(&ndev->cqs, i, cq) {
 		if (save_aq && cq->pub.q_id == NVME_AQ_ID) {
-			dnvme_vdbg(ctx->dev, "Retaining ACQ from deallocation");
+			dnvme_vdbg(ndev, "Retaining ACQ from deallocation");
 			/* set to zero the public metrics of acq */
 			dnvme_reinit_acq(cq);
 		} else {
-			dnvme_release_cq(ctx, cq);
+			dnvme_release_cq(ndev, cq);
 		}
 	}
 
@@ -566,9 +551,8 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 /**
  * @brief Inquire the number of CQ entries that are waiting to be reaped.
  */
-int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq)
+int dnvme_inquiry_cqe(struct nvme_device *ndev, struct nvme_inquiry __user *uinq)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq *cq;
 	struct nvme_inquiry inquiry;
 
@@ -577,7 +561,7 @@ int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq
 		return -EFAULT;
 	}
 
-	cq = dnvme_find_cq(ctx, inquiry.cqid);
+	cq = dnvme_find_cq(ndev, inquiry.cqid);
 	if (!cq) {
 		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", inquiry.cqid);
 		return -EINVAL;
@@ -682,7 +666,7 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 	u16 status;
 	int ret = 0;
 
-	sq = dnvme_find_sq(ctx, cq_entry->sq_id);
+	sq = dnvme_find_sq(ndev, cq_entry->sq_id);
 	if (!sq) {
 		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cq_entry->sq_id);
 		return -EBADSLT;
@@ -807,7 +791,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 		return -EFAULT;
 	}
 
-	cq = dnvme_find_cq(ctx, reap.cqid);
+	cq = dnvme_find_cq(ndev, reap.cqid);
 	if (!cq) {
 		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", reap.cqid);
 		return -EBADSLT;

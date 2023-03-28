@@ -934,7 +934,7 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 }
 
 
-void dnvme_clear_interrupt(struct nvme_context *ctx)
+void dnvme_clean_interrupt(struct nvme_context *ctx)
 {
 	struct nvme_irq *irq;
 	struct nvme_device *ndev = ctx->dev;
@@ -1006,7 +1006,7 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 	}
 
 	if (act_irq != NVME_INT_NONE)
-		dnvme_clear_interrupt(ctx);
+		dnvme_clean_interrupt(ctx);
 
 	ret = create_irq_work_queue(irq_set);
 	if (ret < 0) {
@@ -1072,7 +1072,7 @@ int dnvme_reset_isr_flag(struct nvme_context *ctx, u16 irq_no)
 	}
 
 	list_for_each_entry(icq, &irq->icq_list, entry) {
-		cq = dnvme_find_cq(ctx, icq->cq_id);
+		cq = dnvme_find_cq(ndev, icq->cq_id);
 		if (!cq) {
 			dnvme_err(ndev, "CQ ID = %d not found", icq->cq_id);
 			return -EBADSLT;

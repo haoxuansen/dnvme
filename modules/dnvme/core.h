@@ -15,6 +15,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/cdev.h>
 #include <linux/proc_fs.h>
+#include <linux/xarray.h>
 
 #include "pci_caps.h"
 #include "dnvme_ioctl.h"
@@ -128,7 +129,6 @@ struct nvme_sq_private {
  * struct nvme_cq - representation of a completion queue.
  */
 struct nvme_cq {
-	struct list_head	cq_entry;
 	struct nvme_cq_public	pub;
 	struct nvme_cq_private	priv;
 	struct nvme_context	*ctx;
@@ -138,7 +138,6 @@ struct nvme_cq {
  * struct nvme_sq - representation of a submisssion queue.
  */
 struct nvme_sq {
-	struct list_head	sq_entry;
 	struct nvme_sq_public	pub;
 	struct nvme_sq_private	priv;
 	struct nvme_context	*ctx;
@@ -211,7 +210,10 @@ struct nvme_device {
 	struct cdev	cdev;
 	struct proc_dir_entry	*proc;
 
-	int	instance;
+	struct xarray	sqs;
+	struct xarray	cqs;
+
+	int	instance; /* dev_t minor */
 
 	void __iomem	*bar0;
 	u32 __iomem	*dbs;
@@ -278,8 +280,6 @@ struct nvme_irq_set {
  */
 struct nvme_context {
 	struct list_head	entry;
-	struct list_head	cq_list;
-	struct list_head	sq_list;
 	struct nvme_device	*dev;
 	struct mutex		lock;
 	struct nvme_meta_set	meta_set;

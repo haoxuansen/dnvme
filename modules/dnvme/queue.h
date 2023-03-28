@@ -42,10 +42,29 @@ static inline int dnvme_sq_is_empty(struct nvme_sq *sq)
 	return sq->pub.tail_ptr_virt == sq->pub.head_ptr ? 1 : 0;
 }
 
-struct nvme_sq *dnvme_find_sq(struct nvme_context *ctx, u16 id);
-struct nvme_cq *dnvme_find_cq(struct nvme_context *ctx, u16 id);
+/**
+ * @brief Find the SQ node by the given SQID
+ * 
+ * @param id submission queue identify
+ * @return pointer to the SQ node on success. Otherwise returns NULL.
+ */
+static inline struct nvme_sq *dnvme_find_sq(struct nvme_device *ndev, u16 id)
+{
+	return xa_load(&ndev->sqs, id);
+}
 
-int dnvme_check_qid_unique(struct nvme_context *ctx, 
+/**
+ * @brief Find the CQ node by the given CQID
+ * 
+ * @param id completion queue identify
+ * @return pointer to the CQ node on success. Otherwise returns NULL.
+ */
+static inline struct nvme_cq *dnvme_find_cq(struct nvme_device *ndev, u16 id)
+{
+	return xa_load(&ndev->cqs, id);
+}
+
+int dnvme_check_qid_unique(struct nvme_device *ndev, 
 	enum nvme_queue_type type, u16 id);
 
 struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
@@ -53,21 +72,21 @@ struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
 
 struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
 	struct nvme_prep_sq *prep, u8 sqes);
-void dnvme_release_sq(struct nvme_context *ctx, struct nvme_sq *sq);
+void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq);
 
 struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx, 
 	struct nvme_prep_cq *prep, u8 cqes);
-void dnvme_release_cq(struct nvme_context *ctx, struct nvme_cq *sq);
+void dnvme_release_cq(struct nvme_device *ndev, struct nvme_cq *sq);
 
 int dnvme_create_asq(struct nvme_context *ctx, u32 elements);
 int dnvme_create_acq(struct nvme_context *ctx, u32 elements);
 
 void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state);
 
-int dnvme_ring_sq_doorbell(struct nvme_context *ctx, u16 sq_id);
+int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id);
 
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev);
-int dnvme_inquiry_cqe(struct nvme_context *ctx, struct nvme_inquiry __user *uinq);
+int dnvme_inquiry_cqe(struct nvme_device *ndev, struct nvme_inquiry __user *uinq);
 int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap);
 
 #endif /* !_DNVME_QUEUE_H_ */

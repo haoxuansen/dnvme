@@ -372,7 +372,7 @@ int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep
 		return -EINVAL;
 	}
 
-	ret = dnvme_check_qid_unique(ctx, NVME_SQ, prep.sq_id);
+	ret = dnvme_check_qid_unique(ndev, NVME_SQ, prep.sq_id);
 	if (ret < 0)
 		return ret;
 
@@ -406,7 +406,7 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 		return -EINVAL;
 	}
 
-	ret = dnvme_check_qid_unique(ctx, NVME_CQ, prep.cq_id);
+	ret = dnvme_check_qid_unique(ndev, NVME_CQ, prep.cq_id);
 	if (ret < 0)
 		return ret;
 
@@ -431,7 +431,7 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 
 	return 0;
 out:
-	dnvme_release_cq(ctx, cq);
+	dnvme_release_cq(ndev, cq);
 	return ret;
 }
 
@@ -572,9 +572,8 @@ int dnvme_compare_meta_node(struct nvme_context *ctx,
 	return 0;
 }
 
-int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *usqp)
+int dnvme_get_sq_info(struct nvme_device *ndev, struct nvme_sq_public __user *usqp)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq_public sqp;
 	struct nvme_sq *sq;
 
@@ -583,7 +582,7 @@ int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *us
 		return -EFAULT;
 	}
 
-	sq = dnvme_find_sq(ctx, sqp.sq_id);
+	sq = dnvme_find_sq(ndev, sqp.sq_id);
 	if (!sq) {
 		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", sqp.sq_id);
 		return -EBADSLT;
@@ -597,9 +596,8 @@ int dnvme_get_sq_info(struct nvme_context *ctx, struct nvme_sq_public __user *us
 	return 0;
 }
 
-int dnvme_get_cq_info(struct nvme_context *ctx, struct nvme_cq_public __user *ucqp)
+int dnvme_get_cq_info(struct nvme_device *ndev, struct nvme_cq_public __user *ucqp)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq_public cqp;
 	struct nvme_cq *cq;
 
@@ -608,7 +606,7 @@ int dnvme_get_cq_info(struct nvme_context *ctx, struct nvme_cq_public __user *uc
 		return -EFAULT;
 	}
 
-	cq = dnvme_find_cq(ctx, cqp.q_id);
+	cq = dnvme_find_cq(ndev, cqp.q_id);
 	if (!cq) {
 		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", cqp.q_id);
 		return -EBADSLT;
