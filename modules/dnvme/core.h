@@ -49,6 +49,11 @@
 
 #endif
 
+enum {
+	NVME_QF_WAIT_FOR_CREATE = 0,
+	NVME_QF_BUF_CONTIG = 1, /* queue is contiguous */
+};
+
 /**
  * @prp_list: If use PRP, this field point to PRP list pages. If use SGL, 
  *  this field point to the first segment of SGLs.
@@ -75,19 +80,6 @@ struct nvme_prps {
 };
 
 /**
- * @brief NVMe CQ private information
- */
-struct nvme_cq_private {
-	u8		*buf; /* phy addr ptr to the q's alloc to kern mem */
-	dma_addr_t	dma; /* dma mapped address using dma_alloc */
-	u32		size; /* length in bytes of the alloc Q in kernel */
-	u32 __iomem	*dbs; /* Door Bell stride  */
-	u8		contig; /* Indicates if prp list is contig or not */
-	u8		bit_mask;
-#define NVME_QF_WAIT_FOR_CREATE         (1 << 0)
-};
-
-/**
  * @brief Snapshot of the command sent by user.
  * 
  * @id: Command identifier is assigned by driver.
@@ -106,31 +98,24 @@ struct nvme_cmd {
 	struct nvme_prps	*prps;
 };
 
-/**
- * @brief NVMe SQ private information
- * 
- * @bit_mask: see "struct nvme_cq_private" bit_mask field for details.
- * @cmd_list: This is a list head for managing "struct nvme_cmd"
- */
-struct nvme_sq_private {
-	void		*buf; /* virtual kernal address using kmalloc */
-	dma_addr_t	dma; /* dma mapped address using dma_alloc */
-	u32		size; /* len in bytes of allocated Q in kernel */
-	u32 __iomem	*dbs; /* Door Bell stride */
-	u16		next_cid; /* unique counter for each comand in SQ */
-	u8		contig; /* Indicates if prp list is contig or not */
-	u8		bit_mask;
-	struct list_head	cmd_list;
-};
-
 /*
  * struct nvme_cq - representation of a completion queue.
  */
 struct nvme_cq {
 	struct nvme_cq_public	pub;
-	struct nvme_cq_private	priv;
 	struct nvme_context	*ctx;
+
+	/* For contiguous queue */
+	void			*buf; /* store CQ entries */
+	dma_addr_t		dma; /* physical addr of @buf */
+	u32			size; /* lenth in bytes of @buf */
+
+	/* For discontiguous queue */
 	struct nvme_prps	*prps;
+
+	u32 __iomem		*db; /* head doorbell */
+
+	unsigned long		flags;
 };
 
 /*
@@ -138,9 +123,21 @@ struct nvme_cq {
  */
 struct nvme_sq {
 	struct nvme_sq_public	pub;
-	struct nvme_sq_private	priv;
 	struct nvme_context	*ctx;
+	struct list_head	cmd_list;
+
+	/* For contiguous queue */
+	void			*buf; /* store CQ entries */
+	dma_addr_t		dma; /* physical addr of @buf */
+	u32			size; /* lenth in bytes of @buf */
+
+	/* For discontiguous queue */
 	struct nvme_prps	*prps;
+
+	u32 __iomem		*db; /* tail doorbell */
+	u16			next_cid; /* command identifier */
+
+	unsigned long		flags;
 };
 
 /*

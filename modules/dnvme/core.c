@@ -149,12 +149,12 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 			return -EBADSLT;
 		}
 
-		if (cq->priv.contig == 0) {
+		if (!test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
 			dnvme_err(ndev, "Cannot mmap non-contig CQ!\n");
 			return -ENOTSUP;
 		}
-		*kva = cq->priv.buf;
-		*size = cq->priv.size;
+		*kva = cq->buf;
+		*size = cq->size;
 		break;
 
 	case VMPGOFF_TYPE_SQ:
@@ -169,12 +169,12 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 			return -EBADSLT;
 		}
 
-		if (sq->priv.contig == 0) {
+		if (!test_bit(NVME_QF_BUF_CONTIG, &sq->flags)) {
 			dnvme_err(ndev, "Cannot mmap non-contig SQ!\n");
 			return -ENOTSUP;
 		}
-		*kva = sq->priv.buf;
-		*size = sq->priv.size;
+		*kva = sq->buf;
+		*size = sq->size;
 		break;
 
 	case VMPGOFF_TYPE_META:

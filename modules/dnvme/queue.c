@@ -73,7 +73,7 @@ struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
 {
 	struct nvme_cmd *cmd;
 
-	list_for_each_entry(cmd, &sq->priv.cmd_list, entry) {
+	list_for_each_entry(cmd, &sq->cmd_list, entry) {
 		if (id == cmd->id)
 			return cmd;
 	}
@@ -145,8 +145,8 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 		}
 		memset(sq_buf, 0, sq_size);
 
-		sq->priv.buf = sq_buf;
-		sq->priv.dma = dma;
+		sq->buf = sq_buf;
+		sq->dma = dma;
 	}
 
 	sq->ctx = ctx;
@@ -155,11 +155,12 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 	sq->pub.elements = prep->elements;
 	sq->pub.sqes = sqes;
 
-	INIT_LIST_HEAD(&sq->priv.cmd_list);
-	sq->priv.size = sq_size;
-	sq->priv.next_cid = 0;
-	sq->priv.contig = prep->contig;
-	sq->priv.dbs = &ndev->dbs[prep->sq_id * 2 * ndev->db_stride];
+	INIT_LIST_HEAD(&sq->cmd_list);
+	sq->size = sq_size;
+	sq->next_cid = 0;
+	if (prep->contig)
+		set_bit(NVME_QF_BUF_CONTIG, &sq->flags);
+	sq->db = &ndev->dbs[prep->sq_id * 2 * ndev->db_stride];
 
 	dnvme_print_sq(sq);
 	
@@ -171,9 +172,8 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 	}
 	return sq;
 out2:
-	if (sq->priv.contig)
-		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
-			sq->priv.dma);
+	if (test_bit(NVME_QF_BUF_CONTIG, &sq->flags))
+		dma_free_coherent(&pdev->dev, sq->size, sq->buf, sq->dma);
 out:
 	kfree(sq);
 	return NULL;
@@ -190,9 +190,8 @@ void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq)
 
 	dnvme_delete_cmd_list(ndev, sq);
 
-	if (sq->priv.contig) {
-		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
-			sq->priv.dma);
+	if (test_bit(NVME_QF_BUF_CONTIG, &sq->flags)) {
+		dma_free_coherent(&pdev->dev, sq->size, sq->buf, sq->dma);
 	} else {
 		dnvme_release_prps(ndev, sq->prps);
 		sq->prps = NULL;
@@ -245,8 +244,8 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 		}
 		memset(cq_buf, 0, cq_size);
 
-		cq->priv.buf = cq_buf;
-		cq->priv.dma = dma;
+		cq->buf = cq_buf;
+		cq->dma = dma;
 	}
 
 	cq->ctx = ctx;
@@ -257,9 +256,10 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 	cq->pub.irq_enabled = prep->cq_irq_en;
 	cq->pub.pbit_new_entry = 1;
 
-	cq->priv.size = cq_size;
-	cq->priv.contig = prep->contig;
-	cq->priv.dbs = &ndev->dbs[(prep->cq_id * 2 + 1) * ndev->db_stride];
+	cq->size = cq_size;
+	if (prep->contig)
+		set_bit(NVME_QF_BUF_CONTIG, &cq->flags);
+	cq->db = &ndev->dbs[(prep->cq_id * 2 + 1) * ndev->db_stride];
 
 	dnvme_print_cq(cq);
 
@@ -271,9 +271,8 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 	}
 	return cq;
 out2:
-	if (cq->priv.contig) {
-		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
-			cq->priv.dma);
+	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
+		dma_free_coherent(&pdev->dev, cq->size, cq->buf, cq->dma);
 	}
 out:
 	kfree(cq);
@@ -289,9 +288,8 @@ void dnvme_release_cq(struct nvme_device *ndev, struct nvme_cq *cq)
 
 	xa_erase(&ndev->cqs, cq->pub.q_id);
 
-	if (cq->priv.contig) {
-		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
-			cq->priv.dma);
+	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
+		dma_free_coherent(&pdev->dev, cq->size, cq->buf, cq->dma);
 	} else {
 		dnvme_release_prps(ndev, cq->prps);
 		cq->prps = NULL;
@@ -361,9 +359,9 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 	aqa |= NVME_AQA_FOR_ASQS(elements - 1);
 	dnvme_writel(bar0, NVME_REG_AQA, aqa);
 
-	dnvme_writeq(bar0, NVME_REG_ASQ, sq->priv.dma);
+	dnvme_writeq(bar0, NVME_REG_ASQ, sq->dma);
 
-	dnvme_dbg(ndev, "WRITE AQA:0x%x, ASQ:0x%llx\n", aqa, sq->priv.dma);
+	dnvme_dbg(ndev, "WRITE AQA:0x%x, ASQ:0x%llx\n", aqa, sq->dma);
 	return 0;
 }
 
@@ -408,9 +406,9 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 	aqa |= NVME_AQA_FOR_ACQS(elements - 1);
 	dnvme_writel(bar0, NVME_REG_AQA, aqa);
 
-	dnvme_writeq(bar0, NVME_REG_ACQ, cq->priv.dma);
+	dnvme_writeq(bar0, NVME_REG_ACQ, cq->dma);
 
-	dnvme_dbg(ndev, "WRITE AQA:0x%x, ACQ:0x%llx\n", aqa, cq->priv.dma);
+	dnvme_dbg(ndev, "WRITE AQA:0x%x, ACQ:0x%llx\n", aqa, cq->dma);
 	return 0;
 }
 
@@ -426,8 +424,8 @@ static void dnvme_reinit_asq(struct nvme_context *ctx, struct nvme_sq *sq)
 	sq->pub.head_ptr = 0;
 	sq->pub.tail_ptr = 0;
 	sq->pub.tail_ptr_virt = 0;
-	sq->priv.next_cid = 0;
-	memset(sq->priv.buf, 0, sq->priv.size);
+	sq->next_cid = 0;
+	memset(sq->buf, 0, sq->size);
 }
 
 /*
@@ -440,7 +438,7 @@ static void dnvme_reinit_acq(struct nvme_cq *cq)
 	cq->pub.tail_ptr = 0;
 	cq->pub.pbit_new_entry = 1;
 	cq->pub.irq_enabled = 1;
-	memset(cq->priv.buf, 0, cq->priv.size);
+	memset(cq->buf, 0, cq->size);
 }
 
 int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id)
@@ -454,10 +452,10 @@ int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id)
 	}
 
 	dnvme_dbg(ndev, "RING SQ(%u) %u => %lx (old:%u)\n", sq_id, 
-		sq->pub.tail_ptr_virt, (unsigned long)sq->priv.dbs,
+		sq->pub.tail_ptr_virt, (unsigned long)sq->db,
 		sq->pub.tail_ptr);
 	sq->pub.tail_ptr = sq->pub.tail_ptr_virt;
-	writel(sq->pub.tail_ptr, sq->priv.dbs);
+	writel(sq->pub.tail_ptr, sq->db);
 	return 0;
 }
 
@@ -518,8 +516,8 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 	u32 remain = 0;
 	u8 phase = cq->pub.pbit_new_entry;
 
-	if (cq->priv.contig) {
-		cq_addr = cq->priv.buf;
+	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
+		cq_addr = cq->buf;
 	} else {
 		dma_sync_sg_for_cpu(dev, prps->sg, prps->num_map_pgs, 
 			prps->data_dir);
@@ -710,8 +708,8 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 	u32 cqes = 1 << cq->pub.cqes;
 	int latentErr = 0;
 
-	if (cq->priv.contig)
-		cq_base = cq->priv.buf;
+	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags))
+		cq_base = cq->buf;
 	else
 		cq_base = cq->prps->buf;
 
@@ -736,7 +734,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 		buffer += cqes;          /* Prepare for next element */
 		*nr_reap -= 1;              /* decrease for the one reaped. */
 
-		if (cq_head >= (cq_base + cq->priv.size)) {
+		if (cq_head >= (cq_base + cq->size)) {
 			/* Q wrapped so point to base again */
 			cq_head = cq_base;
 		}
@@ -829,7 +827,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 
 	if (reap.reaped) {
 		update_cq_head(cq, reap.reaped);
-		writel(cq->pub.head_ptr, cq->priv.dbs);
+		writel(cq->pub.head_ptr, cq->db);
 	}
 
 	if (act_irq->irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
