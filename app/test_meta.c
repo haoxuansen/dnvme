@@ -357,6 +357,7 @@ int case_meta_xfer_extlba(struct nvme_tool *tool)
 	ret = memcmp(tool->rbuf, tool->wbuf, size);
 	if (ret) {
 		pr_err("failed to compare r/w data!(%d)\n", ret);
+		ret = -EIO;
 		goto out_del_ioq;
 	}
 	pr_info("meta data r/w compare ok!\n");

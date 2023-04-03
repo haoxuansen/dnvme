@@ -376,7 +376,7 @@ int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep
 	if (ret < 0)
 		return ret;
 
-	if (ndev->prop.cap & NVME_CAP_CQR && !prep.contig) {
+	if (NVME_CAP_CQR(ndev->prop.cap) && !prep.contig) {
 		dnvme_err(ndev, "SQ shall be contig!\n");
 		return -EINVAL;
 	}
@@ -410,7 +410,7 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 	if (ret < 0)
 		return ret;
 
-	if (ndev->prop.cap & NVME_CAP_CQR && !prep.contig) {
+	if (NVME_CAP_CQR(ndev->prop.cap) && !prep.contig) {
 		dnvme_err(ndev, "CQ shall be contig!\n");
 		return -EINVAL;
 	}

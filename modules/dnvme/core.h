@@ -57,6 +57,8 @@
  * @nr_pages: The number of pages are used to store PRP list or SGL segment.
  */
 struct nvme_prps {
+	struct dma_pool	*pg_pool;
+
 	__le64		**prp_list;
 	dma_addr_t	*pg_addr;
 	u32		nr_pages;
@@ -83,8 +85,6 @@ struct nvme_cq_private {
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
 #define NVME_QF_WAIT_FOR_CREATE         (1 << 0)
-
-	struct nvme_prps	prps; /* PRP element in CQ */
 };
 
 /**
@@ -103,14 +103,13 @@ struct nvme_cmd {
 	u16	target_qid;
 	u8	opcode;
 	struct list_head	entry;
-	struct nvme_prps	prps;
+	struct nvme_prps	*prps;
 };
 
 /**
  * @brief NVMe SQ private information
  * 
  * @bit_mask: see "struct nvme_cq_private" bit_mask field for details.
- * @prps: see "struct nvme_prps" for details.
  * @cmd_list: This is a list head for managing "struct nvme_cmd"
  */
 struct nvme_sq_private {
@@ -121,7 +120,6 @@ struct nvme_sq_private {
 	u16		next_cid; /* unique counter for each comand in SQ */
 	u8		contig; /* Indicates if prp list is contig or not */
 	u8		bit_mask;
-	struct nvme_prps	prps;
 	struct list_head	cmd_list;
 };
 
@@ -132,6 +130,7 @@ struct nvme_cq {
 	struct nvme_cq_public	pub;
 	struct nvme_cq_private	priv;
 	struct nvme_context	*ctx;
+	struct nvme_prps	*prps;
 };
 
 /*
@@ -141,6 +140,7 @@ struct nvme_sq {
 	struct nvme_sq_public	pub;
 	struct nvme_sq_private	priv;
 	struct nvme_context	*ctx;
+	struct nvme_prps	*prps;
 };
 
 /*
@@ -218,7 +218,8 @@ struct nvme_device {
 	void __iomem	*bar0;
 	u32 __iomem	*dbs;
 
-	struct dma_pool	*page_pool;
+	struct dma_pool	*cmd_pool; /* PAGE */
+	struct dma_pool	*queue_pool; /* PAGE */
 
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;

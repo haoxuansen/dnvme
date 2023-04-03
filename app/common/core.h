@@ -90,6 +90,7 @@ struct nvme_dev_info {
 };
 
 int call_system(const char *command);
+void nvme_dump_data(const char *str, void *buf, uint32_t size);
 
 struct nvme_dev_info *nvme_init(const char *devpath);
 void nvme_deinit(struct nvme_dev_info *ndev);

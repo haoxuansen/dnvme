@@ -14,7 +14,7 @@
 
 int case_queue_iocmd_to_asq(struct nvme_tool *tool);
 
-int case_queue_create_and_delete_contig_queue(struct nvme_tool *tool);
-int case_queue_create_and_delete_discontig_queue(struct nvme_tool *tool);
+int case_queue_contiguous(struct nvme_tool *tool);
+int case_queue_discontiguous(struct nvme_tool *tool);
 
 #endif /* !_APP_TEST_QUEUE_H_ */

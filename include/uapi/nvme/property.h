@@ -51,24 +51,38 @@ enum {
 /* NVME_REG_CAP */
 #define NVME_CAP_MQES(cap)		((cap) & 0xffff)
 /* bit[16] Configuous Queues Required */
-#define NVME_CAP_CQR			BIT(16)
+#define NVME_CAP_CQR(cap)		(((cap) >> 16) & 0x1)
+
 #define NVME_CAP_AMS(cap)		(((cap) >> 17) & 0x3)
+enum {
+	NVME_CAP_AMS_WRRUPC	= 1 << 0,
+	NVME_CAP_AMS_VENDOR	= 1 << 1,
+};
+
 #define NVME_CAP_TIMEOUT(cap)		(((cap) >> 24) & 0xff)
 #define NVME_CAP_STRIDE(cap)		(((cap) >> 32) & 0xf)
 #define NVME_CAP_NSSRC(cap)		(((cap) >> 36) & 0x1)
-#define NVME_CAP_CSS(cap)		(((cap) >> 37) & 0xff)
-#define NVME_CAP_BPS(cap)		(((cap) >> 45) & 0x1)
-#define NVME_CAP_MPSMIN(cap)		(((cap) >> 48) & 0xf)
-#define NVME_CAP_MPSMAX(cap)		(((cap) >> 52) & 0xf)
-#define NVME_CAP_CMBS(cap)		(((cap) >> 57) & 0x1)
 
-/**
- * @brief Command Sets Supported
- */
+#define NVME_CAP_CSS(cap)		(((cap) >> 37) & 0xff)
 enum {
 	NVME_CAP_CSS_NVM	= 1 << 0,
 	NVME_CAP_CSS_CSI	= 1 << 6,
 };
+
+#define NVME_CAP_BPS(cap)		(((cap) >> 45) & 0x1)
+
+#define NVME_CAP_CPS(cap)		(((cap) >> 46) & 0x3)
+enum {
+	NVME_CAP_CPS_UNKNOWN	= 0,
+	NVME_CAP_CPS_CTRL	= 1,
+	NVME_CAP_CPS_DOMAIN	= 2,
+	NVME_CAP_CPS_SUBSYSTEM	= 3,
+};
+
+#define NVME_CAP_MPSMIN(cap)		(((cap) >> 48) & 0xf)
+#define NVME_CAP_MPSMAX(cap)		(((cap) >> 52) & 0xf)
+#define NVME_CAP_CMBS(cap)		(((cap) >> 57) & 0x1)
+
 
 /* NVME_REG_VS */
 #define NVME_VS_TER(vs)			((vs) & 0xff) /* tertiary */

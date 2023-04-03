@@ -512,6 +512,45 @@ static int dnvme_init_irq(struct nvme_context *ctx)
 }
 
 /**
+ * @brief Create coherent DMA mapping for PRP & SGL List. 
+ *  
+ * @return 0 on success, otherwise a negative errno. 
+ */
+static int dnvme_create_pool(struct nvme_device *ndev)
+{
+	struct device *dev = &ndev->pdev->dev;
+	struct dma_pool *pool;
+
+	pool = dma_pool_create("cmd", dev, PAGE_SIZE, PAGE_SIZE, 0);
+	if (!pool) {
+		dev_err(dev, "failed to create dma pool for cmd!\n");
+		return -ENOMEM;
+	}
+	ndev->cmd_pool = pool;
+
+	pool = dma_pool_create("queue", dev, PAGE_SIZE, PAGE_SIZE, 0);
+	if (!pool) {
+		dev_err(dev, "failed to create dma pool for queue!\n");
+		goto out;
+	}
+	ndev->queue_pool = pool;
+
+	return 0;
+out:
+	dma_pool_destroy(ndev->cmd_pool);
+	ndev->cmd_pool = NULL;
+	return -ENOMEM;
+}
+
+static void dnvme_destroy_pool(struct nvme_device *ndev)
+{
+	dma_pool_destroy(ndev->queue_pool);
+	ndev->queue_pool = NULL;
+	dma_pool_destroy(ndev->cmd_pool);
+	ndev->cmd_pool = NULL;
+}
+
+/**
  * @brief Alloc nvme context and initialize it. 
  *  
  * @return &struct nvme_context on success, or NULL on error. 
@@ -522,7 +561,6 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	struct device *dev = &pdev->dev;
 	struct nvme_context *ctx;
 	struct nvme_device *ndev;
-	struct dma_pool *pool;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
@@ -539,13 +577,9 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	/* 1. Initialize nvme device first. */
 	ndev->pdev = pdev;
 
-	/* Used to create Coherent DMA mapping for PRP List */
-	pool = dma_pool_create("prp page", dev, PAGE_SIZE, PAGE_SIZE, 0);
-	if (!pool) {
-		dev_err(dev, "failed to create dma pool!\n");
+	ret = dnvme_create_pool(ndev);
+	if (ret < 0)
 		goto out_free_ndev;
-	}
-	ndev->page_pool = pool;
 
 	ret = ida_simple_get(&nvme_instance_ida, 0, NVME_MINORS, GFP_KERNEL);
 	if (ret < 0)
@@ -589,7 +623,7 @@ out_free_name:
 out_release_instance:
 	ida_simple_remove(&nvme_instance_ida, ndev->instance);
 out_destroy_pool:
-	dma_pool_destroy(pool);
+	dnvme_destroy_pool(ndev);
 out_free_ndev:
 	kfree(ndev);
 out_free_ctx:
@@ -600,12 +634,11 @@ out_free_ctx:
 static void dnvme_release_context(struct nvme_context *ctx)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct dma_pool *pool = ndev->page_pool;
 
 	cdev_device_del(&ndev->cdev, &ndev->dev);
 	kfree_const(ndev->dev.kobj.name);
 	ida_simple_remove(&nvme_instance_ida, ndev->instance);
-	dma_pool_destroy(pool);
+	dnvme_destroy_pool(ndev);
 	kfree(ndev);
 	kfree(ctx);
 }

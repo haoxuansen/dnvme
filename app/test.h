@@ -68,4 +68,7 @@ struct nvme_tool {
 
 extern struct nvme_tool *g_nvme_tool;
 
+void nvme_record_subcase_result(const char *name, int result);
+void nvme_display_subcase_result(void);
+
 #endif /* !_APP_TEST_H_ */

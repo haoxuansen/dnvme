@@ -450,10 +450,10 @@ static struct nvme_case g_case_table[] = {
 
 	INIT_CASE(CASE_QUEUE, case_queue_iocmd_to_asq, 
 		"Submit IO command to Admin SQ"),
-	INIT_CASE(CASE_QUEUE + 1, case_queue_create_and_delete_contig_queue, 
-		"Create contiguous IOSQ & IOCQ, then delete it"),
-	INIT_CASE(CASE_QUEUE + 2, case_queue_create_and_delete_discontig_queue, 
-		"Create discontiguous IOSQ & IOCQ, then delete it"),
+	INIT_CASE(CASE_QUEUE + 1, case_queue_contiguous, 
+		"Test contiguous I/O queue"),
+	INIT_CASE(CASE_QUEUE + 2, case_queue_discontiguous, 
+		"Test discontiguous I/O queue"),
 
 	INIT_CASE(CASE_PM, case_pm_switch_power_state, 
 		"Switch NVMe power state randomly"),
@@ -530,9 +530,9 @@ int nvme_select_case_to_execute(struct nvme_tool *tool)
 		if (ret < 0) {
 			pr_err("Failed to execute %s!(%d)\n", 
 				g_case_table[select].name, ret);
-			break;
+		} else {
+			pr_info("'%s' success!\n", g_case_table[select].desc);
 		}
-		pr_info("'%s' success!\n", g_case_table[select].desc);
 	} 
 
 	return 0;

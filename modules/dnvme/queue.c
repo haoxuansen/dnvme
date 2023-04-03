@@ -28,6 +28,7 @@
 
 #include "nvme.h"
 #include "core.h"
+#include "trace.h"
 #include "io.h"
 #include "cmd.h"
 #include "queue.h"
@@ -193,7 +194,8 @@ void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq)
 		dma_free_coherent(&pdev->dev, sq->priv.size, sq->priv.buf, 
 			sq->priv.dma);
 	} else {
-		dnvme_release_prps(ndev, &sq->priv.prps);
+		dnvme_release_prps(ndev, sq->prps);
+		sq->prps = NULL;
 	}
 
 	kfree(sq);
@@ -291,7 +293,8 @@ void dnvme_release_cq(struct nvme_device *ndev, struct nvme_cq *cq)
 		dma_free_coherent(&pdev->dev, cq->priv.size, cq->priv.buf, 
 			cq->priv.dma);
 	} else {
-		dnvme_release_prps(ndev, &cq->priv.prps);
+		dnvme_release_prps(ndev, cq->prps);
+		cq->prps = NULL;
 	}
 
 	kfree(cq);
@@ -509,7 +512,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 {
 	struct nvme_context *ctx = cq->ctx;
-	struct nvme_prps *prps = &cq->priv.prps;
+	struct nvme_prps *prps = cq->prps;
 	struct nvme_completion *entry;
 	void *cq_addr;
 	u32 remain = 0;
@@ -520,7 +523,7 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 	} else {
 		dma_sync_sg_for_cpu(dev, prps->sg, prps->num_map_pgs, 
 			prps->data_dir);
-		cq_addr = cq->priv.prps.buf;
+		cq_addr = prps->buf;
 	}
 
 	/* Start from head ptr and update till phase bit incorrect */
@@ -621,7 +624,8 @@ del_cmd:
  */
 static int handle_gen_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *node)
 {
-	dnvme_release_prps(sq->ctx->dev, &node->prps);
+	dnvme_release_prps(sq->ctx->dev, node->prps);
+	node->prps = NULL;
 	dnvme_delete_cmd(node);
 	return 0;
 }
@@ -666,6 +670,8 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 	u16 status;
 	int ret = 0;
 
+	trace_handle_cmd_completion(cq_entry);
+
 	sq = dnvme_find_sq(ndev, cq_entry->sq_id);
 	if (!sq) {
 		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cq_entry->sq_id);
@@ -682,10 +688,6 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 			cq_entry->command_id, cq_entry->sq_id);
 		return -EBADSLT;
 	}
-
-	dnvme_vdbg(ndev, "SQ %u, CMD %u - opcode:0x%x, status:0x%x\n",
-		cq_entry->sq_id, cq_entry->command_id, 
-		cmd->opcode, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
 
 	if (cq_entry->sq_id == NVME_AQ_ID) {
 		ret = handle_admin_cmd_completion(sq, cmd, status);
@@ -711,7 +713,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 	if (cq->priv.contig)
 		cq_base = cq->priv.buf;
 	else
-		cq_base = cq->priv.prps.buf;
+		cq_base = cq->prps->buf;
 
 	cq_head = cq_base + ((u32)cq->pub.head_ptr << cq->pub.cqes);
 
@@ -741,12 +743,12 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
 
 		if (latentErr) {
 			/* Latent errors were introduced to allow reaping CE's to user
-			* space and also counting them as reaped, because they were
-			* successfully copied. However, there was something about the CE
-			* that indicated an error, possibly malformed CE by hdw, thus the
-			* entire IOCTL should error, but we successfully reaped some CE's
-			* which allows tnvme to inspect and trust the copied CE's for debug
-			*/
+			 * space and also counting them as reaped, because they were
+			 * successfully copied. However, there was something about the CE
+			 * that indicated an error, possibly malformed CE by hdw, thus the
+			 * entire IOCTL should error, but we successfully reaped some CE's
+			 * which allows tnvme to inspect and trust the copied CE's for debug
+			 */
 			dnvme_err(ndev, "Detected a partial reap situation; some, not all reaped");
 			return latentErr;
 		}

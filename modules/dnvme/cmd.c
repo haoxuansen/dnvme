@@ -51,7 +51,8 @@ static void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg
 {
 	sge->addr = cpu_to_le64(sg_dma_address(sg));
 	sge->length = cpu_to_le32(sg_dma_len(sg));
-	sge->type = NVME_SGL_FMT_DATA_DESC << 4;
+	sge->type = NVME_SGL_TYPE_DATA_DESC << 4;
+	trace_dnvme_sgl_set_data(sge);
 }
 
 static void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
@@ -60,11 +61,12 @@ static void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr,
 	sge->addr = cpu_to_le64(dma_addr);
 	if (entries < SGES_PER_PAGE) {
 		sge->length = cpu_to_le32(entries * sizeof(*sge));
-		sge->type = NVME_SGL_FMT_LAST_SEG_DESC << 4;
+		sge->type = NVME_SGL_TYPE_LAST_SEG_DESC << 4;
 	} else {
 		sge->length = cpu_to_le32(PAGE_SIZE);
-		sge->type = NVME_SGL_FMT_SEG_DESC << 4;
+		sge->type = NVME_SGL_TYPE_SEG_DESC << 4;
 	}
+	trace_dnvme_sgl_set_seg(sge);
 }
 
 static struct scatterlist *dnvme_pages_to_sgl(struct nvme_device *ndev, 
@@ -236,7 +238,7 @@ static void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *pr
 static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command *ccmd, 
 	struct nvme_prps *prps)
 {
-	struct dma_pool *pool = ndev->page_pool;
+	struct dma_pool *pool = prps->pg_pool;
 	struct nvme_sgl_desc *sgl_desc;
 	struct scatterlist *sg = prps->sg;
 	void **prp_list;
@@ -255,20 +257,20 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command 
 	nr_seg = DIV_ROUND_UP(sizeof(struct nvme_sgl_desc) * nr_desc, 
 		PAGE_SIZE - sizeof(struct nvme_sgl_desc));
 
-	prp_list = kzalloc(sizeof(void *) * nr_seg, GFP_ATOMIC);
+	prp_list = kzalloc(sizeof(void *) * nr_seg, GFP_KERNEL);
 	if (!prp_list) {
 		dnvme_err(ndev, "failed to alloc for prp list!\n");
 		return -ENOMEM;
 	}
 
-	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_seg, GFP_ATOMIC);
+	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_seg, GFP_KERNEL);
 	if (!prp_dma) {
 		dnvme_err(ndev, "failed to alloc for prp dma!\n");
 		goto out;
 	}
 
 	for (i = 0; i < nr_seg; i++) {
-		prp_list[i] = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma[i]);
+		prp_list[i] = dma_pool_alloc(pool, GFP_KERNEL | __GFP_ZERO, &prp_dma[i]);
 		if (!prp_list[i]) {
 			dnvme_err(ndev, "failed to alloc for sgl page!\n");
 			goto out2;
@@ -297,6 +299,7 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command 
 			nr_desc--;
 		}
 	}
+
 	return 0;
 out2:
 	for (i--; i >= 0; i--) {
@@ -310,7 +313,7 @@ out:
 
 static void dnvme_free_prp_list(struct nvme_device *ndev, struct nvme_prps *prps)
 {
-	struct dma_pool *pool = ndev->page_pool;
+	struct dma_pool *pool = prps->pg_pool;
 	int i;
 
 	if (!prps)
@@ -335,7 +338,7 @@ static int dnvme_setup_prps(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct scatterlist *sg = prps->sg;
 	void **prp_list;
 	dma_addr_t *prp_dma;
-	struct dma_pool *pool = ndev->page_pool;
+	struct dma_pool *pool = prps->pg_pool;
 	__le64 *prp_entry;
 	int buf_len = prps->data_buf_size;
 	u32 nr_pages, nr_entry, pg_oft;
@@ -401,20 +404,20 @@ prp_list:
 	nr_pages = DIV_ROUND_UP(NVME_PRP_ENTRY_SIZE * nr_entry, 
 		PAGE_SIZE - NVME_PRP_ENTRY_SIZE);
 	
-	prp_list = kzalloc(sizeof(void *) * nr_pages, GFP_ATOMIC);
+	prp_list = kzalloc(sizeof(void *) * nr_pages, GFP_KERNEL);
 	if (!prp_list) {
 		dnvme_err(ndev, "failed to alloc for prp list!\n");
 		return -ENOMEM;
 	}
 
-	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_pages, GFP_ATOMIC);
+	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_pages, GFP_KERNEL);
 	if (!prp_dma) {
 		dnvme_err(ndev, "failed to alloc for prp dma!\n");
 		goto out;
 	}
 
 	for (i = 0; i < nr_pages; i++) {
-		prp_list[i] = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma[i]);
+		prp_list[i] = dma_pool_alloc(pool, GFP_KERNEL | __GFP_ZERO, &prp_dma[i]);
 		if (!prp_list[i]) {
 			dnvme_err(ndev, "failed to alloc for prp page!\n");
 			goto out2;
@@ -484,6 +487,8 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 	struct nvme_common_command *ccmd, struct nvme_prps *prps)
 {
 	struct nvme_sq *sq;
+	struct nvme_sq *wait_sq = NULL;
+	struct nvme_cq *wait_cq = NULL;
 	struct nvme_cmd *node;
 
 	sq = dnvme_find_sq(ndev, cmd->sqid);
@@ -492,7 +497,7 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 		return -EBADSLT;
 	}
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (!node) {
 		dnvme_err(ndev, "failed to alloc cmd node!\n");
 		return -ENOMEM;
@@ -510,12 +515,16 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 		switch (ccmd->opcode) {
 		case nvme_admin_create_sq:
 			csq = (struct nvme_create_sq *)ccmd;
-			node->target_qid = csq->sqid;
+			node->target_qid = le16_to_cpu(csq->sqid);
+			wait_sq = dnvme_find_sq(ndev, node->target_qid);
+			BUG_ON(!wait_sq);
 			break;
 
 		case nvme_admin_create_cq:
 			ccq = (struct nvme_create_cq *)ccmd;
-			node->target_qid = ccq->cqid;
+			node->target_qid = le16_to_cpu(ccq->cqid);
+			wait_cq = dnvme_find_cq(ndev, node->target_qid);
+			BUG_ON(!wait_cq);
 			break;
 
 		case nvme_admin_delete_sq:
@@ -531,74 +540,28 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 		node->target_qid = 0;
 	}
 
-	/*
-	 *   If cmd is create or delete SQ/CQ, nvme_prps will be copied to
-	 * nvme_sq or nvme_cq. Otherwise, nvme_prps is belong to cmd node.
-	 */
-	if (!node->target_qid)
-		memcpy(&node->prps, prps, sizeof(struct nvme_prps));
+	if (!prps)
+		goto out_add_node;
 
+	if (node->target_qid) {
+		if (wait_sq)
+			wait_sq->prps = prps;
+		if (wait_cq)
+			wait_cq->prps = prps;
+	} else {
+		node->prps = prps;
+	}
+
+out_add_node:
 	list_add_tail(&node->entry, &sq->priv.cmd_list);
 	return 0;
 }
 
-static int dnvme_data_buf_to_sgl(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
-	struct nvme_common_command *ccmd, struct nvme_prps *prps)
+static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, 
+	struct nvme_64b_cmd *cmd, struct nvme_common_command *ccmd)
 {
-	int ret;
-
-	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->cid, cmd->sqid);
-
-	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
-	if (ret < 0)
-		return ret;
-
-	ret = dnvme_setup_sgl(ndev, ccmd, prps);
-	if (ret < 0)
-		goto out;
-
-	ret = dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
-	if (ret < 0)
-		goto out2;
-
-	return 0;
-out2:
-	dnvme_free_prp_list(ndev, prps);
-out:
-	dnvme_unmap_user_page(ndev, prps);
-	return ret;
-}
-
-static int dnvme_data_buf_to_prp(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
-	struct nvme_common_command *ccmd, struct nvme_prps *prps)
-{
-	int ret;
-
-	dnvme_dbg(ndev, "CMD(%u) => SQ(%u)\n", cmd->cid, cmd->sqid);
-
-	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
-	if (ret < 0)
-		return ret;
-	
-	ret = dnvme_setup_prps(ndev, cmd, ccmd, prps);
-	if (ret < 0)
-		goto out;
-
-	ret = dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
-	if (ret < 0)
-		goto out2;
-
-	return 0;
-out2:
-	dnvme_free_prp_list(ndev, prps);
-out:
-	dnvme_unmap_user_page(ndev, prps);
-	return ret;
-}
-
-static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd, 
-	struct nvme_common_command *ccmd, struct nvme_prps *prps)
-{
+	struct nvme_prps *prps;
+	struct dma_pool *pool = NULL;
 	bool need_prp = false;
 	int ret;
 
@@ -606,8 +569,10 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *
 		switch (ccmd->opcode) {
 		case nvme_admin_create_sq:
 		case nvme_admin_create_cq:
-			if (cmd->data_buf_ptr) /* discontig */
+			if (cmd->data_buf_ptr) { /* discontig */
 				need_prp = true;
+				pool = ndev->queue_pool;
+			}
 			break;
 
 		case nvme_admin_delete_sq:
@@ -624,29 +589,47 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd *
 	}
 
 	if (!need_prp)
-		return dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
+		return dnvme_add_cmd_node(ndev, cmd, ccmd, NULL);
 
-	if (dnvme_use_sgls(ccmd, cmd)) {
-		ret = dnvme_data_buf_to_sgl(ndev, cmd, ccmd, prps);
-		if (ret < 0) {
-			dnvme_err(ndev, "data buffer to SGL err!(%d)\n", ret);
-			return ret;
-		}
-	} else {
-		ret = dnvme_data_buf_to_prp(ndev, cmd, ccmd, prps);
-		if (ret < 0) {
-			dnvme_err(ndev, "data buffer to PRP err!(%d)\n", ret);
-			return ret;
-		}
+	prps = kzalloc(sizeof(*prps), GFP_KERNEL);
+	if (!prps) {
+		dnvme_err(ndev, "failed to alloc PRPs!\n");
+		return -ENOMEM;
 	}
+	prps->pg_pool = pool ? pool : ndev->cmd_pool;
+
+	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
+	if (ret < 0)
+		goto out_free_prp;
+
+	if (dnvme_use_sgls(ccmd, cmd))
+		ret = dnvme_setup_sgl(ndev, ccmd, prps);
+	else
+		ret = dnvme_setup_prps(ndev, cmd, ccmd, prps);
+
+	if (ret < 0)
+		goto out_unmap_page;
+
+	ret = dnvme_add_cmd_node(ndev, cmd, ccmd, prps);
+	if (ret < 0)
+		goto out_free_prp_list;
 
 	return 0;
+
+out_free_prp_list:
+	dnvme_free_prp_list(ndev, prps);
+out_unmap_page:
+	dnvme_unmap_user_page(ndev, prps);
+out_free_prp:
+	kfree(prps);
+	return ret;	
 }
 
 void dnvme_release_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
 {
 	dnvme_free_prp_list(nvme_device, prps);
 	dnvme_unmap_user_page(nvme_device, prps);
+	kfree(prps);
 }
 
 /**
@@ -662,8 +645,10 @@ void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 
 	list_for_each_safe(pos, tmp, &sq->priv.cmd_list) {
 		cmd = list_entry(pos, struct nvme_cmd, entry);
-		dnvme_release_prps(ndev, &cmd->prps);
 		list_del(pos);
+
+		dnvme_release_prps(ndev, cmd->prps);
+		cmd->prps = NULL;
 		kfree(cmd);
 	}
 }
@@ -674,7 +659,6 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_create_sq *csq = (struct nvme_create_sq *)ccmd;
 	struct nvme_sq *wait_sq;
-	struct nvme_prps prps;
 	int ret;
 
 	wait_sq = dnvme_find_sq(ndev, csq->sqid);
@@ -699,9 +683,8 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 		dnvme_err(ndev, "SQ(%u) already created!\n", csq->sqid);
 		return -EPERM;
 	}
-	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -712,9 +695,6 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 		ccmd->dptr.prp2 = 0;
 	}
 
-	/* Fill the persistent entry structure */
-	memcpy(&wait_sq->priv.prps, &prps, sizeof(prps));
-
 	wait_sq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
 	return 0;
 }
@@ -723,12 +703,9 @@ static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_prps prps;
 	int ret;
 
-	memset(&prps, 0, sizeof(prps));
-
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -741,7 +718,6 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
 	struct nvme_cq *wait_cq;
-	struct nvme_prps prps;
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_create_cq *ccq = (struct nvme_create_cq *)ccmd;
 	int ret;
@@ -776,9 +752,8 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 			return -EINVAL;
 		}
 	}
-	memset(&prps, 0, sizeof(prps));
 
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -789,9 +764,6 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 		ccmd->dptr.prp2 = 0;
 	}
 
-	/* Fill the persistent entry structure */
-	memcpy(&wait_cq->priv.prps, &prps, sizeof(prps));
-
 	wait_cq->priv.bit_mask &= ~NVME_QF_WAIT_FOR_CREATE;
 	return 0;
 }
@@ -800,12 +772,9 @@ static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_prps prps;
 	int ret;
 
-	memset(&prps, 0, sizeof(prps));
-
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -817,12 +786,9 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_prps prps;
 	int ret;
 
-	memset(&prps, 0, sizeof(prps));
-
-	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd, &prps);
+	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to prepare 64-byte cmd!\n");
 		return ret;
@@ -870,7 +836,7 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 		return -EBUSY;
 	}
 
-	cmd_buf = kzalloc(1 << sq->pub.sqes, GFP_ATOMIC);
+	cmd_buf = kzalloc(1 << sq->pub.sqes, GFP_KERNEL);
 	if (!cmd_buf) {
 		dnvme_err(ndev, "failed to alloc cmd buf!\n");
 		return -ENOMEM;
@@ -949,11 +915,13 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
 			ccmd, 1 << sq->pub.sqes);
 	} else {
-		memcpy((sq->priv.prps.buf + 
+		struct nvme_prps *prps = sq->prps;
+
+		memcpy((prps->buf + 
 			((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
 			ccmd, 1 << sq->pub.sqes);
-		dma_sync_sg_for_device(&pdev->dev, sq->priv.prps.sg, 
-			sq->priv.prps.num_map_pgs, sq->priv.prps.data_dir);
+		dma_sync_sg_for_device(&pdev->dev, prps->sg, 
+			prps->num_map_pgs, prps->data_dir);
 	}
 
 	/* Increment the Tail pointer and handle roll over conditions */

@@ -202,22 +202,24 @@ enum {
  * Descriptor type - upper 4 bits of nvme_(keyed_)sgl_desc identifier
  *
  * For struct nvme_sgl_desc:
- *   @NVME_SGL_FMT_DATA_DESC:		data block descriptor
- *   @NVME_SGL_FMT_SEG_DESC:		sgl segment descriptor
- *   @NVME_SGL_FMT_LAST_SEG_DESC:	last sgl segment descriptor
+ *   @NVME_SGL_TYPE_DATA_DESC:		data block descriptor
+ *   @NVME_SGL_TYPE_SEG_DESC:		sgl segment descriptor
+ *   @NVME_SGL_TYPE_LAST_SEG_DESC:	last sgl segment descriptor
  *
  * For struct nvme_keyed_sgl_desc:
- *   @NVME_KEY_SGL_FMT_DATA_DESC:	keyed data block descriptor
+ *   @NVME_SGL_TYPE_KEY_DATA_DESC:	keyed data block descriptor
  *
  * Transport-specific SGL types:
- *   @NVME_TRANSPORT_SGL_DATA_DESC:	Transport SGL data dlock descriptor
+ *   @NVME_SGL_TYPE_TRANSPORT_DATA_DESC:	Transport SGL data dlock descriptor
  */
 enum {
-	NVME_SGL_FMT_DATA_DESC		= 0x00,
-	NVME_SGL_FMT_SEG_DESC		= 0x02,
-	NVME_SGL_FMT_LAST_SEG_DESC	= 0x03,
-	NVME_KEY_SGL_FMT_DATA_DESC	= 0x04,
-	NVME_TRANSPORT_SGL_DATA_DESC	= 0x05,
+	NVME_SGL_TYPE_DATA_DESC			= 0x0,
+	NVME_SGL_TYPE_BIT_BUCKET_DESC		= 0x1,
+	NVME_SGL_TYPE_SEG_DESC			= 0x2,
+	NVME_SGL_TYPE_LAST_SEG_DESC		= 0x3,
+	NVME_SGL_TYPE_KEY_DATA_DESC		= 0x4,
+	NVME_SGL_TYPE_TRANSPORT_DATA_DESC	= 0x5,
+	NVME_SGL_TYPE_VENDOR_DESC		= 0xf,
 };
 
 struct nvme_sgl_desc {
@@ -244,46 +246,6 @@ union nvme_data_ptr {
 };
 
 #include "nvme/command.h"
-
-/*
- * Lowest two bits of our flags field (FUSE field in the spec):
- *
- * @NVME_CMD_FUSE_FIRST:   Fused Operation, first command
- * @NVME_CMD_FUSE_SECOND:  Fused Operation, second command
- *
- * Highest two bits in our flags field (PSDT field in the spec):
- *
- * @NVME_CMD_PSDT_SGL_METABUF:	Use SGLS for this transfer,
- *	If used, MPTR contains addr of single physical buffer (byte aligned).
- * @NVME_CMD_PSDT_SGL_METASEG:	Use SGLS for this transfer,
- *	If used, MPTR contains an address of an SGL segment containing
- *	exactly 1 SGL descriptor (qword aligned).
- */
-enum {
-	NVME_CMD_FUSE_FIRST	= (1 << 0),
-	NVME_CMD_FUSE_SECOND	= (1 << 1),
-
-	NVME_CMD_SGL_METABUF	= (1 << 6),
-	NVME_CMD_SGL_METASEG	= (1 << 7),
-	NVME_CMD_SGL_ALL	= NVME_CMD_SGL_METABUF | NVME_CMD_SGL_METASEG,
-};
-
-struct nvme_common_command {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__le32			cdw2[2];
-	__le64			metadata;
-	union nvme_data_ptr	dptr;
-	__le32			cdw10;
-	__le32			cdw11;
-	__le32			cdw12;
-	__le32			cdw13;
-	__le32			cdw14;
-	__le32			cdw15;
-};
-
 
 /* Features */
 

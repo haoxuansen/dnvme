@@ -10,7 +10,10 @@
  */
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
 
 #include "log.h"
 #include "dnvme_ioctl.h"
@@ -20,6 +23,25 @@
 #include "test.h"
 #include "test_metrics.h"
 #include "test_queue.h"
+
+static bool is_support_sgl(struct nvme_id_ctrl *ctrl)
+{
+	if ((ctrl->sgls & NVME_CTRL_SGLS_MASK) && 
+		(ctrl->sgls & NVME_CTRL_SGLS_DATA_BLOCK)) {
+		return true;
+	}
+	return false;
+}
+
+static bool is_support_discontig(struct nvme_dev_info *ndev)
+{
+	struct nvme_ctrl_property *prop = &ndev->prop;
+
+	if (NVME_CAP_CQR(prop->cap))
+		return false;
+
+	return true;
+}
 
 static int create_ioq(struct nvme_tool *tool, struct nvme_sq_info *sq, 
 	struct nvme_cq_info *cq, uint8_t contig)
@@ -92,13 +114,14 @@ static int delete_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 }
 
 static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb)
+	uint64_t slba, uint32_t nlb, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
+	wrap.flags = flags;
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
@@ -107,11 +130,13 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
+	memset(wrap.buf, 0, wrap.size);
+
 	return nvme_io_read(ndev->fd, &wrap);
 }
 
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb)
+	uint64_t slba, uint32_t nlb, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -119,6 +144,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
+	wrap.flags = flags;
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
@@ -127,71 +153,107 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
-	for (i = 0; i < (wrap.size / 4); i+= 4) {
+	for (i = 0; i < wrap.size; i+= 4) {
 		*(uint32_t *)(wrap.buf + i) = (uint32_t)rand();
 	}
 
 	return nvme_io_write(ndev->fd, &wrap);
 }
 
-#if 0
-static int send_io_read_to_asq(struct nvme_tool *tool)
+/**
+ * @brief Send I/O write and read cmds which use PRP list, then compare
+ *  whether the data written and read back is same?
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int subcase_iorw_prp(struct nvme_tool *tool, struct nvme_sq_info *sq,
+	uint32_t loop)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_info *nss = ndev->nss;
-	struct nvme_rwc_wrapper wrap = {0};
+	uint32_t nlb = 8;
+	uint32_t size;
 	int ret;
 
-	wrap.sqid = NVME_AQ_ID;
-	wrap.cqid = NVME_AQ_ID;
-	wrap.nsid = nss[0].nsid;
-	wrap.slba = 0;
-	wrap.nlb = 8;
-	wrap.buf = tool->rbuf;
-	wrap.size = wrap.nlb * nss[0].lbads;
+	while (loop--) {
+		ret = send_io_write_cmd(tool, sq, 0, nlb, 0);
+		if (ret < 0)
+			goto out;
 
-	ret = nvme_io_read(ndev->fd, &wrap);
-	if (ret < 0) {
-		pr_debug("ASQ failed to execute IO read cmd!\n");
-		return 0;
-	} else {
-		pr_err("ASQ execute IO read cmd success?\n");
-		return -EPERM;
+		ret = send_io_read_cmd(tool, sq, 0, nlb, 0);
+		if (ret < 0)
+			goto out;
+
+		size = nlb * ndev->nss[0].lbads;
+		ret = memcmp(tool->wbuf, tool->rbuf, size);
+		if (ret) {
+			pr_err("failed to compare r/w data!(%d)\n", ret);
+			ret = -EIO;
+			goto out;
+		}
+		pr_div("loop remaining: %u\n", loop);
 	}
+
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
 }
 
-static int send_io_write_to_asq(struct nvme_tool *tool)
+/**
+ * @brief Send I/O write and read cmds which use SGL list, then compare
+ *  whether the data written and read back is same?
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int subcase_iorw_sgl(struct nvme_tool *tool, struct nvme_sq_info *sq, 
+	uint32_t loop)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_info *nss = ndev->nss;
-	struct nvme_rwc_wrapper wrap = {0};
+	struct nvme_id_ctrl *ctrl = &ndev->id_ctrl;
+	uint8_t flags = NVME_CMD_SGL_METABUF;
+	uint32_t nlb = 8;
+	uint32_t size;
 	int ret;
 
-	wrap.sqid = NVME_AQ_ID;
-	wrap.cqid = NVME_AQ_ID;
-	wrap.nsid = nss[0].nsid;
-	wrap.slba = 0;
-	wrap.nlb = 8;
-	wrap.buf = tool->wbuf;
-	wrap.size = wrap.nlb * nss[0].lbads;
-
-	ret = nvme_io_write(ndev->fd, &wrap);
-	if (ret < 0) {
-		pr_debug("ASQ failed to execute IO write cmd!\n");
-		return 0;
-	} else {
-		pr_err("ASQ execute IO write cmd success?\n");
-		return -EPERM;
+	if (!loop) {
+		ret = -EOPNOTSUPP;
+		goto out;
 	}
+
+	if (!is_support_sgl(ctrl)) {
+		pr_warn("Not support SGL!\n");
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	while (loop--) {
+		ret = send_io_write_cmd(tool, sq, 0, nlb, flags);
+		if (ret < 0)
+			goto out;
+
+		ret = send_io_read_cmd(tool, sq, 0, nlb, flags);
+		if (ret < 0)
+			goto out;
+
+		size = nlb * ndev->nss[0].lbads;
+		ret = memcmp(tool->wbuf, tool->rbuf, size);
+		if (ret) {
+			pr_err("failed to compare r/w data!(%d)\n", ret);
+			ret = -EIO;
+			goto out;
+		}
+		pr_debug("loop remaining: %u\n", loop);
+	}
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
 }
-#endif
 
 int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
 
-	ret = send_io_read_cmd(tool, &ndev->asq, 0, 8);
+	ret = send_io_read_cmd(tool, &ndev->asq, 0, 8, 0);
 	if (ret < 0) {
 		pr_debug("ASQ failed to execute IO read cmd!\n");
 	} else {
@@ -199,7 +261,7 @@ int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 		return -EPERM;
 	}
 
-	ret = send_io_write_cmd(tool, &ndev->asq, 0, 8);
+	ret = send_io_write_cmd(tool, &ndev->asq, 0, 8, 0);
 	if (ret < 0) {
 		pr_debug("ASQ failed to execute IO write cmd!\n");
 	} else {
@@ -211,18 +273,17 @@ int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 }
 
 /**
- * @brief Create contiguous IOSQ & IOCQ, then delete it.
+ * @brief Create I/O CQ & SQ which is contiguous, check whether the queue
+ *  works properly, and finally delete the queue.
  * 
  * @return 0 on success, otherwise a negative errno.
- * @note After the queue is created, a command is submitted to confirm
- *  that the created queue is working properly.
  */
-int case_queue_create_and_delete_contig_queue(struct nvme_tool *tool)
+int case_queue_contiguous(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	int ret;
+	int ret = 0;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -234,30 +295,32 @@ int case_queue_create_and_delete_contig_queue(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_read_cmd(tool, sq, 0, 8);
-	if (ret < 0)
-		return ret;
+	ret |= subcase_iorw_prp(tool, sq, 10);
+	ret |= subcase_iorw_sgl(tool, sq, 10);
 
-	ret = delete_ioq(ndev->fd, sq, cq);
-	if (ret < 0)
-		return ret;
+	nvme_display_subcase_result();
 
-	return 0;
+	ret |= delete_ioq(ndev->fd, sq, cq);
+	return ret;
 }
 
 /**
- * @brief Create discontiguous IOSQ & IOCQ, then delete it.
+ * @brief Create I/O CQ & SQ which is discontiguous, check whether the queue
+ *  works properly, and finally delete the queue.
  * 
- * @return 0 on success, otherwise a negative errno.
- * @note After the queue is created, a command is submitted to confirm
- *  that the created queue is working properly.
+ * @return 0 on success, otherwise a negative errno. 
+ * 
+ * @warning Queues may not work properly after repeated creation and deletion
  */
-int case_queue_create_and_delete_discontig_queue(struct nvme_tool *tool)
+int case_queue_discontiguous(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	int ret;
+	int ret = 0;
+
+	if (!is_support_discontig(ndev))
+		return -EOPNOTSUPP;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -269,13 +332,11 @@ int case_queue_create_and_delete_discontig_queue(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_read_cmd(tool, sq, 0, 8);
-	if (ret < 0)
-		return ret;
+	ret |= subcase_iorw_prp(tool, sq, 1);
+	ret |= subcase_iorw_sgl(tool, sq, 1);
 
-	ret = delete_ioq(ndev->fd, sq, cq);
-	if (ret < 0)
-		return ret;
+	nvme_display_subcase_result();
 
-	return 0;
+	ret |= delete_ioq(ndev->fd, sq, cq);
+	return ret;
 }

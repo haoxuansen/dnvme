@@ -94,6 +94,63 @@ DEFINE_EVENT(nvme_log_cmd, dnvme_submit_64b_cmd,
 	TP_ARGS(dev, ccmd, sqid)
 );
 
+DECLARE_EVENT_CLASS(nvme_log_sgl,
+	TP_PROTO(struct nvme_sgl_desc *sge),
+	TP_ARGS(sge),
+	TP_STRUCT__entry(
+		__field(u64, addr)
+		__field(u32, length)
+		__array(u8, rsvd, 3)
+		__field(u8, type)
+	),
+	TP_fast_assign(
+		__entry->addr = le64_to_cpu(sge->addr);
+		__entry->length = le32_to_cpu(sge->length);
+		memcpy(__entry->rsvd, sge->rsvd, 3);
+		__entry->type = sge->type;
+	),
+	TP_printk("addr:%016llx length:%08x rsvd:%02x %02x %02x type:%02x",
+		__entry->addr, __entry->length, __entry->rsvd[0], 
+		__entry->rsvd[1], __entry->rsvd[2], __entry->type)
+);
+
+DEFINE_EVENT(nvme_log_sgl, dnvme_sgl_set_data, 
+	TP_PROTO(struct nvme_sgl_desc *sge),
+	TP_ARGS(sge)
+);
+
+DEFINE_EVENT(nvme_log_sgl, dnvme_sgl_set_seg, 
+	TP_PROTO(struct nvme_sgl_desc *sge),
+	TP_ARGS(sge)
+);
+
+DECLARE_EVENT_CLASS(nvme_log_cqe,
+	TP_PROTO(struct nvme_completion *cqe),
+	TP_ARGS(cqe),
+	TP_STRUCT__entry(
+		__field(u64, result)
+		__field(u16, sq_head)
+		__field(u16, sq_id)
+		__field(u16, cid)
+		__field(u16, status)
+	),
+	TP_fast_assign(
+		__entry->result = le64_to_cpu(cqe->result.u64);
+		__entry->sq_head = le16_to_cpu(cqe->sq_head);
+		__entry->sq_id = le16_to_cpu(cqe->sq_id);
+		__entry->cid = cqe->command_id;
+		__entry->status = le16_to_cpu(cqe->status);
+	),
+	TP_printk("result:%016llx sq_head:%04x sq_id:%04x cid:%04x status:%04x",
+		__entry->result, __entry->sq_head, __entry->sq_id, 
+		__entry->cid, __entry->status)
+);
+
+DEFINE_EVENT(nvme_log_cqe, handle_cmd_completion, 
+	TP_PROTO(struct nvme_completion *cqe),
+	TP_ARGS(cqe)
+);
+
 #endif /* _TRACE_NVME_H */
 
 /* this part must be outside header guard */

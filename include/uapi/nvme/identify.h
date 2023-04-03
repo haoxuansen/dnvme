@@ -287,6 +287,28 @@ enum {
 };
 
 /**
+ * @brief SGL Support
+ * 
+ * @note See "struct nvme_id_ctrl -> sgls" for details.
+ */
+#define NVME_CTRL_SGLS_SDT(sgls)	(((sgls) >> 8) & 0xff)
+
+enum {
+	NVME_CTRL_SGLS_MASK		= 3,
+	NVME_CTRL_SGLS_UNSUPPORT	= 0,
+	NVME_CTRL_SGLS_SUPPORT		= 1,
+	NVME_CTRL_SGLS_SUPPORT4		= 2, /* 4B align */
+
+	NVME_CTRL_SGLS_KEYED_DATA_BLOCK	= 1 << 2, /* desc */
+	NVME_CTRL_SGLS_BIT_BUCKET	= 1 << 16, /* desc */
+	NVME_CTRL_SGLS_META_BYTE	= 1 << 17,
+	NVME_CTRL_SGLS_LARGER_DATA	= 1 << 18,
+	NVME_CTRL_SGLS_MPTR_SGL		= 1 << 19,
+	NVME_CTRL_SGLS_ADDR_OFFSET	= 1 << 20,
+	NVME_CTRL_SGLS_DATA_BLOCK	= 1 << 21, /* desc */
+};
+
+/**
  * @note See "struct nvme_id_power_state -> flags" for details.
  */
 enum {
