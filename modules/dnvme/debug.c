@@ -100,10 +100,6 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 		return "NVME_CREATE_META_NODE";
 	case NVME_IOCTL_DELETE_META_NODE:
 		return "NVME_DELETE_META_NODE";
-	case NVME_IOCTL_CREATE_META_POOL:
-		return "NVME_CREATE_META_POOL";
-	case NVME_IOCTL_DESTROY_META_POOL:
-		return "NVME_DESTROY_META_POOL";
 
 	default:
 		return "UNKNOWN";

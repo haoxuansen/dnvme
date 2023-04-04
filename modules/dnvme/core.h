@@ -24,12 +24,12 @@
 #define NVME_CQ_ID_MAX			U16_MAX
 #define NVME_META_ID_MAX		((0x1 << 18) - 1)
 
-#define NVME_META_BUF_ALIGN		4
-
 #define NVME_PRP_ENTRY_SIZE		8 /* in bytes */
+#define NVME_SGES_PER_PAGE		(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
+#define NVME_PRPS_PER_PAGE		(PAGE_SIZE / NVME_PRP_ENTRY_SIZE)
 
-//#undef pr_fmt
-//#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
+#undef pr_fmt
+#define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
 
 #if !IS_ENABLED(CONFIG_PRINTK_COLOR)
 #include "log/color.h"
@@ -54,6 +54,10 @@ enum {
 	NVME_QF_BUF_CONTIG = 1, /* queue is contiguous */
 };
 
+enum {
+	NVME_META_F_BUF_CONTIG = 0,
+};
+
 /**
  * @prp_list: If use PRP, this field point to PRP list pages. If use SGL, 
  *  this field point to the first segment of SGLs.
@@ -64,7 +68,7 @@ enum {
 struct nvme_prps {
 	struct dma_pool	*pg_pool;
 
-	__le64		**prp_list;
+	void		**prp_list;
 	dma_addr_t	*pg_addr;
 	u32		nr_pages;
 
@@ -150,7 +154,7 @@ struct nvme_icq {
 };
 
 /**
- * @irq_entry: nvme_irq is managed by nvme_meta_set
+ * @irq_entry: nvme_irq is managed by nvme_irq_set
  * @icq_list: manage nvme_icq nodes
  * @irq_id: irq identify, always 0 based
  * @isr_fired: indicate whether the irq is fired
@@ -167,22 +171,20 @@ struct nvme_irq {
 };
 
 /*
- * structure for meta data per device parameters.
- */
-struct nvme_meta_set {
-	struct list_head	meta_list;
-	struct dma_pool		*pool;
-	u32			buf_size;
-};
-
-/*
  * Structure for meta data buffer allocations.
  */
 struct nvme_meta {
-	struct list_head	entry;
 	u32			id;
+
+	/* For contigous buffer */
 	void			*buf;
 	dma_addr_t		dma;
+	u32			size;
+
+	/* For SGL list */
+	struct nvme_prps	*prps;
+
+	unsigned long	flags;
 };
 
 struct nvme_capability {
@@ -209,14 +211,16 @@ struct nvme_device {
 
 	struct xarray	sqs;
 	struct xarray	cqs;
+	struct xarray	meta;
 
 	int	instance; /* dev_t minor */
 
 	void __iomem	*bar0;
 	u32 __iomem	*dbs;
 
-	struct dma_pool	*cmd_pool; /* PAGE */
-	struct dma_pool	*queue_pool; /* PAGE */
+	struct dma_pool	*cmd_pool;
+	struct dma_pool	*queue_pool;
+	struct dma_pool *meta_pool;
 
 	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
@@ -273,14 +277,12 @@ struct nvme_irq_set {
  * @sq_list: This is a list head for managing nvme_sq.
  * @dev: NVMe device info
  * @lock: Get this lock before access context.
- * @meta_set: see @nvme_meta_set for details.
  * @irq_set: see @nvme_irq_set for details.
  */
 struct nvme_context {
 	struct list_head	entry;
 	struct nvme_device	*dev;
 	struct mutex		lock;
-	struct nvme_meta_set	meta_set;
 	struct nvme_irq_set	irq_set;
 };
 
@@ -293,4 +295,32 @@ static inline struct nvme_context *dnvme_irq_to_context(struct nvme_irq_set *irq
 
 void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state);
 
+/* ==================== Related to "cmd.c" ==================== */
+
+void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg);
+void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
+	int entries);
+
+int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_prps *prps, 
+	void __user *data, unsigned int size, 
+	enum dma_data_direction dir, bool access);
+void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *prps);
+
+void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps);
+
+void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
+
+int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd);
+
+/* ==================== Related to "meta.c" ==================== */
+
+int dnvme_create_meta_node(struct nvme_device *ndev, 
+	struct nvme_meta_create __user *umc);
+void dnvme_delete_meta_id(struct nvme_device *ndev, u32 id);
+int dnvme_compare_meta_node(struct nvme_device *ndev, 
+	struct nvme_meta_compare __user *ucmp);
+
+void dnvme_delete_meta_nodes(struct nvme_device *ndev);
+
 #endif /* !_DNVME_CORE_H_ */
+

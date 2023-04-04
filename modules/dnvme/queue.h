@@ -64,12 +64,22 @@ static inline struct nvme_cq *dnvme_find_cq(struct nvme_device *ndev, u16 id)
 	return xa_load(&ndev->cqs, id);
 }
 
+/**
+ * @brief Find the meta node by the given ID
+ * 
+ * @param id meta identify
+ * @return pointer to the meta node on success. Otherwise returns NULL.
+ */
+static inline struct nvme_meta *dnvme_find_meta(struct nvme_device *ndev, u32 id)
+{
+	return xa_load(&ndev->meta, id);
+}
+
+
 int dnvme_check_qid_unique(struct nvme_device *ndev, 
 	enum nvme_queue_type type, u16 id);
 
 struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id);
-struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id);
-
 struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
 	struct nvme_prep_sq *prep, u8 sqes);
 void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq);

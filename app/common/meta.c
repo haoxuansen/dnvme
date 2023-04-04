@@ -17,38 +17,13 @@
 #include "dnvme_ioctl.h"
 #include "meta.h"
 
-int nvme_create_meta_pool(int fd, uint32_t size)
+int nvme_create_meta_node(int fd, struct nvme_meta_create *mc)
 {
 	int ret;
 
-	ret = ioctl(fd, NVME_IOCTL_CREATE_META_POOL, size);
+	ret = ioctl(fd, NVME_IOCTL_CREATE_META_NODE, mc);
 	if (ret < 0) {
-		pr_err("failed to create meta pool with size 0x%x!(%d)\n",
-			size, ret);
-		return ret;
-	}
-	return 0;
-}
-
-int nvme_destroy_meta_pool(int fd)
-{
-	int ret;
-
-	ret = ioctl(fd, NVME_IOCTL_DESTROY_META_POOL);
-	if (ret < 0) {
-		pr_err("failed to destroy meta pool!(%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-int nvme_create_meta_node(int fd, uint32_t id)
-{
-	int ret;
-
-	ret = ioctl(fd, NVME_IOCTL_CREATE_META_NODE, id);
-	if (ret < 0) {
-		pr_err("failed to create meta node %u!(%d)\n", id, ret);
+		pr_err("failed to create meta node %u!(%d)\n", mc->id, ret);
 		return ret;
 	}
 	return 0;
@@ -68,7 +43,7 @@ int nvme_delete_meta_node(int fd, uint32_t id)
 
 int nvme_compare_meta_node(int fd, uint32_t id1, uint32_t id2)
 {
-	struct nvme_cmp_meta cmp;
+	struct nvme_meta_compare cmp;
 	int ret;
 
 	cmp.id1 = id1;

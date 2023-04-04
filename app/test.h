@@ -43,6 +43,7 @@
 #define NVME_TOOL_SQ_BUF_SIZE		SZ_4M /* SQES(64) * elements(64K) */
 #define NVME_TOOL_CQ_BUF_SIZE		SZ_1M /* CQES(16) * elements(64K) */
 #define NVME_TOOL_RW_BUF_SIZE		SZ_2M
+#define NVME_TOOL_RW_META_SIZE		SZ_1M
 
 struct nvme_usr_param {
 	const char	*devpath;
@@ -60,10 +61,17 @@ struct nvme_tool {
 	void		*wbuf;
 	uint32_t	wbuf_size;
 
+	/* For discontiguous queue */
 	void		*sq_buf;
 	uint32_t	sq_buf_size;
 	void		*cq_buf;
 	uint32_t	cq_buf_size;
+
+	/* For SGL metadata */
+	void		*meta_rbuf;
+	uint32_t	meta_rbuf_size;
+	void		*meta_wbuf;
+	uint32_t	meta_wbuf_size;
 };
 
 extern struct nvme_tool *g_nvme_tool;
@@ -71,4 +79,14 @@ extern struct nvme_tool *g_nvme_tool;
 void nvme_record_subcase_result(const char *name, int result);
 void nvme_display_subcase_result(void);
 
+
+/* ==================== Related to "test_meta.c" ==================== */
+
+int case_meta_node_contiguous(struct nvme_tool *tool);
+
+int case_meta_xfer_sgl(struct nvme_tool *tool);
+int case_meta_xfer_separate(struct nvme_tool *tool);
+int case_meta_xfer_extlba(struct nvme_tool *tool);
+
 #endif /* !_APP_TEST_H_ */
+

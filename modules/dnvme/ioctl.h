@@ -28,11 +28,4 @@ int dnvme_create_admin_queue(struct nvme_context *ctx,
 int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep);
 int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep);
 
-int dnvme_create_meta_pool(struct nvme_context *ctx, u32 size);
-void dnvme_destroy_meta_pool(struct nvme_context *ctx);
-int dnvme_create_meta_node(struct nvme_context *ctx, u32 id);
-void dnvme_delete_meta_node(struct nvme_context *ctx, u32 id);
-int dnvme_compare_meta_node(struct nvme_context *ctx, 
-	struct nvme_cmp_meta __user *ucmp);
-
 #endif /* !_DNVME_IOCTL_H_ */

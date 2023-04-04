@@ -28,7 +28,6 @@
 #include "test_queue.h"
 #include "test_cmd.h"
 #include "test_pm.h"
-#include "test_meta.h"
 
 #include "common_define.h"
 #include "test_metrics.h"
@@ -463,17 +462,13 @@ static struct nvme_case g_case_table[] = {
 		"Set PCIe power state to D3 hot"),
 
 	/* Test meta data */
-	INIT_CASE(CASE_META, case_meta_create_pool,
-		"Create a meta pool based on the specified Size"),
-	INIT_CASE(CASE_META + 1, case_meta_destroy_pool,
-		"Destroy the meta pool that has been created"),
-	INIT_CASE(CASE_META + 2, case_meta_create_node,
-		"Create a meta node based on the specified ID"),
-	INIT_CASE(CASE_META + 3, case_meta_delete_node,
-		"Delete a meta node based on the specified ID"),
-	INIT_CASE(CASE_META + 4, case_meta_xfer_separate, 
+	INIT_CASE(CASE_META, case_meta_node_contiguous,
+		"Create a contiguous meta node and delete it later"),
+	INIT_CASE(CASE_META + 1, case_meta_xfer_sgl,
+		"Meta data transferred as SGL"),
+	INIT_CASE(CASE_META + 2, case_meta_xfer_separate, 
 		"Meta data transferred as separate buffer"),
-	INIT_CASE(CASE_META + 5, case_meta_xfer_extlba,
+	INIT_CASE(CASE_META + 3, case_meta_xfer_extlba,
 		"Meta data transferred contiguous with LBA data"),
 
 #if 1 // Obsolete?

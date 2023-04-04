@@ -116,7 +116,6 @@ static int is_align(u32 offset, u32 len)
 
 static int cmd_dump_metadata(struct nvme_device *ndev, char *argv[], int argc)
 {
-	struct nvme_context *ctx = ndev->ctx;
 	struct nvme_meta *meta;
 	u32 id;
 	int ret;
@@ -130,14 +129,19 @@ static int cmd_dump_metadata(struct nvme_device *ndev, char *argv[], int argc)
 		return -EINVAL;
 	}
 
-	meta = dnvme_find_meta(ctx, id);
+	meta = dnvme_find_meta(ndev, id);
 	if (!meta) {
 		dnvme_err(ndev, "failed to find meta(0x%x) node!\n", id);
 		return -EFAULT;
 	}
 
-	dnvme_info(ndev, "meta data (ID:0x%x, DMA addr:0x%llx):\n", id, meta->dma);
-	dnvme_dump_data(meta->buf, ctx->meta_set.buf_size, 0);
+	if (test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+		dnvme_info(ndev, "meta data (ID:0x%x, DMA addr:0x%llx):\n", id, meta->dma);
+		dnvme_dump_data(meta->buf, meta->size, 0);
+		return 0;
+	}
+
+	dnvme_warn(ndev, "Not support to dump SGL meta data!\n");
 	return 0;
 }
 

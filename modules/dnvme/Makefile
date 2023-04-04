@@ -11,6 +11,7 @@ dnvme-y					+= cmd.o
 dnvme-y					+= io.o
 dnvme-y					+= ioctl.o
 dnvme-y					+= irq.o
+dnvme-y					+= meta.o
 dnvme-y					+= pci.o
 dnvme-y					+= proc.o
 dnvme-y					+= queue.o

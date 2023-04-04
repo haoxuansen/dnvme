@@ -13,11 +13,9 @@
 #define _APP_META_H_
 
 #include <stdint.h>
+#include "dnvme_ioctl.h"
 
-int nvme_create_meta_pool(int fd, uint32_t size);
-int nvme_destroy_meta_pool(int fd);
-
-int nvme_create_meta_node(int fd, uint32_t id);
+int nvme_create_meta_node(int fd, struct nvme_meta_create *mc);
 int nvme_delete_meta_node(int fd, uint32_t id);
 
 int nvme_compare_meta_node(int fd, uint32_t id1, uint32_t id2);

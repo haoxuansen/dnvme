@@ -21,13 +21,13 @@
 #include "meta.h"
 
 #include "test.h"
-#include "test_meta.h"
 
 struct meta_config {
 	uint16_t	ms; /* metadata size */
 	uint32_t	lbads; /* LBA data size */
 
-	uint32_t	meta_ext:1;
+	uint32_t	meta_ext:1; /* true:extblk, false:separate buffer*/
+	uint32_t	meta_sgl:1;
 };
 
 static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
@@ -83,7 +83,7 @@ static int delete_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 }
 
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint32_t meta_id)
+	uint64_t slba, uint32_t nlb, uint32_t meta_id, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -91,6 +91,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
+	wrap.flags = flags;
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
@@ -113,13 +114,14 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 }
 
 static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint32_t meta_id)
+	uint64_t slba, uint32_t nlb, uint32_t meta_id, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
+	wrap.flags = flags;
 	wrap.nsid = ndev->nss[0].nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
@@ -140,7 +142,20 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	return nvme_io_read(ndev->fd, &wrap);
 }
 
-static int check_meta_capability(struct nvme_id_ns *ns, 
+static int check_ctrl_capability(struct nvme_id_ctrl *ctrl,
+	struct meta_config *cfg)
+{
+	uint32_t sgls = le32_to_cpu(ctrl->sgls);
+
+	if (cfg->meta_sgl && !(sgls & NVME_CTRL_SGLS_MPTR_SGL)) {
+		pr_warn("MPTR doesn't support SGL!\n");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int check_ns_capability(struct nvme_id_ns *ns, 
 	struct meta_config *cfg)
 {
 	if (cfg->meta_ext && !(ns->mc & NVME_MC_EXTENDED_LBA)) {
@@ -180,7 +195,11 @@ static int prepare_meta_config(struct nvme_dev_info *ndev,
 	uint32_t lbaf;
 	int ret;
 
-	ret = check_meta_capability(&ns->id_ns, cfg);
+	ret = check_ns_capability(&ns->id_ns, cfg);
+	if (ret < 0)
+		return ret;
+
+	ret = check_ctrl_capability(&ndev->id_ctrl, cfg);
 	if (ret < 0)
 		return ret;
 
@@ -237,6 +256,91 @@ static int prepare_meta_config(struct nvme_dev_info *ndev,
 	return 0;
 }
 
+int case_meta_xfer_sgl(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	struct meta_config cfg = {0};
+	struct nvme_meta_create mc = {0};
+	uint8_t flags = NVME_CMD_SGL_METASEG;
+	uint32_t wid = 1, rid = 2;
+	uint32_t nlb = 8;
+	uint32_t size;
+	int ret;
+
+	pr_notice("Please enter the meta size: ");
+	scanf("%hu", &cfg.ms);
+
+	cfg.lbads = 512;
+	cfg.meta_ext = 0;
+	cfg.meta_sgl = 1;
+
+	ret = prepare_meta_config(ndev, &cfg);
+	if (ret < 0)
+		return ret;
+
+	mc.id = rid;
+	mc.size = cfg.ms * nlb;
+	mc.contig = 0;
+	mc.buf = tool->meta_rbuf;
+
+	ret = nvme_create_meta_node(ndev->fd, &mc);
+	if (ret < 0)
+		return ret;
+	mc.id = wid;
+	mc.buf = tool->meta_wbuf;
+
+	ret = nvme_create_meta_node(ndev->fd, &mc);
+	if (ret < 0)
+		goto out_del_meta_rid;
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		ret = -ENODEV;
+		goto out_del_meta_wid;
+	}
+
+	ret = create_ioq(ndev->fd, sq, cq);
+	if (ret < 0)
+		goto out_del_meta_wid;
+
+	ret = send_io_write_cmd(tool, sq, 0, nlb, wid, flags);
+	if (ret < 0) {
+		pr_err("failed to write data!(%d)\n", ret);
+		goto out_del_ioq;
+	}
+
+	ret = send_io_read_cmd(tool, sq, 0, nlb, rid, flags);
+	if (ret < 0) {
+		pr_err("failed to read data!(%d)\n", ret);
+		goto out_del_ioq;
+	}
+	size = ndev->nss[0].lbads * nlb;
+
+	ret = memcmp(tool->rbuf, tool->wbuf, size);
+	if (ret) {
+		pr_err("failed to compare r/w data!(%d)\n", ret);
+		ret = -EIO;
+		goto out_del_ioq;
+	}
+
+	ret = memcmp(tool->meta_rbuf, tool->meta_wbuf, mc.size);
+	if (ret) {
+		pr_err("failed to compare meta data!(%d)\n", ret);
+		ret = -EIO;
+		goto out_del_ioq;
+	}
+
+out_del_ioq:
+	ret |= delete_ioq(ndev->fd, sq, cq);
+out_del_meta_wid:
+	ret |= nvme_delete_meta_node(ndev->fd, wid);
+out_del_meta_rid:
+	ret |= nvme_delete_meta_node(ndev->fd, rid);
+	return ret;
+}
 
 int case_meta_xfer_separate(struct nvme_tool *tool)
 {
@@ -244,6 +348,7 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct meta_config cfg = {0};
+	struct nvme_meta_create mc = {0};
 	uint32_t wid = 1, rid = 2;
 	uint32_t nlb = 8;
 	uint32_t size;
@@ -259,36 +364,37 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_create_meta_pool(ndev->fd, cfg.ms * nlb);
+	mc.id = rid;
+	mc.size = cfg.ms * nlb;
+	mc.contig = 1;
+
+	ret = nvme_create_meta_node(ndev->fd, &mc);
 	if (ret < 0)
 		return ret;
+	mc.id = wid;
 
-	ret = nvme_create_meta_node(ndev->fd, rid);
+	ret = nvme_create_meta_node(ndev->fd, &mc);
 	if (ret < 0)
-		goto out_destroy_pool;
-
-	ret = nvme_create_meta_node(ndev->fd, wid);
-	if (ret < 0)
-		goto out_destroy_pool;
+		goto out_del_meta_rid;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
 		pr_err("failed to find iocq(%u)!\n", sq->cqid);
 		ret = -ENODEV;
-		goto out_destroy_pool;
+		goto out_del_meta_wid;
 	}
 
 	ret = create_ioq(ndev->fd, sq, cq);
 	if (ret < 0)
-		goto out_destroy_pool;
+		goto out_del_meta_wid;
 
-	ret = send_io_write_cmd(tool, sq, 0, nlb, wid);
+	ret = send_io_write_cmd(tool, sq, 0, nlb, wid, 0);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
 
-	ret = send_io_read_cmd(tool, sq, 0, nlb, rid);
+	ret = send_io_read_cmd(tool, sq, 0, nlb, rid, 0);
 	if (ret < 0) {
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out_del_ioq;
@@ -298,6 +404,7 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 	ret = memcmp(tool->rbuf, tool->wbuf, size);
 	if (ret) {
 		pr_err("failed to compare r/w data!(%d)\n", ret);
+		ret = -EIO;
 		goto out_del_ioq;
 	}
 
@@ -308,9 +415,11 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 	}
 
 out_del_ioq:
-	delete_ioq(ndev->fd, sq, cq);
-out_destroy_pool:
-	nvme_destroy_meta_pool(ndev->fd);
+	ret |= delete_ioq(ndev->fd, sq, cq);
+out_del_meta_wid:
+	ret |= nvme_delete_meta_node(ndev->fd, wid);
+out_del_meta_rid:
+	ret |= nvme_delete_meta_node(ndev->fd, rid);
 	return ret;
 }
 
@@ -341,13 +450,13 @@ int case_meta_xfer_extlba(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, 0, 8, 0);
+	ret = send_io_write_cmd(tool, sq, 0, 8, 0, 0);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
 
-	ret = send_io_read_cmd(tool, sq, 0, 8, 0);
+	ret = send_io_read_cmd(tool, sq, 0, 8, 0, 0);
 	if (ret < 0) {
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out_del_ioq;
@@ -363,62 +472,40 @@ int case_meta_xfer_extlba(struct nvme_tool *tool)
 	pr_info("meta data r/w compare ok!\n");
 
 out_del_ioq:
-	delete_ioq(ndev->fd, sq, cq);
+	ret |= delete_ioq(ndev->fd, sq, cq);
 	return ret;
 }
 
-int case_meta_create_pool(struct nvme_tool *tool)
+/**
+ * @brief Create meta node which is contiguous, then delete it later.
+ * 
+ * @return 0 on success, otherwise a negative errno. 
+ */
+int case_meta_node_contiguous(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t size;
+	struct nvme_meta_create mc = {0};
+	int ret;
 
-	pr_notice("Please enter the meta size which is used to crerate pool: ");
-	scanf("%u", &size);
+	pr_notice("Please enter the meta node ID: ");
+	scanf("%u", &mc.id);
 
-	if (!size || size > 4096) {
-		pr_warn("meta size %u is invalid! stopped.\n", size);
-		return 0;
-	}
+	pr_notice("Please enter the meta node size: ");
+	scanf("%u", &mc.size);
 
-	return nvme_create_meta_pool(ndev->fd, size);
-}
+	mc.contig = 1;
 
-int case_meta_destroy_pool(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
+	ret = nvme_create_meta_node(ndev->fd, &mc);
+	if (ret < 0)
+		return ret;
 
-	return nvme_destroy_meta_pool(ndev->fd);
-}
+	pr_notice("Is ready to delete meta node: ");
+	scanf("%d", &ret);
 
-int case_meta_create_node(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t id;
+	ret = nvme_delete_meta_node(ndev->fd, mc.id);
+	if (ret < 0)
+		return ret;
 
-	pr_notice("Please enter the meta ID which is used to crerate node: ");
-	scanf("%u", &id);
-
-	if (!id) {
-		pr_warn("meta ID %u is invalid! stopped.\n", id);
-		return 0;
-	}
-
-	return nvme_create_meta_node(ndev->fd, id);
-}
-
-int case_meta_delete_node(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t id;
-
-	pr_notice("Please enter the meta ID which is used to crerate node: ");
-	scanf("%u", &id);
-
-	if (!id) {
-		pr_warn("meta ID %u is invalid! stopped.\n", id);
-		return 0;
-	}
-
-	return nvme_delete_meta_node(ndev->fd, id);
+	return 0;
 }
 

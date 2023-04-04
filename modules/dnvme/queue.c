@@ -30,7 +30,6 @@
 #include "core.h"
 #include "trace.h"
 #include "io.h"
-#include "cmd.h"
 #include "queue.h"
 #include "irq.h"
 #include "debug.h"
@@ -76,24 +75,6 @@ struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
 	list_for_each_entry(cmd, &sq->cmd_list, entry) {
 		if (id == cmd->id)
 			return cmd;
-	}
-	return NULL;
-}
-
-/**
- * @brief Find the meta node in the given meta list by the given ID
- * 
- * @param ctx NVMe device context
- * @param id meta identify
- * @return pointer to the meta node on success. Otherwise returns NULL.
- */
-struct nvme_meta *dnvme_find_meta(struct nvme_context *ctx, u32 id)
-{
-	struct nvme_meta *meta;
-
-	list_for_each_entry(meta, &ctx->meta_set.meta_list, entry) {
-		if (id == meta->id)
-			return meta;
 	}
 	return NULL;
 }

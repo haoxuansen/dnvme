@@ -78,7 +78,27 @@ static int alloc_buffer(struct nvme_tool *tool)
 	memset(tool->wbuf, 0, NVME_TOOL_RW_BUF_SIZE);
 	tool->wbuf_size = NVME_TOOL_RW_BUF_SIZE;
 
+	tool->meta_rbuf = calloc(1, NVME_TOOL_RW_META_SIZE);
+	if (!tool->meta_rbuf) {
+		pr_err("failed to alloc meta rbuf!\n");
+		goto out5;
+	}
+	tool->meta_rbuf_size = NVME_TOOL_RW_META_SIZE;
+
+	tool->meta_wbuf = calloc(1, NVME_TOOL_RW_META_SIZE);
+	if (!tool->meta_wbuf) {
+		pr_err("failed to alloc meta wbuf!\n");
+		goto out6;
+	}
+	tool->meta_wbuf_size = NVME_TOOL_RW_META_SIZE;
+
 	return 0;
+out6:
+	free(tool->meta_rbuf);
+	tool->meta_rbuf = NULL;
+out5:
+	free(tool->wbuf);
+	tool->wbuf = NULL;
 out4:
 	free(tool->rbuf);
 	tool->rbuf = NULL;
@@ -96,6 +116,10 @@ out:
 
 void release_buffer(struct nvme_tool *tool)
 {
+	free(tool->meta_rbuf);
+	tool->meta_rbuf = NULL;
+	free(tool->meta_wbuf);
+	tool->meta_wbuf = NULL;
 	free(tool->rbuf);
 	tool->rbuf = NULL;
 	free(tool->wbuf);

@@ -24,12 +24,8 @@
 
 #include "trace.h"
 #include "core.h"
-#include "cmd.h"
 #include "queue.h"
 #include "debug.h"
-
-#define SGES_PER_PAGE	(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
-#define PRPS_PER_PAGE	(PAGE_SIZE / NVME_PRP_ENTRY_SIZE)
 
 /**
  * @brief Check whether the cmd uses SGLS.
@@ -47,7 +43,7 @@ static bool dnvme_use_sgls(struct nvme_common_command *ccmd, struct nvme_64b_cmd
 	return true;
 }
 
-static void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg)
+void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg)
 {
 	sge->addr = cpu_to_le64(sg_dma_address(sg));
 	sge->length = cpu_to_le32(sg_dma_len(sg));
@@ -55,11 +51,11 @@ static void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg
 	trace_dnvme_sgl_set_data(sge);
 }
 
-static void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
+void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
 	int entries)
 {
 	sge->addr = cpu_to_le64(dma_addr);
-	if (entries < SGES_PER_PAGE) {
+	if (entries < NVME_SGES_PER_PAGE) {
 		sge->length = cpu_to_le32(entries * sizeof(*sge));
 		sge->type = NVME_SGL_TYPE_LAST_SEG_DESC << 4;
 	} else {
@@ -101,15 +97,14 @@ out:
 	return NULL;
 }
 
-static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
-	struct nvme_common_command *ccmd, struct nvme_prps *prps)
+int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_prps *prps, 
+	void __user *data, unsigned int size, 
+	enum dma_data_direction dir, bool access)
 {
 	struct scatterlist *sgl;
 	struct page **pages;
 	struct pci_dev *pdev = ndev->pdev;
-	enum dma_data_direction dir = cmd->data_dir;
-	unsigned long addr = (unsigned long)cmd->data_buf_ptr;
-	unsigned int size = cmd->data_buf_size;
+	unsigned long addr = (unsigned long)data;
 	unsigned int offset;
 	void *buf = NULL;
 	int nr_pages;
@@ -153,8 +148,7 @@ static int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_64b_cmd *cm
 	/*
 	 * Kernel needs direct access to all Q memory, so discontiguously backed
 	 */
-	if (cmd->sqid == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq || 
-		ccmd->opcode == nvme_admin_create_cq)) {
+	if (access) {
 		/* Note: Not suitable for pages with offsets, but since discontig back'd
         	 *       Q's are required to be page aligned this isn't an issue */
 		buf = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
@@ -200,7 +194,23 @@ out:
 	return ret;
 }
 
-static void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *prps)
+static int dnvme_cmd_map_user_page(struct nvme_device *ndev, 
+		struct nvme_64b_cmd *cmd,
+		struct nvme_common_command *ccmd, 
+		struct nvme_prps *prps)
+{
+	bool access = false;
+
+	if (cmd->sqid == NVME_AQ_ID && (ccmd->opcode == nvme_admin_create_sq || 
+		ccmd->opcode == nvme_admin_create_cq)) {
+		access = true;
+	}
+
+	return dnvme_map_user_page(ndev, prps, cmd->data_buf_ptr, 
+				cmd->data_buf_size, cmd->data_dir, access);
+}
+
+void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *prps)
 {
 	struct pci_dev *pdev = ndev->pdev;
 	struct page *pg;
@@ -235,8 +245,9 @@ static void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *pr
 	}
 }
 
-static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command *ccmd, 
-	struct nvme_prps *prps)
+static int dnvme_cmd_setup_sgl(struct nvme_device *ndev, 
+		struct nvme_common_command *ccmd, 
+		struct nvme_prps *prps)
 {
 	struct dma_pool *pool = prps->pg_pool;
 	struct nvme_sgl_desc *sgl_desc;
@@ -277,7 +288,7 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command 
 		}
 	}
 
-	prps->prp_list = (__le64 **)prp_list;
+	prps->prp_list = prp_list;
 	prps->nr_pages = nr_seg;
 	prps->pg_addr = prp_dma;
 	dnvme_sgl_set_seg(&ccmd->dptr.sgl, prp_dma[0], nr_desc);
@@ -287,7 +298,7 @@ static int dnvme_setup_sgl(struct nvme_device *ndev, struct nvme_common_command 
 
 		sgl_desc = prp_list[j];
 
-		if (k == (SGES_PER_PAGE - 1)) {
+		if (k == (NVME_SGES_PER_PAGE - 1)) {
 			/* SGL segment last descriptor pointer to next SGL segment */
 			j++;
 			dnvme_sgl_set_seg(&sgl_desc[k], prp_dma[j], nr_desc);
@@ -424,7 +435,7 @@ prp_list:
 		}
 	}
 
-	prps->prp_list = (__le64 **)prp_list;
+	prps->prp_list = prp_list;
 	prps->nr_pages = nr_pages;
 	prps->pg_addr = prp_dma;
 
@@ -441,7 +452,7 @@ prp_list:
 
 		prp_entry = prp_list[j];
 
-		if (k == (PRPS_PER_PAGE - 1)) {
+		if (k == (NVME_PRPS_PER_PAGE - 1)) {
 			/* PRP list last entry pointer to next PRP list */
 			j++;
 			prp_entry[k] = cpu_to_le64(prp_dma[j]);
@@ -598,12 +609,12 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev,
 	}
 	prps->pg_pool = pool ? pool : ndev->cmd_pool;
 
-	ret = dnvme_map_user_page(ndev, cmd, ccmd, prps);
+	ret = dnvme_cmd_map_user_page(ndev, cmd, ccmd, prps);
 	if (ret < 0)
 		goto out_free_prp;
 
 	if (dnvme_use_sgls(ccmd, cmd))
-		ret = dnvme_setup_sgl(ndev, ccmd, prps);
+		ret = dnvme_cmd_setup_sgl(ndev, ccmd, prps);
 	else
 		ret = dnvme_setup_prps(ndev, cmd, ccmd, prps);
 
@@ -625,10 +636,10 @@ out_free_prp:
 	return ret;	
 }
 
-void dnvme_release_prps(struct nvme_device *nvme_device, struct nvme_prps *prps)
+void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps)
 {
-	dnvme_free_prp_list(nvme_device, prps);
-	dnvme_unmap_user_page(nvme_device, prps);
+	dnvme_free_prp_list(ndev, prps);
+	dnvme_unmap_user_page(ndev, prps);
 	kfree(prps);
 }
 
@@ -805,13 +816,32 @@ static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
+static int dnvme_fill_mptr(struct nvme_device *ndev, 
+			struct nvme_common_command *ccmd, u32 meta_id)
+{
+	struct nvme_meta *meta;
+
+	meta = dnvme_find_meta(ndev, meta_id);
+	if (!meta) {
+		dnvme_err(ndev, "Meta(%u) doesn't exist!\n", meta_id);
+		return -EINVAL;
+	}
+
+	if (test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+		ccmd->metadata = cpu_to_le64(meta->dma);
+	} else {
+		ccmd->metadata = cpu_to_le64(meta->prps->pg_addr[0]);
+	}
+
+	return 0;
+}
+
 int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
 {
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_64b_cmd cmd;
 	struct nvme_common_command *ccmd;
-	struct nvme_meta *meta;
 	struct pci_dev *pdev = ndev->pdev;
 	void *cmd_buf;
 	int ret = 0;
@@ -868,14 +898,9 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	}
 
 	if (cmd.bit_mask & NVME_MASK_MPTR) {
-		meta = dnvme_find_meta(ctx, cmd.meta_id);
-		if (!meta) {
-			dnvme_err(ndev, "Meta(%u) doesn't exist!\n", cmd.meta_id);
-			ret = -EINVAL;
+		ret = dnvme_fill_mptr(ndev, ccmd, cmd.meta_id);
+		if (ret < 0)
 			goto out;
-		}
-		/* Add the required information to the command */
-		ccmd->metadata = cpu_to_le64(meta->dma);
 	}
 
 	if (cmd.sqid == NVME_AQ_ID) {

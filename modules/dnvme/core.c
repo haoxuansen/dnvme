@@ -37,7 +37,6 @@
 #include "pci.h"
 #include "io.h"
 #include "cmb.h"
-#include "cmd.h"
 #include "ioctl.h"
 #include "irq.h"
 #include "queue.h"
@@ -132,7 +131,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
-	struct nvme_meta *meta;
+	//struct nvme_meta *meta;
 	u32 type = VMPGOFF_TO_TYPE(vm_pgoff);
 	u32 id = VMPGOFF_TO_ID(vm_pgoff);
 
@@ -178,6 +177,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 		break;
 
 	case VMPGOFF_TYPE_META:
+#if 0 // !TODO: now
 		if (id > NVME_META_ID_MAX) {
 			dnvme_err(ndev, "Meta ID(%u) is out of range!\n", id);
 			return -EINVAL;
@@ -190,6 +190,7 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 		}
 		*kva = meta->buf;
 		*size = ctx->meta_set.buf_size;
+#endif
 		break;
 
 	default:
@@ -205,10 +206,12 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
  */
 void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state)
 {
+	struct nvme_device *ndev = ctx->dev;
+
 	dnvme_clean_interrupt(ctx);
 	/* Clean Up the data structures */
 	dnvme_delete_all_queues(ctx, state);
-	dnvme_destroy_meta_pool(ctx);
+	dnvme_delete_meta_nodes(ndev);
 }
 
 /**
@@ -352,24 +355,16 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_reap_cqe(ctx, argp);
 		break;
 
-	case NVME_IOCTL_CREATE_META_POOL:
-		ret = dnvme_create_meta_pool(ctx, (u32)arg);
-		break;
-
-	case NVME_IOCTL_DESTROY_META_POOL:
-		dnvme_destroy_meta_pool(ctx);
-		break;
-
 	case NVME_IOCTL_CREATE_META_NODE:
-		ret = dnvme_create_meta_node(ctx, (u32)arg);
+		ret = dnvme_create_meta_node(ndev, argp);
 		break;
 
 	case NVME_IOCTL_DELETE_META_NODE:
-		dnvme_delete_meta_node(ctx, (u32)arg);
+		dnvme_delete_meta_id(ndev, (u32)arg);
 		break;
 
 	case NVME_IOCTL_COMPARE_META_NODE:
-		ret = dnvme_compare_meta_node(ctx, argp);
+		ret = dnvme_compare_meta_node(ndev, argp);
 		break;
 
 	case NVME_IOCTL_SET_IRQ:
@@ -442,7 +437,7 @@ static const struct file_operations dnvme_fops = {
 	.unlocked_ioctl	= dnvme_ioctl,
 	.open		= dnvme_open,
 	.release	= dnvme_release,
-	.mmap		= dnvme_mmap,
+	.mmap		= dnvme_mmap, /* !TODO: set map or unmap flag? */
 };
 
 /**
@@ -531,12 +526,23 @@ static int dnvme_create_pool(struct nvme_device *ndev)
 	pool = dma_pool_create("queue", dev, PAGE_SIZE, PAGE_SIZE, 0);
 	if (!pool) {
 		dev_err(dev, "failed to create dma pool for queue!\n");
-		goto out;
+		goto out_destroy_cmd_pool;
 	}
 	ndev->queue_pool = pool;
 
+	pool = dma_pool_create("meta", dev, PAGE_SIZE, PAGE_SIZE, 0);
+	if (!pool) {
+		dev_err(dev, "failed to create dma pool for meta!\n");
+		goto out_destroy_queue_pool;
+	}
+	ndev->meta_pool = pool;
+
 	return 0;
-out:
+
+out_destroy_queue_pool:
+	dma_pool_destroy(ndev->queue_pool);
+	ndev->queue_pool = NULL;
+out_destroy_cmd_pool:
 	dma_pool_destroy(ndev->cmd_pool);
 	ndev->cmd_pool = NULL;
 	return -ENOMEM;
@@ -544,6 +550,8 @@ out:
 
 static void dnvme_destroy_pool(struct nvme_device *ndev)
 {
+	dma_pool_destroy(ndev->meta_pool);
+	ndev->meta_pool = NULL;
 	dma_pool_destroy(ndev->queue_pool);
 	ndev->queue_pool = NULL;
 	dma_pool_destroy(ndev->cmd_pool);
@@ -603,9 +611,9 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 
 	xa_init(&ndev->sqs);
 	xa_init(&ndev->cqs);
+	xa_init(&ndev->meta);
 
 	/* 2. Then initialize nvme context. */
-	INIT_LIST_HEAD(&ctx->meta_set.meta_list);
 	INIT_LIST_HEAD(&ctx->irq_set.irq_list);
 	INIT_LIST_HEAD(&ctx->irq_set.work_list);
 

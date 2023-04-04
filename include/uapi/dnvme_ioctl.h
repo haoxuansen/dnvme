@@ -50,8 +50,6 @@ enum {
 	NVME_INQUIRY_CQE,
 	NVME_REAP_CQE,
 
-	NVME_CREATE_META_POOL,
-	NVME_DESTROY_META_POOL,
 	NVME_CREATE_META_NODE,
 	NVME_DELETE_META_NODE,
 	NVME_COMPARE_META_NODE,
@@ -307,7 +305,17 @@ struct nvme_reap {
 	uint32_t	size;
 };
 
-struct nvme_cmp_meta {
+struct nvme_meta_create {
+	uint32_t	id;
+
+	void		*buf; /* for SGL */
+	uint32_t	size;
+
+	uint8_t		contig;
+};
+
+
+struct nvme_meta_compare {
 	uint32_t	id1;
 	uint32_t	id2;
 };
@@ -350,14 +358,11 @@ struct nvme_cmp_meta {
 #define NVME_IOCTL_INQUIRY_CQE		_IOWR('N', NVME_INQUIRY_CQE, struct nvme_inquiry)
 #define NVME_IOCTL_REAP_CQE		_IOWR('N', NVME_REAP_CQE, struct nvme_reap)
 
-#define NVME_IOCTL_COMPARE_META_NODE	_IOW('N', NVME_COMPARE_META_NODE, struct nvme_cmp_meta)
+#define NVME_IOCTL_COMPARE_META_NODE	_IOW('N', NVME_COMPARE_META_NODE, struct nvme_meta_compare)
 /* uint16_t: assign meta node identify */
-#define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, uint32_t)
+#define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, struct nvme_meta_create)
 /* uint16_t: assign meta node identify */
 #define NVME_IOCTL_DELETE_META_NODE	_IOW('N', NVME_DELETE_META_NODE, uint32_t)
-/* uint32_t: assign meta buf size */
-#define NVME_IOCTL_CREATE_META_POOL	_IOW('N', NVME_CREATE_META_POOL, uint32_t)
-#define NVME_IOCTL_DESTROY_META_POOL	_IO('N', NVME_DESTROY_META_POOL)
 
 #define NVME_IOCTL_SET_IRQ		_IOWR('N', NVME_SET_IRQ, struct nvme_interrupt)
 /* uint16_t: specified irq identify */
