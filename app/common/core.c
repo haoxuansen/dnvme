@@ -57,15 +57,22 @@ int call_system(const char *command)
 	return 0;
 }
 
-void nvme_dump_data(const char *msg, void *buf, uint32_t size)
+void nvme_fill_data(void *buf, uint32_t size)
+{
+	uint32_t i;
+
+	for (i = 0; i < size; i++) {
+		*(uint8_t *)(buf + i) = (uint8_t)rand();
+	}
+}
+
+void nvme_dump_data(void *buf, uint32_t size)
 {
 	uint32_t oft = 0;
 	char string[256];
 	char *str = string;
 	unsigned char *ptr = buf;
 	int ret;
-
-	pr_debug("%s\n", msg);
 
 	while (size >= 0x10) {
 		snprintf(str, sizeof(string), 
@@ -434,7 +441,7 @@ struct nvme_dev_info *nvme_init(const char *devpath)
 	}
 	memset(ndev, 0, sizeof(*ndev));
 
-	ndev->fd = open(devpath, 0);
+	ndev->fd = open(devpath, O_RDWR);
 	if (ndev->fd < 0) {
 		pr_err("failed to open %s: %s!\n", devpath, strerror(errno));
 		goto out;

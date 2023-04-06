@@ -94,8 +94,6 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 	case NVME_IOCTL_REAP_CQE:
 		return "NVME_REAP_CQE";
 
-	case NVME_IOCTL_COMPARE_META_NODE:
-		return "NVME_COMPARE_META_NODE"
 	case NVME_IOCTL_CREATE_META_NODE:
 		return "NVME_CREATE_META_NODE";
 	case NVME_IOCTL_DELETE_META_NODE:

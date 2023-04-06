@@ -48,21 +48,6 @@
 #define DRIVER_VERSION			0x20221115
 #define DRIVER_VERSION_STR(VER)		#VER
 
-/* bit[19:18] Type */
-#define VMPGOFF_TO_TYPE(n)		(((n) >> 18) & 0x3)
-#define VMPGOFF_TYPE_CQ			0
-#define VMPGOFF_TYPE_SQ			1
-#define VMPGOFF_TYPE_META		2
-/* bit[17:0] Identify */
-#define VMPGOFF_TO_ID(n)		(((n) >> 0) & 0x3ffff)
-
-#ifndef VM_RESERVED
-#define VM_RESERVED			(VM_DONTEXPAND | VM_DONTDUMP)
-#endif
-#ifndef ENOTSUP
-#define ENOTSUP				EOPNOTSUPP
-#endif
-
 LIST_HEAD(nvme_ctx_list);
 static DEFINE_MUTEX(nvme_ctx_list_lock);
 static struct proc_dir_entry *nvme_proc_dir;
@@ -125,23 +110,17 @@ static void unlock_context(struct nvme_context *ctx)
  * @param size mmap size
  * @return 0 on success, otherwise a negative errno.
  */
-static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
+static int mmap_parse_vmpgoff(struct nvme_device *ndev, unsigned long vm_pgoff,
 	void **kva, u32 *size)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
-	//struct nvme_meta *meta;
-	u32 type = VMPGOFF_TO_TYPE(vm_pgoff);
-	u32 id = VMPGOFF_TO_ID(vm_pgoff);
+	struct nvme_meta *meta;
+	u32 type = NVME_VMPGOFF_TO_TYPE(vm_pgoff);
+	u32 id = NVME_VMPGOFF_ID(vm_pgoff);
 
 	switch (type) {
-	case VMPGOFF_TYPE_CQ:
-		if (id > NVME_CQ_ID_MAX) {
-			dnvme_err(ndev, "CQ ID(%u) is out of range!\n", id);
-			return -EINVAL;
-		}
-
+	case NVME_VMPGOFF_TYPE_CQ:
 		cq = dnvme_find_cq(ndev, id);
 		if (!cq) {
 			dnvme_err(ndev, "Cannot find CQ(%u)!\n", id);
@@ -149,19 +128,14 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 		}
 
 		if (!test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
-			dnvme_err(ndev, "Cannot mmap non-contig CQ!\n");
-			return -ENOTSUP;
+			dnvme_err(ndev, "Cannot map non-contig CQ!\n");
+			return -EOPNOTSUPP;
 		}
 		*kva = cq->buf;
 		*size = cq->size;
 		break;
 
-	case VMPGOFF_TYPE_SQ:
-		if (id > NVME_SQ_ID_MAX) {
-			dnvme_err(ndev, "SQ ID(%u) is out of range!\n", id);
-			return -EINVAL;
-		}
-
+	case NVME_VMPGOFF_TYPE_SQ:
 		sq = dnvme_find_sq(ndev, id);
 		if (!sq) {
 			dnvme_err(ndev, "Cannot find SQ(%u)!\n", id);
@@ -169,28 +143,27 @@ static int mmap_parse_vmpgoff(struct nvme_context *ctx, unsigned long vm_pgoff,
 		}
 
 		if (!test_bit(NVME_QF_BUF_CONTIG, &sq->flags)) {
-			dnvme_err(ndev, "Cannot mmap non-contig SQ!\n");
-			return -ENOTSUP;
+			dnvme_err(ndev, "Cannot map non-contig SQ!\n");
+			return -EOPNOTSUPP;
 		}
 		*kva = sq->buf;
 		*size = sq->size;
 		break;
 
-	case VMPGOFF_TYPE_META:
-#if 0 // !TODO: now
-		if (id > NVME_META_ID_MAX) {
-			dnvme_err(ndev, "Meta ID(%u) is out of range!\n", id);
-			return -EINVAL;
-		}
-
-		meta = dnvme_find_meta(ctx, id);
+	case NVME_VMPGOFF_TYPE_META:
+		meta = dnvme_find_meta(ndev, id);
 		if (!meta) {
 			dnvme_err(ndev, "Cannot find Meta(%u)!\n", id);
 			return -EBADSLT;
 		}
+
+		if (!test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+			dnvme_err(ndev, "Cannot map SGL meta!\n");
+			return -EOPNOTSUPP;
+		}
+
 		*kva = meta->buf;
-		*size = ctx->meta_set.buf_size;
-#endif
+		*size = meta->size;
 		break;
 
 	default:
@@ -227,8 +200,8 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	struct inode *inode = filp->f_path.dentry->d_inode;
-	void *mmap_addr;
-	u32 mmap_range;
+	void *map_addr;
+	u32 map_size;
 	int npages;
 	unsigned long pfn;
 	int ret = 0;
@@ -238,23 +211,22 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 		return PTR_ERR(ctx);
 	ndev = ctx->dev;
 
-	vma->vm_flags |= (VM_IO | VM_RESERVED);
+	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
-	ret = mmap_parse_vmpgoff(ctx, vma->vm_pgoff, &mmap_addr, &mmap_range);
+	ret = mmap_parse_vmpgoff(ndev, vma->vm_pgoff, &map_addr, &map_size);
 	if (ret < 0)
 		goto out;
 
-	/* !NOTE: Why add 1? Could replace by ALIGN()? */
-	npages = (mmap_range / PAGE_SIZE) + 1;
+	npages = DIV_ROUND_UP(map_size, PAGE_SIZE);
 	if ((npages * PAGE_SIZE) < (vma->vm_end - vma->vm_start)) {
 		dnvme_err(ndev, "Request to Map more than allocated pages...\n");
 		ret = -EINVAL;
 		goto out;
 	}
-	dnvme_vdbg(ndev, "K.V.A = 0x%lx, PAGES = %d\n", (unsigned long)mmap_addr, npages);
+	dnvme_vdbg(ndev, "K.V.A = 0x%lx, PAGES = %d\n", (unsigned long)map_addr, npages);
 
 	/* Associated struct page ptr for kernel logical address */
-	pfn = virt_to_phys(mmap_addr) >> PAGE_SHIFT;
+	pfn = virt_to_phys(map_addr) >> PAGE_SHIFT;
 	if (!pfn) {
 		dnvme_err(ndev, "virt_to_phys err!\n");
 		ret = -EFAULT;
@@ -361,10 +333,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_DELETE_META_NODE:
 		dnvme_delete_meta_id(ndev, (u32)arg);
-		break;
-
-	case NVME_IOCTL_COMPARE_META_NODE:
-		ret = dnvme_compare_meta_node(ndev, argp);
 		break;
 
 	case NVME_IOCTL_SET_IRQ:

@@ -13,11 +13,18 @@
 #define _APP_META_H_
 
 #include <stdint.h>
+#include <sys/mman.h>
+
 #include "dnvme_ioctl.h"
 
 int nvme_create_meta_node(int fd, struct nvme_meta_create *mc);
-int nvme_delete_meta_node(int fd, uint32_t id);
+int nvme_delete_meta_node(int fd, uint16_t id);
 
-int nvme_compare_meta_node(int fd, uint32_t id1, uint32_t id2);
+void *nvme_map_meta_node(int fd, uint16_t id, uint32_t size);
+
+static inline int nvme_unmap_meta_node(int fd, void *meta, uint32_t size)
+{
+	return munmap(meta, size);
+}
 
 #endif /* !_APP_META_H_ */

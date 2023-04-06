@@ -20,6 +20,8 @@
 #define DIV_ROUND_UP(n,d)		(((n) + (d) - 1) / (d))
 #endif
 
+#define ALIGN(x, a)			(((x) + (a) - 1) & ~((a) - 1))
+
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
 
 #ifndef BIT

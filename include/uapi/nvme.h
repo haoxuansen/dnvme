@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/uuid.h>
 
-#include "defs.h"
 #include "compiler.h"
 #include "nvme/property.h"
 

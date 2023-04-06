@@ -30,6 +30,16 @@
 #define NVME_IOQ_MIN_SIZE		2 /* at least 2 entries */
 #define NVME_IOQ_MAX_SIZE		65536
 
+/* For mmap - vm->pgoff */
+/* bit[?:16] Type */
+#define NVME_VMPGOFF_FOR_TYPE(n)	((n) << 16)
+#define NVME_VMPGOFF_TO_TYPE(n)		((n) >> 16)
+#define NVME_VMPGOFF_TYPE_CQ		0
+#define NVME_VMPGOFF_TYPE_SQ		1
+#define NVME_VMPGOFF_TYPE_META		2
+/* bit[15:0] Identify */
+#define NVME_VMPGOFF_ID(n)		((n) & 0xffff)
+
 enum {
 	NVME_READ_GENERIC = 0,
 	NVME_WRITE_GENERIC,
@@ -52,7 +62,6 @@ enum {
 
 	NVME_CREATE_META_NODE,
 	NVME_DELETE_META_NODE,
-	NVME_COMPARE_META_NODE,
 
 	NVME_SET_IRQ,
 	NVME_MASK_IRQ,
@@ -306,18 +315,12 @@ struct nvme_reap {
 };
 
 struct nvme_meta_create {
-	uint32_t	id;
+	uint16_t	id;
 
 	void		*buf; /* for SGL */
 	uint32_t	size;
 
 	uint8_t		contig;
-};
-
-
-struct nvme_meta_compare {
-	uint32_t	id1;
-	uint32_t	id2;
 };
 
 
@@ -358,7 +361,6 @@ struct nvme_meta_compare {
 #define NVME_IOCTL_INQUIRY_CQE		_IOWR('N', NVME_INQUIRY_CQE, struct nvme_inquiry)
 #define NVME_IOCTL_REAP_CQE		_IOWR('N', NVME_REAP_CQE, struct nvme_reap)
 
-#define NVME_IOCTL_COMPARE_META_NODE	_IOW('N', NVME_COMPARE_META_NODE, struct nvme_meta_compare)
 /* uint16_t: assign meta node identify */
 #define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, struct nvme_meta_create)
 /* uint16_t: assign meta node identify */

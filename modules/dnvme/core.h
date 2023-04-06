@@ -20,10 +20,6 @@
 #include "pci_caps.h"
 #include "dnvme_ioctl.h"
 
-#define NVME_SQ_ID_MAX			U16_MAX
-#define NVME_CQ_ID_MAX			U16_MAX
-#define NVME_META_ID_MAX		((0x1 << 18) - 1)
-
 #define NVME_PRP_ENTRY_SIZE		8 /* in bytes */
 #define NVME_SGES_PER_PAGE		(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
 #define NVME_PRPS_PER_PAGE		(PAGE_SIZE / NVME_PRP_ENTRY_SIZE)
@@ -317,8 +313,6 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 int dnvme_create_meta_node(struct nvme_device *ndev, 
 	struct nvme_meta_create __user *umc);
 void dnvme_delete_meta_id(struct nvme_device *ndev, u32 id);
-int dnvme_compare_meta_node(struct nvme_device *ndev, 
-	struct nvme_meta_compare __user *ucmp);
 
 void dnvme_delete_meta_nodes(struct nvme_device *ndev);
 
