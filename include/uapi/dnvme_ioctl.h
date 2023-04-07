@@ -1,19 +1,12 @@
-/*
- * NVM Express Compliance Suite
- * Copyright (c) 2011, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+/**
+ * @file dnvme_ioctl.h
+ * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
+ * @brief 
+ * @version 0.1
+ * @date 2023-04-07
+ * 
+ * @copyright Copyright (c) 2023
+ * 
  */
 
 #ifndef _UAPI_DNVME_IOCTLS_H_
@@ -44,7 +37,6 @@ enum {
 	NVME_READ_GENERIC = 0,
 	NVME_WRITE_GENERIC,
 
-	NVME_GET_DRIVER_INFO,
 	NVME_GET_DEVICE_INFO,
 	NVME_GET_SQ_INFO,
 	NVME_GET_CQ_INFO,
@@ -128,11 +120,6 @@ enum nvme_irq_type {
 	NVME_INT_MSIX,
 	NVME_INT_PIN,
 	NVME_INT_NONE, /* !TODO: It's better to place header position */
-};
-
-struct nvme_driver {
-	uint32_t drv_version;
-	uint32_t api_version;
 };
 
 /**
@@ -324,8 +311,6 @@ struct nvme_meta_create {
 };
 
 
-#define NVME_IOCTL_GET_DRIVER_INFO \
-	_IOR('N', NVME_GET_DRIVER_INFO, struct nvme_driver)
 #define NVME_IOCTL_GET_DEVICE_INFO \
 	_IOR('N', NVME_GET_DEVICE_INFO, struct nvme_dev_public)
 #define NVME_IOCTL_GET_SQ_INFO \

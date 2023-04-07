@@ -54,18 +54,6 @@ static enum nvme_access_type nvme_select_access_type(uint32_t oft, uint32_t len)
 	return NVME_ACCESS_BYTE;
 }
 
-int nvme_get_driver_info(int fd, struct nvme_driver *drv)
-{
-	int ret;
-
-	ret = ioctl(fd, NVME_IOCTL_GET_DRIVER_INFO, drv);
-	if (ret < 0) {
-		pr_err("failed to get driver info!(%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
 int nvme_get_device_info(int fd, struct nvme_dev_public *dev)
 {
 	int ret;

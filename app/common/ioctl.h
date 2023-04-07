@@ -15,7 +15,6 @@
 #include <stdint.h>
 #include "dnvme_ioctl.h"
 
-int nvme_get_driver_info(int fd, struct nvme_driver *drv);
 int nvme_get_device_info(int fd, struct nvme_dev_public *dev);
 
 int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 

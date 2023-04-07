@@ -1,19 +1,12 @@
-/*
- * NVM Express Compliance Suite
- * Copyright (c) 2011, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
+/**
+ * @file core.c
+ * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
+ * @brief 
+ * @version 0.1
+ * @date 2023-04-07
+ * 
+ * @copyright Copyright (c) 2023
+ * 
  */
 
 #include <linux/kernel.h>
@@ -44,10 +37,6 @@
 
 #define NVME_MINORS			(1U << MINORBITS)
 
-#define API_VERSION                     0xfff10403
-#define DRIVER_VERSION			0x20221115
-#define DRIVER_VERSION_STR(VER)		#VER
-
 LIST_HEAD(nvme_ctx_list);
 static DEFINE_MUTEX(nvme_ctx_list_lock);
 static struct proc_dir_entry *nvme_proc_dir;
@@ -55,7 +44,6 @@ static struct proc_dir_entry *nvme_proc_dir;
 static DEFINE_IDA(nvme_instance_ida);
 static dev_t nvme_chr_devt;
 static struct class *nvme_class;
-static struct nvme_driver nvme_drv;
 
 /**
  * @brief Find nvme_context from linked list. 
@@ -261,13 +249,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	ndev = ctx->dev;
 
 	switch (cmd) {
-	case NVME_IOCTL_GET_DRIVER_INFO:
-		if (copy_to_user(argp, &nvme_drv, sizeof(struct nvme_driver))) {
-			dnvme_err(ndev, "failed to copy to user space!\n");
-			ret = -EFAULT;
-		}
-		break;
-
 	case NVME_IOCTL_GET_DEVICE_INFO:
 		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
 			dnvme_err(ndev, "failed to copy to user space!\n");
@@ -841,9 +822,6 @@ static int __init dnvme_init(void)
 {
 	int ret;
 
-	nvme_drv.api_version = API_VERSION;
-	nvme_drv.drv_version = DRIVER_VERSION;
-
 	ret = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, "nvme");
 	if (ret < 0) {
 		pr_err("failed to alloc chrdev!(%d)\n", ret);
@@ -867,8 +845,7 @@ static int __init dnvme_init(void)
 		goto out2;
 	}
 
-	pr_info("init ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
-		nvme_drv.drv_version);
+	pr_info("init ok!\n");
 	return 0;
 
 out2:
@@ -886,13 +863,12 @@ static void __exit dnvme_exit(void)
 	class_destroy(nvme_class);
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
 	ida_destroy(&nvme_instance_ida);
-	pr_info("exit ok!(api_ver:%x, drv_ver:%x)\n", nvme_drv.api_version, 
-		nvme_drv.drv_version);
+	pr_info("exit ok!\n");
 }
 module_exit(dnvme_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("nvmecompliance@intel.com");
-MODULE_DESCRIPTION("NVMe compliance suite kernel driver");
-MODULE_VERSION(DRIVER_VERSION_STR(DRIVER_VERSION));
+MODULE_AUTHOR("yeqiang_xu@maxio-tech.com");
+MODULE_DESCRIPTION("NVMe over PCIe Transport driver");
+MODULE_VERSION("v1.0.0");
 

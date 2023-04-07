@@ -11,3 +11,6 @@
 
     2. 运行 NVMe 测试程序，eg: `./nvmetool /dev/nvme0` (PS: NVMe 设备节点名称需要根据实际情况来配置)
 
+### 查看版本信息
+
+在成功加载 dnvme.ko 模块后，执行 `cat /sys/module/dnvme/version` 命令，即可查看该模块当前的版本信息。
