@@ -218,7 +218,6 @@ struct nvme_device {
 	struct dma_pool	*queue_pool;
 	struct dma_pool *meta_pool;
 
-	struct nvme_dev_public	pub;
 	struct nvme_ctrl_property	prop;
 	struct nvme_capability	cap;
 
@@ -258,8 +257,8 @@ struct nvme_irq_set {
 		void __iomem	*pba; /* Pointer to MSI-X PBA */
 	} msix;
 
-	/* Will only be read by ISR and set once per SET/DISABLE of IRQ scheme */
-	u8		irq_type; /* Type of IRQ set */
+	enum nvme_irq_type	irq_type;
+	u16			nr_irq;
 
 	struct workqueue_struct	*wq;
 	struct list_head	work_list;

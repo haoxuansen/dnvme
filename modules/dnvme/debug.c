@@ -56,8 +56,6 @@ void dnvme_print_cq(struct nvme_cq *cq)
 const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 {
 	switch (cmd) {
-	case NVME_IOCTL_GET_DEVICE_INFO:
-		return "NVME_GET_DEVICE_INFO";
 	case NVME_IOCTL_GET_SQ_INFO:
 		return "NVME_GET_SQ_INFO";
 	case NVME_IOCTL_GET_CQ_INFO:

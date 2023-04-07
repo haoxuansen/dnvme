@@ -37,7 +37,6 @@ enum {
 	NVME_READ_GENERIC = 0,
 	NVME_WRITE_GENERIC,
 
-	NVME_GET_DEVICE_INFO,
 	NVME_GET_SQ_INFO,
 	NVME_GET_CQ_INFO,
 
@@ -249,10 +248,6 @@ struct nvme_interrupt {
 	enum nvme_irq_type	irq_type; /* Active IRQ scheme for this dev */
 };
 
-struct nvme_dev_public {
-	struct nvme_interrupt	irq_active; /* Active IRQ state of the nvme device */
-};
-
 /**
  * This structure defines the parameters required for creating any CQ.
  * It supports both Admin CQ and IO CQ.
@@ -311,8 +306,6 @@ struct nvme_meta_create {
 };
 
 
-#define NVME_IOCTL_GET_DEVICE_INFO \
-	_IOR('N', NVME_GET_DEVICE_INFO, struct nvme_dev_public)
 #define NVME_IOCTL_GET_SQ_INFO \
 	_IOWR('N', NVME_GET_SQ_INFO, struct nvme_sq_public)
 #define NVME_IOCTL_GET_CQ_INFO \

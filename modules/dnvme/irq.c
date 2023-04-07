@@ -932,7 +932,7 @@ void dnvme_clean_interrupt(struct nvme_context *ctx)
 	struct nvme_irq *irq;
 	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
-	enum nvme_irq_type irq_type = ndev->pub.irq_active.irq_type;
+	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;
 
 	list_for_each_entry(irq, &ctx->irq_set.irq_list, irq_entry) {
 		free_irq(irq->int_vec, &ctx->irq_set);
@@ -963,9 +963,8 @@ void dnvme_clean_interrupt(struct nvme_context *ctx)
 	delete_work_list(&ctx->irq_set);
 
 	/* update active irq info */
-	ctx->dev->pub.irq_active.irq_type = NVME_INT_NONE;
-	ctx->dev->pub.irq_active.num_irqs = 0;
 	ctx->irq_set.irq_type = NVME_INT_NONE;
+	ctx->irq_set.nr_irq = 0;
 }
 
 
@@ -983,7 +982,7 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 	struct nvme_device *ndev = ctx->dev;
 	struct nvme_irq_set *irq_set = &ctx->irq_set;
 	struct nvme_interrupt irq;
-	enum nvme_irq_type act_irq = ndev->pub.irq_active.irq_type;
+	enum nvme_irq_type act_irq = irq_set->irq_type;
 	int ret;
 
 	if (copy_from_user(&irq, uirq, sizeof(irq))) {
@@ -1034,9 +1033,8 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 	}
 
 	/* update active irq info */
-	ndev->pub.irq_active.irq_type = irq.irq_type;
-	ndev->pub.irq_active.num_irqs = irq.num_irqs;
 	irq_set->irq_type = irq.irq_type;
+	irq_set->nr_irq = irq.num_irqs;
 
 	return 0;
 

@@ -54,18 +54,6 @@ static enum nvme_access_type nvme_select_access_type(uint32_t oft, uint32_t len)
 	return NVME_ACCESS_BYTE;
 }
 
-int nvme_get_device_info(int fd, struct nvme_dev_public *dev)
-{
-	int ret;
-
-	ret = ioctl(fd, NVME_IOCTL_GET_DEVICE_INFO, dev);
-	if (ret < 0) {
-		pr_err("failed to get device info!(%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
 int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 
 	enum nvme_cap_type type)
 {

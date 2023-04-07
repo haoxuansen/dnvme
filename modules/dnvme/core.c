@@ -249,13 +249,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	ndev = ctx->dev;
 
 	switch (cmd) {
-	case NVME_IOCTL_GET_DEVICE_INFO:
-		if (copy_to_user(argp, &ndev->pub, sizeof(ndev->pub))) {
-			dnvme_err(ndev, "failed to copy to user space!\n");
-			ret = -EFAULT;
-		}
-		break;
-
 	case NVME_IOCTL_GET_SQ_INFO:
 		ret = dnvme_get_sq_info(ndev, argp);
 		break;
@@ -448,10 +441,8 @@ static void dnvme_unmap_resource(struct nvme_context *ctx)
 
 static int dnvme_init_irq(struct nvme_context *ctx)
 {
-	ctx->dev->pub.irq_active.irq_type = NVME_INT_NONE;
-	ctx->dev->pub.irq_active.num_irqs = 0;
-	/* Will only be read by ISR */
 	ctx->irq_set.irq_type = NVME_INT_NONE;
+	ctx->irq_set.nr_irq = 0;
 	return 0;
 }
 

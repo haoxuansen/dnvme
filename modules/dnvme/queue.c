@@ -753,7 +753,7 @@ static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 {
 	struct nvme_device *ndev = ctx->dev;
-	struct nvme_interrupt *act_irq = &ndev->pub.irq_active;
+	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;
 	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_reap reap;
 	struct nvme_cq *cq;
@@ -804,7 +804,7 @@ int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 		writel(cq->pub.head_ptr, cq->db);
 	}
 
-	if (act_irq->irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
+	if (irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
 		reap.remained == 0) {
 
 		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);

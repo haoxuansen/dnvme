@@ -761,7 +761,7 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	/* Check if interrupts should be enabled for IO CQ */
 	if (ccq->cq_flags & NVME_CQ_IRQ_ENABLED) {
-		if (ctx->dev->pub.irq_active.irq_type == NVME_INT_NONE) {
+		if (ctx->irq_set.irq_type == NVME_INT_NONE) {
 			dnvme_err(ndev, "act irq_type is none!\n");
 			return -EINVAL;
 		}
