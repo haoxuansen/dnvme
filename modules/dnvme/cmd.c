@@ -449,9 +449,11 @@ prp_list:
 			/* PRP list last entry pointer to next PRP list */
 			j++;
 			prp_entry[k] = cpu_to_le64(prp_dma[j]);
+			trace_dnvme_setup_prps(k, prp_dma[j], PAGE_SIZE);
 			k = 0;
 		} else {
 			prp_entry[k] = cpu_to_le64(dma_addr);
+			trace_dnvme_setup_prps(k, dma_addr, PAGE_SIZE - pg_oft);
 			buf_len -= (PAGE_SIZE - pg_oft);
 			dma_len -= (PAGE_SIZE - pg_oft);
 			pg_oft = 0;

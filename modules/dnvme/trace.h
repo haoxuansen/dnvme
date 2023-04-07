@@ -124,6 +124,28 @@ DEFINE_EVENT(nvme_log_sgl, dnvme_sgl_set_seg,
 	TP_ARGS(sge)
 );
 
+DECLARE_EVENT_CLASS(nvme_log_prp,
+	TP_PROTO(int idx, dma_addr_t addr, int len),
+	TP_ARGS(idx, addr, len),
+	TP_STRUCT__entry(
+		__field(int, idx)
+		__field(u64, addr)
+		__field(int, len)
+	),
+	TP_fast_assign(
+		__entry->idx = idx;
+		__entry->addr = addr;
+		__entry->len = len;
+	),
+	TP_printk("[%02x] %016llx + %x", 
+		__entry->idx, __entry->addr, __entry->len)
+);
+
+DEFINE_EVENT(nvme_log_prp, dnvme_setup_prps, 
+	TP_PROTO(int idx, dma_addr_t addr, int len),
+	TP_ARGS(idx, addr, len)
+);
+
 DECLARE_EVENT_CLASS(nvme_log_cqe,
 	TP_PROTO(struct nvme_completion *cqe),
 	TP_ARGS(cqe),
