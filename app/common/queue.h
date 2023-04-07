@@ -13,8 +13,10 @@
 #define _APP_QUEUE_H_
 
 #include <stdint.h>
+#include <sys/mman.h>
 
 #include "dnvme_ioctl.h"
+#include "ioctl.h"
 
 /* Create IO Queue Flags */
 #define NVME_CIOQ_F_CQS_BIND_SINGLE_IRQ	(1 << 0)
@@ -80,6 +82,26 @@ static inline void nvme_fill_prep_cq(struct nvme_prep_cq *pcq, uint16_t cqid,
 	pcq->contig = contig;
 	pcq->cq_irq_en = irq_en;
 	pcq->cq_irq_no = irq_no;
+}
+
+static inline void *nvme_map_sq(int fd, uint16_t sqid, uint32_t size)
+{
+	return nvme_mmap(fd, sqid, size, NVME_VMPGOFF_TYPE_SQ);
+}
+
+static inline int nvme_unmap_sq(void *sq, uint32_t size)
+{
+	return munmap(sq, size);
+}
+
+static inline void *nvme_map_cq(int fd, uint16_t cqid, uint32_t size)
+{
+	return nvme_mmap(fd, cqid, size, NVME_VMPGOFF_TYPE_CQ);
+}
+
+static inline int nvme_unmap_cq(void *cq, uint32_t size)
+{
+	return munmap(cq, size);
 }
 
 int nvme_get_sq_info(int fd, struct nvme_sq_public *sq);

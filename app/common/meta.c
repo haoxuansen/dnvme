@@ -20,30 +20,6 @@
 #include "log.h"
 #include "meta.h"
 
-/**
- * @brief Map contiguous meta node to user space
- * 
- * @param id meta node identifier
- * @param size meta node size
- * @return meta buffer pointer if success, otherwise returns NULL.
- */
-void *nvme_map_meta_node(int fd, uint16_t id, uint32_t size)
-{
-	size_t pg_size;
-	size_t pgoff;
-	void *meta;
-
-	pg_size = sysconf(_SC_PAGE_SIZE);
-	pgoff = NVME_VMPGOFF_FOR_TYPE(NVME_VMPGOFF_TYPE_META) | id;
-
-	meta = mmap(NULL, size, PROT_READ | PROT_WRITE, 
-		MAP_SHARED, fd, pg_size * pgoff);
-	if (MAP_FAILED == meta)
-		return NULL;
-
-	return meta;
-}
-
 int nvme_create_meta_node(int fd, struct nvme_meta_create *mc)
 {
 	int ret;

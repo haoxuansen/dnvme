@@ -15,6 +15,8 @@
 #include <stdint.h>
 #include "dnvme_ioctl.h"
 
+void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type);
+
 int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 
 	enum nvme_cap_type type);
 

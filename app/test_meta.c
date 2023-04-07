@@ -304,7 +304,7 @@ static int create_meta_nodes(int fd, void **rnode, void **wnode,
 
 out_unmap_rnode:
 	if (rbuf)
-		nvme_unmap_meta_node(fd, rbuf, size);
+		nvme_unmap_meta_node(rbuf, size);
 out_del_wnode:
 	nvme_delete_meta_node(fd, wid);
 out_del_rnode:
@@ -318,9 +318,9 @@ static int delete_meta_nodes(int fd, void *rnode, void *wnode,
 	int ret = 0;
 
 	if (rnode)
-		ret |= nvme_unmap_meta_node(fd, rnode, size);
+		ret |= nvme_unmap_meta_node(rnode, size);
 	if (wnode)
-		ret |= nvme_unmap_meta_node(fd, wnode, size);
+		ret |= nvme_unmap_meta_node(wnode, size);
 
 	ret |= nvme_delete_meta_node(fd, rid);
 	ret |= nvme_delete_meta_node(fd, wid);
@@ -569,7 +569,7 @@ int case_meta_node_contiguous(struct nvme_tool *tool)
 	pr_notice("Is ready to delete meta node: ");
 	scanf("%d", &ret);
 
-	ret = nvme_unmap_meta_node(ndev->fd, meta, mc.size);
+	ret = nvme_unmap_meta_node(meta, mc.size);
 	if (ret < 0) {
 		pr_err("failed to unmap meta node!\n");
 		goto out_del_node;

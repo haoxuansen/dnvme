@@ -9,9 +9,11 @@
  * 
  */
 
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 
 #include "defs.h"
 #include "log.h"
@@ -52,6 +54,23 @@ static enum nvme_access_type nvme_select_access_type(uint32_t oft, uint32_t len)
 		return NVME_ACCESS_WORD;
 	
 	return NVME_ACCESS_BYTE;
+}
+
+void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type)
+{
+	size_t pg_size;
+	size_t pgoff;
+	void *addr;
+
+	pg_size = sysconf(_SC_PAGE_SIZE);
+	pgoff = NVME_VMPGOFF_FOR_TYPE(type) | id;
+
+	addr = mmap(NULL, size, PROT_READ | PROT_WRITE, 
+		MAP_SHARED, fd, pg_size * pgoff);
+	if (MAP_FAILED == addr)
+		return NULL;
+
+	return addr;
 }
 
 int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 
