@@ -30,7 +30,8 @@ struct meta_config {
 	uint32_t	meta_sgl:1;
 };
 
-static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
+static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
+	struct nvme_cq_info *cq)
 {
 	struct nvme_ccq_wrapper ccq_wrap = {0};
 	struct nvme_csq_wrapper csq_wrap = {0};
@@ -42,7 +43,7 @@ static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 	ccq_wrap.irq_en = cq->irq_en;
 	ccq_wrap.contig = 1;
 
-	ret = nvme_create_iocq(fd, &ccq_wrap);
+	ret = nvme_create_iocq(ndev, &ccq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iocq:%u!(%d)\n", cq->cqid, ret);
 		return ret;
@@ -54,7 +55,7 @@ static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 	csq_wrap.prio = NVME_SQ_PRIO_MEDIUM;
 	csq_wrap.contig = 1;
 
-	ret = nvme_create_iosq(fd, &csq_wrap);
+	ret = nvme_create_iosq(ndev, &csq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iosq:%u!(%d)\n", sq->sqid, ret);
 		return ret;
@@ -63,17 +64,18 @@ static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 	return 0;
 }
 
-static int delete_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
+static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
+	struct nvme_cq_info *cq)
 {
 	int ret;
 
-	ret = nvme_delete_iosq(fd, sq->sqid);
+	ret = nvme_delete_iosq(ndev, sq->sqid);
 	if (ret < 0) {
 		pr_err("failed to delete iosq:%u!(%d)\n", sq->sqid, ret);
 		return ret;
 	}
 
-	ret = nvme_delete_iocq(fd, cq->cqid);
+	ret = nvme_delete_iocq(ndev, cq->cqid);
 	if (ret < 0) {
 		pr_err("failed to delete iocq:%u!(%d)\n", cq->cqid, ret);
 		return ret;
@@ -105,7 +107,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	BUG_ON(wrap.size > tool->wbuf_size);
 	nvme_fill_data(wrap.buf, wrap.size);
 
-	return nvme_io_write(ndev->fd, &wrap);
+	return nvme_io_write(ndev, &wrap);
 }
 
 static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
@@ -132,7 +134,7 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	memset(wrap.buf, 0, wrap.size);
 
-	return nvme_io_read(ndev->fd, &wrap);
+	return nvme_io_read(ndev, &wrap);
 }
 
 static int check_ctrl_capability(struct nvme_id_ctrl *ctrl,
@@ -227,19 +229,19 @@ static int prepare_meta_config(struct nvme_dev_info *ndev,
 	dw10 &= ~NVME_FMT_SES_MASK;
 	dw10 |= NVME_FMT_SES_USER;
 	
-	ret = nvme_update_ns_info(ndev->fd, ns);
+	ret = nvme_update_ns_info(ndev, ns);
 	if (ret < 0)
 		return ret;
 	pr_debug("update ns info ok!\n");
 	
-	ret = nvme_format_nvm(ndev->fd, ns->nsid, 0, dw10);
+	ret = nvme_format_nvm(ndev, ns->nsid, 0, dw10);
 	if (ret < 0) {
 		pr_err("failed to format ns:0x%x!(%d)\n", ns->nsid, ret);
 		return ret;
 	}
 	pr_debug("format ns ok!\n");
 	
-	ret = nvme_update_ns_info(ndev->fd, ns);
+	ret = nvme_update_ns_info(ndev, ns);
 	if (ret < 0)
 		return ret;
 	
@@ -362,7 +364,7 @@ int case_meta_xfer_sgl(struct nvme_tool *tool)
 		goto out_del_meta;
 	}
 
-	ret = create_ioq(ndev->fd, sq, cq);
+	ret = create_ioq(ndev, sq, cq);
 	if (ret < 0)
 		goto out_del_meta;
 
@@ -394,7 +396,7 @@ int case_meta_xfer_sgl(struct nvme_tool *tool)
 	}
 
 out_del_ioq:
-	ret |= delete_ioq(ndev->fd, sq, cq);
+	ret |= delete_ioq(ndev, sq, cq);
 out_del_meta:
 	ret |= delete_meta_nodes(ndev->fd, NULL, NULL, rid, wid, cfg.ms * nlb);
 	return ret;
@@ -434,7 +436,7 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 		goto out_del_meta;
 	}
 
-	ret = create_ioq(ndev->fd, sq, cq);
+	ret = create_ioq(ndev, sq, cq);
 	if (ret < 0)
 		goto out_del_meta;
 
@@ -466,7 +468,7 @@ int case_meta_xfer_separate(struct nvme_tool *tool)
 	}
 
 out_del_ioq:
-	ret |= delete_ioq(ndev->fd, sq, cq);
+	ret |= delete_ioq(ndev, sq, cq);
 out_del_meta:
 	ret |= delete_meta_nodes(ndev->fd, rmeta, wmeta, rid, wid, cfg.ms * nlb);
 	return ret;
@@ -495,7 +497,7 @@ int case_meta_xfer_extlba(struct nvme_tool *tool)
 		return -ENODEV;
 	}
 
-	ret = create_ioq(ndev->fd, sq, cq);
+	ret = create_ioq(ndev, sq, cq);
 	if (ret < 0)
 		return ret;
 
@@ -521,7 +523,7 @@ int case_meta_xfer_extlba(struct nvme_tool *tool)
 	pr_info("meta data r/w compare ok!\n");
 
 out_del_ioq:
-	ret |= delete_ioq(ndev->fd, sq, cq);
+	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
 

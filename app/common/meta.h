@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "ioctl.h"
 
 int nvme_create_meta_node(int fd, struct nvme_meta_create *mc);

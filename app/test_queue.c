@@ -16,7 +16,7 @@
 #include <string.h>
 
 #include "log.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 #include "core.h"
 #include "cmd.h"
@@ -65,7 +65,7 @@ static int create_ioq(struct nvme_tool *tool, struct nvme_sq_info *sq,
 		BUG_ON(ccq_wrap.size > tool->cq_buf_size);
 	}
 
-	ret = nvme_create_iocq(ndev->fd, &ccq_wrap);
+	ret = nvme_create_iocq(ndev, &ccq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iocq:%u!(%d)\n", cq->cqid, ret);
 		return ret;
@@ -85,7 +85,7 @@ static int create_ioq(struct nvme_tool *tool, struct nvme_sq_info *sq,
 		BUG_ON(csq_wrap.size > tool->sq_buf_size);
 	}
 
-	ret = nvme_create_iosq(ndev->fd, &csq_wrap);
+	ret = nvme_create_iosq(ndev, &csq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iosq:%u!(%d)\n", sq->sqid, ret);
 		return ret;
@@ -94,17 +94,18 @@ static int create_ioq(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	return 0;
 }
 
-static int delete_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
+static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
+	struct nvme_cq_info *cq)
 {
 	int ret;
 
-	ret = nvme_delete_iosq(fd, sq->sqid);
+	ret = nvme_delete_iosq(ndev, sq->sqid);
 	if (ret < 0) {
 		pr_err("failed to delete iosq:%u!(%d)\n", sq->sqid, ret);
 		return ret;
 	}
 
-	ret = nvme_delete_iocq(fd, cq->cqid);
+	ret = nvme_delete_iocq(ndev, cq->cqid);
 	if (ret < 0) {
 		pr_err("failed to delete iocq:%u!(%d)\n", cq->cqid, ret);
 		return ret;
@@ -132,7 +133,7 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	memset(wrap.buf, 0, wrap.size);
 
-	return nvme_io_read(ndev->fd, &wrap);
+	return nvme_io_read(ndev, &wrap);
 }
 
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
@@ -157,7 +158,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 		*(uint32_t *)(wrap.buf + i) = (uint32_t)rand();
 	}
 
-	return nvme_io_write(ndev->fd, &wrap);
+	return nvme_io_write(ndev, &wrap);
 }
 
 /**
@@ -300,7 +301,7 @@ int case_queue_contiguous(struct nvme_tool *tool)
 
 	nvme_display_subcase_result();
 
-	ret |= delete_ioq(ndev->fd, sq, cq);
+	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
 
@@ -337,6 +338,6 @@ int case_queue_discontiguous(struct nvme_tool *tool)
 
 	nvme_display_subcase_result();
 
-	ret |= delete_ioq(ndev->fd, sq, cq);
+	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }

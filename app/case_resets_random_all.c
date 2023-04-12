@@ -8,7 +8,7 @@
 
 #include "log.h"
 #include "pci_regs_ext.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 #include "core.h"
 #include "ioctl.h"
@@ -110,7 +110,8 @@ static int do_reset_random(struct nvme_dev_info *ndev)
 	return ret;
 }
 
-static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
+static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
+	struct nvme_cq_info *cq)
 {
 	struct nvme_ccq_wrapper ccq_wrap = {0};
 	struct nvme_csq_wrapper csq_wrap = {0};
@@ -122,7 +123,7 @@ static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 	ccq_wrap.irq_en = cq->irq_en;
 	ccq_wrap.contig = 1;
 
-	ret = nvme_create_iocq(fd, &ccq_wrap);
+	ret = nvme_create_iocq(ndev, &ccq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iocq:%u!(%d)\n", cq->cqid, ret);
 		return ret;
@@ -134,7 +135,7 @@ static int create_ioq(int fd, struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 	csq_wrap.prio = NVME_SQ_PRIO_MEDIUM;
 	csq_wrap.contig = 1;
 
-	ret = nvme_create_iosq(fd, &csq_wrap);
+	ret = nvme_create_iosq(ndev, &csq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iosq:%u!(%d)\n", sq->sqid, ret);
 		return ret;
@@ -161,7 +162,7 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
-	return nvme_io_read(ndev->fd, &wrap);
+	return nvme_io_read(ndev, &wrap);
 }
 
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
@@ -181,7 +182,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 
 	/* skip the initialization of write buffer */
 
-	return nvme_io_write(ndev->fd, &wrap);
+	return nvme_io_write(ndev, &wrap);
 }
 
 static int send_io_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
@@ -235,7 +236,7 @@ int case_resets_random_all(struct nvme_tool *tool)
 	}
 
 	do {
-		ret = create_ioq(ndev->fd, sq, cq);
+		ret = create_ioq(ndev, sq, cq);
 		if (ret < 0)
 			return ret;
 

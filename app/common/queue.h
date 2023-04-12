@@ -15,7 +15,7 @@
 #include <stdint.h>
 #include <sys/mman.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "ioctl.h"
 
 /* Create IO Queue Flags */
@@ -114,22 +114,22 @@ int nvme_create_aq_pair(struct nvme_dev_info *ndev, uint32_t sqsz, uint32_t cqsz
 int nvme_prepare_iosq(int fd, struct nvme_prep_sq *psq);
 int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq);
 
-int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap);
-int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap);
+int nvme_create_iosq(struct nvme_dev_info *ndev, struct nvme_csq_wrapper *wrap);
+int nvme_create_iocq(struct nvme_dev_info *ndev, struct nvme_ccq_wrapper *wrap);
 
-int nvme_delete_iosq(int fd, uint16_t sqid);
-int nvme_delete_iocq(int fd, uint16_t cqid);
+int nvme_delete_iosq(struct nvme_dev_info *ndev, uint16_t sqid);
+int nvme_delete_iocq(struct nvme_dev_info *ndev, uint16_t cqid);
 
-int nvme_delete_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq);
-int nvme_delete_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq);
+int nvme_delete_all_iosq(struct nvme_dev_info *ndev, struct nvme_sq_info *sqs, 
+	uint16_t nr_sq);
+int nvme_delete_all_iocq(struct nvme_dev_info *ndev, struct nvme_cq_info *cqs, 
+	uint16_t nr_cq);
 
 int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag);
 int nvme_delete_all_ioq(struct nvme_dev_info *ndev);
 
 int nvme_inquiry_cq_entries(int fd, uint16_t cqid);
 int nvme_reap_cq_entries(int fd, struct nvme_reap *rp);
-int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf, 
-	uint32_t size);
 
 int nvme_valid_cq_entry(struct nvme_completion *entry, uint16_t sqid, 
 	uint16_t cid, uint16_t status);

@@ -15,7 +15,7 @@
 
 #include "io.h"
 #include "core.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 /**
  * @brief Read data from PCI config space.

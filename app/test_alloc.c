@@ -23,7 +23,7 @@
 #include <sys/mman.h>
 
 #include "byteorder.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "meta.h"
 #include "queue.h"
 

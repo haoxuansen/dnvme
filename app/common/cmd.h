@@ -15,7 +15,8 @@
 #include <stdint.h>
 
 #include "byteorder.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
+#include "core.h"
 
 /**
  * @brief For nvme_rw_command
@@ -113,54 +114,61 @@ static inline int nvme_cmd_get_feat_power_mgmt(int fd, uint32_t sel)
 }
 
 int nvme_cmd_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10);
-int nvme_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10);
+int nvme_format_nvm(struct nvme_dev_info *ndev, uint32_t nsid, uint8_t flags, 
+	uint32_t dw10);
 
 int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf, 
 	uint32_t size);
 
 int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl);
-int nvme_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl);
+int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl);
 
 int nvme_cmd_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid);
-int nvme_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid);
+int nvme_identify_ns_active(struct nvme_dev_info *ndev, struct nvme_id_ns *ns, 
+	uint32_t nsid);
 
 int nvme_cmd_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid);
-int nvme_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid);
+int nvme_identify_ns_allocated(struct nvme_dev_info *ndev, 
+	struct nvme_id_ns *ns, uint32_t nsid);
 
 int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
 	uint32_t nsid);
-int nvme_identify_ns_desc_list(int fd, void *buf, uint32_t size, uint32_t nsid);
+int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid);
 
 int nvme_cmd_identify_ns_list_active(int fd, void *buf, uint32_t size, 
 	uint32_t nsid);
-int nvme_identify_ns_list_active(int fd, void *buf, uint32_t size, 
-	uint32_t nsid);
+int nvme_identify_ns_list_active(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid);
 
 int nvme_cmd_identify_ns_list_allocated(int fd, void *buf, uint32_t size, 
 	uint32_t nsid);
-int nvme_identify_ns_list_allocated(int fd, void *buf, uint32_t size, 
-	uint32_t nsid);
+int nvme_identify_ns_list_allocated(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid);
 
 int nvme_cmd_identify_ctrl_list(int fd, void *buf, uint32_t size, 
 	uint16_t cntid);
-int nvme_identify_ctrl_list(int fd, void *buf, uint32_t size, uint16_t cntid);
+int nvme_identify_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint16_t cntid);
 
 int nvme_cmd_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size,
 	uint32_t nsid, uint16_t cntid);
-int nvme_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size, 
-	uint32_t nsid, uint16_t cntid);
+int nvme_identify_ns_attached_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid, uint16_t cntid);
 
 int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode);
-int nvme_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode);
+int nvme_io_rw_common(struct nvme_dev_info *ndev, struct nvme_rwc_wrapper *wrap, 
+	uint8_t opcode);
 
 static inline int nvme_cmd_io_read(int fd, struct nvme_rwc_wrapper *wrap)
 {
 	return nvme_cmd_io_rw_common(fd, wrap, nvme_cmd_read);
 }
 
-static inline int nvme_io_read(int fd, struct nvme_rwc_wrapper *wrap)
+static inline int nvme_io_read(struct nvme_dev_info *ndev, 
+	struct nvme_rwc_wrapper *wrap)
 {
-	return nvme_io_rw_common(fd, wrap, nvme_cmd_read);
+	return nvme_io_rw_common(ndev, wrap, nvme_cmd_read);
 }
 
 static inline int nvme_cmd_io_write(int fd, struct nvme_rwc_wrapper *wrap)
@@ -168,9 +176,10 @@ static inline int nvme_cmd_io_write(int fd, struct nvme_rwc_wrapper *wrap)
 	return nvme_cmd_io_rw_common(fd, wrap, nvme_cmd_write);
 }
 
-static inline int nvme_io_write(int fd, struct nvme_rwc_wrapper *wrap)
+static inline int nvme_io_write(struct nvme_dev_info *ndev, 
+	struct nvme_rwc_wrapper *wrap)
 {
-	return nvme_io_rw_common(fd, wrap, nvme_cmd_write);
+	return nvme_io_rw_common(ndev, wrap, nvme_cmd_write);
 }
 
 static inline int nvme_cmd_io_compare(int fd, struct nvme_rwc_wrapper *wrap)
@@ -178,9 +187,10 @@ static inline int nvme_cmd_io_compare(int fd, struct nvme_rwc_wrapper *wrap)
 	return nvme_cmd_io_rw_common(fd, wrap, nvme_cmd_compare);
 }
 
-static inline int nvme_io_compare(int fd, struct nvme_rwc_wrapper *wrap)
+static inline int nvme_io_compare(struct nvme_dev_info *ndev, 
+	struct nvme_rwc_wrapper *wrap)
 {
-	return nvme_io_rw_common(fd, wrap, nvme_cmd_compare);
+	return nvme_io_rw_common(ndev, wrap, nvme_cmd_compare);
 }
 
 #endif /* !_APP_CMD_H_ */

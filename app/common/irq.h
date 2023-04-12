@@ -15,7 +15,7 @@
 
 #include <stdint.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 enum nvme_irq_type nvme_select_irq_type_random(void);
 

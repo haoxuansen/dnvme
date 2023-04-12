@@ -16,8 +16,11 @@
 #include <unistd.h>
 
 #include "pci_caps.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "queue.h"
+
+#define __init				__attribute__((constructor))
+#define __exit				__attribute__((destructor))
 
 #define msleep(ms)			usleep(1000 * (ms))
 
@@ -55,6 +58,7 @@ struct nvme_ns_info {
  */
 struct nvme_dev_info {
 	int		fd;
+	int		sock_fd;
 
 	uint16_t	vid;
 
@@ -87,6 +91,7 @@ struct nvme_dev_info {
 	struct nvme_id_ctrl	id_ctrl;
 
 	struct nvme_ctrl_property	prop;
+	struct nvme_dev_public	dev_pub;
 };
 
 int call_system(const char *command);
@@ -100,6 +105,6 @@ void nvme_deinit(struct nvme_dev_info *ndev);
 int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
 	enum nvme_irq_type type);
 
-int nvme_update_ns_info(int fd, struct nvme_ns_info *ns);
+int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_info *ns);
 
 #endif /* !_APP_CORE_H_ */

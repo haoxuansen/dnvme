@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "ioctl.h"
 
 static inline int pci_read_config_data(int fd, uint32_t oft, uint32_t len, void *buf)

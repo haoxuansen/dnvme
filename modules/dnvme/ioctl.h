@@ -19,6 +19,7 @@ int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uac
 
 int dnvme_get_sq_info(struct nvme_device *ndev, struct nvme_sq_public __user *usqp);
 int dnvme_get_cq_info(struct nvme_device *ndev, struct nvme_cq_public __user *ucqp);
+int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *udevp);
 
 int dnvme_get_capability(struct nvme_device *ndev, struct nvme_get_cap __user *ucap);
 

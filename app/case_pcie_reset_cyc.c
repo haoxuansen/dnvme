@@ -5,7 +5,7 @@
 #include <malloc.h>
 #include <string.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 #include "pci.h"
 #include "pcie.h"

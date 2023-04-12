@@ -5,10 +5,11 @@
 #include <string.h>
 #include <errno.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "queue.h"
 #include "cmd.h"
 #include "irq.h"
+#include "netlink.h"
 
 #include "common.h"
 #include "test.h"
@@ -42,7 +43,7 @@ static int sub_case_use_1_q_del_it(void)
 	ccq_wrap.irq_en = 1;
 	ccq_wrap.contig = 1;
 
-	ret = nvme_create_iocq(ndev->fd, &ccq_wrap);
+	ret = nvme_create_iocq(ndev, &ccq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iocq(%u)!(%d)\n", ccq_wrap.cqid, ret);
 		return ret;
@@ -54,7 +55,7 @@ static int sub_case_use_1_q_del_it(void)
 	csq_wrap.prio = NVME_SQ_PRIO_MEDIUM;
 	csq_wrap.contig = 1;
 
-	ret = nvme_create_iosq(ndev->fd, &csq_wrap);
+	ret = nvme_create_iosq(ndev, &csq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iosq(%u)!(%d)\n", csq_wrap.sqid, ret);
 		return ret;
@@ -81,20 +82,20 @@ static int sub_case_use_1_q_del_it(void)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(ndev->fd, qid, cmd_cnt, tool->entry, tool->entry_size);
+	ret = nvme_gnl_cmd_reap_cqe(ndev, qid, cmd_cnt, tool->entry, tool->entry_size);
 	if (ret != cmd_cnt) {
 		pr_err("expect reap %u, actual reaped %d!\n", cmd_cnt, ret);
 		return ret < 0 ? ret : -ETIME;
 	}
 	pr_debug("Reaped %d from CQ(%u)!\n", ret, qid);
 
-	ret = nvme_delete_iosq(ndev->fd, qid);
+	ret = nvme_delete_iosq(ndev, qid);
 	if (ret < 0) {
 		pr_err("failed to delete iosq(%u)!(%d)\n", qid, ret);
 		return ret;
 	}
 
-	ret = nvme_delete_iocq(ndev->fd, qid);
+	ret = nvme_delete_iocq(ndev, qid);
 	if (ret < 0) {
 		pr_err("failed to delete iocq(%u)!(%d)\n", qid, ret);
 		return ret;
@@ -121,7 +122,7 @@ static int sub_case_use_3_q_del_2_use_remian_del_it(void)
 		ccq_wrap.cqid = i;
 		ccq_wrap.irq_no = i;
 
-		ret = nvme_create_iocq(ndev->fd, &ccq_wrap);
+		ret = nvme_create_iocq(ndev, &ccq_wrap);
 		if (ret < 0) {
 			pr_err("failed to create iocq(%u)!(%d)\n", ccq_wrap.cqid, ret);
 			return ret;
@@ -137,7 +138,7 @@ static int sub_case_use_3_q_del_2_use_remian_del_it(void)
 		csq_wrap.sqid = i;
 		csq_wrap.cqid = i;
 
-		ret = nvme_create_iosq(ndev->fd, &csq_wrap);
+		ret = nvme_create_iosq(ndev, &csq_wrap);
 		if (ret < 0) {
 			pr_err("failed to create iosq(%u)!(%d)\n", csq_wrap.sqid, ret);
 			return ret;
@@ -162,14 +163,14 @@ static int sub_case_use_3_q_del_2_use_remian_del_it(void)
 	}
 
 	for (i = 2; i <= 4; i++) {
-		ret = nvme_reap_expect_cqe(ndev->fd, i, 2, tool->entry, tool->entry_size);
+		ret = nvme_gnl_cmd_reap_cqe(ndev, i, 2, tool->entry, tool->entry_size);
 		if (ret != 2)
 			return ret < 0 ? ret : -ETIME;
 	}
 
 	pr_debug("Delete 2 IOSQ & IOCQ: 2/3...\n");
 	for (i = 2; i <= 3; i++) {
-		ret = nvme_delete_iosq(ndev->fd, i);
+		ret = nvme_delete_iosq(ndev, i);
 		if (ret < 0) {
 			pr_err("failed to delete iosq(%u)!(%d)\n", i, ret);
 			return ret;
@@ -177,7 +178,7 @@ static int sub_case_use_3_q_del_2_use_remian_del_it(void)
 	}
 
 	for (i = 2; i <= 3; i++) {
-		ret = nvme_delete_iocq(ndev->fd, i);
+		ret = nvme_delete_iocq(ndev, i);
 		if (ret < 0) {
 			pr_err("failed to delete iocq(%u)!(%d)\n", i, ret);
 			return ret;
@@ -194,18 +195,18 @@ static int sub_case_use_3_q_del_2_use_remian_del_it(void)
 	ret = nvme_ring_sq_doorbell(ndev->fd, 4);
 	if (ret < 0)
 		return ret;
-	ret = nvme_reap_expect_cqe(ndev->fd, 4, 2, tool->entry, tool->entry_size);
+	ret = nvme_gnl_cmd_reap_cqe(ndev, 4, 2, tool->entry, tool->entry_size);
 	if (ret != 2)
 		return ret < 0 ? ret : -ETIME;
 
 	pr_debug("Delete remain 1 IOSQ & IOCQ: 4...\n");
-	ret = nvme_delete_iosq(ndev->fd, 4);
+	ret = nvme_delete_iosq(ndev, 4);
 	if (ret < 0) {
 		pr_err("failed to delete iosq(%u)!(%d)\n", i, ret);
 		return ret;
 	}
 
-	ret = nvme_delete_iocq(ndev->fd, 4);
+	ret = nvme_delete_iocq(ndev, 4);
 	if (ret < 0) {
 		pr_err("failed to delete iocq(%u)!(%d)\n", i, ret);
 		return ret;
@@ -235,7 +236,7 @@ static int sub_case_del_cq_before_sq(void)
 	ccq_wrap.irq_en = 1;
 	ccq_wrap.contig = 1;
 
-	ret = nvme_create_iocq(ndev->fd, &ccq_wrap);
+	ret = nvme_create_iocq(ndev, &ccq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iocq(%u)!(%d)\n", ccq_wrap.cqid, ret);
 		return ret;
@@ -247,7 +248,7 @@ static int sub_case_del_cq_before_sq(void)
 	csq_wrap.prio = NVME_SQ_PRIO_MEDIUM;
 	csq_wrap.contig = 1;
 
-	ret = nvme_create_iosq(ndev->fd, &csq_wrap);
+	ret = nvme_create_iosq(ndev, &csq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iosq(%u)!(%d)\n", csq_wrap.sqid, ret);
 		return ret;
@@ -274,7 +275,7 @@ static int sub_case_del_cq_before_sq(void)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(ndev->fd, qid, cmd_cnt, tool->entry, tool->entry_size);
+	ret = nvme_gnl_cmd_reap_cqe(ndev, qid, cmd_cnt, tool->entry, tool->entry_size);
 	if (ret != cmd_cnt) {
 		pr_err("expect reap %u, actual reaped %d!\n", cmd_cnt, ret);
 		return ret < 0 ? ret : -ETIME;
@@ -292,7 +293,7 @@ static int sub_case_del_cq_before_sq(void)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(ndev->fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -317,13 +318,13 @@ static int sub_case_del_cq_before_sq(void)
 	pr_debug("Failed to delete iocq first, please delete iosq first...\n");
 
 	/* 4. Delete IOSQ first, then delete IOCQ */
-	ret = nvme_delete_iosq(ndev->fd, qid);
+	ret = nvme_delete_iosq(ndev, qid);
 	if (ret < 0) {
 		pr_err("failed to delete iosq(%u)!(%d)\n", qid, ret);
 		return ret;
 	}
 
-	ret = nvme_delete_iocq(ndev->fd, qid);
+	ret = nvme_delete_iocq(ndev, qid);
 	if (ret < 0) {
 		pr_err("failed to delete iocq(%u)!(%d)\n", qid, ret);
 		return ret;
@@ -407,7 +408,7 @@ static int delete_runing_cmd_queue(void)
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_reap_expect_cqe(ndev->fd, sqs[qid - 1].cqid, 
+		ret = nvme_gnl_cmd_reap_cqe(ndev, sqs[qid - 1].cqid, 
 			cmd_cnt, tool->entry, tool->entry_size);
 		if (ret != cmd_cnt) {
 			pr_notice("SQ:%u, CQ:%u, reaped:%d, expect:%u\n", 
@@ -419,7 +420,7 @@ static int delete_runing_cmd_queue(void)
 				return ret;
 		}
 
-		ret = nvme_reap_expect_cqe(ndev->fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+		ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 		if (ret != 1)
 			return ret < 0 ? ret : -ETIME;
 
@@ -427,7 +428,7 @@ static int delete_runing_cmd_queue(void)
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_delete_iocq(ndev->fd, sqs[qid - 1].cqid);
+		ret = nvme_delete_iocq(ndev, sqs[qid - 1].cqid);
 		if (ret < 0)
 			return ret;
 	}
@@ -493,7 +494,7 @@ static int delete_runing_fua_cmd_queue(void)
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_reap_expect_cqe(ndev->fd, sqs[qid - 1].cqid, 
+		ret = nvme_gnl_cmd_reap_cqe(ndev, sqs[qid - 1].cqid, 
 			cmd_cnt, tool->entry, tool->entry_size);
 		if (ret != cmd_cnt) {
 			pr_notice("SQ:%u, CQ:%u, reaped:%d, expect:%u\n", 
@@ -505,7 +506,7 @@ static int delete_runing_fua_cmd_queue(void)
 				return ret;
 		}
 
-		ret = nvme_reap_expect_cqe(ndev->fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+		ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 		if (ret != 1)
 			return ret < 0 ? ret : -ETIME;
 
@@ -513,7 +514,7 @@ static int delete_runing_fua_cmd_queue(void)
 		if (ret < 0)
 			return ret;
 
-		ret = nvme_delete_iocq(ndev->fd, sqs[qid - 1].cqid);
+		ret = nvme_delete_iocq(ndev, sqs[qid - 1].cqid);
 		if (ret < 0)
 			return ret;
 	}
@@ -586,7 +587,7 @@ static int delete_runing_iocmd_queue(void)
 		return ret;
 
 	for (i = 0; i < queue_num; i++) {
-		ret = nvme_reap_expect_cqe(ndev->fd, sqs[i].cqid, 
+		ret = nvme_gnl_cmd_reap_cqe(ndev, sqs[i].cqid, 
 			sqs[i].cmd_cnt, tool->entry, tool->entry_size);
 		if (ret != sqs[i].cmd_cnt) {
 			pr_notice("SQ:%u, CQ:%u, reaped:%d, expect:%u\n", 
@@ -599,7 +600,7 @@ static int delete_runing_iocmd_queue(void)
 		}
 	}
 
-	ret = nvme_reap_expect_cqe(ndev->fd, NVME_AQ_ID, queue_num, 
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, queue_num, 
 		tool->entry, tool->entry_size);
 	if (ret != queue_num)
 		return ret < 0 ? ret : -ETIME;
@@ -621,7 +622,7 @@ static int delete_runing_iocmd_queue(void)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(ndev->fd, NVME_AQ_ID, queue_num, 
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, queue_num, 
 		tool->entry, tool->entry_size);
 	if (ret != queue_num)
 		return ret < 0 ? ret : -ETIME;
@@ -633,7 +634,7 @@ static int delete_runing_iocmd_queue(void)
 	/* delete remain queue */
 	for (sqidx = queue_num; sqidx < ndev->max_sq_num; sqidx++)
 	{
-		ret = nvme_delete_iosq(ndev->fd, sqs[sqidx].sqid);
+		ret = nvme_delete_iosq(ndev, sqs[sqidx].sqid);
 		if (ret < 0) {
 			pr_err("failed to delete iosq(%u)!(%d)\n", 
 				sqs[sqidx].sqid, ret);
@@ -643,7 +644,7 @@ static int delete_runing_iocmd_queue(void)
 
 	for (sqidx = queue_num; sqidx < ndev->max_sq_num; sqidx++)
 	{
-		ret = nvme_delete_iocq(ndev->fd, sqs[sqidx].cqid);
+		ret = nvme_delete_iocq(ndev, sqs[sqidx].cqid);
 		if (ret < 0) {
 			pr_err("failed to delete iocq(%u)!(%d)\n", 
 				sqs[sqidx].cqid, ret);

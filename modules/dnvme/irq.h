@@ -13,7 +13,7 @@
 #define _DNVME_IRQ_H_
 
 #include "core.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 int dnvme_reset_isr_flag(struct nvme_context *nvme_ctx_list, u16 irq_no);
 

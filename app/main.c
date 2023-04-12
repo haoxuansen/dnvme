@@ -20,7 +20,7 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "ioctl.h"
 #include "irq.h"
 

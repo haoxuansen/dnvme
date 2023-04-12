@@ -73,6 +73,18 @@ void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type)
 	return addr;
 }
 
+int nvme_get_dev_info(int fd, struct nvme_dev_public *pub)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_GET_DEV_INFO, pub);
+	if (ret < 0) {
+		pr_err("failed to get dev info!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
 int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 
 	enum nvme_cap_type type)
 {

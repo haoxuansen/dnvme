@@ -21,10 +21,7 @@
 #include "queue.h"
 #include "cmd.h"
 #include "core.h"
-
-#define NVME_REAP_CQ_TIMEUNIT		100 /* us */
-/* 5s */
-#define NVME_REAP_CQ_TIMEOUT		(1000 * 1000 * 5 / NVME_REAP_CQ_TIMEUNIT)
+#include "netlink.h"
 
 int nvme_get_sq_info(int fd, struct nvme_sq_public *sq)
 {
@@ -143,11 +140,12 @@ int nvme_prepare_iocq(int fd, struct nvme_prep_cq *pcq)
 	return 0;
 }
 
-int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
+int nvme_create_iosq(struct nvme_dev_info *ndev, struct nvme_csq_wrapper *wrap)
 {
 	struct nvme_prep_sq psq = {0};
 	struct nvme_create_sq csq = {0};
 	struct nvme_completion entry = {0};
+	int fd = ndev->fd;
 	uint16_t cid;
 	int ret;
 
@@ -168,7 +166,7 @@ int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -181,10 +179,11 @@ int nvme_create_iosq(int fd, struct nvme_csq_wrapper *wrap)
 	return 0;
 }
 
-int nvme_delete_iosq(int fd, uint16_t sqid)
+int nvme_delete_iosq(struct nvme_dev_info *ndev, uint16_t sqid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
+	int fd = ndev->fd;
 	int ret;
 
 	ret = nvme_cmd_delete_iosq(fd, sqid);
@@ -196,7 +195,7 @@ int nvme_delete_iosq(int fd, uint16_t sqid)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -209,7 +208,8 @@ int nvme_delete_iosq(int fd, uint16_t sqid)
 	return 0;
 }
 
-int nvme_create_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
+int nvme_create_all_iosq(struct nvme_dev_info *ndev, struct nvme_sq_info *sqs, 
+	uint16_t nr_sq)
 {
 	struct nvme_csq_wrapper wrap = {0};
 	uint16_t i;
@@ -222,7 +222,7 @@ int nvme_create_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
 		wrap.prio = NVME_SQ_PRIO_MEDIUM;
 		wrap.contig = 1;
 
-		ret = nvme_create_iosq(fd, &wrap);
+		ret = nvme_create_iosq(ndev, &wrap);
 		if (ret < 0) {
 			pr_err("failed to create iosq(%u)!(%d)\n",
 				sqs[i].sqid, ret);
@@ -237,13 +237,14 @@ int nvme_create_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_delete_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
+int nvme_delete_all_iosq(struct nvme_dev_info *ndev, struct nvme_sq_info *sqs, 
+	uint16_t nr_sq)
 {
 	uint16_t i;
 	int ret;
 
 	for (i = 0; i < nr_sq; i++) {
-		ret = nvme_delete_iosq(fd, sqs[i].sqid);
+		ret = nvme_delete_iosq(ndev, sqs[i].sqid);
 		if (ret < 0) {
 			pr_err("failed to delete iosq(%u)!(%d)\n", 
 				sqs[i].sqid, ret);
@@ -259,12 +260,13 @@ int nvme_delete_all_iosq(int fd, struct nvme_sq_info *sqs, uint16_t nr_sq)
  * @param fd NVMe device file descriptor
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
+int nvme_create_iocq(struct nvme_dev_info *ndev, struct nvme_ccq_wrapper *wrap)
 {
 	struct nvme_prep_cq pcq = {0};
 	struct nvme_create_cq ccq = {0};
 	struct nvme_completion entry = {0};
 	uint16_t cid;
+	int fd = ndev->fd;
 	int ret;
 
 	nvme_fill_prep_cq(&pcq, wrap->cqid, wrap->elements, wrap->contig, 
@@ -284,7 +286,7 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -297,10 +299,11 @@ int nvme_create_iocq(int fd, struct nvme_ccq_wrapper *wrap)
 	return 0;
 }
 
-int nvme_delete_iocq(int fd, uint16_t cqid)
+int nvme_delete_iocq(struct nvme_dev_info *ndev, uint16_t cqid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
+	int fd = ndev->fd;
 	int ret;
 
 	ret = nvme_cmd_delete_iocq(fd, cqid);
@@ -312,7 +315,7 @@ int nvme_delete_iocq(int fd, uint16_t cqid)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -325,7 +328,8 @@ int nvme_delete_iocq(int fd, uint16_t cqid)
 	return 0;
 }
 
-int nvme_create_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq)
+int nvme_create_all_iocq(struct nvme_dev_info *ndev, struct nvme_cq_info *cqs, 
+	uint16_t nr_cq)
 {
 	struct nvme_ccq_wrapper wrap = {0};
 	uint16_t i;
@@ -338,7 +342,7 @@ int nvme_create_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq)
 		wrap.irq_en = cqs[i].irq_en;
 		wrap.contig = 1;
 
-		ret = nvme_create_iocq(fd, &wrap);
+		ret = nvme_create_iocq(ndev, &wrap);
 		if (ret < 0) {
 			pr_err("failed to create iocq(%u)!(%d)\n",
 				cqs[i].cqid, ret);
@@ -353,13 +357,14 @@ int nvme_create_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq)
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_delete_all_iocq(int fd, struct nvme_cq_info *cqs, uint16_t nr_cq)
+int nvme_delete_all_iocq(struct nvme_dev_info *ndev, struct nvme_cq_info *cqs, 
+	uint16_t nr_cq)
 {
 	uint16_t i;
 	int ret;
 
 	for (i = 0; i < nr_cq; i++) {
-		ret = nvme_delete_iocq(fd, cqs[i].cqid);
+		ret = nvme_delete_iocq(ndev, cqs[i].cqid);
 		if (ret < 0) {
 			pr_err("failed to delete iocq(%u)!(%d)\n", 
 				cqs[i].cqid, ret);
@@ -390,11 +395,11 @@ int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
 			cqs[i].irq_no = irq_no;
 	}
 
-	ret = nvme_create_all_iocq(ndev->fd, ndev->iocqs, ndev->max_cq_num);
+	ret = nvme_create_all_iocq(ndev, ndev->iocqs, ndev->max_cq_num);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_create_all_iosq(ndev->fd, ndev->iosqs, ndev->max_sq_num);
+	ret = nvme_create_all_iosq(ndev, ndev->iosqs, ndev->max_sq_num);
 	if (ret < 0)
 		return ret;
 
@@ -405,11 +410,11 @@ int nvme_delete_all_ioq(struct nvme_dev_info *ndev)
 {
 	int ret;
 
-	ret = nvme_delete_all_iosq(ndev->fd, ndev->iosqs, ndev->max_sq_num);
+	ret = nvme_delete_all_iosq(ndev, ndev->iosqs, ndev->max_sq_num);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_delete_all_iocq(ndev->fd, ndev->iocqs, ndev->max_cq_num);
+	ret = nvme_delete_all_iocq(ndev, ndev->iocqs, ndev->max_cq_num);
 	if (ret < 0)
 		return ret;
 	
@@ -520,64 +525,6 @@ int nvme_reap_cq_entries(int fd, struct nvme_reap *rp)
 		return ret;
 	}
 	return 0;
-}
-
-/**
- * @brief Reap the expected number of CQ entries.
- * 
- * @param fd NVMe device file descriptor
- * @param expect The number of CQ entries expected to be reaaped.
- * @param buf For store reaped CQ entries
- * @param size The size of @buf
- * @return The number of CQ entries actually reaped if success, otherwise
- *  a negative errno
- */
-int nvme_reap_expect_cqe(int fd, uint16_t cqid, uint32_t expect, void *buf, 
-	uint32_t size)
-{
-	struct nvme_reap rp = {0};
-	uint8_t cqes = (cqid == NVME_AQ_ID) ? NVME_ADM_CQES : NVME_NVM_IOCQES;
-	uint32_t reaped = 0;
-	uint32_t timeout = 0;
-	int ret;
-
-	if (size < (expect << cqes)) {
-		pr_err("buf size(%u) is too small!\n", size);
-		return -EINVAL;
-	}
-
-	rp.cqid = cqid;
-	rp.expect = expect;
-	rp.buf = buf;
-	rp.size = size;
-
-	while (reaped < expect) {
-		ret = nvme_reap_cq_entries(fd, &rp);
-		if (ret < 0)
-			break;
-
-		if (rp.reaped) {
-			reaped += rp.reaped;
-			rp.expect = expect - reaped;
-			rp.buf += (rp.reaped << cqes);
-			rp.size -= (rp.reaped << cqes);
-			rp.reaped = 0;
-
-			timeout = 0;
-		}
-
-		usleep(NVME_REAP_CQ_TIMEUNIT);
-		timeout++;
-
-		if (timeout >= NVME_REAP_CQ_TIMEOUT) {
-			pr_warn("timeout! CQ:%u, expect:%u, reaped:%u\n", 
-				cqid, expect, reaped);
-			ret = -ETIME;
-			break;
-		}
-	}
-
-	return reaped == 0 ? ret : (int)reaped;
 }
 
 int nvme_ring_sq_doorbell(int fd, uint16_t sqid)

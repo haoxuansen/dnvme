@@ -60,6 +60,8 @@ const char *dnvme_ioctl_cmd_string(unsigned int cmd)
 		return "NVME_GET_SQ_INFO";
 	case NVME_IOCTL_GET_CQ_INFO:
 		return "NVME_GET_CQ_INFO";
+	case NVME_IOCTL_GET_DEV_INFO:
+		return "NVME_GET_DEV_INFO";
 	case NVME_IOCTL_GET_CAPABILITY:
 		return "NVME_GET_CAPABILITY";
 

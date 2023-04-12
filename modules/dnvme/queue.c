@@ -673,7 +673,7 @@ static int handle_cmd_completion(struct nvme_context *ctx,
 /**
  * @brief Copy the cq data to user buffer for the elements reaped.
  */
-static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 *buffer)
+static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 __user *buffer)
 {
 	struct nvme_context *ctx = cq->ctx;
 	struct nvme_device *ndev = ctx->dev;
@@ -750,7 +750,54 @@ static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 		cq->pub.head_ptr, cq->pub.tail_ptr);
 }
 
-int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap)
+int dnvme_reap_cqe(struct nvme_cq *cq, u32 expect, void __user *buf, u32 size)
+{
+	struct nvme_context *ctx = cq->ctx;
+	struct nvme_device *ndev = ctx->dev;
+	struct pci_dev *pdev = ndev->pdev;
+	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;
+	u32 actual, reaped, remain;
+	int ret;
+
+	if (!expect) {
+		dnvme_err(ndev, "expect num is zero?\n");
+		return -EINVAL;
+	}
+
+	if (!buf) {
+		dnvme_err(ndev, "user buf ptr is NULL!\n");
+		return -EFAULT;
+	}
+
+	if (size < (expect << cq->pub.cqes)) {
+		dnvme_err(ndev, "reqire bigger buf(0x%x)!\n", size);
+		return -ENOMEM;
+	}
+
+	actual = expect;
+
+	ret = copy_cq_data(cq, &actual, buf);
+
+	reaped = expect - actual;
+	if (reaped) {
+		update_cq_head(cq, reaped);
+		writel(cq->pub.head_ptr, cq->db);
+	}
+
+	remain = dnvme_get_cqe_remain(cq, &pdev->dev);
+	if (irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 && remain == 0) {
+		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);
+		if (ret < 0)
+			dnvme_warn(ndev, "reset isr fired flag failed\n");
+
+		dnvme_unmask_interrupt(&ctx->irq_set, cq->pub.irq_no);
+	}
+
+	return reaped;
+}
+
+/* !TODO: obsolete */
+int dnvme_reap_cqe_legacy(struct nvme_context *ctx, struct nvme_reap __user *ureap)
 {
 	struct nvme_device *ndev = ctx->dev;
 	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;

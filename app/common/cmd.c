@@ -17,6 +17,7 @@
 #include "log.h"
 #include "cmd.h"
 #include "queue.h"
+#include "netlink.h"
 
 /**
  * @brief Submit the specified command
@@ -224,22 +225,23 @@ int nvme_cmd_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10)
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
-int nvme_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10)
+int nvme_format_nvm(struct nvme_dev_info *ndev, uint32_t nsid, uint8_t flags, 
+	uint32_t dw10)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_format_nvm(fd, nsid, flags, dw10);
+	ret = nvme_cmd_format_nvm(ndev->fd, nsid, flags, dw10);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -296,22 +298,23 @@ int nvme_cmd_identify_ctrl_list(int fd, void *buf, uint32_t size,
  *  identifier greater than or equal to the value specified in this field.
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ctrl_list(int fd, void *buf, uint32_t size, uint16_t cntid)
+int nvme_identify_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint16_t cntid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ctrl_list(fd, buf, size, cntid);
+	ret = nvme_cmd_identify_ctrl_list(ndev->fd, buf, size, cntid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -348,23 +351,23 @@ int nvme_cmd_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size,
  *  identifier greater than or equal to the value specified in this field.
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size, 
-	uint32_t nsid, uint16_t cntid)
+int nvme_identify_ns_attached_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid, uint16_t cntid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_attached_ctrl_list(fd, buf, size, nsid, cntid);
+	ret = nvme_cmd_identify_ns_attached_ctrl_list(ndev->fd, buf, size, nsid, cntid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -399,22 +402,23 @@ int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
  * @param nsid An active NSID
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_desc_list(int fd, void *buf, uint32_t size, uint32_t nsid)
+int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_desc_list(fd, buf, size, nsid);
+	ret = nvme_cmd_identify_ns_desc_list(ndev->fd, buf, size, nsid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -450,23 +454,23 @@ int nvme_cmd_identify_ns_list_active(int fd, void *buf, uint32_t size,
  *  including the namespace starting with NSID of 1h.
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_list_active(int fd, void *buf, uint32_t size, 
-	uint32_t nsid)
+int nvme_identify_ns_list_active(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_list_active(fd, buf, size, nsid);
+	ret = nvme_cmd_identify_ns_list_active(ndev->fd, buf, size, nsid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -502,23 +506,23 @@ int nvme_cmd_identify_ns_list_allocated(int fd, void *buf, uint32_t size,
  *  including the namespace starting with NSID of 1h.
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_list_allocated(int fd, void *buf, uint32_t size, 
-	uint32_t nsid)
+int nvme_identify_ns_list_allocated(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_list_allocated(fd, buf, size, nsid);
+	ret = nvme_cmd_identify_ns_list_allocated(ndev->fd, buf, size, nsid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -549,26 +553,25 @@ int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl)
  * @brief Get Identify Controller data structure for the controller 
  *  processing the command.
  * 
- * @param fd NVMe device file descriptor
  * @param ctrl point to the identify controller data structure
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl)
+int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ctrl(fd, ctrl);
+	ret = nvme_cmd_identify_ctrl(ndev->fd, ctrl);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -603,27 +606,27 @@ int nvme_cmd_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid)
  * @brief Get Identify Namespace data structure for the specified NSID or
  *  the common namespace capabilities for the NVM Command Set
  * 
- * @param fd NVMe device file descriptor
  * @param ns point to the identify namespace data structure
  * @param nsid An active NSID
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid)
+int nvme_identify_ns_active(struct nvme_dev_info *ndev, struct nvme_id_ns *ns, 
+	uint32_t nsid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_active(fd, ns, nsid);
+	ret = nvme_cmd_identify_ns_active(ndev->fd, ns, nsid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -658,27 +661,27 @@ int nvme_cmd_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid)
  * @brief Get Identify Namespace data structure for the specified NSID or
  *  the common namespace capabilities for the NVM Command Set
  * 
- * @param fd NVMe device file descriptor
  * @param ns point to the identify namespace data structure
  * @param nsid An allocated NSID
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid)
+int nvme_identify_ns_allocated(struct nvme_dev_info *ndev, 
+	struct nvme_id_ns *ns, uint32_t nsid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_allocated(fd, ns, nsid);
+	ret = nvme_cmd_identify_ns_allocated(ndev->fd, ns, nsid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -717,22 +720,23 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
-int nvme_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
+int nvme_io_rw_common(struct nvme_dev_info *ndev, struct nvme_rwc_wrapper *wrap, 
+	uint8_t opcode)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_io_rw_common(fd, wrap, opcode);
+	ret = nvme_cmd_io_rw_common(ndev->fd, wrap, opcode);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, wrap->sqid);
+	ret = nvme_ring_sq_doorbell(ndev->fd, wrap->sqid);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_reap_expect_cqe(fd, wrap->cqid, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;

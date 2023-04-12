@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "queue.h"
 
 #include "common.h"

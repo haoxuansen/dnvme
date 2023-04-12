@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "ioctl.h"
 #include "irq.h"
 #include "queue.h"

@@ -23,6 +23,7 @@
 #include "byteorder.h"
 
 #include "core.h"
+#include "netlink.h"
 #include "ioctl.h"
 #include "queue.h"
 #include "irq.h"
@@ -126,12 +127,12 @@ void nvme_dump_data(void *buf, uint32_t size)
 	pr_debug("%s\n", str);
 }
 
-int nvme_update_ns_info(int fd, struct nvme_ns_info *ns)
+int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_info *ns)
 {
 	int ret;
 	uint8_t flbas;
 
-	ret = nvme_identify_ns_active(fd, &ns->id_ns, ns->nsid);
+	ret = nvme_identify_ns_active(ndev, &ns->id_ns, ns->nsid);
 	if (ret < 0) {
 		pr_err("failed to get ns(%u) data!(%d)\n", ns->nsid, ret);
 		return ret;
@@ -144,10 +145,12 @@ int nvme_update_ns_info(int fd, struct nvme_ns_info *ns)
 	return 0;
 }
 
-static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
+static int request_io_queue_num(struct nvme_dev_info *ndev, uint16_t *nr_sq, 
+	uint16_t *nr_cq)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
+	int fd = ndev->fd;
 	int ret;
 
 	ret = nvme_cmd_set_feat_num_queues(fd, *nr_sq, *nr_cq);
@@ -159,7 +162,7 @@ static int request_io_queue_num(int fd, uint16_t *nr_sq, uint16_t *nr_cq)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -200,7 +203,7 @@ static int init_ns_data(struct nvme_dev_info *ndev)
 	}
 	memset(ns_list, 0, NVME_IDENTIFY_DATA_SIZE);
 
-	ret = nvme_identify_ns_list_active(ndev->fd, ns_list, 
+	ret = nvme_identify_ns_list_active(ndev, ns_list, 
 		NVME_IDENTIFY_DATA_SIZE, 0);
 	if (ret < 0) {
 		pr_err("failed to get active ns list!(%d)\n", ret);
@@ -217,7 +220,7 @@ static int init_ns_data(struct nvme_dev_info *ndev)
 		}
 		last = ns[i].nsid;
 
-		ret = nvme_identify_ns_active(ndev->fd, &ns[i].id_ns, ns[i].nsid);
+		ret = nvme_identify_ns_active(ndev, &ns[i].id_ns, ns[i].nsid);
 		if (ret < 0) {
 			pr_err("failed to get ns(%u) data!(%d)\n", ns[i].nsid, ret);
 			goto out2;
@@ -346,6 +349,15 @@ static int nvme_init_stage1(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
+	ret = nvme_get_dev_info(ndev->fd, &ndev->dev_pub);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_connect();
+	if (ret < 0)
+		return ret;
+	ndev->sock_fd = ret;
+
 	ret = nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
 	if (ret < 0)
 		return ret;
@@ -360,7 +372,7 @@ static int nvme_init_stage1(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = request_io_queue_num(ndev->fd, &iosq_num, &iocq_num);
+	ret = request_io_queue_num(ndev, &iosq_num, &iocq_num);
 	if (ret < 0)
 		return ret;
 
@@ -369,7 +381,7 @@ static int nvme_init_stage1(struct nvme_dev_info *ndev)
 	pr_info("Controller has allocated %u IOSQ, %u IOCQ!\n", 
 		ndev->max_sq_num, ndev->max_cq_num);
 
-	ret = nvme_identify_ctrl(ndev->fd, &ndev->id_ctrl);
+	ret = nvme_identify_ctrl(ndev, &ndev->id_ctrl);
 	if (ret < 0)
 		return ret;
 

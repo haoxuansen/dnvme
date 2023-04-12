@@ -18,7 +18,7 @@
 
 #include "pci_caps.h"
 #include "pci_regs_ext.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 #define PCI_CAP_ID_MASK			0x00ff
 #define PCI_CAP_NEXT_MASK		0xff00

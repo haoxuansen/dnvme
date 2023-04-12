@@ -18,7 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "io.h"
 #include "core.h"
 #include "pci.h"
@@ -570,5 +570,20 @@ int dnvme_get_capability(struct nvme_device *ndev, struct nvme_get_cap __user *u
 		ret = -EINVAL;
 
 	return ret;
+}
+
+int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *udevp)
+{
+	struct nvme_dev_public pub;
+
+	pub.devno = ndev->instance;
+	pub.family = nvme_gnl_id;
+
+	if (copy_to_user(udevp, &pub, sizeof(pub))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	return 0;
 }
 

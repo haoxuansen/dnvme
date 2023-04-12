@@ -18,7 +18,7 @@
 #include <linux/xarray.h>
 
 #include "pci_caps.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 #define NVME_PRP_ENTRY_SIZE		8 /* in bytes */
 #define NVME_SGES_PER_PAGE		(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
@@ -282,11 +282,15 @@ struct nvme_context {
 };
 
 extern struct list_head nvme_ctx_list;
+extern int nvme_gnl_id;
 
 static inline struct nvme_context *dnvme_irq_to_context(struct nvme_irq_set *irq_set)
 {
 	return container_of(irq_set, struct nvme_context, irq_set);
 }
+
+struct nvme_context *dnvme_lock_context(int instance);
+void dnvme_unlock_context(struct nvme_context *ctx);
 
 void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state);
 
@@ -314,6 +318,11 @@ int dnvme_create_meta_node(struct nvme_device *ndev,
 void dnvme_delete_meta_id(struct nvme_device *ndev, u32 id);
 
 void dnvme_delete_meta_nodes(struct nvme_device *ndev);
+
+/* ==================== Related to "netlink.c" ==================== */
+
+int dnvme_gnl_init(void);
+void dnvme_gnl_exit(void);
 
 #endif /* !_DNVME_CORE_H_ */
 

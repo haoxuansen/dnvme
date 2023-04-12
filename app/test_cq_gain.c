@@ -16,7 +16,7 @@
 #include <unistd.h>
 
 #include "byteorder.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "queue.h"
 
 #include "common.h"

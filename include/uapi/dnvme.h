@@ -1,5 +1,5 @@
 /**
- * @file dnvme_ioctl.h
+ * @file dnvme.h
  * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
  * @brief 
  * @version 0.1
@@ -9,13 +9,14 @@
  * 
  */
 
-#ifndef _UAPI_DNVME_IOCTLS_H_
-#define _UAPI_DNVME_IOCTLS_H_
+#ifndef _UAPI_DNVME_H_
+#define _UAPI_DNVME_H_
 
 #include <linux/pci_regs.h>
 #include "linux/dma-direction.h"
 #include "bitops.h"
 #include "nvme.h"
+#include "dnvme/netlink.h"
 
 /* The number of entries in Admin queue */
 #define NVME_AQ_MAX_SIZE		4096
@@ -40,6 +41,7 @@ enum {
 	NVME_GET_SQ_INFO,
 	NVME_GET_CQ_INFO,
 
+	NVME_GET_DEV_INFO,
 	NVME_GET_CAPABILITY,
 	NVME_SET_DEV_STATE,
 	NVME_SUBMIT_64B_CMD,
@@ -305,12 +307,18 @@ struct nvme_meta_create {
 	uint8_t		contig;
 };
 
+struct nvme_dev_public {
+	int		devno;
+	int		family;
+};
 
 #define NVME_IOCTL_GET_SQ_INFO \
 	_IOWR('N', NVME_GET_SQ_INFO, struct nvme_sq_public)
 #define NVME_IOCTL_GET_CQ_INFO \
 	_IOWR('N', NVME_GET_CQ_INFO, struct nvme_cq_public)
 
+#define NVME_IOCTL_GET_DEV_INFO \
+	_IOR('N', NVME_GET_DEV_INFO, struct nvme_dev_public)
 #define NVME_IOCTL_GET_CAPABILITY \
 	_IOWR('N', NVME_GET_CAPABILITY, struct nvme_get_cap)
 
@@ -350,4 +358,4 @@ struct nvme_meta_create {
 /* uint16_t: specified irq identify */
 #define NVME_IOCTL_UNMASK_IRQ		_IOW('N', NVME_UNMASK_IRQ, uint16_t)
 
-#endif /* _UAPI_DNVME_IOCTLS_H_ */
+#endif /* !_UAPI_DNVME_H_ */

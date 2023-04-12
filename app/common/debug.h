@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 void nvme_display_buffer(const char *str, void *buf, uint32_t size);
 

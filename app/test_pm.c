@@ -16,32 +16,33 @@
 
 #include "log.h"
 #include "byteorder.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "pci_ids_ext.h"
 #include "pci_regs_ext.h"
 
 #include "core.h"
 #include "cmd.h"
+#include "netlink.h"
 #include "pcie.h"
 #include "test.h"
 #include "test_pm.h"
 
-static int get_power_state(int fd, uint8_t *ps)
+static int get_power_state(struct nvme_dev_info *ndev, uint8_t *ps)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_get_feat_power_mgmt(fd, NVME_FEAT_SEL_CUR);
+	ret = nvme_cmd_get_feat_power_mgmt(ndev->fd, NVME_FEAT_SEL_CUR);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 	
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -72,7 +73,7 @@ static int set_power_state(struct nvme_dev_info *ndev, uint8_t ps)
 	if (ret < 0)
 		return ret;
 
-	ret = nvme_reap_expect_cqe(ndev->fd, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
 	if (ret != 1) {
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
@@ -129,7 +130,7 @@ int case_pm_switch_power_state(struct nvme_tool *tool)
 			return ret;
 
 		if (prop->vs < NVME_VS(1, 4, 0)) {
-			ret = get_power_state(ndev->fd, &ps_new);
+			ret = get_power_state(ndev, &ps_new);
 			if (ret < 0)
 				return ret;
 

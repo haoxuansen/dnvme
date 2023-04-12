@@ -13,7 +13,7 @@
 #define _DNVME_DEBUG_H_
 
 #include "nvme.h"
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 #include "core.h"
 
 #if IS_ENABLED(CONFIG_DNVME_DEBUG)

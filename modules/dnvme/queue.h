@@ -90,6 +90,8 @@ int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id);
 
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev);
 int dnvme_inquiry_cqe(struct nvme_device *ndev, struct nvme_inquiry __user *uinq);
-int dnvme_reap_cqe(struct nvme_context *ctx, struct nvme_reap __user *ureap);
+
+int dnvme_reap_cqe(struct nvme_cq *cq, u32 expect, void __user *buf, u32 size);
+int dnvme_reap_cqe_legacy(struct nvme_context *ctx, struct nvme_reap __user *ureap);
 
 #endif /* !_DNVME_QUEUE_H_ */

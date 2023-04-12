@@ -23,7 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/version.h>
 
-#include "dnvme_ioctl.h"
+#include "dnvme.h"
 
 #include "core.h"
 #include "proc.h"
@@ -38,6 +38,8 @@
 #define NVME_MINORS			(1U << MINORBITS)
 
 LIST_HEAD(nvme_ctx_list);
+int nvme_gnl_id;
+
 static DEFINE_MUTEX(nvme_ctx_list_lock);
 static struct proc_dir_entry *nvme_proc_dir;
 
@@ -50,13 +52,13 @@ static struct class *nvme_class;
  *  
  * @return &struct nvme_context on success, or ERR_PTR() on error. 
  */
-static struct nvme_context *find_context(struct inode *inode)
+static struct nvme_context *find_context(int instance)
 {
 	struct nvme_context *ctx;
 
 	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
 
-		if (iminor(inode) == ctx->dev->instance) {
+		if (instance == ctx->dev->instance) {
 			return ctx;
 		}
 	}
@@ -68,13 +70,13 @@ static struct nvme_context *find_context(struct inode *inode)
  * 
  * @return &struct nvme_context on success, or ERR_PTR() on error. 
  */
-static struct nvme_context *lock_context(struct inode *inode)
+struct nvme_context *dnvme_lock_context(int instance)
 {
 	struct nvme_context *ctx;
 
-	ctx = find_context(inode);
+	ctx = find_context(instance);
 	if (IS_ERR(ctx)) {
-		pr_err("Cannot find the device with minor no. %d!\n", iminor(inode));
+		pr_err("Cannot find the device with instance %d!\n", instance);
 		return ctx;
 	}
 
@@ -82,7 +84,7 @@ static struct nvme_context *lock_context(struct inode *inode)
 	return ctx;
 }
 
-static void unlock_context(struct nvme_context *ctx)
+void dnvme_unlock_context(struct nvme_context *ctx)
 {
 	if (mutex_is_locked(&ctx->lock)) {
 		mutex_unlock(&ctx->lock);
@@ -194,7 +196,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 	unsigned long pfn;
 	int ret = 0;
 
-	ctx = lock_context(inode);
+	ctx = dnvme_lock_context(iminor(inode));
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 	ndev = ctx->dev;
@@ -228,7 +230,7 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 		dnvme_err(ndev, "remap_pfn_rage err!(%d)\n", ret);
 
 out:
-	unlock_context(ctx);
+	dnvme_unlock_context(ctx);
 	return ret;
 }
 
@@ -243,7 +245,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	dnvme_dbg(ndev, "cmd num:%u, arg:0x%lx (%s)\n", _IOC_NR(cmd), arg,
 		dnvme_ioctl_cmd_string(cmd));
 
-	ctx = lock_context(inode);
+	ctx = dnvme_lock_context(iminor(inode));
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 	ndev = ctx->dev;
@@ -263,6 +265,10 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_WRITE_GENERIC:
 		ret = dnvme_generic_write(ctx, argp);
+		break;
+
+	case NVME_IOCTL_GET_DEV_INFO:
+		ret = dnvme_get_dev_info(ndev, argp);
 		break;
 
 	case NVME_IOCTL_GET_CAPABILITY:
@@ -298,7 +304,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_REAP_CQE:
-		ret = dnvme_reap_cqe(ctx, argp);
+		ret = dnvme_reap_cqe_legacy(ctx, argp);
 		break;
 
 	case NVME_IOCTL_CREATE_META_NODE:
@@ -326,7 +332,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = -EINVAL;
 	}
 
-	unlock_context(ctx);
+	dnvme_unlock_context(ctx);
 	return ret;
 }
 
@@ -336,7 +342,7 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 	struct nvme_device *ndev;
 	int ret = 0;
 
-	ctx = lock_context(inode);
+	ctx = dnvme_lock_context(iminor(inode));
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 	ndev = ctx->dev;
@@ -350,7 +356,7 @@ static int dnvme_open(struct inode *inode, struct file *filp)
 	ctx->dev->opened = 1;
 	dnvme_info(ndev, "Open NVMe device ok!\n");
 out:
-	unlock_context(ctx);
+	dnvme_unlock_context(ctx);
 	return ret;
 }
 
@@ -358,7 +364,7 @@ static int dnvme_release(struct inode *inode, struct file *filp)
 {
 	struct nvme_context *ctx;
 
-	ctx = lock_context(inode);
+	ctx = dnvme_lock_context(iminor(inode));
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
@@ -370,7 +376,7 @@ static int dnvme_release(struct inode *inode, struct file *filp)
 	 * with the device.
 	 */
 	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
-	unlock_context(ctx);
+	dnvme_unlock_context(ctx);
 	return 0;
 }
 
@@ -732,7 +738,8 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dnvme_create_proc_entry(ctx->dev, nvme_proc_dir);
 
 	/* Finalize this device and prepare for next one */
-	dev_info(dev, "NVMe device(0x%x:0x%x) init ok!\n", pdev->vendor, pdev->device);
+	dev_info(dev, "NVMe devno.%d(0x%x:0x%x) init ok!\n", 
+		ctx->dev->instance, pdev->vendor, pdev->device);
 	dev_vdbg(dev, "NVMe bus #%d, dev slot: %d", pdev->bus->number, 
 		PCI_SLOT(pdev->devfn));
 	dev_vdbg(dev, "NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
@@ -813,17 +820,22 @@ static int __init dnvme_init(void)
 {
 	int ret;
 
+	ret = dnvme_gnl_init();
+	if (ret < 0)
+		return ret;
+	nvme_gnl_id = ret;
+
 	ret = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, "nvme");
 	if (ret < 0) {
 		pr_err("failed to alloc chrdev!(%d)\n", ret);
-		return ret;
+		goto out_exit_gnl;
 	}
 
 	nvme_class = class_create(THIS_MODULE, "nvme");
 	if (IS_ERR(nvme_class)) {
 		ret = PTR_ERR(nvme_class);
 		pr_err("failed to create class!(%d)\n", ret);
-		goto out;
+		goto out_release_chrdev;
 	}
 
 	nvme_proc_dir = proc_mkdir("nvme", NULL);
@@ -833,16 +845,18 @@ static int __init dnvme_init(void)
 	ret = pci_register_driver(&dnvme_driver);
 	if (ret < 0) {
 		pr_err("failed to register pci driver!(%d)\n", ret);
-		goto out2;
+		goto out_destroy_class;
 	}
 
-	pr_info("init ok!\n");
+	pr_info("init ok!(gnl_id:%d)\n", nvme_gnl_id);
 	return 0;
 
-out2:
+out_destroy_class:
 	class_destroy(nvme_class);
-out:
+out_release_chrdev:
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+out_exit_gnl:
+	dnvme_gnl_exit();
 	return ret;
 }
 module_init(dnvme_init);
@@ -853,6 +867,7 @@ static void __exit dnvme_exit(void)
 	proc_remove(nvme_proc_dir);
 	class_destroy(nvme_class);
 	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+	dnvme_gnl_exit();
 	ida_destroy(&nvme_instance_ida);
 	pr_info("exit ok!\n");
 }
