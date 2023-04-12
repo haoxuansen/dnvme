@@ -103,7 +103,7 @@ struct nvme_cmd {
  */
 struct nvme_cq {
 	struct nvme_cq_public	pub;
-	struct nvme_context	*ctx;
+	struct nvme_device	*ndev;
 
 	/* For contiguous queue */
 	void			*buf; /* store CQ entries */
@@ -123,7 +123,7 @@ struct nvme_cq {
  */
 struct nvme_sq {
 	struct nvme_sq_public	pub;
-	struct nvme_context	*ctx;
+	struct nvme_device	*ndev;
 	struct list_head	cmd_list;
 
 	/* For contiguous queue */
@@ -191,45 +191,6 @@ struct nvme_capability {
 };
 
 /**
- * @brief Representation of a NVMe device
- * 
- * @dbs: Refer to "NVMe over PCIe Transport Spec R1.0b - ch3.1.2"
- * @cmb_size: Actually mapped CMB size, may less than CMBSZ which is indicated
- *  in Controller Properities. 
- * @cmb_use_sqes: If true, use controller's memory buffer for I/O SQes.
- */
-struct nvme_device {
-	struct nvme_context	*ctx;
-	struct pci_dev	*pdev;
-	struct device	dev;
-	struct cdev	cdev;
-	struct proc_dir_entry	*proc;
-
-	struct xarray	sqs;
-	struct xarray	cqs;
-	struct xarray	meta;
-
-	int	instance; /* dev_t minor */
-
-	void __iomem	*bar0;
-	u32 __iomem	*dbs;
-
-	struct dma_pool	*cmd_pool;
-	struct dma_pool	*queue_pool;
-	struct dma_pool *meta_pool;
-
-	struct nvme_ctrl_property	prop;
-	struct nvme_capability	cap;
-
-	u32	q_depth;
-	u32	db_stride;
-	u64	cmb_size;
-	bool	cmb_use_sqes;
-
-	unsigned int	opened:1;
-};
-
-/**
  * @entry: nvme_work is managed by nvme_irq_set
  * @irq_id: see nvme_irq.irq_id for details
  * @int_vec: see nvme_irq.int_vec for details
@@ -265,34 +226,59 @@ struct nvme_irq_set {
 };
 
 /**
- * @brief NVMe device context info
+ * @brief Representation of a NVMe device
  * 
- * @entry: This context is managed by global list head named "nvme_ctx_list"
- * @cq_list: This is a list head for managing nvme_cq.
- * @sq_list: This is a list head for managing nvme_sq.
- * @dev: NVMe device info
- * @lock: Get this lock before access context.
- * @irq_set: see @nvme_irq_set for details.
+ * @dbs: Refer to "NVMe over PCIe Transport Spec R1.0b - ch3.1.2"
+ * @cmb_size: Actually mapped CMB size, may less than CMBSZ which is indicated
+ *  in Controller Properities. 
+ * @cmb_use_sqes: If true, use controller's memory buffer for I/O SQes.
  */
-struct nvme_context {
+struct nvme_device {
 	struct list_head	entry;
-	struct nvme_device	*dev;
-	struct mutex		lock;
+	struct pci_dev	*pdev;
+	struct device	dev;
+	struct cdev	cdev;
+	struct proc_dir_entry	*proc;
+
+	struct xarray	sqs;
+	struct xarray	cqs;
+	struct xarray	meta;
+
+	struct mutex	lock;
+
+	int	instance; /* dev_t minor */
+
+	void __iomem	*bar0;
+	u32 __iomem	*dbs;
+
+	struct dma_pool	*cmd_pool;
+	struct dma_pool	*queue_pool;
+	struct dma_pool *meta_pool;
+
 	struct nvme_irq_set	irq_set;
+	struct nvme_ctrl_property	prop;
+	struct nvme_capability	cap;
+
+	u32	q_depth;
+	u32	db_stride;
+	u64	cmb_size;
+	bool	cmb_use_sqes;
+
+	unsigned int	opened:1;
 };
 
-extern struct list_head nvme_ctx_list;
+extern struct list_head nvme_dev_list;
 extern int nvme_gnl_id;
 
-static inline struct nvme_context *dnvme_irq_to_context(struct nvme_irq_set *irq_set)
+static inline struct nvme_device *dnvme_irq_to_device(struct nvme_irq_set *irq_set)
 {
-	return container_of(irq_set, struct nvme_context, irq_set);
+	return container_of(irq_set, struct nvme_device, irq_set);
 }
 
-struct nvme_context *dnvme_lock_context(int instance);
-void dnvme_unlock_context(struct nvme_context *ctx);
+struct nvme_device *dnvme_lock_device(int instance);
+void dnvme_unlock_device(struct nvme_device *ndev);
 
-void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state);
+void dnvme_cleanup_device(struct nvme_device *ndev, enum nvme_state state);
 
 /* ==================== Related to "cmd.c" ==================== */
 
@@ -309,7 +295,7 @@ void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps);
 
 void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
 
-int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd);
+int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *ucmd);
 
 /* ==================== Related to "meta.c" ==================== */
 

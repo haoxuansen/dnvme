@@ -12,10 +12,10 @@
 #ifndef _DNVME_IOCTL_H_
 #define _DNVME_IOCTL_H_
 
-int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state);
+int dnvme_set_device_state(struct nvme_device *ndev, enum nvme_state state);
 
-int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess);
-int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess);
+int dnvme_generic_read(struct nvme_device *ndev, struct nvme_access __user *uaccess);
+int dnvme_generic_write(struct nvme_device *ndev, struct nvme_access __user *uaccess);
 
 int dnvme_get_sq_info(struct nvme_device *ndev, struct nvme_sq_public __user *usqp);
 int dnvme_get_cq_info(struct nvme_device *ndev, struct nvme_cq_public __user *ucqp);
@@ -23,10 +23,10 @@ int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *
 
 int dnvme_get_capability(struct nvme_device *ndev, struct nvme_get_cap __user *ucap);
 
-int dnvme_create_admin_queue(struct nvme_context *ctx, 
+int dnvme_create_admin_queue(struct nvme_device *ndev, 
 	struct nvme_admin_queue __user *uaq);
 
-int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep);
-int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep);
+int dnvme_prepare_sq(struct nvme_device *ndev, struct nvme_prep_sq __user *uprep);
+int dnvme_prepare_cq(struct nvme_device *ndev, struct nvme_prep_cq __user *uprep);
 
 #endif /* !_DNVME_IOCTL_H_ */

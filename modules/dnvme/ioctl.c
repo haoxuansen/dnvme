@@ -63,9 +63,8 @@ static int dnvme_wait_ready(struct nvme_device *ndev, bool enabled)
  * @param ctx NVMe context
  * @return 0 on success, otherwise a negative errno.
  */
-static int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
+static int dnvme_set_ctrl_state(struct nvme_device *ndev, bool enabled)
 {
-	struct nvme_device *ndev = ctx->dev;
 	void __iomem *bar0 = ndev->bar0;
 	u32 cc;
 
@@ -83,9 +82,8 @@ static int dnvme_set_ctrl_state(struct nvme_context *ctx, bool enabled)
 	return dnvme_wait_ready(ndev, enabled);
 }
 
-static int dnvme_reset_subsystem(struct nvme_context *ctx)
+static int dnvme_reset_subsystem(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	void __iomem *bar0 = ndev->bar0;
 	u32 rstval = 0x4e564d65; /* "NVMe" */
 
@@ -94,29 +92,28 @@ static int dnvme_reset_subsystem(struct nvme_context *ctx)
 	return dnvme_wait_ready(ndev, false);
 }
 
-int dnvme_set_device_state(struct nvme_context *ctx, enum nvme_state state)
+int dnvme_set_device_state(struct nvme_device *ndev, enum nvme_state state)
 {
-	struct nvme_device *ndev = ctx->dev;
 	int ret;
 
 	switch (state) {
 	case NVME_ST_ENABLE:
-		ret =  dnvme_set_ctrl_state(ctx, true);
+		ret =  dnvme_set_ctrl_state(ndev, true);
 		break;
 
 	case NVME_ST_DISABLE:
 	case NVME_ST_DISABLE_COMPLETE:
-		ret = dnvme_set_ctrl_state(ctx, false);
+		ret = dnvme_set_ctrl_state(ndev, false);
 		if (ret < 0) {
 			dnvme_err(ndev, "failed to set ctrl state:%d!(%d)\n", 
 				state, ret);
 		} else {
-			dnvme_cleanup_context(ctx, state);
+			dnvme_cleanup_device(ndev, state);
 		}
 		break;
 
 	case NVME_ST_SUBSYSTEM_RESET:
-		ret = dnvme_reset_subsystem(ctx);
+		ret = dnvme_reset_subsystem(ndev);
 		/* !NOTICE: It's necessary to clean device here? */
 		break;
 
@@ -188,12 +185,11 @@ static int dnvme_check_access_align(struct nvme_device *ndev,
  * @param ctx NVMe device context
  * @return 0 on success, otherwise a negative errno.
  */
-int dnvme_generic_read(struct nvme_context *ctx, struct nvme_access __user *uaccess)
+int dnvme_generic_read(struct nvme_device *ndev, struct nvme_access __user *uaccess)
 {
 	int ret = 0;
 	void *buf;
 	struct nvme_access access;
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
@@ -256,12 +252,11 @@ out:
  * @param ctx NVMe device context
  * @return 0 on success, otherwise a negative errno.
  */
-int dnvme_generic_write(struct nvme_context *ctx, struct nvme_access __user *uaccess)
+int dnvme_generic_write(struct nvme_device *ndev, struct nvme_access __user *uaccess)
 {
 	int ret = 0;
 	void *buf;
 	struct nvme_access access;
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (copy_from_user(&access, uaccess, sizeof(struct nvme_access))) {
@@ -323,11 +318,10 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-int dnvme_create_admin_queue(struct nvme_context *ctx, 
+int dnvme_create_admin_queue(struct nvme_device *ndev, 
 	struct nvme_admin_queue __user *uaq)
 {
 	int ret;
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_admin_queue aq;
 
 	if (copy_from_user(&aq, uaq, sizeof(aq))) {
@@ -336,9 +330,9 @@ int dnvme_create_admin_queue(struct nvme_context *ctx,
 	}
 
 	if (aq.type == NVME_ADMIN_SQ) {
-		ret = dnvme_create_asq(ctx, aq.elements);
+		ret = dnvme_create_asq(ndev, aq.elements);
 	} else if (aq.type == NVME_ADMIN_CQ) {
-		ret = dnvme_create_acq(ctx, aq.elements);
+		ret = dnvme_create_acq(ndev, aq.elements);
 	} else {
 		dnvme_err(ndev, "queue type(%d) is unknown!\n", aq.type);
 		return -EINVAL;
@@ -347,9 +341,8 @@ int dnvme_create_admin_queue(struct nvme_context *ctx,
 	return ret;
 }
 
-int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep)
+int dnvme_prepare_sq(struct nvme_device *ndev, struct nvme_prep_sq __user *uprep)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_prep_sq prep;
 	int ret;
@@ -373,7 +366,7 @@ int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep
 		return -EINVAL;
 	}
 
-	sq = dnvme_alloc_sq(ctx, &prep, NVME_NVM_IOSQES);
+	sq = dnvme_alloc_sq(ndev, &prep, NVME_NVM_IOSQES);
 	if (!sq)
 		return -ENOMEM;
 
@@ -381,9 +374,8 @@ int dnvme_prepare_sq(struct nvme_context *ctx, struct nvme_prep_sq __user *uprep
 	return 0;
 }
 
-int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep)
+int dnvme_prepare_cq(struct nvme_device *ndev, struct nvme_prep_cq __user *uprep)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq *cq;
 	struct nvme_prep_cq prep;
 	int ret;
@@ -407,14 +399,14 @@ int dnvme_prepare_cq(struct nvme_context *ctx, struct nvme_prep_cq __user *uprep
 		return -EINVAL;
 	}
 
-	cq = dnvme_alloc_cq(ctx, &prep, NVME_NVM_IOCQES);
+	cq = dnvme_alloc_cq(ndev, &prep, NVME_NVM_IOCQES);
 	if (!cq)
 		return -ENOMEM;
 
 	set_bit(NVME_QF_WAIT_FOR_CREATE, &cq->flags);
 
 	if (cq->pub.irq_enabled) {
-		ret = dnvme_create_icq_node(&ctx->irq_set, cq->pub.q_id, cq->pub.irq_no);
+		ret = dnvme_create_icq_node(&ndev->irq_set, cq->pub.q_id, cq->pub.irq_no);
 		if (ret < 0) {
 			dnvme_err(ndev, "failed to create icq node!(%d)\n", ret);
 			goto out;

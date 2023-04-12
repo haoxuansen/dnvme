@@ -122,8 +122,8 @@ static bool pba_bits_is_set(void __iomem *pba_tbl, struct msix_entry *arr,
  */
 int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq);
-	void __iomem *bar0 = ctx->dev->bar0;
+	struct nvme_device *ndev = dnvme_irq_to_device(irq);
+	void __iomem *bar0 = ndev->bar0;
 
 	switch (irq->irq_type) {
 	case NVME_INT_PIN:
@@ -140,7 +140,7 @@ int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 		break;
 
 	default:
-		dnvme_err(ctx->dev, "irq type(%u) is unknown!\n", irq->irq_type);
+		dnvme_err(ndev, "irq type(%u) is unknown!\n", irq->irq_type);
 		return -EINVAL;
 	}
 	return 0;
@@ -154,8 +154,8 @@ int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
  */
 int dnvme_unmask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq);
-	void __iomem *bar0 = ctx->dev->bar0;
+	struct nvme_device *ndev = dnvme_irq_to_device(irq);
+	void __iomem *bar0 = ndev->bar0;
 
 	switch (irq->irq_type) {
 	case NVME_INT_PIN:
@@ -172,7 +172,7 @@ int dnvme_unmask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 		break;
 
 	default:
-		dnvme_err(ctx->dev, "irq type(%u) is unknown!\n", irq->irq_type);
+		dnvme_err(ndev, "irq type(%u) is unknown!\n", irq->irq_type);
 		return -EINVAL;
 	}
 	return 0;
@@ -282,13 +282,13 @@ static int create_icq_node(struct nvme_irq *irq, u16 cq_id)
 
 int dnvme_create_icq_node(struct nvme_irq_set *irq_set, u16 cq_id, u16 irq_no)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
+	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 	int ret;
 	struct nvme_irq *irq;
 
 	irq = find_irq_node_by_id(irq_set, irq_no);
 	if (!irq) {
-		dnvme_err(ctx->dev, "failed to find irq node %u!\n", irq_no);
+		dnvme_err(ndev, "failed to find irq node %u!\n", irq_no);
 		return -EINVAL;
 	}
 
@@ -345,8 +345,7 @@ static void delete_icq_list(struct nvme_irq *irq)
  */
 static int create_irq_node(struct nvme_irq_set *irq_set, u32 int_vec, u16 irq_id)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
-	struct nvme_device *ndev = ctx->dev;
+	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 	struct nvme_irq *irq;
 
 	irq = find_irq_node_by_id(irq_set, irq_id);
@@ -408,19 +407,19 @@ static void delete_irq_list(struct nvme_irq_set *irq_set)
 
 static void inc_isr_count(struct nvme_irq_set *irq_set, u16 irq_id)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
+	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 	struct nvme_irq *node;
 
 	node = find_irq_node_by_id(irq_set, irq_id);
 	if (!node) {
-		dnvme_err(ctx->dev, "irq node(ID:%u) not found!\n", irq_id);
+		dnvme_err(ndev, "irq node(ID:%u) not found!\n", irq_id);
 		return;
 	}
 
 	atomic_set(&node->isr_fired, 1);
 	atomic_add(1, &node->isr_count);
 
-	dnvme_vdbg(ctx->dev, "irq node(ID:%u) count is %u\n", node->irq_id, 
+	dnvme_vdbg(ndev, "irq node(ID:%u) count is %u\n", node->irq_id, 
 		atomic_read(&node->isr_count));
 }
 
@@ -442,8 +441,7 @@ static void update_irq_flag(struct work_struct *wk)
 static int create_work_node(struct nvme_irq_set *irq_set, u32 int_vec, 
 	u16 irq_id)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
-	struct nvme_device *ndev = ctx->dev;
+	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 	struct nvme_work *node;
 
 	/* Sanity check */
@@ -504,16 +502,16 @@ static void delete_work_list(struct nvme_irq_set *irq_set)
 
 static int create_irq_work_queue(struct nvme_irq_set *irq_set)
 {
-	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
+	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 
 	if (irq_set->wq) {
-		dnvme_warn(ctx->dev, "work queue already exist! skip\n");
+		dnvme_warn(ndev, "work queue already exist! skip\n");
 		return 0;
 	}
 
 	irq_set->wq = create_workqueue("irq_wq");
 	if (!irq_set->wq) {
-		dnvme_err(ctx->dev, "failed to create work queue!\n");
+		dnvme_err(ndev, "failed to create work queue!\n");
 		return -ENOMEM;
 	}
 
@@ -577,22 +575,21 @@ static void destroy_irq_work_pair(struct nvme_irq_set *irq_set, u32 int_vec,
  *
  * @return 0 on success, otherwise a negative errno.
  */
-static int set_int_pin(struct nvme_context *ctx)
+static int set_int_pin(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->bar0;
 	int ret;
 
 	ret = request_irq(pdev->irq, dnvme_interrupt, IRQF_SHARED, "pin-base",
-		&ctx->irq_set);
+		&ndev->irq_set);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to request irq(%u)!\n", pdev->irq);
 		return ret;
 	}
 	dnvme_vdbg(ndev, "Pin-Base Interrupt Vector(%u)\n", pdev->irq);
 
-	ret = create_irq_work_pair(&ctx->irq_set, pdev->irq, 0);
+	ret = create_irq_work_pair(&ndev->irq_set, pdev->irq, 0);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to create irq work pair!\n");
 		goto out;
@@ -601,7 +598,7 @@ static int set_int_pin(struct nvme_context *ctx)
 	pci_enable_int_pin(pdev);
 	return 0;
 out:
-	free_irq(pdev->irq, &ctx->irq_set);
+	free_irq(pdev->irq, &ndev->irq_set);
 	return ret;
 }
 
@@ -610,9 +607,8 @@ out:
  *
  * @return 0 on success, otherwise a negative errno.
  */
-static int set_int_msi_single(struct nvme_context *ctx)
+static int set_int_msi_single(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->bar0;
 	int ret;
@@ -631,14 +627,14 @@ static int set_int_msi_single(struct nvme_context *ctx)
 	}
 
 	ret = request_irq(pdev->irq, dnvme_interrupt, IRQF_SHARED,
-		"msi-single", &ctx->irq_set);
+		"msi-single", &ndev->irq_set);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to request irq(%u)!\n", pdev->irq);
 		goto out2;
 	}
 	dnvme_vdbg(ndev, "MSI-Single Interrupt Vector(%u)\n", pdev->irq);
 
-	ret = create_irq_work_pair(&ctx->irq_set, pdev->irq, 0);
+	ret = create_irq_work_pair(&ndev->irq_set, pdev->irq, 0);
 	if (ret < 0) {
 		dnvme_err(ndev, "failed to create irq work pair!\n");
 		goto out3;
@@ -646,7 +642,7 @@ static int set_int_msi_single(struct nvme_context *ctx)
 
 	return 0;
 out3:
-	free_irq(pdev->irq, &ctx->irq_set);
+	free_irq(pdev->irq, &ndev->irq_set);
 out2:
 	pci_disable_msi(pdev);
 out:
@@ -659,9 +655,8 @@ out:
  *
  * @return 0 on success, otherwise a negative errno.
  */
-static int set_int_msi_multi(struct nvme_context *ctx, u16 num_irqs)
+static int set_int_msi_multi(struct nvme_device *ndev, u16 num_irqs)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->bar0;
 	int ret, i, j;
@@ -681,7 +676,7 @@ static int set_int_msi_multi(struct nvme_context *ctx, u16 num_irqs)
 	/* Request irq on each interrupt vector */
 	for (i = 0; i < num_irqs; i++) {
 		ret = request_irq(pdev->irq + i, dnvme_interrupt, IRQF_SHARED,
-			"msi-multi", &ctx->irq_set);
+			"msi-multi", &ndev->irq_set);
 		if (ret < 0) {
 			dnvme_err(ndev, "failed to request irq(%u)!\n", pdev->irq + i);
 			goto out2;
@@ -689,7 +684,7 @@ static int set_int_msi_multi(struct nvme_context *ctx, u16 num_irqs)
 	}
 
 	for (j = 0; j < num_irqs; j++) {
-		ret = create_irq_work_pair(&ctx->irq_set, pdev->irq + j, j);
+		ret = create_irq_work_pair(&ndev->irq_set, pdev->irq + j, j);
 		if (ret < 0) {
 			dnvme_err(ndev, "failed to create irq work pair(%d)!\n", j);
 			goto out3;
@@ -699,10 +694,10 @@ static int set_int_msi_multi(struct nvme_context *ctx, u16 num_irqs)
 	return 0;
 out3:
 	for (j--; j >= 0; j--)
-		destroy_irq_work_pair(&ctx->irq_set, pdev->irq + j, j);
+		destroy_irq_work_pair(&ndev->irq_set, pdev->irq + j, j);
 out2:
 	for (i--; i >= 0; i--)
-		free_irq(pdev->irq + i, &ctx->irq_set);
+		free_irq(pdev->irq + i, &ndev->irq_set);
 out:
 	set_int_mask(bar0, UINT_MAX);
 	return ret;
@@ -721,10 +716,9 @@ out:
  *
  * @return 0 on success, otherwise a negative errno
  */
-static int set_int_msix(struct nvme_context *ctx, u16 num_irqs)
+static int set_int_msix(struct nvme_device *ndev, u16 num_irqs)
 {
-	struct nvme_device *ndev = ctx->dev;
-	struct nvme_irq_set *irq = &ctx->irq_set;
+	struct nvme_irq_set *irq = &ndev->irq_set;
 	struct pci_dev *pdev = ndev->pdev;
 	struct msix_entry *entries;
 	int ret, i, j;
@@ -747,7 +741,7 @@ static int set_int_msix(struct nvme_context *ctx, u16 num_irqs)
 
 	for (i = 0; i < num_irqs; i++) {
 		ret = request_irq(entries[i].vector, dnvme_interrupt, 
-			IRQF_SHARED, "msi-x", &ctx->irq_set);
+			IRQF_SHARED, "msi-x", &ndev->irq_set);
 		if (ret < 0) {
 			dnvme_err(ndev, "failed to request vec(%u)!\n", 
 				entries[i].vector);
@@ -756,7 +750,7 @@ static int set_int_msix(struct nvme_context *ctx, u16 num_irqs)
 	}
 
 	for (j = 0; j < num_irqs; j++) {
-		ret = create_irq_work_pair(&ctx->irq_set, entries[j].vector, 
+		ret = create_irq_work_pair(&ndev->irq_set, entries[j].vector, 
 			entries[j].entry);
 		if (ret < 0) {
 			dnvme_err(ndev, "failed to create irq work pair(%u)!\n", 
@@ -777,11 +771,11 @@ static int set_int_msix(struct nvme_context *ctx, u16 num_irqs)
 	return 0;
 out3:
 	for (j--; j >= 0; j--)
-		destroy_irq_work_pair(&ctx->irq_set, entries[j].vector, 
+		destroy_irq_work_pair(&ndev->irq_set, entries[j].vector, 
 			entries[j].entry);
 out2:
 	for (i--; i >= 0; i--)
-		free_irq(entries[i].vector, &ctx->irq_set);
+		free_irq(entries[i].vector, &ndev->irq_set);
 
 	pci_disable_msix(pdev);
 out:
@@ -789,10 +783,9 @@ out:
 	return ret;
 }
 
-static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap_msix *cap)
+static int init_msix_ptr(struct nvme_device *ndev, struct pci_cap_msix *cap)
 {
-	struct nvme_device *ndev = ctx->dev;
-	struct nvme_irq_set *irq_set = &ctx->irq_set;
+	struct nvme_irq_set *irq_set = &ndev->irq_set;
 	u32 msix_to; /* MSIXCAP.MTAB.TO */
 	u32 msix_tbir; /* MSIXCAP.MTAB.TBIR */
 	u32 msix_pbir; /* MSIXCAP.MPBA.PBIR */
@@ -837,13 +830,12 @@ static int init_msix_ptr(struct nvme_context *ctx, struct pci_cap_msix *cap)
  * @param ctx NVMe device context
  * @return 0 on success, otherwise a negative errno.
  */
-static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
+static int check_interrupt(struct nvme_device *ndev, struct nvme_interrupt *irq)
 {
 	int ret = 0;
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_capability *cap = &ndev->cap;
-	struct nvme_irq_set *irq_set = &ctx->irq_set;
-	struct pci_dev *pdev = ctx->dev->pdev;
+	struct nvme_irq_set *irq_set = &ndev->irq_set;
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->bar0;
 	u32 offset;
 	u16 mc; /* Message Control */
@@ -904,7 +896,7 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 			return -EINVAL;
 		}
 
-		ret = init_msix_ptr(ctx, cap->msix);
+		ret = init_msix_ptr(ndev, cap->msix);
 		if (ret < 0)
 			return ret;
 		
@@ -927,15 +919,14 @@ static int check_interrupt(struct nvme_context *ctx, struct nvme_interrupt *irq)
 }
 
 
-void dnvme_clean_interrupt(struct nvme_context *ctx)
+void dnvme_clean_interrupt(struct nvme_device *ndev)
 {
 	struct nvme_irq *irq;
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
-	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;
+	enum nvme_irq_type irq_type = ndev->irq_set.irq_type;
 
-	list_for_each_entry(irq, &ctx->irq_set.irq_list, irq_entry) {
-		free_irq(irq->int_vec, &ctx->irq_set);
+	list_for_each_entry(irq, &ndev->irq_set.irq_list, irq_entry) {
+		free_irq(irq->int_vec, &ndev->irq_set);
 	}
 
 	switch (irq_type) {
@@ -957,14 +948,14 @@ void dnvme_clean_interrupt(struct nvme_context *ctx)
 		break; /* Nothing to do */
 	}
 
-	destroy_irq_work_queue(&ctx->irq_set);
+	destroy_irq_work_queue(&ndev->irq_set);
 
-	delete_irq_list(&ctx->irq_set);
-	delete_work_list(&ctx->irq_set);
+	delete_irq_list(&ndev->irq_set);
+	delete_work_list(&ndev->irq_set);
 
 	/* update active irq info */
-	ctx->irq_set.irq_type = NVME_INT_NONE;
-	ctx->irq_set.nr_irq = 0;
+	ndev->irq_set.irq_type = NVME_INT_NONE;
+	ndev->irq_set.nr_irq = 0;
 }
 
 
@@ -977,10 +968,9 @@ void dnvme_clean_interrupt(struct nvme_context *ctx)
  *  of the current irq scheme that is active for this device. It also validates
  *  if the inputs given for setting up new scheme are within bounds.
  */
-int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *uirq)
+int dnvme_set_interrupt(struct nvme_device *ndev, struct nvme_interrupt __user *uirq)
 {
-	struct nvme_device *ndev = ctx->dev;
-	struct nvme_irq_set *irq_set = &ctx->irq_set;
+	struct nvme_irq_set *irq_set = &ndev->irq_set;
 	struct nvme_interrupt irq;
 	enum nvme_irq_type act_irq = irq_set->irq_type;
 	int ret;
@@ -991,14 +981,14 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 	}
 	dnvme_vdbg(ndev, "Set irq_type:%d, num_irqs:%u\n", irq.irq_type, irq.num_irqs);
 
-	ret = check_interrupt(ctx, &irq);
+	ret = check_interrupt(ndev, &irq);
 	if (ret < 0) {
 		dnvme_err(ndev, "Invalid inputs set or device is not disabled");
 		return ret;
 	}
 
 	if (act_irq != NVME_INT_NONE)
-		dnvme_clean_interrupt(ctx);
+		dnvme_clean_interrupt(ndev);
 
 	ret = create_irq_work_queue(irq_set);
 	if (ret < 0) {
@@ -1008,16 +998,16 @@ int dnvme_set_interrupt(struct nvme_context *ctx, struct nvme_interrupt __user *
 
 	switch (irq.irq_type) {
 	case NVME_INT_MSI_SINGLE:
-		ret = set_int_msi_single(ctx);
+		ret = set_int_msi_single(ndev);
 		break;
 	case NVME_INT_MSI_MULTI:
-		ret = set_int_msi_multi(ctx, irq.num_irqs);
+		ret = set_int_msi_multi(ndev, irq.num_irqs);
 		break;
 	case NVME_INT_MSIX:
-		ret = set_int_msix(ctx, irq.num_irqs);
+		ret = set_int_msix(ndev, irq.num_irqs);
 		break;
 	case NVME_INT_PIN:
-		ret = set_int_pin(ctx);
+		ret = set_int_pin(ndev);
 		break;
 	case NVME_INT_NONE:
 		break;
@@ -1047,16 +1037,15 @@ out_destroy_wq:
  * @brief Loop through all CQ's associated with irq_no and check whehter
  *  they are empty and if empty reset the isr_flag for that particular irq_no
  */
-int dnvme_reset_isr_flag(struct nvme_context *ctx, u16 irq_no)
+int dnvme_reset_isr_flag(struct nvme_device *ndev, u16 irq_no)
 {
-	struct nvme_device *ndev = ctx->dev;
-	struct pci_dev *pdev = ctx->dev->pdev;
+	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_irq *irq;
 	struct nvme_icq *icq;
 	struct nvme_cq *cq;
 	u32 remain = 0;
 
-	irq = find_irq_node_by_id(&ctx->irq_set, irq_no);
+	irq = find_irq_node_by_id(&ndev->irq_set, irq_no);
 	if (!irq) {
 		dnvme_err(ndev, "failed to find irq node(ID:%u)!\n", irq_no);
 		return -EINVAL;
@@ -1084,8 +1073,7 @@ int dnvme_reset_isr_flag(struct nvme_context *ctx, u16 irq_no)
 irqreturn_t dnvme_interrupt(int int_vec, void *data)
 {
 	struct nvme_irq_set *irq_set = (struct nvme_irq_set *)data;
-	struct nvme_context *ctx = dnvme_irq_to_context(irq_set);
-	struct nvme_device *ndev = ctx->dev;
+	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 	struct nvme_work *wk_node;
 
 	wk_node = find_work_node_by_vec(irq_set, int_vec);

@@ -92,11 +92,10 @@ void dnvme_update_sq_tail(struct nvme_sq *sq)
 	
 }
 
-struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx, 
+struct nvme_sq *dnvme_alloc_sq(struct nvme_device *ndev, 
 	struct nvme_prep_sq *prep, u8 sqes)
 {
 	struct nvme_sq *sq;
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 	void *sq_buf;
 	u32 sq_size;
@@ -123,7 +122,7 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_context *ctx,
 		sq->dma = dma;
 	}
 
-	sq->ctx = ctx;
+	sq->ndev = ndev;
 	sq->pub.sq_id = prep->sq_id;
 	sq->pub.cq_id = prep->cq_id;
 	sq->pub.elements = prep->elements;
@@ -177,10 +176,9 @@ void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq)
 /**
  * @brief Delete the given SQ node from the linked list and free memory.
  */
-static void dnvme_delete_sq(struct nvme_context *ctx, u16 sq_id)
+static void dnvme_delete_sq(struct nvme_device *ndev, u16 sq_id)
 {
 	struct nvme_sq *sq;
-	struct nvme_device *ndev = ctx->dev;
 
 	sq = dnvme_find_sq(ndev, sq_id);
 	if (!sq) {
@@ -191,11 +189,10 @@ static void dnvme_delete_sq(struct nvme_context *ctx, u16 sq_id)
 	dnvme_release_sq(ndev, sq);
 }
 
-struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx, 
+struct nvme_cq *dnvme_alloc_cq(struct nvme_device *ndev, 
 	struct nvme_prep_cq *prep, u8 cqes)
 {
 	struct nvme_cq *cq;
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 	void *cq_buf;
 	u32 cq_size;
@@ -222,7 +219,7 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_context *ctx,
 		cq->dma = dma;
 	}
 
-	cq->ctx = ctx;
+	cq->ndev = ndev;
 	cq->pub.q_id = prep->cq_id;
 	cq->pub.elements = prep->elements;
 	cq->pub.cqes = cqes;
@@ -275,9 +272,8 @@ void dnvme_release_cq(struct nvme_device *ndev, struct nvme_cq *cq)
 /**
  * @brief Delete the given CQ node from the linked list and free memory.
  */
-static void dnvme_delete_cq(struct nvme_context *ctx, u16 cq_id)
+static void dnvme_delete_cq(struct nvme_device *ndev, u16 cq_id)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq *cq;
 
 	cq = dnvme_find_cq(ndev, cq_id);
@@ -287,15 +283,14 @@ static void dnvme_delete_cq(struct nvme_context *ctx, u16 cq_id)
 	}
 
 	/* try to delete icq node associated with the CQ */
-	dnvme_delete_icq_node(&ctx->irq_set, cq_id, cq->pub.irq_no);
+	dnvme_delete_icq_node(&ndev->irq_set, cq_id, cq->pub.irq_no);
 
 	dnvme_release_cq(ndev, cq);
 }
 
 
-int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
+int dnvme_create_asq(struct nvme_device *ndev, u32 elements)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_prep_sq prep;
 	void __iomem *bar0 = ndev->bar0;
@@ -323,7 +318,7 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 	prep.cq_id = 0;
 	prep.contig = 1;
 
-	sq = dnvme_alloc_sq(ctx, &prep, NVME_ADM_SQES);
+	sq = dnvme_alloc_sq(ndev, &prep, NVME_ADM_SQES);
 	if (!sq)
 		return -ENOMEM;
 
@@ -339,9 +334,8 @@ int dnvme_create_asq(struct nvme_context *ctx, u32 elements)
 	return 0;
 }
 
-int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
+int dnvme_create_acq(struct nvme_device *ndev, u32 elements)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_cq *cq;
 	struct nvme_prep_cq prep;
 	void __iomem *bar0 = ndev->bar0;
@@ -370,7 +364,7 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
 	prep.cq_irq_en = 1;
 	prep.cq_irq_no = 0;
 
-	cq = dnvme_alloc_cq(ctx, &prep, NVME_ADM_CQES);
+	cq = dnvme_alloc_cq(ndev, &prep, NVME_ADM_CQES);
 	if (!cq)
 		return -ENOMEM;
 
@@ -390,10 +384,10 @@ int dnvme_create_acq(struct nvme_context *ctx, u32 elements)
  * @brief Reinitialize the admin Submission queue's public parameters, when
  *  a controller is not completely disabled
  */
-static void dnvme_reinit_asq(struct nvme_context *ctx, struct nvme_sq *sq)
+static void dnvme_reinit_asq(struct nvme_device *ndev, struct nvme_sq *sq)
 {
 	/* free cmd list for admin sq */
-	dnvme_delete_cmd_list(ctx->dev, sq);
+	dnvme_delete_cmd_list(ndev, sq);
 
 	sq->pub.head_ptr = 0;
 	sq->pub.tail_ptr = 0;
@@ -438,12 +432,11 @@ int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id)
  *
  * @param state set NVME_ST_DISABLE_COMPLETE if you want to save Admin Queue.
  */
-void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
+void dnvme_delete_all_queues(struct nvme_device *ndev, enum nvme_state state)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
-	void *bar0 = ctx->dev->bar0;
+	void *bar0 = ndev->bar0;
 	bool save_aq = (state == NVME_ST_DISABLE_COMPLETE) ? false : true;
 	unsigned long i;
 
@@ -451,7 +444,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
 		if (save_aq && sq->pub.sq_id == NVME_AQ_ID) {
 			dnvme_vdbg(ndev, "Retaining ASQ from deallocation\n");
 			/* drop sq cmds and set to zero the public metrics of asq */
-			dnvme_reinit_asq(ctx, sq);
+			dnvme_reinit_asq(ndev, sq);
 		} else {
 			dnvme_release_sq(ndev, sq);
 		}
@@ -483,7 +476,7 @@ void dnvme_delete_all_queues(struct nvme_context *ctx, enum nvme_state state)
  */
 u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 {
-	struct nvme_context *ctx = cq->ctx;
+	struct nvme_device *ndev = cq->ndev;
 	struct nvme_prps *prps = cq->prps;
 	struct nvme_completion *entry;
 	void *cq_addr;
@@ -516,7 +509,7 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 		entry = (struct nvme_completion *)cq_addr + cq->pub.tail_ptr;
 	}
 
-	dnvme_vdbg(ctx->dev, "Inquiry CQ(%u) element:%u, head:%u, tail:%u, remain:%u\n",
+	dnvme_vdbg(ndev, "Inquiry CQ(%u) element:%u, head:%u, tail:%u, remain:%u\n",
 		cq->pub.q_id, cq->pub.elements, cq->pub.head_ptr,
 		cq->pub.tail_ptr, remain);
 	return remain;
@@ -564,8 +557,7 @@ int dnvme_inquiry_cqe(struct nvme_device *ndev, struct nvme_inquiry __user *uinq
 static int handle_queue_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	enum nvme_queue_type type, bool free_queue)
 {
-	struct nvme_context *ctx = sq->ctx;
-	struct nvme_device *ndev = ctx->dev;
+	struct nvme_device *ndev = sq->ndev;
 	int ret = 0;
 
 	dnvme_vdbg(ndev, "Queue:%u, CMD:%u, Free:%s\n", cmd->target_qid,
@@ -581,9 +573,9 @@ static int handle_queue_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	}
 
 	if (type == NVME_CQ) {
-		dnvme_delete_cq(ctx, cmd->target_qid);
+		dnvme_delete_cq(ndev, cmd->target_qid);
 	} else if (type == NVME_SQ) {
-		dnvme_delete_sq(ctx, cmd->target_qid);
+		dnvme_delete_sq(ndev, cmd->target_qid);
 	}
 
 del_cmd:
@@ -596,7 +588,7 @@ del_cmd:
  */
 static int handle_gen_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *node)
 {
-	dnvme_release_prps(sq->ctx->dev, node->prps);
+	dnvme_release_prps(sq->ndev, node->prps);
 	node->prps = NULL;
 	dnvme_delete_cmd(node);
 	return 0;
@@ -633,10 +625,9 @@ static int handle_admin_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 /**
  * @brief Handle all command completion which include admin & IO command etc.
  */
-static int handle_cmd_completion(struct nvme_context *ctx, 
+static int handle_cmd_completion(struct nvme_device *ndev, 
 	struct nvme_completion *cq_entry)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_cmd *cmd;
 	u16 status;
@@ -675,8 +666,7 @@ static int handle_cmd_completion(struct nvme_context *ctx,
  */
 static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 __user *buffer)
 {
-	struct nvme_context *ctx = cq->ctx;
-	struct nvme_device *ndev = ctx->dev;
+	struct nvme_device *ndev = cq->ndev;
 	void *cq_head;
 	void *cq_base;
 	u32 cqes = 1 << cq->pub.cqes;
@@ -693,7 +683,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 __user *buffer)
 		dnvme_vdbg(ndev, "Reaping CE's, %d left to reap", *nr_reap);
 
 		/* Call the process reap algos based on CE entry */
-		latentErr = handle_cmd_completion(ctx, cq_head);
+		latentErr = handle_cmd_completion(ndev, cq_head);
 		if (latentErr) {
 			dnvme_err(ndev, "Unable to find CE.SQ_id in dnvme metrics");
 		}
@@ -735,7 +725,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 __user *buffer)
  */
 static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 {
-	struct nvme_context *ctx = cq->ctx;
+	struct nvme_device *ndev = cq->ndev;
 	u32 head = cq->pub.head_ptr;
 
 	head += num_reaped;
@@ -746,16 +736,15 @@ static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 
 	cq->pub.head_ptr = (u16)head;
 
-	dnvme_vdbg(ctx->dev, "CQ(%u) head:%u, tail:%u\n", cq->pub.q_id, 
+	dnvme_vdbg(ndev, "CQ(%u) head:%u, tail:%u\n", cq->pub.q_id, 
 		cq->pub.head_ptr, cq->pub.tail_ptr);
 }
 
 int dnvme_reap_cqe(struct nvme_cq *cq, u32 expect, void __user *buf, u32 size)
 {
-	struct nvme_context *ctx = cq->ctx;
-	struct nvme_device *ndev = ctx->dev;
+	struct nvme_device *ndev = cq->ndev;
 	struct pci_dev *pdev = ndev->pdev;
-	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;
+	enum nvme_irq_type irq_type = ndev->irq_set.irq_type;
 	u32 actual, reaped, remain;
 	int ret;
 
@@ -786,21 +775,20 @@ int dnvme_reap_cqe(struct nvme_cq *cq, u32 expect, void __user *buf, u32 size)
 
 	remain = dnvme_get_cqe_remain(cq, &pdev->dev);
 	if (irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 && remain == 0) {
-		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);
+		ret = dnvme_reset_isr_flag(ndev, cq->pub.irq_no);
 		if (ret < 0)
 			dnvme_warn(ndev, "reset isr fired flag failed\n");
 
-		dnvme_unmask_interrupt(&ctx->irq_set, cq->pub.irq_no);
+		dnvme_unmask_interrupt(&ndev->irq_set, cq->pub.irq_no);
 	}
 
 	return reaped;
 }
 
 /* !TODO: obsolete */
-int dnvme_reap_cqe_legacy(struct nvme_context *ctx, struct nvme_reap __user *ureap)
+int dnvme_reap_cqe_legacy(struct nvme_device *ndev, struct nvme_reap __user *ureap)
 {
-	struct nvme_device *ndev = ctx->dev;
-	enum nvme_irq_type irq_type = ctx->irq_set.irq_type;
+	enum nvme_irq_type irq_type = ndev->irq_set.irq_type;
 	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_reap reap;
 	struct nvme_cq *cq;
@@ -854,12 +842,12 @@ int dnvme_reap_cqe_legacy(struct nvme_context *ctx, struct nvme_reap __user *ure
 	if (irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
 		reap.remained == 0) {
 
-		ret = dnvme_reset_isr_flag(ctx, cq->pub.irq_no);
+		ret = dnvme_reset_isr_flag(ndev, cq->pub.irq_no);
 		if (ret < 0) {
 			dnvme_err(ndev, "reset isr fired flag failed\n");
 			return ret;
 		}
-		dnvme_unmask_interrupt(&ctx->irq_set, cq->pub.irq_no);
+		dnvme_unmask_interrupt(&ndev->irq_set, cq->pub.irq_no);
 	}
 
 	return 0;

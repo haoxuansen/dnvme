@@ -37,10 +37,10 @@
 
 #define NVME_MINORS			(1U << MINORBITS)
 
-LIST_HEAD(nvme_ctx_list);
+LIST_HEAD(nvme_dev_list);
 int nvme_gnl_id;
 
-static DEFINE_MUTEX(nvme_ctx_list_lock);
+static DEFINE_MUTEX(nvme_dev_list_lock);
 static struct proc_dir_entry *nvme_proc_dir;
 
 static DEFINE_IDA(nvme_instance_ida);
@@ -48,48 +48,48 @@ static dev_t nvme_chr_devt;
 static struct class *nvme_class;
 
 /**
- * @brief Find nvme_context from linked list. 
+ * @brief Find nvme_device from linked list. 
  *  
- * @return &struct nvme_context on success, or ERR_PTR() on error. 
+ * @return &struct nvme_device on success, or ERR_PTR() on error. 
  */
-static struct nvme_context *find_context(int instance)
+static struct nvme_device *find_device(int instance)
 {
-	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 
-	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
+	list_for_each_entry(ndev, &nvme_dev_list, entry) {
 
-		if (instance == ctx->dev->instance) {
-			return ctx;
+		if (instance == ndev->instance) {
+			return ndev;
 		}
 	}
 	return ERR_PTR(-ENODEV);
 }
 
 /**
- * @brief Lock the mutex if find nvme_context.
+ * @brief Lock the mutex if find nvme_device.
  * 
- * @return &struct nvme_context on success, or ERR_PTR() on error. 
+ * @return &struct nvme_device on success, or ERR_PTR() on error. 
  */
-struct nvme_context *dnvme_lock_context(int instance)
+struct nvme_device *dnvme_lock_device(int instance)
 {
-	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 
-	ctx = find_context(instance);
-	if (IS_ERR(ctx)) {
+	ndev = find_device(instance);
+	if (IS_ERR(ndev)) {
 		pr_err("Cannot find the device with instance %d!\n", instance);
-		return ctx;
+		return ndev;
 	}
 
-	mutex_lock(&ctx->lock);
-	return ctx;
+	mutex_lock(&ndev->lock);
+	return ndev;
 }
 
-void dnvme_unlock_context(struct nvme_context *ctx)
+void dnvme_unlock_device(struct nvme_device *ndev)
 {
-	if (mutex_is_locked(&ctx->lock)) {
-		mutex_unlock(&ctx->lock);
+	if (mutex_is_locked(&ndev->lock)) {
+		mutex_unlock(&ndev->lock);
 	} else {
-		dnvme_warn(ctx->dev, "already unlocked, lock missmatch!\n");
+		dnvme_warn(ndev, "already unlocked, lock missmatch!\n");
 	}
 }
 
@@ -167,13 +167,11 @@ static int mmap_parse_vmpgoff(struct nvme_device *ndev, unsigned long vm_pgoff,
 /*
  * Called to clean up the driver data structures
  */
-void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state)
+void dnvme_cleanup_device(struct nvme_device *ndev, enum nvme_state state)
 {
-	struct nvme_device *ndev = ctx->dev;
-
-	dnvme_clean_interrupt(ctx);
+	dnvme_clean_interrupt(ndev);
 	/* Clean Up the data structures */
-	dnvme_delete_all_queues(ctx, state);
+	dnvme_delete_all_queues(ndev, state);
 	dnvme_delete_meta_nodes(ndev);
 }
 
@@ -187,7 +185,6 @@ void dnvme_cleanup_context(struct nvme_context *ctx, enum nvme_state state)
  */
 static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	void *map_addr;
@@ -196,10 +193,9 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 	unsigned long pfn;
 	int ret = 0;
 
-	ctx = dnvme_lock_context(iminor(inode));
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-	ndev = ctx->dev;
+	ndev = dnvme_lock_device(iminor(inode));
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
 
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
 
@@ -230,14 +226,13 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 		dnvme_err(ndev, "remap_pfn_rage err!(%d)\n", ret);
 
 out:
-	dnvme_unlock_context(ctx);
+	dnvme_unlock_device(ndev);
 	return ret;
 }
 
 static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	struct inode *inode = inode = filp->f_path.dentry->d_inode;
 	void __user *argp = (void __user *)arg;
@@ -245,10 +240,9 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	dnvme_dbg(ndev, "cmd num:%u, arg:0x%lx (%s)\n", _IOC_NR(cmd), arg,
 		dnvme_ioctl_cmd_string(cmd));
 
-	ctx = dnvme_lock_context(iminor(inode));
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-	ndev = ctx->dev;
+	ndev = dnvme_lock_device(iminor(inode));
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
 
 	switch (cmd) {
 	case NVME_IOCTL_GET_SQ_INFO:
@@ -260,11 +254,11 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_READ_GENERIC:
-		ret = dnvme_generic_read(ctx, argp);
+		ret = dnvme_generic_read(ndev, argp);
 		break;
 
 	case NVME_IOCTL_WRITE_GENERIC:
-		ret = dnvme_generic_write(ctx, argp);
+		ret = dnvme_generic_write(ndev, argp);
 		break;
 
 	case NVME_IOCTL_GET_DEV_INFO:
@@ -276,19 +270,19 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_CREATE_ADMIN_QUEUE:
-		ret = dnvme_create_admin_queue(ctx, argp);
+		ret = dnvme_create_admin_queue(ndev, argp);
 		break;
 
 	case NVME_IOCTL_SET_DEV_STATE:
-		ret = dnvme_set_device_state(ctx, (enum nvme_state)arg);
+		ret = dnvme_set_device_state(ndev, (enum nvme_state)arg);
 		break;
 
 	case NVME_IOCTL_PREPARE_IOSQ:
-		ret = dnvme_prepare_sq(ctx, argp);
+		ret = dnvme_prepare_sq(ndev, argp);
 		break;
 
 	case NVME_IOCTL_PREPARE_IOCQ:
-		ret = dnvme_prepare_cq(ctx, argp);
+		ret = dnvme_prepare_cq(ndev, argp);
 		break;
 
 	case NVME_IOCTL_RING_SQ_DOORBELL:
@@ -296,7 +290,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_SUBMIT_64B_CMD:
-		ret = dnvme_submit_64b_cmd(ctx, argp);
+		ret = dnvme_submit_64b_cmd(ndev, argp);
 		break;
 
 	case NVME_IOCTL_INQUIRY_CQE:
@@ -304,7 +298,7 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_REAP_CQE:
-		ret = dnvme_reap_cqe_legacy(ctx, argp);
+		ret = dnvme_reap_cqe_legacy(ndev, argp);
 		break;
 
 	case NVME_IOCTL_CREATE_META_NODE:
@@ -316,15 +310,15 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case NVME_IOCTL_SET_IRQ:
-		ret = dnvme_set_interrupt(ctx, argp);
+		ret = dnvme_set_interrupt(ndev, argp);
 		break;
 
 	case NVME_IOCTL_MASK_IRQ:
-		ret = dnvme_mask_interrupt(&ctx->irq_set, (u16)arg);
+		ret = dnvme_mask_interrupt(&ndev->irq_set, (u16)arg);
 		break;
 
 	case NVME_IOCTL_UNMASK_IRQ:
-		ret = dnvme_unmask_interrupt(&ctx->irq_set, (u16)arg);
+		ret = dnvme_unmask_interrupt(&ndev->irq_set, (u16)arg);
 		break;
 
 	default:
@@ -332,51 +326,49 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = -EINVAL;
 	}
 
-	dnvme_unlock_context(ctx);
+	dnvme_unlock_device(ndev);
 	return ret;
 }
 
 static int dnvme_open(struct inode *inode, struct file *filp)
 {
-	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	int ret = 0;
 
-	ctx = dnvme_lock_context(iminor(inode));
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
-	ndev = ctx->dev;
+	ndev = dnvme_lock_device(iminor(inode));
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
 
-	if (ctx->dev->opened) {
+	if (ndev->opened) {
 		dnvme_err(ndev, "It's not allowed to open device more than once!\n");
 		ret = -EPERM;
 		goto out;
 	}
 
-	ctx->dev->opened = 1;
+	ndev->opened = 1;
 	dnvme_info(ndev, "Open NVMe device ok!\n");
 out:
-	dnvme_unlock_context(ctx);
+	dnvme_unlock_device(ndev);
 	return ret;
 }
 
 static int dnvme_release(struct inode *inode, struct file *filp)
 {
-	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 
-	ctx = dnvme_lock_context(iminor(inode));
-	if (IS_ERR(ctx))
-		return PTR_ERR(ctx);
+	ndev = dnvme_lock_device(iminor(inode));
+	if (IS_ERR(ndev))
+		return PTR_ERR(ndev);
 
-	dnvme_info(ctx->dev, "Close NVMe device ...\n");
+	dnvme_info(ndev, "Close NVMe device ...\n");
 
-	ctx->dev->opened = 0;
+	ndev->opened = 0;
 	/* !TODO: shall reset nvme device before delete I/O queue?
 	 * Otherwise, the information saved by the driver may be inconsistent
 	 * with the device.
 	 */
-	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
-	dnvme_unlock_context(ctx);
+	dnvme_cleanup_device(ndev, NVME_ST_DISABLE_COMPLETE);
+	dnvme_unlock_device(ndev);
 	return 0;
 }
 
@@ -398,9 +390,8 @@ static const struct file_operations dnvme_fops = {
  * 	BAR2 - Index/Data Pair Register Base Address or Vendor Specific
  * 	BAR3..5 - Vendor Specific
  */
-static int dnvme_map_resource(struct nvme_context *ctx)
+static int dnvme_map_resource(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = NULL;
 	int ret;
@@ -433,9 +424,8 @@ out:
 	return ret;
 }
 
-static void dnvme_unmap_resource(struct nvme_context *ctx)
+static void dnvme_unmap_resource(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (ndev->bar0) {
@@ -445,10 +435,10 @@ static void dnvme_unmap_resource(struct nvme_context *ctx)
 	}
 }
 
-static int dnvme_init_irq(struct nvme_context *ctx)
+static int dnvme_init_irq(struct nvme_device *ndev)
 {
-	ctx->irq_set.irq_type = NVME_INT_NONE;
-	ctx->irq_set.nr_irq = 0;
+	ndev->irq_set.irq_type = NVME_INT_NONE;
+	ndev->irq_set.nr_irq = 0;
 	return 0;
 }
 
@@ -505,27 +495,20 @@ static void dnvme_destroy_pool(struct nvme_device *ndev)
 }
 
 /**
- * @brief Alloc nvme context and initialize it. 
+ * @brief Alloc nvme_device and initialize it. 
  *  
- * @return &struct nvme_context on success, or NULL on error. 
+ * @return &struct nvme_device on success, or NULL on error. 
  */
-static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
+static struct nvme_device *dnvme_alloc_device(struct pci_dev *pdev)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
-	struct nvme_context *ctx;
 	struct nvme_device *ndev;
-
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
-	if (!ctx) {
-		dev_err(dev, "failed to alloc nvme_context!\n");
-		return NULL;
-	}
 
 	ndev = kzalloc(sizeof(*ndev), GFP_KERNEL);
 	if (!ndev) {
 		dev_err(dev, "failed to alloc nvme_device!\n");
-		goto out_free_ctx;
+		return NULL;
 	}
 
 	/* 1. Initialize nvme device first. */
@@ -559,19 +542,16 @@ static struct nvme_context *dnvme_alloc_context(struct pci_dev *pdev)
 	xa_init(&ndev->cqs);
 	xa_init(&ndev->meta);
 
-	/* 2. Then initialize nvme context. */
-	INIT_LIST_HEAD(&ctx->irq_set.irq_list);
-	INIT_LIST_HEAD(&ctx->irq_set.work_list);
+	INIT_LIST_HEAD(&ndev->irq_set.irq_list);
+	INIT_LIST_HEAD(&ndev->irq_set.work_list);
 
-	mutex_init(&ctx->lock);
+	mutex_init(&ndev->lock);
 	/* Spinlock to protect from kernel preemption in ISR handler */
-	spin_lock_init(&ctx->irq_set.spin_lock);
+	spin_lock_init(&ndev->irq_set.spin_lock);
 
-	ctx->dev = ndev;
-	ndev->ctx = ctx;
-	dnvme_init_irq(ctx);
+	dnvme_init_irq(ndev);
 
-	return ctx;
+	return ndev;
 out_free_name:
 	kfree_const(ndev->dev.kobj.name);
 out_release_instance:
@@ -580,21 +560,16 @@ out_destroy_pool:
 	dnvme_destroy_pool(ndev);
 out_free_ndev:
 	kfree(ndev);
-out_free_ctx:
-	kfree(ctx);
 	return NULL;
 }
 
-static void dnvme_release_context(struct nvme_context *ctx)
+static void dnvme_release_device(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
-
 	cdev_device_del(&ndev->cdev, &ndev->dev);
 	kfree_const(ndev->dev.kobj.name);
 	ida_simple_remove(&nvme_instance_ida, ndev->instance);
 	dnvme_destroy_pool(ndev);
 	kfree(ndev);
-	kfree(ctx);
 }
 
 static int dnvme_set_dma_mask(struct pci_dev *pdev)
@@ -622,9 +597,8 @@ static int dnvme_set_dma_mask(struct pci_dev *pdev)
 	return ret;
 }
 
-static int dnvme_pci_enable(struct nvme_context *ctx)
+static int dnvme_pci_enable(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_ctrl_property *prop = &ndev->prop;
 	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->bar0;
@@ -646,9 +620,8 @@ static int dnvme_pci_enable(struct nvme_context *ctx)
 	return 0;
 }
 
-static void dnvme_pci_disable(struct nvme_context *ctx)
+static void dnvme_pci_disable(struct nvme_device *ndev)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct pci_dev *pdev = ndev->pdev;
 
 	if (pci_is_enabled(pdev))
@@ -702,9 +675,9 @@ static void dnvme_deinit_capability(struct nvme_device *ndev)
 
 static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	int ret;
+	struct nvme_device *ndev;
 	struct device *dev = &pdev->dev;
-	struct nvme_context *ctx;
+	int ret;
 
 	dev_info(dev, "probe pdev...(cpu:%d %d %d)\n", num_possible_cpus(), 
 		num_present_cpus(), num_active_cpus());
@@ -713,51 +686,51 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		return ret;
 
-	ctx = dnvme_alloc_context(pdev);
-	if (!ctx) {
+	ndev = dnvme_alloc_device(pdev);
+	if (!ndev) {
 		dev_err(dev, "failed to alloc context!\n");
 		return -ENOMEM;
 	}
 
-	ret = dnvme_map_resource(ctx);
+	ret = dnvme_map_resource(ndev);
 	if (ret < 0)
 		goto out_release_ctx;
 
-	ret = dnvme_pci_enable(ctx);
+	ret = dnvme_pci_enable(ndev);
 	if (ret < 0)
 		goto out_unmap_res;
 
-	ret = dnvme_init_capability(ctx->dev);
+	ret = dnvme_init_capability(ndev);
 	if (ret < 0)
 		goto out_disable_pci;
 
-	ret = dnvme_map_cmb(ctx->dev);
+	ret = dnvme_map_cmb(ndev);
 	if (ret < 0)
 		goto out_deinit_cap;
 
-	dnvme_create_proc_entry(ctx->dev, nvme_proc_dir);
+	dnvme_create_proc_entry(ndev, nvme_proc_dir);
 
 	/* Finalize this device and prepare for next one */
 	dev_info(dev, "NVMe devno.%d(0x%x:0x%x) init ok!\n", 
-		ctx->dev->instance, pdev->vendor, pdev->device);
+		ndev->instance, pdev->vendor, pdev->device);
 	dev_vdbg(dev, "NVMe bus #%d, dev slot: %d", pdev->bus->number, 
 		PCI_SLOT(pdev->devfn));
 	dev_vdbg(dev, "NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
 
-	mutex_lock(&nvme_ctx_list_lock);
-	list_add_tail(&ctx->entry, &nvme_ctx_list);
-	mutex_unlock(&nvme_ctx_list_lock);
+	mutex_lock(&nvme_dev_list_lock);
+	list_add_tail(&ndev->entry, &nvme_dev_list);
+	mutex_unlock(&nvme_dev_list_lock);
 	return 0;
 
 out_deinit_cap:
-	dnvme_deinit_capability(ctx->dev);
+	dnvme_deinit_capability(ndev);
 out_disable_pci:
-	dnvme_pci_disable(ctx);
+	dnvme_pci_disable(ndev);
 out_unmap_res:
-	dnvme_unmap_resource(ctx);
+	dnvme_unmap_resource(ndev);
 out_release_ctx:
-	dnvme_release_context(ctx);
+	dnvme_release_device(ndev);
 	return ret;
 }
 
@@ -765,7 +738,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 {
 	bool found = false;
 	struct device *dev = &pdev->dev;
-	struct nvme_context *ctx;
+	struct nvme_device *ndev;
 
 	dev_info(dev, "Remove NVMe device(0x%x:0x%x) ...\n", pdev->vendor, pdev->device);
 	dev_vdbg(dev, "NVMe bus #%d, dev slot: %d", pdev->bus->number, 
@@ -773,8 +746,8 @@ static void dnvme_remove(struct pci_dev *pdev)
 	dev_vdbg(dev, "NVMe func: 0x%x, class: 0x%x", PCI_FUNC(pdev->devfn),
 		pdev->class);
 
-	list_for_each_entry(ctx, &nvme_ctx_list, entry) {
-		if (pdev == ctx->dev->pdev) {
+	list_for_each_entry(ndev, &nvme_dev_list, entry) {
+		if (pdev == ndev->pdev) {
 			found = true;
 			break;
 		}
@@ -785,22 +758,22 @@ static void dnvme_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	mutex_lock(&nvme_ctx_list_lock);
-	list_del(&ctx->entry);
-	mutex_unlock(&nvme_ctx_list_lock);
+	mutex_lock(&nvme_dev_list_lock);
+	list_del(&ndev->entry);
+	mutex_unlock(&nvme_dev_list_lock);
 
-	if (mutex_is_locked(&ctx->lock)) {
+	if (mutex_is_locked(&ndev->lock)) {
 		dev_warn(dev, "nvme context lock is held by user?\n");
 	}
-	dnvme_destroy_proc_entry(ctx->dev);
+	dnvme_destroy_proc_entry(ndev);
 
-	dnvme_cleanup_context(ctx, NVME_ST_DISABLE_COMPLETE);
-	dnvme_unmap_cmb(ctx->dev);
-	dnvme_deinit_capability(ctx->dev);
+	dnvme_cleanup_device(ndev, NVME_ST_DISABLE_COMPLETE);
+	dnvme_unmap_cmb(ndev);
+	dnvme_deinit_capability(ndev);
 	pci_disable_device(pdev);
 
-	dnvme_unmap_resource(ctx);
-	dnvme_release_context(ctx);
+	dnvme_unmap_resource(ndev);
+	dnvme_release_device(ndev);
 }
 
 static struct pci_device_id dnvme_id_table[] = {

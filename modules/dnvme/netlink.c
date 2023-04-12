@@ -25,7 +25,6 @@ static struct genl_family nvme_gnl_family;
 
 static int dnvme_gnl_cmd_reap_cqe(struct sk_buff *skb, struct genl_info *info)
 {
-	struct nvme_context *ctx;
 	struct nvme_device *ndev;
 	struct pci_dev *pdev;
 	struct nvme_cq *cq;
@@ -62,12 +61,11 @@ static int dnvme_gnl_cmd_reap_cqe(struct sk_buff *skb, struct genl_info *info)
 			timeout = S32_MAX;
 	}
 
-	ctx = dnvme_lock_context(instance);
-	if (IS_ERR(ctx)) {
-		status = PTR_ERR(ctx);
+	ndev = dnvme_lock_device(instance);
+	if (IS_ERR(ndev)) {
+		status = PTR_ERR(ndev);
 		goto out_response;
 	}
-	ndev = ctx->dev;
 	pdev = ndev->pdev;
 
 	cq = dnvme_find_cq(ndev, cqid);
@@ -97,7 +95,7 @@ static int dnvme_gnl_cmd_reap_cqe(struct sk_buff *skb, struct genl_info *info)
 	}
 
 out_unlock:
-	dnvme_unlock_context(ctx);
+	dnvme_unlock_device(ndev);
 
 out_response:
 	msg = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);

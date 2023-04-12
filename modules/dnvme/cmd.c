@@ -659,10 +659,9 @@ void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq)
 	}
 }
 
-static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+static int dnvme_create_iosq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_create_sq *csq = (struct nvme_create_sq *)ccmd;
 	struct nvme_sq *wait_sq;
 	int ret;
@@ -709,10 +708,9 @@ static int dnvme_create_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+static int dnvme_delete_iosq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
-	struct nvme_device *ndev = ctx->dev;
 	int ret;
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
@@ -724,11 +722,10 @@ static int dnvme_delete_iosq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+static int dnvme_create_iocq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
 	struct nvme_cq *wait_cq;
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_create_cq *ccq = (struct nvme_create_cq *)ccmd;
 	int ret;
 
@@ -761,7 +758,7 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 
 	/* Check if interrupts should be enabled for IO CQ */
 	if (ccq->cq_flags & NVME_CQ_IRQ_ENABLED) {
-		if (ctx->irq_set.irq_type == NVME_INT_NONE) {
+		if (ndev->irq_set.irq_type == NVME_INT_NONE) {
 			dnvme_err(ndev, "act irq_type is none!\n");
 			return -EINVAL;
 		}
@@ -782,10 +779,9 @@ static int dnvme_create_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+static int dnvme_delete_iocq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
-	struct nvme_device *ndev = ctx->dev;
 	int ret;
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
@@ -796,10 +792,9 @@ static int dnvme_delete_iocq(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
 	return 0;
 }
 
-static int dnvme_deal_ccmd(struct nvme_context *ctx, struct nvme_64b_cmd *cmd,
+static int dnvme_deal_ccmd(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 	struct nvme_common_command *ccmd)
 {
-	struct nvme_device *ndev = ctx->dev;
 	int ret;
 
 	ret = dnvme_prepare_64b_cmd(ndev, cmd, ccmd);
@@ -831,9 +826,8 @@ static int dnvme_fill_mptr(struct nvme_device *ndev,
 	return 0;
 }
 
-int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *ucmd)
+int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *ucmd)
 {
-	struct nvme_device *ndev = ctx->dev;
 	struct nvme_sq *sq;
 	struct nvme_64b_cmd cmd;
 	struct nvme_common_command *ccmd;
@@ -901,37 +895,37 @@ int dnvme_submit_64b_cmd(struct nvme_context *ctx, struct nvme_64b_cmd __user *u
 	if (cmd.sqid == NVME_AQ_ID) {
 		switch (ccmd->opcode) {
 		case nvme_admin_delete_sq:
-			ret = dnvme_delete_iosq(ctx, &cmd, ccmd);
+			ret = dnvme_delete_iosq(ndev, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		case nvme_admin_create_sq:
-			ret = dnvme_create_iosq(ctx, &cmd, ccmd);
+			ret = dnvme_create_iosq(ndev, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		case nvme_admin_delete_cq:
-			ret = dnvme_delete_iocq(ctx, &cmd, ccmd);
+			ret = dnvme_delete_iocq(ndev, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		case nvme_admin_create_cq:
-			ret = dnvme_create_iocq(ctx, &cmd, ccmd);
+			ret = dnvme_create_iocq(ndev, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 
 		default:
-			ret = dnvme_deal_ccmd(ctx, &cmd, ccmd);
+			ret = dnvme_deal_ccmd(ndev, &cmd, ccmd);
 			if (ret < 0)
 				goto out2;
 			break;
 		}
 	} else {
-		ret = dnvme_deal_ccmd(ctx, &cmd, ccmd);
+		ret = dnvme_deal_ccmd(ndev, &cmd, ccmd);
 		if (ret < 0)
 			goto out2;
 	}
