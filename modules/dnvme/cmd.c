@@ -159,10 +159,13 @@ int dnvme_map_user_page(struct nvme_device *ndev, struct nvme_prps *prps,
 		goto out2;
 
 	ret = dma_map_sg(&pdev->dev, sgl, nr_pages, dir);
-	if (ret != nr_pages) {
-		dnvme_err(ndev, "%d pages => %d sg\n", nr_pages, ret);
+	if (ret <= 0) {
+		dnvme_err(ndev, "failed to map sg for dma!(%d)\n", ret);
 		ret = -ENOMEM;
 		goto out3;
+	} else if (ret != nr_pages) {
+		/* some pages may be contiguous */
+		dnvme_warn(ndev, "%d pages => %d sg\n", nr_pages, ret);
 	}
 
 	kfree(pages);
