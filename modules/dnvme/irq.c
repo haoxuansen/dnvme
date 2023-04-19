@@ -123,7 +123,7 @@ static bool pba_bits_is_set(void __iomem *pba_tbl, struct msix_entry *arr,
 int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 {
 	struct nvme_device *ndev = dnvme_irq_to_device(irq);
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 
 	switch (irq->irq_type) {
 	case NVME_INT_PIN:
@@ -155,7 +155,7 @@ int dnvme_mask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 int dnvme_unmask_interrupt(struct nvme_irq_set *irq, u16 irq_no)
 {
 	struct nvme_device *ndev = dnvme_irq_to_device(irq);
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 
 	switch (irq->irq_type) {
 	case NVME_INT_PIN:
@@ -578,7 +578,7 @@ static void destroy_irq_work_pair(struct nvme_irq_set *irq_set, u32 int_vec,
 static int set_int_pin(struct nvme_device *ndev)
 {
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	int ret;
 
 	ret = request_irq(pdev->irq, dnvme_interrupt, IRQF_SHARED, "pin-base",
@@ -610,7 +610,7 @@ out:
 static int set_int_msi_single(struct nvme_device *ndev)
 {
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	int ret;
 
 	clear_int_mask(bar0, UINT_MAX);
@@ -658,7 +658,7 @@ out:
 static int set_int_msi_multi(struct nvme_device *ndev, u16 num_irqs)
 {
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	int ret, i, j;
 
 	clear_int_mask(bar0, UINT_MAX);
@@ -804,7 +804,7 @@ static int init_msix_ptr(struct nvme_device *ndev, struct pci_cap_msix *cap)
 
 	switch (msix_tbir) {
 	case 0x00:  /* BAR0 (64-bit) */
-		irq_set->msix.tb = ndev->bar0 + msix_to;
+		irq_set->msix.tb = ndev->bar[0] + msix_to;
 		break;
 	default:
 		dnvme_err(ndev, "BAR%u is not supported!\n", msix_tbir);
@@ -813,7 +813,7 @@ static int init_msix_ptr(struct nvme_device *ndev, struct pci_cap_msix *cap)
 
 	switch (msix_pbir) {
 	case 0x00:  /* BAR0 (64-bit) */
-		irq_set->msix.pba = ndev->bar0 + msix_pbao;
+		irq_set->msix.pba = ndev->bar[0] + msix_pbao;
 		break;
 
 	default:
@@ -836,7 +836,7 @@ static int check_interrupt(struct nvme_device *ndev, struct nvme_interrupt *irq)
 	struct nvme_capability *cap = &ndev->cap;
 	struct nvme_irq_set *irq_set = &ndev->irq_set;
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	u32 offset;
 	u16 mc; /* Message Control */
 

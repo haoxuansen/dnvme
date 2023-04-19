@@ -6,11 +6,6 @@ menuconfig DNVME
 
 if DNVME
 
-config DNVME_CMB
-	bool "Support Controller Memory Buffer"
-	help
-	  Say Y here to support controller memory buffer operation.
-
 config DNVME_FLUSH_REG_WRITE
 	bool "Flush Register Write"
 	help
@@ -24,8 +19,8 @@ config DNVME_DEBUG
 	help
 	  Say Y here to enable debugging messages in dnvme driver.
 
-config DNVME_CHECK_MUTEX_LOCK
-	bool "Check Mutex Lock"
+config DNVME_DEBUG_MUTEX_LOCK
+	bool "Enable Mutex Lock Debug"
 	help
 	  Say Y here to check whether mutex locking and unlocking positions
 	  are reasonable.

@@ -208,7 +208,7 @@ void nvme_display_id_ns(struct nvme_id_ns *ns, uint32_t nsid)
 
 void nvme_display_cap(uint64_t cap)
 {
-	pr_debug("~~~~~ Controller Capabilities: 0x%llx ~~~~~\n", cap);
+	pr_debug("~~~~~~~~~~ Controller Capabilities: 0x%llx ~~~~~~~~~~\n", cap);
 
 	pr_debug("Maximum Queue Entries Supported: %u\n", 
 		NVME_CAP_MQES(cap) + 1);
@@ -223,7 +223,7 @@ void nvme_display_cap(uint64_t cap)
 		pr_debug("\t [%s] Support Vendor Specific\n",
 			(NVME_CAP_AMS(cap) & NVME_CAP_AMS_VENDOR) ? "Y" : "N");
 	}
-
+	pr_debug("Timeout: %u (unit: 500ms)\n", NVME_CAP_TIMEOUT(cap));
 	pr_debug("Doorbell Stride: %u bytes\n", 
 				1 << (2 + NVME_CAP_STRIDE(cap)));
 	pr_debug("[%s] Support NVM Subsystem Reset\n",
@@ -238,6 +238,20 @@ void nvme_display_cap(uint64_t cap)
 				1 << (2 + NVME_CAP_MPSMIN(cap)));
 	pr_debug("Memory Page Size Maximum: %uKB\n", 
 				1 << (2 + NVME_CAP_MPSMAX(cap)));
+	pr_debug("[%s] Support Persistent Memory Region\n", 
+				NVME_CAP_PMRS(cap) ? "Y" : "N");
+	pr_debug("[%s] Support Controller Memory Buffer\n",
+				NVME_CAP_CMBS(cap) ? "Y" : "N");
+	pr_debug("[%s] Support NVM Subsystem Shutdown\n",
+				NVME_CAP_NSSS(cap) ? "Y" : "N");
+	pr_debug("[%s] Support Controller Ready Modes\n",
+				NVME_CAP_CRMS(cap) ? "Y" : "N");
+	if (NVME_CAP_CRMS(cap)) {
+		pr_debug("\t [%s] Support Controller Ready With Media\n",
+			(NVME_CAP_CRMS(cap) & NVME_CAP_CRMS_CRWMS) ? "Y" : "N" );
+		pr_debug("\t [%s] Support Controller Ready Independent of Media\n",
+			(NVME_CAP_CRMS(cap) & NVME_CAP_CRMS_CRIMS) ? "Y" : "N");
+	}
 	pr_debug("\n");
 }
 

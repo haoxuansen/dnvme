@@ -96,111 +96,6 @@ static int case_encrypt_decrypt(struct nvme_tool *tool)
 	return 0;
 }
 
-static int case_unknown3(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	int ret;
-	uint32_t io_sq_id = 1;
-	uint32_t io_cq_id = 1;
-	uint64_t wr_slba = 0;
-	uint32_t wr_nsid = 1;
-	uint16_t wr_nlb = 8;
-	uint32_t test_loop = 1;
-	uint32_t cmd_cnt = 0;
-	uint32_t reap_num;
-	uint32_t data_len = 0;
-	struct fwdma_parameter fwdma_parameter = {0};
-
-	pr_color(LOG_COLOR_CYAN, "pls enter loop cnt:");
-	fflush(stdout);
-	scanf("%d", &test_loop);
-	while (test_loop--)
-	{
-		for (uint32_t ns_idx = 0; ns_idx < ndev->id_ctrl.nn; ns_idx++)
-		{
-			/* !FIXME: nsid may not be continuous! It's better to 
-			 * get nsid list by send Identify Command with CNS(0x02)
-			 */
-			wr_nsid = ns_idx + 1;
-			wr_slba = 0;
-			wr_nlb = BYTE_RAND() % 32;
-			memset(tool->rbuf, 0, tool->rbuf_size);
-			memset(tool->wbuf, BYTE_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-			pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
-				wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
-			cmd_cnt = 0;
-			ret = nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
-			cmd_cnt++;
-			if (ret == SUCCEED)
-			{
-				nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-				cq_gain(io_cq_id, cmd_cnt, &reap_num);
-				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
-			}
-			cmd_cnt = 0;
-			
-			data_len = 40 * 4;
-			pr_info("send_maxio_fwdma_wr\n");
-			//memset((uint8_t *)tool->wbuf, rand() % 0xff, data_len);
-			fwdma_parameter.addr = tool->wbuf;
-			fwdma_parameter.cdw10 = data_len;  //data_len
-			fwdma_parameter.cdw11 = 0x40754C0; //axi_addr
-			nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
-			nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-			cq_gain(NVME_AQ_ID, 1, &reap_num);
-			pr_info("\nfwdma wr cmd send done!\n");
-
-			ret = nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
-			cmd_cnt++;
-			if (ret == SUCCEED)
-			{
-				nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-				cq_gain(io_cq_id, cmd_cnt, &reap_num);
-				pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
-			}
-			if (SUCCEED == dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
-			{
-				pr_color(LOG_COLOR_GREEN, "dw_cmp pass!\n");
-			}
-		}
-	}
-	return 0;
-}
-
-static int case_unknown4(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t data_len = 0;
-	uint32_t reap_num;
-	struct fwdma_parameter fwdma_parameter = {0};
-
-	pr_info("host2reg tets send_maxio_fwdma_rd\n");
-	data_len = 4 * 4;
-	fwdma_parameter.addr = tool->rbuf;
-	fwdma_parameter.cdw10 = data_len;  //data_len
-	fwdma_parameter.cdw11 = 0x4055500; //axi_addr
-	//fwdma_parameter.cdw12 |= (1<<0);               //flag bit[0] crc chk,
-	//fwdma_parameter.cdw12 |= (1<<1);               //flag bit[1] hw data chk(only read)
-	fwdma_parameter.cdw12 |= (1 << 2); //flag bit[2] dec chk,
-	nvme_maxio_fwdma_rd(ndev->fd, &fwdma_parameter);
-	nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	cq_gain(NVME_AQ_ID, 1, &reap_num);
-	pr_info("\tfwdma wr cmd send done!\n");
-	pr_info("host2reg tets send_maxio_fwdma_rd\n");
-	//memset((uint8_t *)tool->wbuf, rand() % 0xff, data_len);
-	fwdma_parameter.addr = tool->rbuf;
-	fwdma_parameter.cdw10 = data_len;  //data_len
-	fwdma_parameter.cdw11 = 0x4055500; //axi_addr
-	//fwdma_parameter.cdw12 |= (1<<0);              //flag bit[0] crc chk,
-	fwdma_parameter.cdw12 &= ~(1 << 2); //flag bit[2] enc chk,
-
-	nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
-	nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	cq_gain(NVME_AQ_ID, 1, &reap_num);
-	pr_info("\tfwdma wr cmd send done!\n");
-	return 0;
-}
-
 static int case_write_fwdma(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
@@ -474,8 +369,6 @@ static struct nvme_case g_case_table[] = {
 #if 1 // Obsolete?
 	INIT_CASE(211, case_encrypt_decrypt, 
 		"Encrypt and decrypt (Obsolete?)"),
-	INIT_CASE(218, case_unknown3, "Unknown3 (Obsolete?)"),
-	INIT_CASE(219, case_unknown4, "Unknown4 (Obsolete?)"),
 	INIT_CASE(222, case_unknown5, "Unknown5 (Obsolete?)"),
 	INIT_CASE(223, case_unknown6, "Unknown6 (Obsolete?)"),
 	INIT_CASE(224, case_unknown7, "Unknown7 (Obsolete?)"),

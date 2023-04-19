@@ -482,6 +482,7 @@ void nvme_deinit(struct nvme_dev_info *ndev)
 	deinit_ns_data(ndev);
 	nvme_deinit_ioq_info(ndev);
 
+	nvme_gnl_disconnect(ndev->sock_fd);
 	close(ndev->fd);
 	free(ndev);
 }

@@ -293,7 +293,7 @@ int dnvme_create_asq(struct nvme_device *ndev, u32 elements)
 {
 	struct nvme_sq *sq;
 	struct nvme_prep_sq prep;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	u32 cc, aqa;
 	u16 asq_id = 0; /* admin queue ID is always 0 */
 	int ret;
@@ -338,7 +338,7 @@ int dnvme_create_acq(struct nvme_device *ndev, u32 elements)
 {
 	struct nvme_cq *cq;
 	struct nvme_prep_cq prep;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	u32 cc, aqa;
 	u16 acq_id = 0; /* admin queue ID is always 0 */
 	int ret;
@@ -436,7 +436,7 @@ void dnvme_delete_all_queues(struct nvme_device *ndev, enum nvme_state state)
 {
 	struct nvme_sq *sq;
 	struct nvme_cq *cq;
-	void *bar0 = ndev->bar0;
+	void *bar0 = ndev->bar[0];
 	bool save_aq = (state == NVME_ST_DISABLE_COMPLETE) ? false : true;
 	unsigned long i;
 

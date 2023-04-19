@@ -29,7 +29,6 @@
 #include "proc.h"
 #include "pci.h"
 #include "io.h"
-#include "cmb.h"
 #include "ioctl.h"
 #include "irq.h"
 #include "queue.h"
@@ -380,6 +379,54 @@ static const struct file_operations dnvme_fops = {
 	.mmap		= dnvme_mmap, /* !TODO: set map or unmap flag? */
 };
 
+static int dnvme_map_bar(struct nvme_device *ndev, int idx)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	const char *name[PCI_BAR_MAX_NUM] = { 
+		"bar0", "bar1", "bar2", "bar3", "bar4", "bar5"
+	};
+	int ret;
+
+	if (unlikely(ndev->bar[idx])) {
+		dnvme_warn(ndev, "BAR%d is mapped already!\n", idx);
+		return 0;
+	}
+
+	ret = pci_request_region(pdev, idx, name[idx]);
+	if (ret < 0) {
+		dnvme_err(ndev, "BAR%d is already in use!(%d)\n", idx, ret);
+		return ret;
+	}
+
+	ndev->bar[idx] = ioremap(pci_resource_start(pdev, idx), 
+		pci_resource_len(pdev, idx));
+	if (!ndev->bar[idx]) {
+		dnvme_err(ndev, "failed to map BAR%d!\n", idx);
+		ret = -ENOMEM;
+		goto out;
+	}
+	dnvme_info(ndev, "BAR%d: 0x%llx + 0x%llx mapped to 0x%p!\n", 
+		idx, pci_resource_start(pdev, idx), pci_resource_len(pdev, idx), 
+		ndev->bar[idx]);
+	return 0;
+
+out:
+	pci_release_region(pdev, idx);
+	return ret;
+}
+
+static void dnvme_unmap_bar(struct nvme_device *ndev, int idx)
+{
+	struct pci_dev *pdev = ndev->pdev;
+
+	if (unlikely(!ndev->bar[idx]))
+		return;
+
+	iounmap(ndev->bar[idx]);
+	ndev->bar[idx] = NULL;
+	pci_release_region(pdev, idx);
+}
+
 /**
  * @brief map pci device resource
  * 
@@ -393,46 +440,41 @@ static const struct file_operations dnvme_fops = {
 static int dnvme_map_resource(struct nvme_device *ndev)
 {
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = NULL;
+	int bars;
+	int idx;
 	int ret;
 
-	if (!(pci_select_bars(pdev, IORESOURCE_MEM) & BIT(0))) {
+	bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	if (!(bars & BIT(0))) {
 		dnvme_err(ndev, "BAR0 (64-bit) is not support!\n");
 		return -ENODEV;
 	}
 
-	ret = pci_request_region(pdev, 0, "bar0");
-	if (ret < 0) {
-		dnvme_err(ndev, "BAR0 (64-bit) already in use!(%d)\n", ret);
-		return ret;
+	for (idx = 0; idx < PCI_BAR_MAX_NUM; idx++) {
+		if (bars & BIT(idx)) {
+			ret = dnvme_map_bar(ndev, idx);
+			if (ret < 0)
+				goto out;
+		}
 	}
 
-	bar0 = ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
-	if (!bar0) {
-		dnvme_err(ndev, "failed to map BAR0 (64-bit)!\n");
-		ret = -ENOMEM;
-		goto out;
-	}
-	dnvme_info(ndev, "BAR0: 0x%llx + 0x%llx mapped to 0x%p!\n", 
-		pci_resource_start(pdev, 0), pci_resource_len(pdev, 0), bar0);
-
-	ndev->bar0 = bar0;
-	ndev->dbs = bar0 + NVME_REG_DBS;
+	ndev->dbs = ndev->bar[0] + NVME_REG_DBS;
 	return 0;
 out:
-	pci_release_region(pdev, 0);
+	for (idx--; idx >= 0; idx--) {
+		dnvme_unmap_bar(ndev, idx);
+	}
 	return ret;
 }
 
 static void dnvme_unmap_resource(struct nvme_device *ndev)
 {
-	struct pci_dev *pdev = ndev->pdev;
+	int idx;
 
-	if (ndev->bar0) {
-		iounmap(ndev->bar0);
-		ndev->bar0 = NULL;
-		pci_release_region(pdev, 0);
-	}
+	for (idx = 0; idx < PCI_BAR_MAX_NUM; idx++)
+		dnvme_unmap_bar(ndev, idx);
+
+	ndev->dbs = NULL;
 }
 
 static int dnvme_init_irq(struct nvme_device *ndev)
@@ -599,9 +641,8 @@ static int dnvme_set_dma_mask(struct pci_dev *pdev)
 
 static int dnvme_pci_enable(struct nvme_device *ndev)
 {
-	struct nvme_ctrl_property *prop = &ndev->prop;
 	struct pci_dev *pdev = ndev->pdev;
-	void __iomem *bar0 = ndev->bar0;
+	void __iomem *bar0 = ndev->bar[0];
 	int ret;
 
 	pci_set_master(pdev);
@@ -612,9 +653,9 @@ static int dnvme_pci_enable(struct nvme_device *ndev)
 		return ret;
 	}
 
-	prop->cap = dnvme_readq(bar0, NVME_REG_CAP);
-	ndev->q_depth = NVME_CAP_MQES(prop->cap) + 1;
-	ndev->db_stride = 1 << NVME_CAP_STRIDE(prop->cap);
+	ndev->reg_cap = dnvme_readq(bar0, NVME_REG_CAP);
+	ndev->q_depth = NVME_CAP_MQES(ndev->reg_cap) + 1;
+	ndev->db_stride = 1 << NVME_CAP_STRIDE(ndev->reg_cap);
 
 	dnvme_dbg(ndev, "db_stride:%u, q_depth:%u\n", ndev->db_stride, ndev->q_depth);
 	return 0;
@@ -705,8 +746,12 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_disable_pci;
 
 	ret = dnvme_map_cmb(ndev);
-	if (ret < 0)
+	if (ret < 0 && ret != -EOPNOTSUPP)
 		goto out_deinit_cap;
+
+	ret = dnvme_map_pmr(ndev);
+	if (ret < 0 && ret != -EOPNOTSUPP)
+		goto out_unmap_cmb;
 
 	dnvme_create_proc_entry(ndev, nvme_proc_dir);
 
@@ -723,6 +768,8 @@ static int dnvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_unlock(&nvme_dev_list_lock);
 	return 0;
 
+out_unmap_cmb:
+	dnvme_unmap_cmb(ndev);
 out_deinit_cap:
 	dnvme_deinit_capability(ndev);
 out_disable_pci:
@@ -768,6 +815,7 @@ static void dnvme_remove(struct pci_dev *pdev)
 	dnvme_destroy_proc_entry(ndev);
 
 	dnvme_cleanup_device(ndev, NVME_ST_DISABLE_COMPLETE);
+	dnvme_unmap_pmr(ndev);
 	dnvme_unmap_cmb(ndev);
 	dnvme_deinit_capability(ndev);
 	pci_disable_device(pdev);

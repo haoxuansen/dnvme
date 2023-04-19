@@ -45,6 +45,12 @@ enum {
 	NVME_REG_PMRSWTP = 0x0e10,	/* Persistent Memory Region Sustained
 					 * Write Throughput
 					 */
+	NVME_REG_PMRMSCL = 0x0e14,	/* Persistent Memory Region Memory
+					 * Space Control Lower
+					 */
+	NVME_REG_PMRMSCU = 0x0e18,	/* Persistent Memory Region Memory
+					 * Space Control Upper
+					 */
 	NVME_REG_DBS	= 0x1000,	/* SQ 0 Tail Doorbell */
 };
 
@@ -81,8 +87,14 @@ enum {
 
 #define NVME_CAP_MPSMIN(cap)		(((cap) >> 48) & 0xf)
 #define NVME_CAP_MPSMAX(cap)		(((cap) >> 52) & 0xf)
+#define NVME_CAP_PMRS(cap)		(((cap) >> 56) & 0x1)
 #define NVME_CAP_CMBS(cap)		(((cap) >> 57) & 0x1)
-
+#define NVME_CAP_NSSS(cap)		(((cap) >> 58) & 0x1)
+#define NVME_CAP_CRMS(cap)		(((cap) >> 59) & 0x3)
+enum {
+	NVME_CAP_CRMS_CRWMS	= 1 << 0,
+	NVME_CAP_CRMS_CRIMS	= 1 << 1,
+};
 
 /* NVME_REG_VS */
 #define NVME_VS_TER(vs)			((vs) & 0xff) /* tertiary */
@@ -171,8 +183,14 @@ enum {
 /* NVME_REG_ACQ */
 
 /* NVME_REG_CMBLOC */
-#define NVME_CMB_BIR(cmbloc)		((cmbloc) & 0x7)
-#define NVME_CMB_OFST(cmbloc)		(((cmbloc) >> 12) & 0xfffff)
+#define NVME_CMBLOC_BIR(cmbloc)		((cmbloc) & 0x7)
+#define NVME_CMBLOC_CQMMS		BIT(3)
+#define NVME_CMBLOC_CQPDS		BIT(4)
+#define NVME_CMBLOC_CDPMLS		BIT(5)
+#define NVME_CMBLOC_CDPCILS		BIT(6)
+#define NVME_CMBLOC_CDMMMS		BIT(7)
+#define NVME_CMBLOC_CQDA		BIT(8)
+#define NVME_CMBLOC_OFST(cmbloc)	(((cmbloc) >> 12) & 0xfffff)
 
 /* NVME_REG_CMBSZ */
 #define NVME_CMBSZ_SQS			BIT(0)
@@ -192,9 +210,29 @@ enum {
 #define NVME_CMBMSC_CMSE		BIT(1)
 
 /* NVME_REG_PMRCAP */
+#define NVME_PMRCAP_RDS			BIT(3)
+#define NVME_PMRCAP_WDS			BIT(4)
+#define NVME_PMRCAP_BIR(cap)		(((cap) >> 5) & 0x7)
+#define NVME_PMRCAP_PMRTU(cap)		(((cap) >> 8) & 0x3)
+#define NVME_PMRCAP_PMRWBM(cap)		(((cap) >> 10) & 0xf)
+#define NVME_PMRCAP_PMRTO(cap)		(((cap) >> 16) & 0xff)
+#define NVME_PMRCAP_CMSS		BIT(24)
+
 /* NVME_REG_PMRCTL */
+#define NVME_PMRCTL_EN			BIT(0)
+
 /* NVME_REG_PMRSTS */
+#define NVME_PMRSTS_ERR(sts)		((sts) & 0xff)
+#define NVME_PMRSTS_NRDY		BIT(8)
+#define NVME_PMRSTS_HSTS(sts)		(((sts) >> 9) & 0x7)
+/* bit[12] Controller Base Address Invalid */
+#define NVME_PMRSTS_CBAI		BIT(12)
+
 /* NVME_REG_PMREBS */
 /* NVME_REG_PMRSWTP */
+
+/* NVME_REG_PMRMSCL */
+#define NVME_PMRMSCL_CMSE		BIT(1)
+#define NVME_PMRMSCL_RSVD		0xffd
 
 #endif /* !_UAPI_NVME_PROPERTY_H_ */

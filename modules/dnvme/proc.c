@@ -160,7 +160,7 @@ static int cmd_dump(struct nvme_device *ndev, char *argv[], int argc)
 
 static int cmd_read_bar(struct nvme_device *ndev, char *argv[], int argc)
 {
-	void __iomem *ptr = ndev->bar0;
+	void __iomem *ptr = ndev->bar[0];
 	u8 bar = 0;
 	u32 offset = 0;
 	u32 len = 0;

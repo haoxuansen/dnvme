@@ -24,6 +24,8 @@
 #define NVME_SGES_PER_PAGE		(PAGE_SIZE / sizeof(struct nvme_sgl_desc))
 #define NVME_PRPS_PER_PAGE		(PAGE_SIZE / NVME_PRP_ENTRY_SIZE)
 
+#define PCI_BAR_MAX_NUM			6
+
 #undef pr_fmt
 #define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
 
@@ -226,6 +228,45 @@ struct nvme_irq_set {
 };
 
 /**
+ * @brief Describe Persistent Memory Region information
+ */
+struct nvme_pmr {
+	u32		bir; /* base indicator register */
+	u32		timeout; /* ms */
+
+	resource_size_t	addr;
+	resource_size_t size;
+
+	unsigned int	cmss:1;
+};
+
+/**
+ * @brief Describe Controller Memory Buffer information
+ */
+struct nvme_cmb {
+	u8		bar;
+
+	u64		res_addr; /* resource address */
+	u64		bus_addr;
+	u64		size;
+	u64		offset;
+
+	/* CMBSZ Capability */
+	unsigned int	sqs:1;
+	unsigned int	cqs:1;
+	unsigned int	lists:1;
+	unsigned int	rds:1;
+	unsigned int	wds:1;
+	/* CMBLOC Capability */
+	unsigned int	cqmms:1;
+	unsigned int	cqpds:1;
+	unsigned int	cdpmls:1;
+	unsigned int	cdpcils:1;
+	unsigned int	cdmmms:1;
+	unsigned int	cqda:1;
+};
+
+/**
  * @brief Representation of a NVMe device
  * 
  * @dbs: Refer to "NVMe over PCIe Transport Spec R1.0b - ch3.1.2"
@@ -248,7 +289,7 @@ struct nvme_device {
 
 	int	instance; /* dev_t minor */
 
-	void __iomem	*bar0;
+	void __iomem	*bar[PCI_BAR_MAX_NUM];
 	u32 __iomem	*dbs;
 
 	struct dma_pool	*cmd_pool;
@@ -256,13 +297,13 @@ struct nvme_device {
 	struct dma_pool *meta_pool;
 
 	struct nvme_irq_set	irq_set;
-	struct nvme_ctrl_property	prop;
 	struct nvme_capability	cap;
+	struct nvme_pmr		*pmr;
+	struct nvme_cmb		*cmb;
 
+	u64	reg_cap;
 	u32	q_depth;
 	u32	db_stride;
-	u64	cmb_size;
-	bool	cmb_use_sqes;
 
 	unsigned int	opened:1;
 };
@@ -279,6 +320,11 @@ struct nvme_device *dnvme_lock_device(int instance);
 void dnvme_unlock_device(struct nvme_device *ndev);
 
 void dnvme_cleanup_device(struct nvme_device *ndev, enum nvme_state state);
+
+/* ==================== Related to "cmb.c" ==================== */
+
+int dnvme_map_cmb(struct nvme_device *ndev);
+void dnvme_unmap_cmb(struct nvme_device *ndev);
 
 /* ==================== Related to "cmd.c" ==================== */
 
@@ -309,6 +355,11 @@ void dnvme_delete_meta_nodes(struct nvme_device *ndev);
 
 int dnvme_gnl_init(void);
 void dnvme_gnl_exit(void);
+
+/* ==================== Related to "pmr.c" ==================== */
+
+int dnvme_map_pmr(struct nvme_device *ndev);
+void dnvme_unmap_pmr(struct nvme_device *ndev);
 
 #endif /* !_DNVME_CORE_H_ */
 

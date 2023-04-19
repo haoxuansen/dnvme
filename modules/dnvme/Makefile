@@ -7,6 +7,7 @@ CFLAGS_trace.o := -I$(src)
 TARGET					:= dnvme.ko
 obj-m					:= dnvme.o
 dnvme-y					:= core.o
+dnvme-y					+= cmb.o
 dnvme-y					+= cmd.o
 dnvme-y					+= io.o
 dnvme-y					+= ioctl.o
@@ -14,12 +15,10 @@ dnvme-y					+= irq.o
 dnvme-y					+= meta.o
 dnvme-y					+= netlink.o
 dnvme-y					+= pci.o
+dnvme-y					+= pmr.o
 dnvme-y					+= proc.o
 dnvme-y					+= queue.o
 dnvme-y					+= trace.o
-ifneq ($(CONFIG_DNVME_CMB),)
-dnvme-y					+= cmb.o
-endif
 ifneq ($(CONFIG_DNVME_DEBUG),)
 dnvme-y					+= debug.o
 endif

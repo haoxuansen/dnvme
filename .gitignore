@@ -4,3 +4,8 @@ diff.patch
 include/config
 output
 *.o
+scripts/kconfig/lexer.lex.c
+scripts/kconfig/mconf
+scripts/kconfig/parser.tab.c
+scripts/kconfig/parser.tab.h
+
