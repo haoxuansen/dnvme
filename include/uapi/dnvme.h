@@ -175,7 +175,9 @@ struct nvme_prep_sq {
 	uint32_t	elements; /* Total number of entries that need kernel mem */
 	uint16_t	sq_id;	  /* The user specified unique SQ ID  */
 	uint16_t	cq_id;	  /* Existing or non-existing CQ ID */
-	uint8_t 	contig;    /* Indicates if SQ is contig or not, 1 = contig */
+
+	uint32_t 	contig:1; /* Indicates if SQ is contig or not, 1 = contig */
+	uint32_t	use_cmb:1;
 };
 
 /**
@@ -185,9 +187,11 @@ struct nvme_prep_sq {
 struct nvme_prep_cq {
 	uint32_t	elements; /* Total number of entries that need kernal mem */
 	uint16_t	cq_id;	  /* Existing or non-existing CQ ID. */
-	uint8_t 	contig;    /* Indicates if SQ is contig or not, 1 = contig */
 	uint8_t 	cq_irq_en;
 	uint16_t	cq_irq_no;
+
+	uint32_t 	contig:1; /* Indicates if SQ is contig or not, 1 = contig */
+	uint32_t	use_cmb:1;
 };
 
 /**

@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/pci-p2pdma.h>
 
 #include "nvme.h"
 #include "core.h"
@@ -87,11 +88,6 @@ static void dnvme_delete_cmd(struct nvme_cmd *cmd)
 	kfree(cmd);
 }
 
-void dnvme_update_sq_tail(struct nvme_sq *sq)
-{
-	
-}
-
 struct nvme_sq *dnvme_alloc_sq(struct nvme_device *ndev, 
 	struct nvme_prep_sq *prep, u8 sqes)
 {
@@ -111,15 +107,35 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_device *ndev,
 	sq_size = prep->elements << sqes;
 
 	if (prep->contig) {
-		sq_buf = dma_alloc_coherent(&pdev->dev, sq_size, &dma, GFP_KERNEL);
-		if (!sq_buf) {
-			dnvme_err(ndev, "failed to alloc DMA addr for SQ!\n");
-			goto out;
+		if (prep->use_cmb) {
+			if (!dnvme_cmb_support_sq(ndev->cmb)) {
+				dnvme_err(ndev, "Not support SQ in CMB!\n");
+				goto out;
+			}
+
+			sq_buf = pci_alloc_p2pmem(pdev, sq_size);
+			if (!sq_buf) {
+				dnvme_err(ndev, "failed to alloc p2pmem for SQ!\n");
+				goto out;
+			}
+			dma = pci_p2pmem_virt_to_bus(pdev, sq_buf);
+			if (!dma) {
+				pci_free_p2pmem(pdev, sq_buf, sq_size);
+				goto out;
+			}
+			sq->use_cmb = 1;
+		} else {
+			sq_buf = dma_alloc_coherent(&pdev->dev, sq_size, &dma, GFP_KERNEL);
+			if (!sq_buf) {
+				dnvme_err(ndev, "failed to alloc DMA addr for SQ!\n");
+				goto out;
+			}
 		}
 		memset(sq_buf, 0, sq_size);
 
 		sq->buf = sq_buf;
 		sq->dma = dma;
+		sq->contig = 1;
 	}
 
 	sq->ndev = ndev;
@@ -131,8 +147,6 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_device *ndev,
 	INIT_LIST_HEAD(&sq->cmd_list);
 	sq->size = sq_size;
 	sq->next_cid = 0;
-	if (prep->contig)
-		set_bit(NVME_QF_BUF_CONTIG, &sq->flags);
 	sq->db = &ndev->dbs[prep->sq_id * 2 * ndev->db_stride];
 
 	dnvme_print_sq(sq);
@@ -145,8 +159,13 @@ struct nvme_sq *dnvme_alloc_sq(struct nvme_device *ndev,
 	}
 	return sq;
 out2:
-	if (test_bit(NVME_QF_BUF_CONTIG, &sq->flags))
-		dma_free_coherent(&pdev->dev, sq->size, sq->buf, sq->dma);
+	if (sq->contig) {
+		if (sq->use_cmb) {
+			pci_free_p2pmem(pdev, sq->buf, sq->size);
+		} else {
+			dma_free_coherent(&pdev->dev, sq->size, sq->buf, sq->dma);
+		}
+	}
 out:
 	kfree(sq);
 	return NULL;
@@ -163,8 +182,11 @@ void dnvme_release_sq(struct nvme_device *ndev, struct nvme_sq *sq)
 
 	dnvme_delete_cmd_list(ndev, sq);
 
-	if (test_bit(NVME_QF_BUF_CONTIG, &sq->flags)) {
-		dma_free_coherent(&pdev->dev, sq->size, sq->buf, sq->dma);
+	if (sq->contig) {
+		if (sq->use_cmb)
+			pci_free_p2pmem(pdev, sq->buf, sq->size);
+		else
+			dma_free_coherent(&pdev->dev, sq->size, sq->buf, sq->dma);
 	} else {
 		dnvme_release_prps(ndev, sq->prps);
 		sq->prps = NULL;
@@ -208,15 +230,35 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_device *ndev,
 	cq_size = prep->elements << cqes;
 
 	if (prep->contig) {
-		cq_buf = dma_alloc_coherent(&pdev->dev, cq_size, &dma, GFP_KERNEL);
-		if (!cq_buf) {
-			dnvme_err(ndev, "failed to alloc DMA addr for CQ!\n");
-			goto out;
+		if (prep->use_cmb) {
+			if (!dnvme_cmb_support_cq(ndev->cmb)) {
+				dnvme_err(ndev, "Not support CQ in CMB!\n");
+				goto out;
+			}
+
+			cq_buf = pci_alloc_p2pmem(pdev, cq_size);
+			if (!cq_buf) {
+				dnvme_err(ndev, "failed to alloc p2pmem for CQ!\n");
+				goto out;
+			}
+			dma = pci_p2pmem_virt_to_bus(pdev, cq_buf);
+			if (!dma) {
+				pci_free_p2pmem(pdev, cq_buf, cq_size);
+				goto out;
+			}
+			cq->use_cmb = 1;
+		} else {
+			cq_buf = dma_alloc_coherent(&pdev->dev, cq_size, &dma, GFP_KERNEL);
+			if (!cq_buf) {
+				dnvme_err(ndev, "failed to alloc DMA addr for CQ!\n");
+				goto out;
+			}
 		}
 		memset(cq_buf, 0, cq_size);
 
 		cq->buf = cq_buf;
 		cq->dma = dma;
+		cq->contig = 1;
 	}
 
 	cq->ndev = ndev;
@@ -228,8 +270,6 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_device *ndev,
 	cq->pub.pbit_new_entry = 1;
 
 	cq->size = cq_size;
-	if (prep->contig)
-		set_bit(NVME_QF_BUF_CONTIG, &cq->flags);
 	cq->db = &ndev->dbs[(prep->cq_id * 2 + 1) * ndev->db_stride];
 
 	dnvme_print_cq(cq);
@@ -242,8 +282,11 @@ struct nvme_cq *dnvme_alloc_cq(struct nvme_device *ndev,
 	}
 	return cq;
 out2:
-	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
-		dma_free_coherent(&pdev->dev, cq->size, cq->buf, cq->dma);
+	if (cq->contig) {
+		if (cq->use_cmb)
+			pci_free_p2pmem(pdev, cq->buf, cq->dma);
+		else
+			dma_free_coherent(&pdev->dev, cq->size, cq->buf, cq->dma);
 	}
 out:
 	kfree(cq);
@@ -259,8 +302,11 @@ void dnvme_release_cq(struct nvme_device *ndev, struct nvme_cq *cq)
 
 	xa_erase(&ndev->cqs, cq->pub.q_id);
 
-	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
-		dma_free_coherent(&pdev->dev, cq->size, cq->buf, cq->dma);
+	if (cq->contig) {
+		if (cq->use_cmb)
+			pci_free_p2pmem(pdev, cq->buf, cq->dma);
+		else
+			dma_free_coherent(&pdev->dev, cq->size, cq->buf, cq->dma);
 	} else {
 		dnvme_release_prps(ndev, cq->prps);
 		cq->prps = NULL;
@@ -423,7 +469,7 @@ int dnvme_ring_sq_doorbell(struct nvme_device *ndev, u16 sq_id)
 		sq->pub.tail_ptr_virt, (unsigned long)sq->db,
 		sq->pub.tail_ptr);
 	sq->pub.tail_ptr = sq->pub.tail_ptr_virt;
-	writel(sq->pub.tail_ptr, sq->db);
+	dnvme_writel(sq->db, 0, sq->pub.tail_ptr);
 	return 0;
 }
 
@@ -483,7 +529,7 @@ u32 dnvme_get_cqe_remain(struct nvme_cq *cq, struct device *dev)
 	u32 remain = 0;
 	u8 phase = cq->pub.pbit_new_entry;
 
-	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
+	if (cq->contig) {
 		cq_addr = cq->buf;
 	} else {
 		dma_sync_sg_for_cpu(dev, prps->sg, prps->num_map_pgs, 
@@ -672,7 +718,7 @@ static int copy_cq_data(struct nvme_cq *cq, u32 *nr_reap, u8 __user *buffer)
 	u32 cqes = 1 << cq->pub.cqes;
 	int latentErr = 0;
 
-	if (test_bit(NVME_QF_BUF_CONTIG, &cq->flags))
+	if (cq->contig)
 		cq_base = cq->buf;
 	else
 		cq_base = cq->prps->buf;
@@ -735,6 +781,7 @@ static void update_cq_head(struct nvme_cq *cq, u32 num_reaped)
 	}
 
 	cq->pub.head_ptr = (u16)head;
+	dnvme_writel(cq->db, 0, cq->pub.head_ptr);
 
 	dnvme_vdbg(ndev, "CQ(%u) head:%u, tail:%u\n", cq->pub.q_id, 
 		cq->pub.head_ptr, cq->pub.tail_ptr);
@@ -768,10 +815,8 @@ int dnvme_reap_cqe(struct nvme_cq *cq, u32 expect, void __user *buf, u32 size)
 	ret = copy_cq_data(cq, &actual, buf);
 
 	reaped = expect - actual;
-	if (reaped) {
+	if (reaped)
 		update_cq_head(cq, reaped);
-		writel(cq->pub.head_ptr, cq->db);
-	}
 
 	remain = dnvme_get_cqe_remain(cq, &pdev->dev);
 	if (irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 && remain == 0) {
@@ -834,10 +879,8 @@ int dnvme_reap_cqe_legacy(struct nvme_device *ndev, struct nvme_reap __user *ure
 		return (ret == 0) ? -EFAULT : ret;
 	}
 
-	if (reap.reaped) {
+	if (reap.reaped)
 		update_cq_head(cq, reap.reaped);
-		writel(cq->pub.head_ptr, cq->db);
-	}
 
 	if (irq_type != NVME_INT_NONE && cq->pub.irq_enabled == 1 &&
 		reap.remained == 0) {

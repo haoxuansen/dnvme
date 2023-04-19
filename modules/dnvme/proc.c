@@ -135,7 +135,7 @@ static int cmd_dump_metadata(struct nvme_device *ndev, char *argv[], int argc)
 		return -EFAULT;
 	}
 
-	if (test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+	if (meta->contig) {
 		dnvme_info(ndev, "meta data (ID:0x%x, DMA addr:0x%llx):\n", id, meta->dma);
 		dnvme_dump_data(meta->buf, meta->size, 0);
 		return 0;

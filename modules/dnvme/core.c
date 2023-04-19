@@ -116,7 +116,7 @@ static int mmap_parse_vmpgoff(struct nvme_device *ndev, unsigned long vm_pgoff,
 			return -EBADSLT;
 		}
 
-		if (!test_bit(NVME_QF_BUF_CONTIG, &cq->flags)) {
+		if (!cq->contig) {
 			dnvme_err(ndev, "Cannot map non-contig CQ!\n");
 			return -EOPNOTSUPP;
 		}
@@ -131,7 +131,7 @@ static int mmap_parse_vmpgoff(struct nvme_device *ndev, unsigned long vm_pgoff,
 			return -EBADSLT;
 		}
 
-		if (!test_bit(NVME_QF_BUF_CONTIG, &sq->flags)) {
+		if (!sq->contig) {
 			dnvme_err(ndev, "Cannot map non-contig SQ!\n");
 			return -EOPNOTSUPP;
 		}
@@ -146,7 +146,7 @@ static int mmap_parse_vmpgoff(struct nvme_device *ndev, unsigned long vm_pgoff,
 			return -EBADSLT;
 		}
 
-		if (!test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+		if (!meta->contig) {
 			dnvme_err(ndev, "Cannot map SGL meta!\n");
 			return -EOPNOTSUPP;
 		}

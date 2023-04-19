@@ -172,7 +172,7 @@ int dnvme_create_meta_node(struct nvme_device *ndev,
 		}
 		get_random_bytes(meta->buf, meta->size);
 
-		set_bit(NVME_META_F_BUF_CONTIG, &meta->flags);
+		meta->contig = 1;
 	} else {
 		ret = dnvme_meta_prepare_sgl(ndev, meta, mc.buf, mc.size);
 		if (ret < 0)
@@ -208,7 +208,7 @@ static void dnvme_delete_meta_node(struct nvme_device *ndev,
 
 	xa_erase(&ndev->meta, meta->id);
 
-	if (test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+	if (meta->contig) {
 		dma_free_coherent(&pdev->dev, meta->size, meta->buf, meta->dma);
 	} else {
 		dnvme_release_prps(ndev, meta->prps);

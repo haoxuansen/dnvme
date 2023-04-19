@@ -370,7 +370,6 @@ int dnvme_prepare_sq(struct nvme_device *ndev, struct nvme_prep_sq __user *uprep
 	if (!sq)
 		return -ENOMEM;
 
-	set_bit(NVME_QF_WAIT_FOR_CREATE, &sq->flags);
 	return 0;
 }
 
@@ -402,8 +401,6 @@ int dnvme_prepare_cq(struct nvme_device *ndev, struct nvme_prep_cq __user *uprep
 	cq = dnvme_alloc_cq(ndev, &prep, NVME_NVM_IOCQES);
 	if (!cq)
 		return -ENOMEM;
-
-	set_bit(NVME_QF_WAIT_FOR_CREATE, &cq->flags);
 
 	if (cq->pub.irq_enabled) {
 		ret = dnvme_create_icq_node(&ndev->irq_set, cq->pub.q_id, cq->pub.irq_no);

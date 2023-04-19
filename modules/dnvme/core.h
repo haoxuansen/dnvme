@@ -47,15 +47,6 @@
 
 #endif
 
-enum {
-	NVME_QF_WAIT_FOR_CREATE = 0,
-	NVME_QF_BUF_CONTIG = 1, /* queue is contiguous */
-};
-
-enum {
-	NVME_META_F_BUF_CONTIG = 0,
-};
-
 /**
  * @prp_list: If use PRP, this field point to PRP list pages. If use SGL, 
  *  this field point to the first segment of SGLs.
@@ -117,7 +108,9 @@ struct nvme_cq {
 
 	u32 __iomem		*db; /* head doorbell */
 
-	unsigned long		flags;
+	unsigned int		contig:1; /* queue is contiguous? */
+	unsigned int		created:1; /* queue has been created? */
+	unsigned int		use_cmb:1; /* queue is located in CMB? */
 };
 
 /*
@@ -139,7 +132,9 @@ struct nvme_sq {
 	u32 __iomem		*db; /* tail doorbell */
 	u16			next_cid; /* command identifier */
 
-	unsigned long		flags;
+	unsigned int		contig:1; /* queue is contiguous? */
+	unsigned int		created:1; /* queue has been created? */
+	unsigned int		use_cmb:1; /* queue is located in CMB? */
 };
 
 /*
@@ -182,7 +177,7 @@ struct nvme_meta {
 	/* For SGL list */
 	struct nvme_prps	*prps;
 
-	unsigned long	flags;
+	unsigned int		contig:1;
 };
 
 struct nvme_capability {
@@ -322,6 +317,9 @@ void dnvme_unlock_device(struct nvme_device *ndev);
 void dnvme_cleanup_device(struct nvme_device *ndev, enum nvme_state state);
 
 /* ==================== Related to "cmb.c" ==================== */
+
+bool dnvme_cmb_support_sq(struct nvme_cmb *cmb);
+bool dnvme_cmb_support_cq(struct nvme_cmb *cmb);
 
 int dnvme_map_cmb(struct nvme_device *ndev);
 void dnvme_unmap_cmb(struct nvme_device *ndev);

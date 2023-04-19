@@ -34,6 +34,28 @@ static u32 dnvme_cmb_size(u32 cmbsz)
 	return NVME_CMBSZ_SZ(cmbsz);
 }
 
+/**
+ * @return true if the controller supports Admin and I/O Submission Queues
+ *    in the Controller Memory Buffer.
+ */
+bool dnvme_cmb_support_sq(struct nvme_cmb *cmb)
+{
+	if (!cmb || !cmb->sqs)
+		return false;
+	return true;
+}
+
+/**
+ * @return true if the controller supports Admin and I/O Completion Queues
+ *    in the Controller Memory Buffer.
+ */
+bool dnvme_cmb_support_cq(struct nvme_cmb *cmb)
+{
+	if (!cmb || !cmb->cqs)
+		return false;
+	return true;
+}
+
 static int dnvme_cmb_parse_capability(struct nvme_cmb *cmb, u32 cmbsz, u32 cmbloc)
 {
 	if (cmbsz & NVME_CMBSZ_SQS)

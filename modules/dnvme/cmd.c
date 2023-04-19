@@ -675,23 +675,19 @@ static int dnvme_create_iosq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		return -EINVAL;
 	}
 
-	if ((csq->sq_flags & NVME_QUEUE_PHYS_CONTIG && 
-			!test_bit(NVME_QF_BUF_CONTIG, &wait_sq->flags)) ||
-		(!(csq->sq_flags & NVME_QUEUE_PHYS_CONTIG) && 
-			test_bit(NVME_QF_BUF_CONTIG, &wait_sq->flags))) {
+	if ((csq->sq_flags & NVME_QUEUE_PHYS_CONTIG && !wait_sq->contig) ||
+		(!(csq->sq_flags & NVME_QUEUE_PHYS_CONTIG) && wait_sq->contig)) {
 		dnvme_err(ndev, "Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
 
-	if ((!test_bit(NVME_QF_BUF_CONTIG, &wait_sq->flags) && 
-			cmd->data_buf_ptr == NULL) ||
-		(test_bit(NVME_QF_BUF_CONTIG, &wait_sq->flags) && 
-			wait_sq->buf == NULL)) {
+	if ((!wait_sq->contig && cmd->data_buf_ptr == NULL) ||
+		(wait_sq->contig && wait_sq->buf == NULL)) {
 		dnvme_err(ndev, "Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
 		return -EINVAL;
 	}
 
-	if (!test_bit(NVME_QF_WAIT_FOR_CREATE, &wait_sq->flags)) {
+	if (wait_sq->created) {
 		dnvme_err(ndev, "SQ(%u) already created!\n", csq->sqid);
 		return -EPERM;
 	}
@@ -702,12 +698,12 @@ static int dnvme_create_iosq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		return ret;
 	}
 
-	if (test_bit(NVME_QF_BUF_CONTIG, &wait_sq->flags)) {
+	if (wait_sq->contig) {
 		ccmd->dptr.prp1 = cpu_to_le64(wait_sq->dma);
 		ccmd->dptr.prp2 = 0;
 	}
 
-	clear_bit(NVME_QF_WAIT_FOR_CREATE, &wait_sq->flags);
+	wait_sq->created = 1;
 	return 0;
 }
 
@@ -738,23 +734,19 @@ static int dnvme_create_iocq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		return -EBADSLT;
 	}
 
-	if ((ccq->cq_flags & NVME_QUEUE_PHYS_CONTIG && 
-			!test_bit(NVME_QF_BUF_CONTIG, &wait_cq->flags)) ||
-		(!(ccq->cq_flags & NVME_QUEUE_PHYS_CONTIG) && 
-			test_bit(NVME_QF_BUF_CONTIG, &wait_cq->flags))) {
+	if ((ccq->cq_flags & NVME_QUEUE_PHYS_CONTIG && !wait_cq->contig) ||
+		(!(ccq->cq_flags & NVME_QUEUE_PHYS_CONTIG) && wait_cq->contig)) {
 		dnvme_err(ndev, "Sanity Check: sq_flags & contig mismatch!\n");
 		return -EINVAL;
 	}
 
-	if ((!test_bit(NVME_QF_BUF_CONTIG, &wait_cq->flags) && 
-			cmd->data_buf_ptr == NULL) ||
-		(test_bit(NVME_QF_BUF_CONTIG, &wait_cq->flags) && 
-			wait_cq->buf == NULL)) {
+	if ((!wait_cq->contig && cmd->data_buf_ptr == NULL) ||
+		(wait_cq->contig && wait_cq->buf == NULL)) {
 		dnvme_err(ndev, "Sanity Check: contig, data_buf_ptr, buf mismatch!\n");
 		return -EINVAL;
 	}
 
-	if (!test_bit(NVME_QF_WAIT_FOR_CREATE, &wait_cq->flags)) {
+	if (wait_cq->created) {
 		dnvme_err(ndev, "CQ(%u) already created!\n", ccq->cqid);
 		return -EINVAL;
 	}
@@ -773,12 +765,12 @@ static int dnvme_create_iocq(struct nvme_device *ndev, struct nvme_64b_cmd *cmd,
 		return ret;
 	}
 
-	if (test_bit(NVME_QF_BUF_CONTIG, &wait_cq->flags)) {
+	if (wait_cq->contig) {
 		ccmd->dptr.prp1 = cpu_to_le64(wait_cq->dma);
 		ccmd->dptr.prp2 = 0;
 	}
 
-	clear_bit(NVME_QF_WAIT_FOR_CREATE, &wait_cq->flags);
+	wait_cq->created = 1;
 	return 0;
 }
 
@@ -820,7 +812,7 @@ static int dnvme_fill_mptr(struct nvme_device *ndev,
 		return -EINVAL;
 	}
 
-	if (test_bit(NVME_META_F_BUF_CONTIG, &meta->flags)) {
+	if (meta->contig) {
 		ccmd->metadata = cpu_to_le64(meta->dma);
 	} else {
 		ccmd->metadata = cpu_to_le64(meta->prps->pg_addr[0]);
@@ -935,7 +927,7 @@ int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *u
 	trace_dnvme_submit_64b_cmd(&ndev->dev, ccmd, cmd.sqid);
 
 	/* Copying the command in to appropriate SQ and handling sync issues */
-	if (test_bit(NVME_QF_BUF_CONTIG, &sq->flags)) {
+	if (sq->contig) {
 		memcpy((sq->buf + ((u32)sq->pub.tail_ptr_virt << sq->pub.sqes)),
 			ccmd, 1 << sq->pub.sqes);
 	} else {
