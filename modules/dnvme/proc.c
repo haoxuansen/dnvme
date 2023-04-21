@@ -145,6 +145,32 @@ static int cmd_dump_metadata(struct nvme_device *ndev, char *argv[], int argc)
 	return 0;
 }
 
+static int cmd_dump_queue(struct nvme_device *ndev)
+{
+	struct nvme_sq *sq;
+	struct nvme_cq *cq;
+	unsigned long i;
+
+	xa_for_each(&ndev->sqs, i, sq) {
+		if (sq->contig) {
+			dnvme_info(ndev, "SQ%u bind CQ%u, addr:0x%16llx, size:0x%8x\n", 
+				sq->pub.sq_id, sq->pub.cq_id, sq->dma, sq->size);
+		} else {
+			dnvme_warn(ndev, "SQ%u is discontigous!\n", sq->pub.sq_id);
+		}
+	}
+
+	xa_for_each(&ndev->cqs, i, cq) {
+		if (cq->contig) {
+			dnvme_info(ndev, "CQ%u addr:0x%16llx, size:0x%8x\n",
+				cq->pub.q_id, cq->dma, cq->size);
+		} else {
+			dnvme_warn(ndev, "CQ%u is discontigous!\n", cq->pub.q_id);
+		}
+	}
+	return 0;
+}
+
 static int cmd_dump(struct nvme_device *ndev, char *argv[], int argc)
 {
 	if (argc < 1)
@@ -154,6 +180,8 @@ static int cmd_dump(struct nvme_device *ndev, char *argv[], int argc)
 		print_cfg_data(ndev);
 	else if (!strncmp(argv[0], "meta", strlen("meta")))
 		cmd_dump_metadata(ndev, &argv[1], argc - 1);
+	else if (!strncmp(argv[0], "queue", strlen("queue")))
+		cmd_dump_queue(ndev);
 
 	return 0;
 }
@@ -281,6 +309,8 @@ static ssize_t dnvme_proc_read(struct file *file, char __user *buf,
 		":dump configuration space data\n", dev_name(dev));
 	dnvme_info(ndev, "echo \"dump meta [meta_id]\" > /proc/nvme/%s "
 		":dump meta data\n", dev_name(dev));
+	dnvme_info(ndev, "echo \"dump queue\" > /proc/nvme/%s "
+		":dump queue info in a concise manner", dev_name(dev));
 	dnvme_info(ndev, "echo \"read bar [bar] [offset] [len]\" > /proc/nvme/%s "
 		":read bar space data\n", dev_name(dev));
 

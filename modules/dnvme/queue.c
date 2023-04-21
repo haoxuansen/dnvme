@@ -359,6 +359,7 @@ int dnvme_create_asq(struct nvme_device *ndev, u32 elements)
 		return -EPERM;
 	}
 
+	memset(&prep, 0, sizeof(prep));
 	prep.elements = elements;
 	prep.sq_id = asq_id;
 	prep.cq_id = 0;
@@ -404,6 +405,7 @@ int dnvme_create_acq(struct nvme_device *ndev, u32 elements)
 		return -EPERM;
 	}
 
+	memset(&prep, 0, sizeof(prep));
 	prep.elements = elements;
 	prep.cq_id = acq_id;
 	prep.contig = 1;

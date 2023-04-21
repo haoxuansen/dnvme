@@ -78,7 +78,7 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 }
 
 static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb)
+	uint64_t slba, uint32_t nlb, uint16_t control)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -90,6 +90,7 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
 	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -97,7 +98,7 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 }
 
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb)
+	uint64_t slba, uint32_t nlb, uint16_t control)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -110,6 +111,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
 	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
@@ -139,12 +141,16 @@ static int send_io_compare_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	return nvme_io_compare(ndev, &wrap);
 }
 
-int case_cmd_send_io_read_cmd(struct nvme_tool *tool)
+int case_cmd_io_read(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
+	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	uint32_t nlb = rand() % 255 + 1;
 	int ret;
+
+	pr_debug("READ LBA:0x%llx + %u\n", slba, nlb);
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -156,7 +162,7 @@ int case_cmd_send_io_read_cmd(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_read_cmd(tool, sq, 0, 8);
+	ret = send_io_read_cmd(tool, sq, slba, nlb, 0);
 	if (ret < 0) {
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out;
@@ -169,12 +175,16 @@ out:
 	return 0;
 }
 
-int case_cmd_send_io_write_cmd(struct nvme_tool *tool)
+int case_cmd_io_read_with_fua(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
+	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	uint32_t nlb = rand() % 255 + 1;
 	int ret;
+
+	pr_debug("READ LBA:0x%llx + %u\n", slba, nlb);
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -186,7 +196,41 @@ int case_cmd_send_io_write_cmd(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, 0, 8);
+	ret = send_io_read_cmd(tool, sq, slba, nlb, NVME_RW_FUA);
+	if (ret < 0) {
+		pr_err("failed to read data!(%d)\n", ret);
+		goto out;
+	}
+out:
+	ret = delete_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int case_cmd_io_write(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	uint32_t nlb = rand() % 255 + 1;
+	int ret;
+
+	pr_debug("WRITE LBA:0x%llx + %u\n", slba, nlb);
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		return -ENODEV;
+	}
+
+	ret = create_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	ret = send_io_write_cmd(tool, sq, slba, nlb, 0);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out;
@@ -199,7 +243,41 @@ out:
 	return 0;
 }
 
-int case_cmd_send_io_compare_cmd(struct nvme_tool *tool)
+int case_cmd_io_write_with_fua(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	uint32_t nlb = rand() % 255 + 1;
+	int ret;
+
+	pr_debug("WRITE LBA:0x%llx + %u\n", slba, nlb);
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		return -ENODEV;
+	}
+
+	ret = create_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	ret = send_io_write_cmd(tool, sq, slba, nlb, NVME_RW_FUA);
+	if (ret < 0) {
+		pr_err("failed to write data!(%d)\n", ret);
+		goto out;
+	}
+out:
+	ret = delete_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int case_cmd_io_compare(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -219,8 +297,8 @@ int case_cmd_send_io_compare_cmd(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, slba, nlb);
-	ret |= send_io_read_cmd(tool, sq, slba, nlb);
+	ret = send_io_write_cmd(tool, sq, slba, nlb, 0);
+	ret |= send_io_read_cmd(tool, sq, slba, nlb, 0);
 	ret |= send_io_compare_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to compare data!(%d)\n", ret);

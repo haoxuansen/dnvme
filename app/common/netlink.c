@@ -802,15 +802,27 @@ int nvme_gnl_cmd_reap_cqe(struct nvme_dev_info *ndev, uint16_t cqid,
 		goto out;
 	}
 
-	if (tb[NVME_GNL_ATTR_OPT_STATUS]) {
-		ret = nla_get_s32(tb[NVME_GNL_ATTR_OPT_STATUS]);
-		if (ret >= 0 && tb[NVME_GNL_ATTR_OPT_NUM]) {
-			ret = (int)nla_get_u32(tb[NVME_GNL_ATTR_OPT_NUM]);
-		}
-	} else {
+	if (!tb[NVME_GNL_ATTR_OPT_STATUS]) {
 		pr_err("attr status not exist!\n");
 		ret = -EPERM;
+		goto out;
 	}
+
+	ret = nla_get_s32(tb[NVME_GNL_ATTR_OPT_STATUS]);
+	if (ret < 0) {
+		pr_err("failed to reap CQ entry!(%d)\n", ret);
+		goto out;
+	}
+
+	if (!tb[NVME_GNL_ATTR_OPT_NUM]) {
+		pr_err("attr opt num not exist!\n");
+		ret = -EPERM;
+		goto out;
+	}
+	ret = (int)nla_get_u32(tb[NVME_GNL_ATTR_OPT_NUM]);
+	if (ret != expect)
+		pr_warn("timeout! expect:%u, actual:%d\n", expect, ret);
+
 out:
 	nlmsg_free(msg);
 	return ret;

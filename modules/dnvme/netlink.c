@@ -84,14 +84,16 @@ static int dnvme_gnl_cmd_reap_cqe(struct sk_buff *skb, struct genl_info *info)
 		timeout--;
 	} while (timeout > 0);
 
-	if (actual >= expect) {
+	if (actual >= expect)
 		status = dnvme_reap_cqe(cq, expect, (void *)buf_ptr, buf_size);
-		if (status > 0) {
-			actual = status;
-			status = 0;
-		}
-	} else {
+	else if (actual > 0)
+		status = dnvme_reap_cqe(cq, actual, (void *)buf_ptr, buf_size);
+	else
 		status = -ETIMEDOUT;
+
+	if (status >= 0) {
+		actual = status;
+		status = 0;
 	}
 
 out_unlock:
