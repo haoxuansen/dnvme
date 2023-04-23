@@ -266,24 +266,10 @@ enum nvmf_capsule_command {
 	nvme_fabrics_type_property_set	= 0x00,
 	nvme_fabrics_type_connect	= 0x01,
 	nvme_fabrics_type_property_get	= 0x04,
+	nvme_fabrics_type_auth_send	= 0x05,
+	nvme_fabrics_type_auth_receive	= 0x06,
+	nvme_fabrics_type_disconnect	= 0x08,
 };
-
-#define nvme_fabrics_type_name(type)   { type, #type }
-#define show_fabrics_type_name(type)					\
-	__print_symbolic(type,						\
-		nvme_fabrics_type_name(nvme_fabrics_type_property_set),	\
-		nvme_fabrics_type_name(nvme_fabrics_type_connect),	\
-		nvme_fabrics_type_name(nvme_fabrics_type_property_get))
-
-/*
- * If not fabrics command, fctype will be ignored.
- */
-#define show_opcode_name(qid, opcode, fctype)			\
-	((opcode) == nvme_fabrics_command ?			\
-	 show_fabrics_type_name(fctype) :			\
-	((qid) ?						\
-	 show_nvm_opcode_name(opcode) :				\
-	 show_admin_opcode_name(opcode)))
 
 struct nvmf_common_command {
 	__u8	opcode;
@@ -404,18 +390,6 @@ struct nvme_dbbuf {
 	__le64			prp1;
 	__le64			prp2;
 	__u32			rsvd12[6];
-};
-
-struct streams_directive_params {
-	__le16	msl;
-	__le16	nssa;
-	__le16	nsso;
-	__u8	rsvd[10];
-	__le32	sws;
-	__le16	sgs;
-	__le16	nsa;
-	__le16	nso;
-	__u8	rsvd2[6];
 };
 
 struct nvme_command {

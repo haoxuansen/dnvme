@@ -20,6 +20,7 @@
 #include <linux/netlink.h>
 #include <linux/genetlink.h>
 
+#include "compiler.h"
 #include "dnvme.h"
 #include "log.h"
 #include "core.h"

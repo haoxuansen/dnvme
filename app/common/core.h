@@ -19,9 +19,6 @@
 #include "dnvme.h"
 #include "queue.h"
 
-#define __init				__attribute__((constructor))
-#define __exit				__attribute__((destructor))
-
 #define msleep(ms)			usleep(1000 * (ms))
 
 /**

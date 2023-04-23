@@ -22,4 +22,16 @@
 #define unlikely(x)			__builtin_expect(!!(x), 0)
 #endif
 
+#define __init				__attribute__((constructor))
+#define __exit				__attribute__((destructor))
+
+#define __deprecated			__attribute__((deprecated))
+#define __weak				__attribute__((weak))
+
+#ifndef __nonnull
+#define __nonnull(x)			__attribute__((nonnull(x)))
+#endif
+
+#define __optimize(x)			__attribute__((optimize(x)))
+
 #endif /* _UAPI_COMPILER_H_ */

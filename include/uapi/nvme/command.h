@@ -243,46 +243,7 @@ struct nvme_download_firmware {
 
 /* ==================== nvme_admin_directive_send(0x19) ==================== */
 /* ==================== nvme_admin_directive_recv(0x1a) ==================== */
-
-/**
- * @brief Directive Types
- * 
- * @note See "struct nvme_directive_cmd -> dtype" for details.
- */
-enum {
-	NVME_DIR_IDENTIFY		= 0x00,
-	NVME_DIR_STREAMS		= 0x01,
-};
-
-enum {
-	NVME_DIR_SND_ID_OP_ENABLE	= 0x01,
-	NVME_DIR_SND_ST_OP_REL_ID	= 0x01,
-	NVME_DIR_SND_ST_OP_REL_RSC	= 0x02,
-	NVME_DIR_RCV_ID_OP_PARAM	= 0x01,
-	NVME_DIR_RCV_ST_OP_PARAM	= 0x01,
-	NVME_DIR_RCV_ST_OP_STATUS	= 0x02,
-	NVME_DIR_RCV_ST_OP_RESOURCE	= 0x03,
-	NVME_DIR_ENDIR			= 0x01,
-};
-
-struct nvme_directive_cmd {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__u64			rsvd2[2];
-	union nvme_data_ptr	dptr;
-	__le32			numd;
-	__u8			doper;
-	__u8			dtype;
-	__le16			dspec;
-	__u8			endir;
-	__u8			tdtype;
-	__u16			rsvd15;
-
-	__u32			rsvd16[3];
-};
-
+#include "nvme/directive.h"
 
 /* ==================== nvme_admin_format_nvm(0x80) ==================== */
 
