@@ -234,7 +234,7 @@ int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter)
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
     struct nvme_common_command maxio_fwdma_rd = {
-        .opcode = nvme_admin_vendor_fwdma_read, //nvme_admin_vendor_read,
+        .opcode = nvme_admin_maxio_fwdma_read, //nvme_admin_maxio_read,
         .nsid = 1,
         .cdw10 = fwdma_parameter->cdw10,
         .cdw11 = fwdma_parameter->cdw11,
@@ -278,7 +278,7 @@ int nvme_maxio_fwdma_wr(int g_fd, struct fwdma_parameter *fwdma_parameter)
     int ret_val = FAILED;
     /* Fill the command for nvme_compare*/
     struct nvme_common_command maxio_fwdma_wr = {
-        .opcode = nvme_admin_vendor_fwdma_write, //nvme_admin_vendor_write,
+        .opcode = nvme_admin_maxio_fwdma_write, //nvme_admin_maxio_write,
         .nsid = 1,
         .cdw10 = fwdma_parameter->cdw10,
         .cdw11 = fwdma_parameter->cdw11,

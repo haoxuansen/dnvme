@@ -98,31 +98,23 @@ enum {
 /* ==================== NVME_FEAT_ASYNC_EVENT(0x0b) ==================== */
 
 enum {
-	NVME_AER_ERROR			= 0,
-	NVME_AER_SMART			= 1,
-	NVME_AER_NOTICE			= 2,
-	NVME_AER_CSS			= 6,
-	NVME_AER_VS			= 7,
-};
-
-enum {
-	NVME_AER_NOTICE_NS_CHANGED	= 0x00,
-	NVME_AER_NOTICE_FW_ACT_STARTING = 0x01,
-	NVME_AER_NOTICE_ANA		= 0x03,
-	NVME_AER_NOTICE_DISC_CHANGED	= 0xf0,
-};
-
-enum {
 	NVME_AEN_BIT_NS_ATTR		= 8,
 	NVME_AEN_BIT_FW_ACT		= 9,
 	NVME_AEN_BIT_ANA_CHANGE		= 11,
 	NVME_AEN_BIT_DISC_CHANGE	= 31,
 };
 
+/**
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 326"
+ */
 enum {
+	/* Namespace Attribute Notices */
 	NVME_AEN_CFG_NS_ATTR		= 1 << NVME_AEN_BIT_NS_ATTR,
+	/* Firmware Activation Notices */
 	NVME_AEN_CFG_FW_ACT		= 1 << NVME_AEN_BIT_FW_ACT,
+	/* Asymmetric Namespace Access Change Notices */
 	NVME_AEN_CFG_ANA_CHANGE		= 1 << NVME_AEN_BIT_ANA_CHANGE,
+	/* Discovery Log Page Change Notification */
 	NVME_AEN_CFG_DISC_CHANGE	= 1 << NVME_AEN_BIT_DISC_CHANGE,
 };
 

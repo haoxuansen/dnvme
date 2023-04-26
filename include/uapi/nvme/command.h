@@ -42,7 +42,10 @@ enum nvme_admin_opcode {
 	nvme_admin_virtual_mgmt		= 0x1c,
 	nvme_admin_nvme_mi_send		= 0x1d,
 	nvme_admin_nvme_mi_recv		= 0x1e,
+	nvme_admin_cap_mgmt		= 0x20,
+	nvme_admin_lockdown		= 0x24,
 	nvme_admin_dbbuf		= 0x7c,
+	nvme_admin_fabrics		= 0x7f,
 	nvme_admin_format_nvm		= 0x80,
 	nvme_admin_security_send	= 0x81,
 	nvme_admin_security_recv	= 0x82,
@@ -50,11 +53,11 @@ enum nvme_admin_opcode {
 	nvme_admin_get_lba_status	= 0x86,
 	nvme_admin_vendor_start		= 0xc0,
 
-	nvme_admin_vendor_write		= 0xc1,
-	nvme_admin_vendor_read		= 0xc2,
-	nvme_admin_vendor_fwdma_write	= 0xc3,
-	nvme_admin_vendor_fwdma_read	= 0xc4,
-	nvme_admin_vendor_para_set	= 0xc5,
+	nvme_admin_maxio_write		= 0xc1,
+	nvme_admin_maxio_read		= 0xc2,
+	nvme_admin_maxio_fwdma_write	= 0xc3,
+	nvme_admin_maxio_fwdma_read	= 0xc4,
+	nvme_admin_maxio_param_set	= 0xc5,
 };
 
 /**
@@ -227,6 +230,45 @@ struct nvme_abort_cmd {
 /* ==================== nvme_admin_get_features(0x0a) ==================== */
 #include "nvme/feature.h"
 
+/* ==================== nvme_admin_async_event(0x0c) ==================== */
+
+/**
+ * @brief Asynchronous Event Type
+ *
+ * @note Refer to "NVM Express Base Specification R2.0b - ch5.2"
+ */
+enum nvme_async_event_type {
+	NVME_AER_TYPE_ERROR	= 0, /* Error event */
+	NVME_AER_TYPE_SMART	= 1, /* SMART / Health Status event */
+	NVME_AER_TYPE_NOTICE	= 2, /* Notice event */
+};
+
+/**
+ * @brief Asynchronous Event Type
+ *
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 143"
+ */
+enum {
+	NVME_AER_ERROR		= 0, /* Error Status */
+	NVME_AER_SMART		= 1, /* SMART / Health status */
+	NVME_AER_NOTICE		= 2,
+	NVME_AER_CSS		= 6, /* I/O Command specific status */
+	NVME_AER_VS		= 7, /* Vendor specific */
+};
+
+/**
+ * @brief Asynchronous Event Information - Notice
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 146"
+ */
+enum {
+	NVME_AER_NOTICE_NS_CHANGED	= 0x00, /* Namespace Attribute Changed */
+	NVME_AER_NOTICE_FW_ACT_STARTING = 0x01, /* Firmware Activation Starting */
+	NVME_AER_NOTICE_ANA		= 0x03, /* Asymmetric Namespace Access Change */
+	NVME_AER_NOTICE_ZONE_CHANGED	= 0xef, /* Zone Descriptor Changed */
+	NVME_AER_NOTICE_DISC_CHANGED	= 0xf0, /* Discovery Log Page Change */
+};
+
 /* ==================== nvme_admin_download_fw(0x11) ==================== */
 
 struct nvme_download_firmware {
@@ -244,6 +286,24 @@ struct nvme_download_firmware {
 /* ==================== nvme_admin_directive_send(0x19) ==================== */
 /* ==================== nvme_admin_directive_recv(0x1a) ==================== */
 #include "nvme/directive.h"
+
+/* ==================== nvme_admin_dbbuf(0x7c) ==================== */
+
+/**
+ * @brief Doorbell Buffer Config
+ */
+struct nvme_dbbuf {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__u32			rsvd1[5];
+	__le64			prp1;
+	__le64			prp2;
+	__u32			rsvd12[6];
+};
+
+/* ==================== nvme_admin_fabrics(0x7f) ==================== */
+#include "nvme/fabrics.h"
 
 /* ==================== nvme_admin_format_nvm(0x80) ==================== */
 
@@ -515,6 +575,227 @@ struct nvme_zone_report {
  */
 enum {
 	NVME_RW_APPEND_PIREMAP		= 1 << 9,
+};
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+
+struct nvme_command {
+	union {
+		struct nvme_common_command common;
+		struct nvme_rw_command rw;
+		struct nvme_identify identify;
+		struct nvme_features features;
+		struct nvme_create_cq create_cq;
+		struct nvme_create_sq create_sq;
+		struct nvme_delete_queue delete_queue;
+		struct nvme_download_firmware dlfw;
+		struct nvme_format_cmd format;
+		struct nvme_dsm_cmd dsm;
+		struct nvme_write_zeroes_cmd write_zeroes;
+		struct nvme_zone_mgmt_send_cmd zms;
+		struct nvme_zone_mgmt_recv_cmd zmr;
+		struct nvme_abort_cmd abort;
+		struct nvme_get_log_page_command get_log_page;
+		struct nvmf_common_command fabrics;
+		struct nvmf_connect_command connect;
+		struct nvmf_property_set_command prop_set;
+		struct nvmf_property_get_command prop_get;
+		struct nvme_dbbuf dbbuf;
+		struct nvme_directive_cmd directive;
+	};
+};
+
+/**
+ * @brief Status Code
+ * 
+ * @note See "struct nvme_completion -> status" for details.
+ */
+enum {
+	/*
+	 * Generic Command Status:
+	 */
+	NVME_SC_SUCCESS			= 0x0,
+	NVME_SC_INVALID_OPCODE		= 0x1,
+	NVME_SC_INVALID_FIELD		= 0x2,
+	NVME_SC_CMDID_CONFLICT		= 0x3,
+	NVME_SC_DATA_XFER_ERROR		= 0x4,
+	NVME_SC_POWER_LOSS		= 0x5,
+	NVME_SC_INTERNAL		= 0x6,
+	NVME_SC_ABORT_REQ		= 0x7,
+	NVME_SC_ABORT_QUEUE		= 0x8,
+	NVME_SC_FUSED_FAIL		= 0x9,
+	NVME_SC_FUSED_MISSING		= 0xa,
+	NVME_SC_INVALID_NS		= 0xb,
+	NVME_SC_CMD_SEQ_ERROR		= 0xc,
+	NVME_SC_SGL_INVALID_LAST	= 0xd,
+	NVME_SC_SGL_INVALID_COUNT	= 0xe,
+	NVME_SC_SGL_INVALID_DATA	= 0xf,
+	NVME_SC_SGL_INVALID_METADATA	= 0x10,
+	NVME_SC_SGL_INVALID_TYPE	= 0x11,
+	NVME_SC_CMB_INVALID_USE		= 0x12,
+	NVME_SC_PRP_INVALID_OFFSET	= 0x13,
+	NVME_SC_ATOMIC_WU_EXCEEDED	= 0x14,
+	NVME_SC_OP_DENIED		= 0x15,
+	NVME_SC_SGL_INVALID_OFFSET	= 0x16,
+	/* 17h - Reserved */
+	NVME_SC_HOST_ID_INCONSIST	= 0x18,
+	NVME_SC_KA_TIMEOUT_EXPIRED	= 0x19,
+	NVME_SC_KA_TIMEOUT_INVALID	= 0x1A,
+	NVME_SC_ABORTED_PREEMPT_ABORT	= 0x1B,
+	NVME_SC_SANITIZE_FAILED		= 0x1C,
+	NVME_SC_SANITIZE_IN_PROGRESS	= 0x1D,
+	NVME_SC_SGL_INVALID_GRANULARITY	= 0x1E,
+	NVME_SC_CMD_NOT_SUP_CMB_QUEUE	= 0x1F,
+	NVME_SC_NS_WRITE_PROTECTED	= 0x20,
+	NVME_SC_CMD_INTERRUPTED		= 0x21,
+	NVME_SC_TRANSIENT_TRANSPORT_ERR	= 0x22,
+	NVME_SC_PROHIBIT_BY_LOCKDOWN	= 0x23,
+	NVME_SC_ADMIN_CMD_MEDIA_NOTRDY	= 0x24,
+	/* 25h to 7Fh - Reserved */
+
+	NVME_SC_LBA_RANGE		= 0x80,
+	NVME_SC_CAP_EXCEEDED		= 0x81,
+	NVME_SC_NS_NOT_READY		= 0x82,
+	NVME_SC_RESERVATION_CONFLICT	= 0x83,
+	NVME_SC_FORMAT_IN_PROGRESS	= 0x84,
+	NVME_SC_VALUE_SIZE_INVALID	= 0x85,
+	NVME_SC_KEY_SIZE_INVALID	= 0x86,
+	NVME_SC_KV_KEY_NOT_EXIST	= 0x87,
+	NVME_SC_UNRECOVER_ERR		= 0x88,
+	NVME_SC_KEY_EXISTS		= 0x89,
+	/* 90h to BFh - Reserved */
+	/* C0h to FFh - Vendor Specific */
+
+	/*
+	 * Command Specific Status:
+	 */
+	NVME_SC_CQ_INVALID		= 0x100,
+	NVME_SC_QID_INVALID		= 0x101,
+	NVME_SC_QUEUE_SIZE		= 0x102,
+	NVME_SC_ABORT_LIMIT		= 0x103,
+	NVME_SC_ABORT_MISSING		= 0x104,
+	NVME_SC_ASYNC_LIMIT		= 0x105,
+	NVME_SC_FIRMWARE_SLOT		= 0x106,
+	NVME_SC_FIRMWARE_IMAGE		= 0x107,
+	NVME_SC_INVALID_VECTOR		= 0x108,
+	NVME_SC_INVALID_LOG_PAGE	= 0x109,
+	NVME_SC_INVALID_FORMAT		= 0x10a,
+	NVME_SC_FW_NEEDS_CONV_RESET	= 0x10b,
+	NVME_SC_INVALID_QUEUE		= 0x10c,
+	NVME_SC_FEATURE_NOT_SAVEABLE	= 0x10d,
+	NVME_SC_FEATURE_NOT_CHANGEABLE	= 0x10e,
+	NVME_SC_FEATURE_NOT_PER_NS	= 0x10f,
+	NVME_SC_FW_NEEDS_SUBSYS_RESET	= 0x110,
+	NVME_SC_FW_NEEDS_RESET		= 0x111,
+	NVME_SC_FW_NEEDS_MAX_TIME	= 0x112,
+	NVME_SC_FW_ACTIVATE_PROHIBITED	= 0x113,
+	NVME_SC_OVERLAPPING_RANGE	= 0x114,
+	NVME_SC_NS_INSUFFICIENT_CAP	= 0x115,
+	NVME_SC_NS_ID_UNAVAILABLE	= 0x116,
+	NVME_SC_NS_ALREADY_ATTACHED	= 0x118,
+	NVME_SC_NS_IS_PRIVATE		= 0x119,
+	NVME_SC_NS_NOT_ATTACHED		= 0x11a,
+	NVME_SC_THIN_PROV_NOT_SUPP	= 0x11b,
+	NVME_SC_CTRL_LIST_INVALID	= 0x11c,
+	NVME_SC_SELT_TEST_IN_PROGRESS	= 0x11d,
+	NVME_SC_BP_WRITE_PROHIBITED	= 0x11e,
+	NVME_SC_CTRL_ID_INVALID		= 0x11f,
+	NVME_SC_SEC_CTRL_STATE_INVALID	= 0x120,
+	NVME_SC_CTRL_RES_NUM_INVALID	= 0x121,
+	NVME_SC_RESOURCE_ID_INVALID	= 0x122,
+	NVME_SC_PMR_SAN_PROHIBITED	= 0x123,
+	NVME_SC_ANA_GROUP_ID_INVALID	= 0x124,
+	NVME_SC_ANA_ATTACH_FAIL		= 0x125,
+	NVME_SC_CAP_INSUFFICIENT	= 0x126,
+	NVME_SC_NS_EXCEED_ATTACH_LIMIT	= 0x127,
+	NVME_SC_CMD_NOTSUP_PROHIBIT	= 0x128,
+	NVME_SC_IOCMD_SET_NOTSUP	= 0x129,
+	NVME_SC_IOCMD_SET_NOTEN		= 0x12a,
+	NVME_SC_IOCMD_SET_REJECT_COMB	= 0x12b,
+	NVME_SC_IOCMD_SET_INVALID	= 0x12c,
+	NVME_SC_ID_UNAVAILABLE		= 0x12d,
+	/* 12Eh to 16Fh - Reserved */
+	/* 170h to 17Fh - Directive Specific */
+
+	/*
+	 * I/O Command Set Specific - NVM commands:
+	 */
+	NVME_SC_BAD_ATTRIBUTES		= 0x180,
+	NVME_SC_INVALID_PI		= 0x181,
+	NVME_SC_READ_ONLY		= 0x182,
+	NVME_SC_ONCS_NOT_SUPPORTED	= 0x183,
+
+	/*
+	 * I/O Command Set Specific - Fabrics commands:
+	 */
+	NVME_SC_CONNECT_FORMAT		= 0x180,
+	NVME_SC_CONNECT_CTRL_BUSY	= 0x181,
+	NVME_SC_CONNECT_INVALID_PARAM	= 0x182,
+	NVME_SC_CONNECT_RESTART_DISC	= 0x183,
+	NVME_SC_CONNECT_INVALID_HOST	= 0x184,
+
+	NVME_SC_DISCOVERY_RESTART	= 0x190,
+	NVME_SC_AUTH_REQUIRED		= 0x191,
+
+	/*
+	 * I/O Command Set Specific - Zoned commands:
+	 */
+	NVME_SC_ZONE_BOUNDARY_ERROR	= 0x1b8,
+	NVME_SC_ZONE_FULL		= 0x1b9,
+	NVME_SC_ZONE_READ_ONLY		= 0x1ba,
+	NVME_SC_ZONE_OFFLINE		= 0x1bb,
+	NVME_SC_ZONE_INVALID_WRITE	= 0x1bc,
+	NVME_SC_ZONE_TOO_MANY_ACTIVE	= 0x1bd,
+	NVME_SC_ZONE_TOO_MANY_OPEN	= 0x1be,
+	NVME_SC_ZONE_INVALID_TRANSITION	= 0x1bf,
+
+	/*
+	 * Media and Data Integrity Errors:
+	 */
+	NVME_SC_WRITE_FAULT		= 0x280,
+	NVME_SC_READ_ERROR		= 0x281,
+	NVME_SC_GUARD_CHECK		= 0x282,
+	NVME_SC_APPTAG_CHECK		= 0x283,
+	NVME_SC_REFTAG_CHECK		= 0x284,
+	NVME_SC_COMPARE_FAILED		= 0x285,
+	NVME_SC_ACCESS_DENIED		= 0x286,
+	NVME_SC_UNWRITTEN_BLOCK		= 0x287,
+
+	/*
+	 * Path-related Errors:
+	 */
+	NVME_SC_ANA_PERSISTENT_LOSS	= 0x301,
+	NVME_SC_ANA_INACCESSIBLE	= 0x302,
+	NVME_SC_ANA_TRANSITION		= 0x303,
+	NVME_SC_HOST_PATH_ERROR		= 0x370,
+	NVME_SC_HOST_ABORTED_CMD	= 0x371,
+};
+
+/**
+ * @brief Completion Queue Entry
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 89"
+ */
+struct nvme_completion {
+	/*
+	 * Used by Admin and Fabrics commands to return data:
+	 */
+	union nvme_result {
+		__le16	u16;
+		__le32	u32;
+		__le64	u64;
+	} result;
+	__le16	sq_head;	/* how much of this queue may be reclaimed */
+	__le16	sq_id;		/* submission queue that generated this entry */
+	__u16	command_id;	/* of the command which completed */
+	__le16	status;		/* did the command fail, and if so, why? */
+#define NVME_CQE_STATUS_TO_PHASE(s)	((le16_to_cpu(s) >> 0) & 0x1)
+#define NVME_CQE_STATUS_TO_STATE(s)	((le16_to_cpu(s) >> 1) & 0x7fff)
+#define NVME_CQE_STATUS_TO_SC(s)	((le16_to_cpu(s) >> 1) & 0xff)
+#define NVME_CQE_STATUS_TO_SCT(s)	((le16_to_cpu(s) >> 9) & 0x7)
+#define NVME_CQE_STATUS_TO_CRD(s)	((le16_to_cpu(s) >> 12) & 0x3)
+#define NVME_CQE_STATUS_TO_M(s)		((le16_to_cpu(s) >> 14) & 0x1)
+#define NVME_CQE_STATUS_TO_DNR(s)	((le16_to_cpu(s) >> 15) & 0x1)
 };
 
 #endif /* !_UAPI_NVME_COMMAND_H_ */

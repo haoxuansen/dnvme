@@ -30,8 +30,19 @@ enum {
 	NVME_LOG_TELEMETRY_CTRL		= 0x08,
 	NVME_LOG_ENDURANCE_GROUP	= 0x09,
 	NVME_LOG_ANA			= 0x0c,
+	NVME_LOG_PERSISTENT_EVENT	= 0x0d,
+	NVME_LOG_MEDIA_UNIT_STATUS	= 0x10,
 	NVME_LOG_DISC			= 0x70,
 	NVME_LOG_RESERVATION		= 0x80,
+};
+
+/**
+ * @brief Log Specific Field
+ * 
+ * @note See "struct nvme_get_log_page_command -> lsp" for details.
+ */
+enum {
+	NVME_ANA_LOG_RGO	= 1 << 0,
 };
 
 struct nvme_get_log_page_command {
@@ -145,6 +156,102 @@ struct nvme_effects_log {
 	__le32 acs[256];
 	__le32 iocs[256];
 	__u8   resv[2048];
+};
+
+
+/* ==================== NVME_LOG_ANA(0x0c) ==================== */
+
+/**
+ * @brief Asymmetric Namespace Access State
+ * 
+ * @note See "struct nvme_ana_group_desc -> state" for details.
+ */
+enum nvme_ana_state {
+	NVME_ANA_OPTIMIZED		= 0x01,
+	NVME_ANA_NONOPTIMIZED		= 0x02,
+	NVME_ANA_INACCESSIBLE		= 0x03,
+	NVME_ANA_PERSISTENT_LOSS	= 0x04,
+	NVME_ANA_CHANGE			= 0x0f,
+};
+
+struct nvme_ana_group_desc {
+	__le32	grpid;
+	__le32	nnsids;
+	__le64	chgcnt;
+	__u8	state;
+	__u8	rsvd17[15];
+	__le32	nsids[];
+};
+
+/**
+ * @brief Asymmetric Namespace Access Log
+ */
+struct nvme_ana_rsp_hdr {
+	__le64	chgcnt;
+	__le16	ngrps;
+	__le16	rsvd10[3];
+};
+
+/* ==================== NVME_LOG_DISC(0x70) ==================== */
+
+/**
+ * @brief Controller ID
+ * 
+ * @note
+ *	1. See "struct nvmf_disc_rsp_page_entry -> cntlid" for details.
+ *	2. cntlid of value 0 is considered illegal in the fabrics world.
+ *	   Devices based on earlier specs did not have the subsystem concept;
+ *	   therefore, those devices had their cntlid value set to 0 as a result.
+ */
+enum {
+	NVME_CNTLID_MIN		= 1,
+	NVME_CNTLID_MAX		= 0xffef,
+	NVME_CNTLID_STATIC	= 0xfffe,
+	NVME_CNTLID_DYNAMIC	= 0xffff,
+};
+
+/**
+ * @brief Discovery log page entry
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 264"
+ */
+struct nvmf_disc_rsp_page_entry {
+	__u8		trtype;
+	__u8		adrfam;
+	__u8		subtype;
+	__u8		treq;
+	__le16		portid;
+	__le16		cntlid;
+	__le16		asqsz;
+	__u8		resv8[22];
+	char		trsvcid[NVMF_TRSVCID_SIZE];
+	__u8		resv64[192];
+	char		subnqn[NVMF_NQN_FIELD_LEN];
+	char		traddr[NVMF_TRADDR_SIZE];
+	union tsas {
+		char		common[NVMF_TSAS_SIZE];
+		struct rdma {
+			__u8	qptype;
+			__u8	prtype;
+			__u8	cms;
+			__u8	resv3[5];
+			__u16	pkey;
+			__u8	resv10[246];
+		} rdma;
+	} tsas;
+};
+
+/**
+ * @brief Discovery log page header
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 265"
+ */
+struct nvmf_disc_rsp_page_hdr {
+	__le64		genctr;
+	__le64		numrec;
+	__le16		recfmt;
+	__u8		resv14[1006];
+	struct nvmf_disc_rsp_page_entry entries[];
 };
 
 #endif /* !_UAPI_NVMA_LOG_PAGE_H_ */

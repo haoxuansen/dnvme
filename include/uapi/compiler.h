@@ -22,11 +22,19 @@
 #define unlikely(x)			__builtin_expect(!!(x), 0)
 #endif
 
+#ifndef __init
 #define __init				__attribute__((constructor))
+#endif
+#ifndef __exit
 #define __exit				__attribute__((destructor))
+#endif
 
+#ifndef __deprecated
 #define __deprecated			__attribute__((deprecated))
+#endif
+#ifndef __weak
 #define __weak				__attribute__((weak))
+#endif
 
 #ifndef __nonnull
 #define __nonnull(x)			__attribute__((nonnull(x)))
