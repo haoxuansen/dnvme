@@ -56,15 +56,21 @@ struct nvme_directive_cmd {
 	__le32			nsid;
 	__u64			rsvd2[2];
 	union nvme_data_ptr	dptr;
-	__le32			numd;
+	__le32			numd; /* 0's based value */
 	__u8			doper;
 	__u8			dtype;
 	__le16			dspec;
-	__u8			endir;
-	__u8			tdtype;
-	__u16			rsvd15;
 
-	__u32			rsvd16[3];
+	union {
+		struct {
+			__u8	endir;
+			__u8	tdtype;
+		};
+		__le16		nsr; /* namespace streams requested */
+		__le32		u32;
+	} dw12;
+
+	__u32			rsvd13[3];
 };
 
 /* ==================== NVME_DIR_RCV_ID_OP_PARAM ==================== */

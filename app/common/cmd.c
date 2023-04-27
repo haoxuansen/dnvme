@@ -268,7 +268,7 @@ int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf,
 	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = identify;
 	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP2_PAGE;
-	cmd.data_dir = DMA_BIDIRECTIONAL,
+	cmd.data_dir = DMA_BIDIRECTIONAL;
 	cmd.data_buf_ptr = buf;
 	cmd.data_buf_size = size;
 
