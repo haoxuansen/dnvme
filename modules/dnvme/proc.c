@@ -200,21 +200,21 @@ static int cmd_read_bar(struct nvme_device *ndev, char *argv[], int argc)
 	switch (argc) {
 	default:
 		dnvme_warn(ndev, "The number of args are out of limit!\n");
-		/* FALLTHROUGH */
+		fallthrough;
 	case 3:
 		ret = kstrtouint(argv[2], 0, &len);
 		if (ret < 0) {
 			dnvme_err(ndev, "arg:%s is invalid!\n", argv[0]);
 			return -EINVAL;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case 2:
 		ret = kstrtouint(argv[1], 0, &offset);
 		if (ret < 0) {
 			dnvme_err(ndev, "arg:%s is invalid!\n", argv[0]);
 			return -EINVAL;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case 1:
 		ret = kstrtou8(argv[0], 0, &bar);
 		if (ret < 0) {
