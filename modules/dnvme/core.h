@@ -30,7 +30,7 @@
 #define pr_fmt(fmt)			"[%s,%d]" fmt, __func__, __LINE__
 
 #if !IS_ENABLED(CONFIG_PRINTK_COLOR)
-#include "log/color.h"
+#include "color.h"
 
 #define dnvme_err(ndev, fmt, ...) \
 	dev_err(&ndev->dev, LOG_COLOR_RED fmt, ##__VA_ARGS__)

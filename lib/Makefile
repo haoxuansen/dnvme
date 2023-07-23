@@ -1,36 +1,18 @@
-TOP_DIR ?= $(shell pwd)/..
-include $(TOP_DIR)/.config
-
-CUR_DIR := $(TOP_DIR)/lib
-OUTPUT_DIR := $(TOP_DIR)/output
-
-srcs := $(wildcard *.c)
-objs := $(srcs:.c=.o)
-targets := libbase.so libbase.a
-
-CC ?= gcc
-CFLAGS := -g -Wall
-CFLAGS += -I$(TOP_DIR)/include/generated
-CFLAGS += -I$(TOP_DIR)/include/uapi
-CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
+RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
+-include $(RULES_MK)
 
 .DEFAULT_GOAL := build
 
-%.o: %.c
-	$(Q)$(CC) $(CFLAGS) -fPIC -c $^
-
-%.so: $(objs)
-	$(Q)$(CC) -shared $^ -o $@
-
-%.a: $(objs)
-	$(Q)$(AR) rcs $@ $^
-
-build: $(targets)
-	$(Q)cp $(targets) $(TOP_DIR)/output/libs/
+build:
+	$(Q)make -C base $@
+	$(Q)make -C nvme $@
 
 clean:
-	$(Q)-rm $(targets)
+	$(Q)make -C base $@
+	$(Q)make -C nvme $@
 
-distclean: clean
+distclean:
+	$(Q)make -C base $@
+	$(Q)make -C nvme $@
 
 .PHONY: build clean distclean

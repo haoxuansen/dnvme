@@ -13,7 +13,6 @@
 #define _LINUX_BITOPS_H
 
 #include "defs.h"
-#include "bitops/const_hweight.h"
 
 #define BITS_PER_BYTE			8
 
@@ -21,11 +20,6 @@
 #define BITS_TO_LONGS(nr)		DIV_ROUND_UP(nr, BITS_PER_LONG)
 
 #define BITS_PER_LONG_LONG		64
-
-static inline unsigned long hweight_long(unsigned long w)
-{
-	return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
-}
 
 static inline void set_bit(unsigned int nr, unsigned long *addr)
 {

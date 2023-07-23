@@ -61,25 +61,25 @@ endif
 PHONY += build
 
 clean:
-	$(Q)make -C modules/dnvme clean
+	$(Q)make -C modules/dnvme $@
 ifneq ($(CONFIG_U_DMA_BUF),)
-	$(Q)make -C modules/udmabuf clean
+	$(Q)make -C modules/udmabuf $@
 endif
 ifneq ($(CONFIG_LIB),)
-	$(Q)make -C lib clean
+	$(Q)make -C lib $@
 endif
 ifneq ($(CONFIG_UNVME),)
-	$(Q)make -C app clean
+	$(Q)make -C app $@
 endif
-	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig clean
+	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
 PHONY += clean
 
 distclean:
-	$(Q)make -C modules/dnvme distclean
-	$(Q)make -C modules/udmabuf distclean
-	$(Q)make -C lib distclean
-	$(Q)make -C app distclean
-	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig distclean
+	$(Q)make -C modules/dnvme $@
+	$(Q)make -C modules/udmabuf $@
+	$(Q)make -C lib $@
+	$(Q)make -C app $@
+	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
 	$(Q)rm -rf $(OUTPUT_DIR)
 PHONY += distclean
 

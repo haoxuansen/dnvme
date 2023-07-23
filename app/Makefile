@@ -1,46 +1,15 @@
-TOP_DIR ?= $(shell pwd)/..
-include $(TOP_DIR)/.config
-
-CUR_DIR := $(TOP_DIR)/app
-OUTPUT_DIR := $(TOP_DIR)/output
-
-srcs := $(foreach dir,$(CUR_DIR) $(CUR_DIR)/common,$(wildcard $(dir)/*.c))
-objs := $(srcs:.c=.o)
-target := nvmetool
-
-CC ?= gcc
-CFLAGS := -g -Wall
-CFLAGS += -I$(TOP_DIR)/include/generated
-CFLAGS += -I$(TOP_DIR)/include/uapi
-CFLAGS += -I$(CUR_DIR)
-CFLAGS += -I$(CUR_DIR)/common
-CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
-CFLAGS += -include $(CUR_DIR)/auto_header.h
-
-LDFLAGS := -L$(TOP_DIR)/output/libs
-LDFLAGS += -static
-LDLIBS := -lbase
-
-Q ?= @
+RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
+-include $(RULES_MK)
 
 .DEFAULT_GOAL := build
 
-%.o: %.c
-	$(Q)$(CC) $(CFLAGS) -c $^ -o $@
-
-pre:
-	$(Q)bash $(CUR_DIR)/prepare.sh
-
-$(target): $(objs)
-	$(Q)$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
-
-build: pre $(target)
-	$(Q)cp $(target) $(OUTPUT_DIR)/
+build:
+	$(Q)make -C unittest $@
 
 clean:
-	$(Q)rm -f $(objs)
+	$(Q)make -C unittest $@
 
-distclean: clean
-	$(Q)rm -f $(target)
+distclean:
+	$(Q)make -C unittest $@
 
 .PHONY: build clean distclean

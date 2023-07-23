@@ -353,7 +353,7 @@ enum {
 	NVME_RW_PRINFO_PRCHK_APP	= 1 << 11,
 	NVME_RW_PRINFO_PRCHK_GUARD	= 1 << 12,
 	NVME_RW_PRINFO_PRACT		= 1 << 13,
-	NVME_RW_FUA			= 1 << 14,
+	NVME_RW_FUA			= 1 << 14, /* Force Unit Access */
 	NVME_RW_LR			= 1 << 15,
 };
 
