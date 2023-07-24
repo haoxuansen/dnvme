@@ -9,6 +9,7 @@
  * 
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 
@@ -16,11 +17,14 @@
 #include "libbase.h"
 #include "libnvme.h"
 
-int pcie_retrain_link(void)
+int pcie_retrain_link(char *lc)
 {
 	int ret;
+	static char cmd[128] = {0};
 
-	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=20:20");
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.b=20:20", lc);
+
+	ret = call_system(cmd);
 	if (ret < 0)
 		return ret;
 

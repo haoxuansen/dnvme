@@ -1405,7 +1405,7 @@ void pcie_random_speed_width(void)
     // cfg width (device)
     pcie_set_width(set_width);
 
-    pcie_retrain_link();
+    pcie_retrain_link(RC_CAP_LINK_CONTROL);
     // check Link status register
     ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)

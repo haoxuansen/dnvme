@@ -223,7 +223,7 @@ static int case_unknown6(struct nvme_tool *tool)
 	fflush(stdout);
 	scanf("%d", &test_loop);
 	pcie_set_width(test_loop);
-	pcie_retrain_link();
+	pcie_retrain_link(RC_CAP_LINK_CONTROL);
 	ndev->link_width = test_loop;
 	return 0;
 }

@@ -22,7 +22,7 @@ CUR_DIR_NAME := $(notdir $(CUR_DIR_PATH))
 # Compiler Options
 # --------------------------------------------------------------------------- #
 
-# CFLAGS += -include $(CUR_DIR_PATH)/auto_header.h
+CFLAGS += -include $(CUR_DIR_PATH)/auto_header.h
 
 # --------------------------------------------------------------------------- #
 # Targets

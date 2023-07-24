@@ -101,7 +101,6 @@ int ioctl_send_format(int g_fd, uint8_t lbaf);
 
 uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
 
-void pcie_retrain_link(void);
 void pcie_RC_cfg_speed(int speed);
 void pcie_set_width(int width);
 void pcie_random_speed_width(void);

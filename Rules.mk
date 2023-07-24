@@ -36,8 +36,6 @@ RULE_CFLAGS := -g -Wall
 RULE_CFLAGS += -I$(CUR_DIR_PATH)/include/generated
 RULE_CFLAGS += -I$(CUR_DIR_PATH)/include/uapi
 RULE_CFLAGS += -I$(CUR_DIR_PATH)/lib/include
-# !TODO: adjust the position of "auto_header.h" reference
-RULE_CFLAGS += -include $(CUR_DIR_PATH)/app/unittest/auto_header.h
 RULE_CFLAGS += -include $(CUR_DIR_PATH)/include/uapi/kconfig.h
 
 RULE_LDFLAGS := -L$(RELEASE_LIB_DIR)

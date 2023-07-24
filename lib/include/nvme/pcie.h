@@ -30,6 +30,8 @@ static inline int pcie_do_link_down(int fd)
 	return nvme_set_device_state(fd, NVME_ST_PCIE_LINKDOWN_RESET);
 }
 
+int pcie_retrain_link(char *lc);
+
 int pcie_set_power_state(int fd, uint8_t pmcap, uint16_t ps);
 
 #endif /* !_UAPI_LIB_NVME_PCIE_H_ */
