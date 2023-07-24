@@ -278,12 +278,21 @@ enum {
 };
 
 /**
+ * @brief Optional NVM Command Support
+ * 
+ * @note See "struct nvme_id_ctrl -> fuses" for details.
+ */
+enum {
+	NVME_CTRL_FUSES_COMPARE_WRITE	= 1 << 0,
+};
+
+/**
  * @brief Volatile Write Cache
  * 
  * @note See "struct nvme_id_ctrl -> vwc" for details.
  */
 enum {
-	NVME_CTRL_VWC_PRESENT			= 1 << 0,
+	NVME_CTRL_VWC_PRESENT		= 1 << 0,
 };
 
 /**

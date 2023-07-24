@@ -433,6 +433,21 @@ static void nvme_display_cq_entry(struct nvme_completion *entry)
 		le64_to_cpu(entry->result.u64));
 }
 
+struct nvme_completion *nvme_find_cq_entry(struct nvme_completion *entries, 
+	uint32_t num, uint16_t cid)
+{
+	struct nvme_completion *entry;
+	uint32_t i;
+
+	for (i = 0; i < num; i++) {
+		entry = &entries[i];
+
+		if (entry->command_id == cid)
+			return entry;
+	}
+	return NULL;
+}
+
 /**
  * @brief Validate CQ entry
  * 

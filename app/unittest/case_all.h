@@ -43,7 +43,6 @@ int case_queue_admin(struct nvme_tool *tool);
 int case_nvme_boot_partition(struct nvme_tool *tool);
 //***new unittest framework**************************************
 int test_0_full_disk_wr(struct nvme_tool *tool);
-int test_1_fused(struct nvme_tool *tool);
 int test_2_mix_case(struct nvme_tool *tool);
 int test_3_adm_wr_cache_fua(struct nvme_tool *tool);
 int test_4_peak_power(struct nvme_tool *tool);

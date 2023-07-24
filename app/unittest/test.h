@@ -90,6 +90,11 @@ int case_cmd_io_read_with_fua(struct nvme_tool *tool);
 int case_cmd_io_write_with_fua(struct nvme_tool *tool);
 
 
+/* ==================== Related to "test_fused.c" ==================== */
+
+int case_fused_operation(struct nvme_tool *tool);
+
+
 /* ==================== Related to "test_meta.c" ==================== */
 
 int case_meta_node_contiguous(struct nvme_tool *tool);
@@ -101,7 +106,7 @@ int case_meta_xfer_extlba(struct nvme_tool *tool);
 
 /* ==================== Related to "test_mix.c" ==================== */
 
-int case_mix_disable_bus_master(struct nvme_tool *tool);
+int case_disable_bus_master(struct nvme_tool *tool);
 
 
 /* ==================== Related to "test_pm.c" ==================== */

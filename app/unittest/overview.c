@@ -311,7 +311,6 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(53, case_nvme_boot_partition, "case_nvme_boot_partition"),
 	INIT_CASE(54, case_register_test, "register test"),
 	INIT_CASE(55, case_test_full_disk_wr, "test_0_full_disk_wr test"),
-	INIT_CASE(56, test_1_fused, "test_1_fused loop test"),
 	INIT_CASE(57, test_2_mix_case, "test_2_mix_case"),
 	INIT_CASE(58, test_3_adm_wr_cache_fua, "test_3_adm_wr_cache_fua test"),
 	INIT_CASE(59, test_5_fua_wr_rd_cmp, "test_5_fua_wr_rd_cmp test"),
@@ -365,8 +364,10 @@ static struct nvme_case g_case_table[] = {
 	INIT_CASE(CASE_META + 3, case_meta_xfer_extlba,
 		"Meta data transferred contiguous with LBA data"),
 	
-	INIT_CASE(CASE_MIX, case_mix_disable_bus_master,
+	INIT_CASE(CASE_MIX, case_disable_bus_master,
 		"Disable bus master while reading or writing"),
+	INIT_CASE(CASE_MIX, case_fused_operation,
+		"Fused operation"),
 
 #if 1 // Obsolete?
 	INIT_CASE(211, case_encrypt_decrypt, 
