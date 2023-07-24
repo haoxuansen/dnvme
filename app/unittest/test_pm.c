@@ -22,7 +22,6 @@
 
 #include "libnvme.h"
 #include "test.h"
-#include "test_pm.h"
 
 static int get_power_state(struct nvme_dev_info *ndev, uint8_t *ps)
 {

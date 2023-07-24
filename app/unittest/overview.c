@@ -22,9 +22,6 @@
 
 #include "overview.h"
 #include "test.h"
-#include "test_queue.h"
-#include "test_cmd.h"
-#include "test_pm.h"
 
 #include "common_define.h"
 #include "test_metrics.h"

@@ -17,7 +17,6 @@
 #include "libnvme.h"
 #include "test.h"
 #include "test_metrics.h"
-#include "test_cmd.h"
 
 static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
 	struct nvme_cq_info *cq)

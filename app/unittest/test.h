@@ -80,6 +80,16 @@ void nvme_record_subcase_result(const char *name, int result);
 void nvme_display_subcase_result(void);
 
 
+/* ==================== Related to "test_cmd.c" ==================== */
+
+int case_cmd_io_read(struct nvme_tool *tool);
+int case_cmd_io_write(struct nvme_tool *tool);
+int case_cmd_io_compare(struct nvme_tool *tool);
+
+int case_cmd_io_read_with_fua(struct nvme_tool *tool);
+int case_cmd_io_write_with_fua(struct nvme_tool *tool);
+
+
 /* ==================== Related to "test_meta.c" ==================== */
 
 int case_meta_node_contiguous(struct nvme_tool *tool);
@@ -88,8 +98,26 @@ int case_meta_xfer_sgl(struct nvme_tool *tool);
 int case_meta_xfer_separate(struct nvme_tool *tool);
 int case_meta_xfer_extlba(struct nvme_tool *tool);
 
+
 /* ==================== Related to "test_mix.c" ==================== */
+
 int case_mix_disable_bus_master(struct nvme_tool *tool);
+
+
+/* ==================== Related to "test_pm.c" ==================== */
+
+int case_pm_switch_power_state(struct nvme_tool *tool);
+
+int case_pm_set_d0_state(struct nvme_tool *tool);
+int case_pm_set_d3hot_state(struct nvme_tool *tool);
+
+
+/* ==================== Related to "test_queue.c" ==================== */
+
+int case_queue_iocmd_to_asq(struct nvme_tool *tool);
+
+int case_queue_contiguous(struct nvme_tool *tool);
+int case_queue_discontiguous(struct nvme_tool *tool);
 
 #endif /* !_APP_TEST_H_ */
 

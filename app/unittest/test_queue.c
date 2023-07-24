@@ -20,7 +20,6 @@
 
 #include "test.h"
 #include "test_metrics.h"
-#include "test_queue.h"
 
 static bool is_support_sgl(struct nvme_id_ctrl *ctrl)
 {
