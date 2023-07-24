@@ -292,6 +292,18 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_submit_64b_cmd(ndev, argp);
 		break;
 
+	case NVME_IOCTL_EMPTY_CMD_LIST:
+	{
+		struct nvme_sq *sq = dnvme_find_sq(ndev, (u16)arg);
+
+		if (sq) {
+			dnvme_delete_cmd_list(ndev, sq);
+		} else {
+			pr_err("failed to find SQ(%u)!\n", (u16)arg);
+			ret = -EINVAL;
+		}
+		break;
+	}
 	case NVME_IOCTL_INQUIRY_CQE:
 		ret = dnvme_inquiry_cqe(ndev, argp);
 		break;

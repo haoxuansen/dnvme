@@ -9,8 +9,8 @@
  * 
  */
 
-#ifndef _UAPI_COMPILER_H_
-#define _UAPI_COMPILER_H_
+#ifndef __LINUX_COMPILER_H
+#define __LINUX_COMPILER_H
 
 #define __force
 
@@ -32,6 +32,11 @@
 #ifndef __deprecated
 #define __deprecated			__attribute__((deprecated))
 #endif
+
+#ifndef __unused
+#define __unused			__attribute__((unused))
+#endif
+
 #ifndef __weak
 #define __weak				__attribute__((weak))
 #endif
@@ -42,4 +47,4 @@
 
 #define __optimize(x)			__attribute__((optimize(x)))
 
-#endif /* _UAPI_COMPILER_H_ */
+#endif /* !__LINUX_COMPILER_H */

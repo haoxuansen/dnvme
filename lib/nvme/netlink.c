@@ -751,8 +751,8 @@ static int nl_recv(int sockfd, struct nl_msg *msg)
 	return nl_recv_iovec(sockfd, msg, &iov, 1);
 }
 
-int nvme_gnl_cmd_reap_cqe(struct nvme_dev_info *ndev, uint16_t cqid,
-	uint32_t expect, void *buf, uint32_t size)
+int nvme_gnl_cmd_reap_cqe_timeout(struct nvme_dev_info *ndev, uint16_t cqid,
+	uint32_t expect, void *buf, uint32_t size, int timeout)
 {
 	struct nvme_dev_public *pub = &ndev->dev_pub;
 	struct nl_msg *msg;
@@ -772,7 +772,7 @@ int nvme_gnl_cmd_reap_cqe(struct nvme_dev_info *ndev, uint16_t cqid,
 		NLM_F_REQUEST, NVME_GNL_CMD_REAP_CQE, 1);
 
 	nla_put_s32(msg, NVME_GNL_ATTR_DEVNO, pub->devno);
-	nla_put_s32(msg, NVME_GNL_ATTR_TIMEOUT, 5000);
+	nla_put_s32(msg, NVME_GNL_ATTR_TIMEOUT, timeout);
 	nla_put_u16(msg, NVME_GNL_ATTR_CQID, cqid);
 	nla_put_u32(msg, NVME_GNL_ATTR_OPT_NUM, expect);
 	nla_put_u64(msg, NVME_GNL_ATTR_OPT_BUF_PTR, ptr);

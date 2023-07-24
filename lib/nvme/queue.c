@@ -536,6 +536,18 @@ int nvme_ring_sq_doorbell(int fd, uint16_t sqid)
 	return 0;
 }
 
+int nvme_empty_sq_cmdlist(int fd, uint16_t sqid)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_EMPTY_CMD_LIST, sqid);
+	if (ret < 0) {
+		pr_err("failed to empty SQ(%u)!(%d)\n", sqid, ret);
+		return ret;
+	}
+	return 0;
+}
+
 static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
 {
 	struct nvme_sq_info *sq;

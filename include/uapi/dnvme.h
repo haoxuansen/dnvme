@@ -59,6 +59,8 @@ enum {
 	NVME_SET_IRQ,
 	NVME_MASK_IRQ,
 	NVME_UNMASK_IRQ,
+
+	NVME_EMPTY_CMD_LIST,
 };
 
 enum nvme_region {
@@ -333,6 +335,7 @@ struct nvme_dev_public {
 
 #define NVME_IOCTL_INQUIRY_CQE		_IOWR('N', NVME_INQUIRY_CQE, struct nvme_inquiry)
 #define NVME_IOCTL_REAP_CQE		_IOWR('N', NVME_REAP_CQE, struct nvme_reap)
+#define NVME_IOCTL_EMPTY_CMD_LIST	_IOW('N', NVME_EMPTY_CMD_LIST, uint16_t) /* SQID */
 
 /* uint16_t: assign meta node identify */
 #define NVME_IOCTL_CREATE_META_NODE	_IOW('N', NVME_CREATE_META_NODE, struct nvme_meta_create)

@@ -15,8 +15,14 @@
 #include <stdint.h>
 #include "core.h"
 
-int nvme_gnl_cmd_reap_cqe(struct nvme_dev_info *ndev, uint16_t cqid,
-	uint32_t expect, void *buf, uint32_t size);
+int nvme_gnl_cmd_reap_cqe_timeout(struct nvme_dev_info *ndev, uint16_t cqid,
+	uint32_t expect, void *buf, uint32_t size, int timeout);
+
+static inline int nvme_gnl_cmd_reap_cqe(struct nvme_dev_info *ndev, uint16_t cqid,
+	uint32_t expect, void *buf, uint32_t size)
+{
+	return nvme_gnl_cmd_reap_cqe_timeout(ndev, cqid, expect, buf, size, 5000);
+}
 
 int nvme_gnl_connect(void);
 void nvme_gnl_disconnect(int sockfd);

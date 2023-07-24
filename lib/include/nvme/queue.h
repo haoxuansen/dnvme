@@ -140,6 +140,7 @@ int nvme_valid_cq_entry(struct nvme_completion *entry, uint16_t sqid,
 int nvme_check_cq_entries(struct nvme_completion *entries, uint32_t num);
 
 int nvme_ring_sq_doorbell(int fd, uint16_t sqid);
+int nvme_empty_sq_cmdlist(int fd, uint16_t sqid);
 
 int nvme_init_ioq_info(struct nvme_dev_info *ndev);
 void nvme_deinit_ioq_info(struct nvme_dev_info *ndev);

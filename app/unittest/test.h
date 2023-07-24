@@ -88,5 +88,8 @@ int case_meta_xfer_sgl(struct nvme_tool *tool);
 int case_meta_xfer_separate(struct nvme_tool *tool);
 int case_meta_xfer_extlba(struct nvme_tool *tool);
 
+/* ==================== Related to "test_mix.c" ==================== */
+int case_mix_disable_bus_master(struct nvme_tool *tool);
+
 #endif /* !_APP_TEST_H_ */
 

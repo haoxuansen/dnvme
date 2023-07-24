@@ -50,6 +50,7 @@ enum {
 	CASE_QUEUE = CASE_CMD + 20,
 	CASE_PM = CASE_QUEUE + 20,
 	CASE_META = CASE_PM + 20,
+	CASE_MIX = CASE_META + 20,
 };
 
 static TestCase_t TestCaseList[] = {
@@ -366,6 +367,9 @@ static struct nvme_case g_case_table[] = {
 		"Meta data transferred as separate buffer"),
 	INIT_CASE(CASE_META + 3, case_meta_xfer_extlba,
 		"Meta data transferred contiguous with LBA data"),
+	
+	INIT_CASE(CASE_MIX, case_mix_disable_bus_master,
+		"Disable bus master while reading or writing"),
 
 #if 1 // Obsolete?
 	INIT_CASE(211, case_encrypt_decrypt, 
