@@ -34,34 +34,33 @@
 /* CMD to delete IO Queue */
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid)
 {
+	int ret_val = FAILED;
+	struct nvme_delete_queue del_q_cmd = {
+		.opcode = opcode,
+		.qid = qid,
+		.rsvd1[0] = 0x00,
+	};
 
-    int ret_val = FAILED;
-    struct nvme_delete_queue del_q_cmd = {
-        .opcode = opcode,
-        .qid = qid,
-        .rsvd1[0] = 0x00,
-    };
-
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = 0,
-        .cmd_buf_ptr = (u_int8_t *)&del_q_cmd,
-        .data_buf_ptr = NULL,
-        .data_dir = DMA_FROM_DEVICE,
-    };
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (ret_val < 0)
-    {
-        if (opcode == nvme_admin_delete_sq)
-        {
-            pr_err("Delete_SQ:%d failed %d\n", qid, ret_val);
-        }
-        else if (opcode == nvme_admin_delete_cq)
-        {
-            pr_err("Delete_CQ:%d failed %d\n", qid, ret_val);
-        }
-        return ret_val;
-    }
-    return ret_val;
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = 0,
+		.cmd_buf_ptr = (u_int8_t *)&del_q_cmd,
+		.data_buf_ptr = NULL,
+		.data_dir = DMA_FROM_DEVICE,
+	};
+	ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret_val < 0)
+	{
+		if (opcode == nvme_admin_delete_sq)
+		{
+			pr_err("Delete_SQ:%d failed %d\n", qid, ret_val);
+		}
+		else if (opcode == nvme_admin_delete_cq)
+		{
+			pr_err("Delete_CQ:%d failed %d\n", qid, ret_val);
+		}
+		return ret_val;
+	}
+	return 0;
 }
 
 /* CMD to send NVME IO write command */
@@ -95,7 +94,7 @@ int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 2;
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -142,7 +141,7 @@ int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -199,7 +198,7 @@ int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nl
     user_cmd.data_buf_ptr = addr;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -249,7 +248,7 @@ int nvme_maxio_fwdma_rd(int g_fd, struct fwdma_parameter *fwdma_parameter)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_RD Sending Command Failed!\n");
@@ -293,7 +292,7 @@ int nvme_maxio_fwdma_wr(int g_fd, struct fwdma_parameter *fwdma_parameter)
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
@@ -351,7 +350,7 @@ int nvme_firmware_commit(int g_fd, uint8_t bpid, uint8_t ca, uint8_t fs)
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("NVME_VENDOR_FWDMA_WR Sending Command Failed!\n");
@@ -395,7 +394,7 @@ int nvme_firmware_download(int g_fd, uint32_t numd, uint32_t ofst, uint8_t *dptr
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("firmware_download Sending Command Failed!\n");
@@ -462,7 +461,7 @@ int create_iocq(int g_fd, struct create_cq_parameter *cq_parameter)
         user_cmd.data_buf_ptr = tool->cq_buf;
     }
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -530,7 +529,7 @@ int create_iosq(int g_fd, struct create_sq_parameter *sq_parameter)
         user_cmd.data_dir = 2;
     }
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -566,7 +565,7 @@ int admin_illegal_opcode_cmd(int g_fd, uint8_t opcode)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending cmd Failed! ret_val:%d\n", ret_val);
@@ -605,7 +604,7 @@ int ioctl_send_abort(int g_fd, uint16_t sq_id, uint16_t cmd_id)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -643,7 +642,7 @@ int ioctl_send_flush(int g_fd, uint16_t sq_id)
         .data_dir = 0,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -694,7 +693,7 @@ int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -743,7 +742,7 @@ int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb)
         .data_dir = 2,
     };
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("command sq_id: %d, slba: 0x%x, nlb: %d Sending Command Failed!\n",
@@ -817,7 +816,7 @@ int ioctl_send_format(int g_fd, uint8_t lbaf)
     user_cmd.data_buf_ptr = NULL;
     user_cmd.data_dir = 0;
 
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
     if (ret_val < 0)
     {
         pr_err("Sending of Command Failed!\n");
@@ -845,18 +844,26 @@ int ioctl_send_format(int g_fd, uint8_t lbaf)
  * @param io_cmd 
  * @return int 
  */
-static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t *data_addr, uint32_t buf_size,
-                       uint8_t data_dir, struct nvme_rw_command *io_cmd)
+static int nvme_io_cmd(int g_fd, uint16_t sq_id, uint8_t *data_addr, 
+	uint32_t buf_size, uint8_t data_dir, struct nvme_rw_command *io_cmd)
 {
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = sq_id,
-        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
-        .cmd_buf_ptr = (u_int8_t *)io_cmd,
-        .data_buf_size = buf_size,
-        .data_buf_ptr = data_addr,
-        .data_dir = data_dir,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+	int ret;
+
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = sq_id,
+		.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | 		
+			NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
+		.cmd_buf_ptr = (u_int8_t *)io_cmd,
+		.data_buf_size = buf_size,
+		.data_buf_ptr = data_addr,
+		.data_dir = data_dir,
+	};
+
+	ret = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 /**
  * @brief can refer struct nvme_rw_command for detail
@@ -953,61 +960,78 @@ int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, 
 }
 
 /* CMD to send NVME IO write command using metabuff*/
-int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                                   uint16_t control, uint32_t id, void *data_addr)
+int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, 
+	uint32_t nsid, uint64_t slba, uint16_t nlb,
+        uint16_t control, uint32_t id, void *data_addr)
 {
+	int ret;
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t data_size;
-    struct nvme_rw_command io_cmd = {
-        .opcode = nvme_cmd_write,
-        .flags = flags,
-        .nsid = nsid,
-        .slba = slba,
-        .length = (nlb - 1), //0'base
-        .control = control,
-    };
-    data_size = nlb * ndev->nss[nsid - 1].lbads;
+	uint32_t data_size;
+	struct nvme_rw_command io_cmd = {
+		.opcode = nvme_cmd_write,
+		.flags = flags,
+		.nsid = nsid,
+		.slba = slba,
+		.length = (nlb - 1), //0'base
+		.control = control,
+	};
+	data_size = nlb * ndev->nss[nsid - 1].lbads;
 
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = sq_id,
-        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST | NVME_MASK_MPTR),
-        .cmd_buf_ptr = (u_int8_t *)&io_cmd,
-        .data_buf_size = data_size,
-        .data_buf_ptr = data_addr,
-        .meta_id = id,
-        .data_dir = DMA_FROM_DEVICE,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = sq_id,
+		.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | 
+			NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST | 
+			NVME_MASK_MPTR),
+		.cmd_buf_ptr = (u_int8_t *)&io_cmd,
+		.data_buf_size = data_size,
+		.data_buf_ptr = data_addr,
+		.meta_id = id,
+		.data_dir = DMA_FROM_DEVICE,
+	};
+
+	ret = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 /* CMD to send NVME IO read command using metabuff through contig Queue */
-int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                                  uint16_t control, uint32_t id, void *data_addr)
+int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, 
+	uint32_t nsid, uint64_t slba, uint16_t nlb,
+        uint16_t control, uint32_t id, void *data_addr)
 {
+	int ret;
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t data_size;
-    struct nvme_rw_command io_cmd = {
-        .opcode = nvme_cmd_read,
-        .flags = flags,
-        .nsid = nsid,
-        .slba = slba,
-        .length = (nlb - 1), //0'base
-        .control = control,
-    };
-    data_size = nlb * ndev->nss[nsid - 1].lbads;
+	uint32_t data_size;
+	struct nvme_rw_command io_cmd = {
+		.opcode = nvme_cmd_read,
+		.flags = flags,
+		.nsid = nsid,
+		.slba = slba,
+		.length = (nlb - 1), //0'base
+		.control = control,
+	};
+	data_size = nlb * ndev->nss[nsid - 1].lbads;
 
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = sq_id,
-        .bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
-        .cmd_buf_ptr = (u_int8_t *)&io_cmd,
-        .data_buf_size = data_size,
-        .data_buf_ptr = data_addr,
-        .meta_id = id,
-        .data_dir = DMA_BIDIRECTIONAL,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = sq_id,
+		.bit_mask = (NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST | 
+			NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST),
+		.cmd_buf_ptr = (u_int8_t *)&io_cmd,
+		.data_buf_size = data_size,
+		.data_buf_ptr = data_addr,
+		.meta_id = id,
+		.data_dir = DMA_BIDIRECTIONAL,
+	};
+
+	ret = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
 }
 
 int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num)
@@ -1029,23 +1053,30 @@ int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t
  * @param dw11h 
  * @return int 
  */
-int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, uint16_t dw11l, uint16_t dw11h)
+int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, 
+	uint16_t dw11l, uint16_t dw11h)
 {
-    struct nvme_features feat_cmd = {
-        .opcode = nvme_admin_set_features,
-        .nsid = nsid,
-        .fid = feat_id,
-        .dword11 = ((__le32)dw11h << 16) | dw11l,
-    };
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = 0,
-        .bit_mask = 0,
-        .cmd_buf_ptr = (u_int8_t *)&feat_cmd,
-        .data_buf_size = 0,
-        .data_buf_ptr = NULL,
-        .data_dir = DMA_BIDIRECTIONAL,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+	int ret;
+	struct nvme_features feat_cmd = {
+		.opcode = nvme_admin_set_features,
+		.nsid = nsid,
+		.fid = feat_id,
+		.dword11 = ((__le32)dw11h << 16) | dw11l,
+	};
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = 0,
+		.bit_mask = 0,
+		.cmd_buf_ptr = (u_int8_t *)&feat_cmd,
+		.data_buf_size = 0,
+		.data_buf_ptr = NULL,
+		.data_dir = DMA_BIDIRECTIONAL,
+	};
+
+	ret = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
 }
 /**
  * @brief 
@@ -1059,28 +1090,34 @@ int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, uint16_t dw11
  * @param hmdlec 
  * @return int 
  */
-int nvme_set_feature_hmb_cmd(int g_fd, uint32_t nsid, uint16_t ehm, uint32_t hsize,
-                             uint32_t hmdlla, uint32_t hmdlua, uint32_t hmdlec)
+int nvme_set_feature_hmb_cmd(int g_fd, uint32_t nsid, uint16_t ehm, 
+	uint32_t hsize, uint32_t hmdlla, uint32_t hmdlua, uint32_t hmdlec)
 {
-    struct nvme_features feat_cmd = {
-        .opcode = nvme_admin_set_features,
-        .nsid = nsid,
-        .fid = NVME_FEAT_HOST_MEM_BUF,
-        .dword11 = ehm,
-        .dword12 = hsize,
-        .dword13 = hmdlla,
-        .dword14 = hmdlua,
-        .dword15 = hmdlec,
-    };
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = 0,
-        .bit_mask = 0,
-        .cmd_buf_ptr = (u_int8_t *)&feat_cmd,
-        .data_buf_size = 0,
-        .data_buf_ptr = NULL,
-        .data_dir = DMA_BIDIRECTIONAL,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+	int ret;
+	struct nvme_features feat_cmd = {
+		.opcode = nvme_admin_set_features,
+		.nsid = nsid,
+		.fid = NVME_FEAT_HOST_MEM_BUF,
+		.dword11 = ehm,
+		.dword12 = hsize,
+		.dword13 = hmdlla,
+		.dword14 = hmdlua,
+		.dword15 = hmdlec,
+	};
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = 0,
+		.bit_mask = 0,
+		.cmd_buf_ptr = (u_int8_t *)&feat_cmd,
+		.data_buf_size = 0,
+		.data_buf_ptr = NULL,
+		.data_dir = DMA_BIDIRECTIONAL,
+	};
+
+	ret = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
 }
 /**
  * @brief 
@@ -1092,20 +1129,26 @@ int nvme_set_feature_hmb_cmd(int g_fd, uint32_t nsid, uint16_t ehm, uint32_t hsi
  */
 int nvme_get_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id)
 {
-    struct nvme_features feat_cmd = {
-        .opcode = nvme_admin_get_features,
-        .nsid = nsid,
-        .fid = feat_id,
-    };
-    struct nvme_64b_cmd user_cmd = {
-        .sqid = 0,
-        .bit_mask = 0,
-        .cmd_buf_ptr = (u_int8_t *)&feat_cmd,
-        .data_buf_size = 0,
-        .data_buf_ptr = NULL,
-        .data_dir = DMA_BIDIRECTIONAL,
-    };
-    return nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
+	int ret;
+	struct nvme_features feat_cmd = {
+		.opcode = nvme_admin_get_features,
+		.nsid = nsid,
+		.fid = feat_id,
+	};
+	struct nvme_64b_cmd user_cmd = {
+		.sqid = 0,
+		.bit_mask = 0,
+		.cmd_buf_ptr = (u_int8_t *)&feat_cmd,
+		.data_buf_size = 0,
+		.data_buf_ptr = NULL,
+		.data_dir = DMA_BIDIRECTIONAL,
+	};
+
+	ret = nvme_submit_64b_cmd(g_fd, &user_cmd);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
 }
 
 /**
@@ -1160,12 +1203,12 @@ int nvme_create_contig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8_t 
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (SUCCEED != ret_val)
-    {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    if (ret_val < 0) {
+	pr_err("failed to submit command!(%d)\n", ret_val);
         return FAILED;
     }
+
     return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
@@ -1211,12 +1254,12 @@ int nvme_create_discontig_iocq(int g_fd, uint16_t cq_id, uint32_t cq_size, uint8
         .data_buf_ptr = g_discontig_cq_buf,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (SUCCEED != ret_val)
-    {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    if (ret_val < 0) {
+        pr_err("failed to submit command!(%d)\n", ret_val);
         return FAILED;
     }
+
     return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
@@ -1259,12 +1302,12 @@ int nvme_create_contig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t s
         .data_buf_ptr = NULL,
         .data_dir = DMA_BIDIRECTIONAL,
     };
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (SUCCEED != ret_val)
-    {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    if (ret_val < 0) {
+        pr_err("failed to submit command!(%d)\n", ret_val);
         return FAILED;
     }
+
     return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 
@@ -1309,12 +1352,12 @@ int nvme_create_discontig_iosq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_
         .data_buf_ptr = g_discontig_sq_buf,
         .data_dir = DMA_FROM_DEVICE,
     };
-    ret_val = nvme_submit_64b_cmd_legacy(g_fd, &user_cmd);
-    if (SUCCEED != ret_val)
-    {
-        pr_err("\tcq_id %d nvme_submit_64b_cmd_legacy failed %d\n", cq_id, ret_val);
-        return FAILED;
+    ret_val = nvme_submit_64b_cmd(g_fd, &user_cmd);
+    if (ret_val < 0) {
+	pr_err("failed to submit command!(%d)\n", ret_val);
+	return FAILED;
     }
+
     return nvme_admin_ring_dbl_reap_cq(g_fd);
 }
 

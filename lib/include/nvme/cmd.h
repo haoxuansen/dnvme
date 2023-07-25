@@ -69,8 +69,6 @@ static inline void nvme_cmd_fill_create_cq(struct nvme_create_cq *ccq,
 	ccq->irq_vector = cpu_to_le16(irq_no);
 }
 
-int nvme_submit_64b_cmd_legacy(int fd, struct nvme_64b_cmd *cmd);
-
 int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd);
 
 int nvme_cmd_keep_alive(int fd);

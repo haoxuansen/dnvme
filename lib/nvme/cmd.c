@@ -46,27 +46,6 @@ int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd)
 	return (int)cmd->cid;
 }
 
-/* !TODO: delete it later */
-int __deprecated nvme_submit_64b_cmd_legacy(int fd, struct nvme_64b_cmd *cmd)
-{
-	struct nvme_common_command *ccmd;
-	int ret;
-
-	if (!cmd->cmd_buf_ptr) {
-		pr_err("cmd buf pointer is NULL!\n");
-		return -EINVAL;
-	}
-	ccmd = cmd->cmd_buf_ptr;
-
-	ret = ioctl(fd, NVME_IOCTL_SUBMIT_64B_CMD, cmd);
-	if (ret < 0) {
-		pr_err("failed to submit cmd(0x%x) to SQ(%u)!(%d)\n", 
-			ccmd->opcode, cmd->sqid, ret);
-		return ret;
-	}
-	return 0;
-}
-
 /**
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
