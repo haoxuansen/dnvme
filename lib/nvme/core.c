@@ -20,9 +20,73 @@
 #include <errno.h>
 
 #include "byteorder.h"
+#include "build_bug.h"
+#include "nvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 #include "debug.h"
+
+static inline void _nvme_check_size(void)
+{
+	BUILD_BUG_ON(sizeof(struct nvme_common_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_delete_queue) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_create_sq) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_get_log_page_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_create_cq) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_identify) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_abort_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_features) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_download_firmware) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_directive_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_dbbuf) != 64);
+	BUILD_BUG_ON(sizeof(struct nvmf_common_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvmf_property_set_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvmf_connect_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvmf_property_get_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_format_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_rw_command) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_write_zeroes_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_dsm_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_zone_mgmt_send_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_zone_mgmt_recv_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_command) != 64);
+
+	BUILD_BUG_ON(sizeof(struct nvme_completion) != 16);
+
+	/* Relate to nvme_admin_get_log_page command */
+	BUILD_BUG_ON(sizeof(struct nvme_smart_log) != 512);
+	BUILD_BUG_ON(sizeof(struct nvme_fw_slot_info_log) != 512);
+	BUILD_BUG_ON(sizeof(struct nvme_effects_log) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_ana_rsp_hdr) != 16);
+	BUILD_BUG_ON(sizeof(struct nvme_ana_group_desc) != 32);
+	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_hdr) != 1024);
+	BUILD_BUG_ON(sizeof(struct nvmf_disc_rsp_page_entry) != 1024);
+
+	/* Relate to nvme_admin_identify command */
+	BUILD_BUG_ON(sizeof(struct nvme_id_ns) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_id_power_state) != 32);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ns_zns) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_zns_lbafe) != 16);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl_zns) != 4096);
+
+	/* Relate to nvme_admin_set_features command */
+	/* Relate to nvme_admin_get_features command */
+	BUILD_BUG_ON(sizeof(struct nvme_feat_auto_pst) != 256);
+	BUILD_BUG_ON(sizeof(struct nvme_feat_host_behavior) != 512);
+
+	/* Relate to nvme_admin_directive_send command */
+	/* Relate to nvme_admin_directive_recv command */
+	BUILD_BUG_ON(sizeof(struct nvme_dir_identify_params) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_dir_streams_params) != 32);
+
+	/* Relate to nvme_fabrics_type_connect command */
+	BUILD_BUG_ON(sizeof(struct nvmf_connect_data) != 1024);
+
+	/* Relate to nvme_cmd_zone_mgmt_recv command */
+	BUILD_BUG_ON(sizeof(struct nvme_zone_report) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_zone_descriptor) != 64);
+}
 
 /**
  * @return 0 on success, otherwise a negative errno.
@@ -438,6 +502,8 @@ struct nvme_dev_info *nvme_init(const char *devpath)
 {
 	struct nvme_dev_info *ndev;
 	int ret;
+
+	_nvme_check_size();
 
 	ndev = malloc(sizeof(*ndev));
 	if (!ndev) {

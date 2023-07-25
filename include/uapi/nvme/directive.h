@@ -75,6 +75,9 @@ struct nvme_directive_cmd {
 
 /* ==================== NVME_DIR_RCV_ID_OP_PARAM ==================== */
 
+/**
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 419"
+ */
 struct nvme_dir_identify_params {
 	__u8	dir_sup[32];
 	__u8	dir_en[32];
@@ -84,6 +87,9 @@ struct nvme_dir_identify_params {
 
 /* ==================== NVME_DIR_RCV_ST_OP_PARAM ==================== */
 
+/**
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 425"
+ */
 struct nvme_dir_streams_params {
 	__le16	msl;
 	__le16	nssa;

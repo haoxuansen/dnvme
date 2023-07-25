@@ -149,69 +149,6 @@ struct nvme_reservation_status {
 	} regctl_ds[];
 };
 
-/*
- * Descriptor subtype - lower 4 bits of nvme_(keyed_)sgl_desc identifier
- *
- * @NVME_SGL_FMT_ADDRESS:     absolute address of the data block
- * @NVME_SGL_FMT_OFFSET:      relative offset of the in-capsule data block
- * @NVME_SGL_FMT_TRANSPORT_A: transport defined format, value 0xA
- * @NVME_SGL_FMT_INVALIDATE:  RDMA transport specific remote invalidation
- *                            request subtype
- */
-enum {
-	NVME_SGL_FMT_ADDRESS		= 0x00,
-	NVME_SGL_FMT_OFFSET		= 0x01,
-	NVME_SGL_FMT_TRANSPORT_A	= 0x0A,
-	NVME_SGL_FMT_INVALIDATE		= 0x0f,
-};
-
-/*
- * Descriptor type - upper 4 bits of nvme_(keyed_)sgl_desc identifier
- *
- * For struct nvme_sgl_desc:
- *   @NVME_SGL_TYPE_DATA_DESC:		data block descriptor
- *   @NVME_SGL_TYPE_SEG_DESC:		sgl segment descriptor
- *   @NVME_SGL_TYPE_LAST_SEG_DESC:	last sgl segment descriptor
- *
- * For struct nvme_keyed_sgl_desc:
- *   @NVME_SGL_TYPE_KEY_DATA_DESC:	keyed data block descriptor
- *
- * Transport-specific SGL types:
- *   @NVME_SGL_TYPE_TRANSPORT_DATA_DESC:	Transport SGL data dlock descriptor
- */
-enum {
-	NVME_SGL_TYPE_DATA_DESC			= 0x0,
-	NVME_SGL_TYPE_BIT_BUCKET_DESC		= 0x1,
-	NVME_SGL_TYPE_SEG_DESC			= 0x2,
-	NVME_SGL_TYPE_LAST_SEG_DESC		= 0x3,
-	NVME_SGL_TYPE_KEY_DATA_DESC		= 0x4,
-	NVME_SGL_TYPE_TRANSPORT_DATA_DESC	= 0x5,
-	NVME_SGL_TYPE_VENDOR_DESC		= 0xf,
-};
-
-struct nvme_sgl_desc {
-	__le64	addr;
-	__le32	length;
-	__u8	rsvd[3];
-	__u8	type;
-};
-
-struct nvme_keyed_sgl_desc {
-	__le64	addr;
-	__u8	length[3];
-	__u8	key[4];
-	__u8	type;
-};
-
-union nvme_data_ptr {
-	struct {
-		__le64	prp1;
-		__le64	prp2;
-	};
-	struct nvme_sgl_desc	sgl;
-	struct nvme_keyed_sgl_desc ksgl;
-};
-
 #include "nvme/command.h"
 
 /* Features */
