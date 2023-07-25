@@ -67,10 +67,6 @@ struct fwdma_parameter
 
 int ioctl_delete_ioq(int g_fd, uint8_t opcode, uint16_t qid);
 
-int ioctl_send_nvme_write(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
-                          enum fua_sts fua_sts, void *addr, uint32_t buf_size);
-int ioctl_send_nvme_read(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
-                         enum fua_sts fua_sts, void *addr, uint32_t buf_size);
 int ioctl_send_nvme_compare(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
                             enum fua_sts fua_sts, void *addr, uint32_t buf_size);
 
