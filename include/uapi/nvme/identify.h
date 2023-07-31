@@ -161,6 +161,9 @@ enum {
 
 /**
  * @brief LBA Format Data Structure
+ *
+ * @ms: Metadata Size, indicates the number of metadata bytes provided 
+ * 	per LBA based on the LBA Data Size indicated.
  * 
  * @note Refer to "NVM Express NVM Command Set Specification R1.0b - Figure 276"
  */
@@ -202,7 +205,10 @@ struct nvme_id_ns {
 	__le16			npdg;
 	__le16			npda;
 	__le16			nows;
-	__u8			rsvd74[18];
+	__le16			mssrl;
+	__le32			mcl;
+	__u8			msrc; /* 0'based */
+	__u8			rsvd81[11];
 	__le32			anagrpid;
 	__u8			rsvd96[3];
 	__u8			nsattr;
@@ -275,6 +281,8 @@ enum {
 	NVME_CTRL_ONCS_WRITE_ZEROES		= 1 << 3,
 	NVME_CTRL_ONCS_RESERVATIONS		= 1 << 5,
 	NVME_CTRL_ONCS_TIMESTAMP		= 1 << 6,
+	NVME_CTRL_ONCS_VERIFY			= 1 << 7,
+	NVME_CTRL_ONCS_COPY			= 1 << 8,
 };
 
 /**

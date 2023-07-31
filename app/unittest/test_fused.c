@@ -21,7 +21,7 @@
 #include "test.h"
 
 
-static int is_support_fused(uint16_t fuses)
+static bool is_support_fused(uint16_t fuses)
 {
 	return (fuses & NVME_CTRL_FUSES_COMPARE_WRITE) ? true : false;
 }
@@ -556,8 +556,7 @@ int case_fused_operation(struct nvme_tool *tool)
 	struct nvme_cq_info *cq;
 	int ret;
 
-	ret = is_support_fused(le16_to_cpu(id_ctrl->fuses));
-	if (!ret) {
+	if (!is_support_fused(le16_to_cpu(id_ctrl->fuses))) {
 		pr_warn("controller not support fused operation!\n");
 		return -EOPNOTSUPP;
 	}

@@ -47,6 +47,7 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_rw_command) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_write_zeroes_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_dsm_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_copy_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_zone_mgmt_send_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_zone_mgmt_recv_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_command) != 64);
@@ -82,6 +83,10 @@ static inline void _nvme_check_size(void)
 
 	/* Relate to nvme_fabrics_type_connect command */
 	BUILD_BUG_ON(sizeof(struct nvmf_connect_data) != 1024);
+
+	/* Relate to nvme_cmd_copy command */
+	BUILD_BUG_ON(sizeof(struct nvme_copy_desc_fmt0) != 32);
+	BUILD_BUG_ON(sizeof(struct nvme_copy_desc_fmt1) != 40);
 
 	/* Relate to nvme_cmd_zone_mgmt_recv command */
 	BUILD_BUG_ON(sizeof(struct nvme_zone_report) != 64);
@@ -225,7 +230,7 @@ static int request_io_queue_num(struct nvme_dev_info *ndev, uint16_t *nr_sq,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 

@@ -169,7 +169,7 @@ int nvme_create_iosq(struct nvme_dev_info *ndev, struct nvme_csq_wrapper *wrap)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 
@@ -198,7 +198,7 @@ int nvme_delete_iosq(struct nvme_dev_info *ndev, uint16_t sqid)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -289,7 +289,7 @@ int nvme_create_iocq(struct nvme_dev_info *ndev, struct nvme_ccq_wrapper *wrap)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 
@@ -318,7 +318,7 @@ int nvme_delete_iocq(struct nvme_dev_info *ndev, uint16_t cqid)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	

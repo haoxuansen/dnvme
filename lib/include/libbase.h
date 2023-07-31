@@ -13,5 +13,6 @@
 #define _UAPI_LIBBASE_H_
 
 #include "base/log.h"
+#include "base/minmax.h"
 
 #endif /* !_UAPI_LIBBASE_H_ */

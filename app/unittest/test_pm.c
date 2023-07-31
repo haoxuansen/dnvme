@@ -44,7 +44,7 @@ static int get_power_state(struct nvme_dev_info *ndev, uint8_t *ps)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 
@@ -75,7 +75,7 @@ static int set_power_state(struct nvme_dev_info *ndev, uint8_t ps)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 

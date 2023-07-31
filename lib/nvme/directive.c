@@ -205,7 +205,7 @@ int nvme_dir_rcv_id_param(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -240,7 +240,7 @@ int nvme_dir_snd_id_enable(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -275,7 +275,7 @@ int nvme_dir_rcv_st_param(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -310,7 +310,7 @@ int nvme_dir_rcv_st_status(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -349,7 +349,7 @@ int nvme_dir_rcv_st_resource(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -384,7 +384,7 @@ int nvme_dir_snd_st_rel_id(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -419,7 +419,7 @@ int nvme_dir_snd_st_rel_rsc(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	

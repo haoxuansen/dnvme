@@ -339,6 +339,8 @@ static struct nvme_case g_case_table[] = {
 		"Send IO write cmd with FUA to IOSQ"),
 	INIT_CASE(CASE_CMD + 4, case_cmd_io_read_with_fua, 
 		"Send IO read cmd with FUA to IOSQ"),
+	INIT_CASE(CASE_CMD + 5, case_cmd_io_copy,
+		"Send IO copy cmd in various scenarios"),
 
 	INIT_CASE(CASE_QUEUE, case_queue_iocmd_to_asq, 
 		"Submit IO command to Admin SQ"),

@@ -81,6 +81,7 @@ enum nvme_io_opcode {
 	nvme_cmd_resv_report	= 0x0e,
 	nvme_cmd_resv_acquire	= 0x11,
 	nvme_cmd_resv_release	= 0x15,
+	nvme_cmd_copy		= 0x19,
 	nvme_cmd_zone_mgmt_send	= 0x79,
 	nvme_cmd_zone_mgmt_recv	= 0x7a,
 	nvme_cmd_zone_append	= 0x7d,
@@ -516,6 +517,65 @@ struct nvme_dsm_range {
 };
 
 
+/* ==================== nvme_cmd_copy(0x19) ==================== */
+
+/**
+ * @brief Descriptor Format
+ * 
+ * @note See "struct nvme_copy_cmd -> desc_fmt" for details.
+ */
+enum {
+	NVME_COPY_DESC_FMT_32B	= 0,
+	NVME_COPY_DESC_FMT_40B	= 1,
+};
+
+struct nvme_copy_desc_fmt0 {
+	__le64			rsvd0;
+	__le64			slba;
+	__le16			length;
+	__le16			rsvd4;
+	__le32			rsvd5;
+	__u8			tag[4];
+	__le16			elbat;
+	__le16			elbatm;
+};
+
+struct nvme_copy_desc_fmt1 {
+	__le64			rsvd0;
+	__le64			slba;
+	__le16			length;
+	__le16			rsvd4;
+	__le32			rsvd5;
+	__le16			rsvd6;
+	__u8			tag[10];
+	__le16			elbat;
+	__le16			elbatm;
+};
+
+/**
+ * @brief Copy Command
+ */
+struct nvme_copy_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__le32			cdw2[2];
+	__le64			metadata;
+	union nvme_data_ptr	dptr;
+	__le64			slba;
+	__u8			ranges; /* 0'based */
+	__u8			desc_fmt;
+	__u8			dtype;
+	__u8			control;
+	__u8			rsvd13[2];
+	__le16			dspec;
+	__le32			cdw14;
+	__le16			lbat;
+	__le16			lbatm;
+};
+
+
 /* ==================== nvme_cmd_zone_mgmt_send(0x79) ==================== */
 
 /**
@@ -784,9 +844,9 @@ enum {
 	 * I/O Command Set Specific - NVM commands:
 	 */
 	NVME_SC_BAD_ATTRIBUTES		= 0x180,
-	NVME_SC_INVALID_PI		= 0x181,
-	NVME_SC_READ_ONLY		= 0x182,
-	NVME_SC_ONCS_NOT_SUPPORTED	= 0x183,
+	NVME_SC_INVALID_PI		= 0x181, /* Invalid Protection Information */
+	NVME_SC_READ_ONLY		= 0x182, /* Attempted Write to Read Only Range */
+	NVME_SC_SIZE_EXCEEDED		= 0x183,
 
 	/*
 	 * I/O Command Set Specific - Fabrics commands:

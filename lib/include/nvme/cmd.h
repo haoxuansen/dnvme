@@ -42,6 +42,20 @@ struct nvme_rwc_wrapper {
 	uint32_t	meta_id;
 };
 
+struct nvme_copy_wrapper {
+	uint16_t	sqid;
+	uint16_t	cqid;
+
+	uint8_t		flags;
+	uint32_t	nsid;
+	uint64_t	slba;
+	uint8_t		ranges; /* 0'based */
+	uint8_t		desc_fmt;
+
+	void		*desc;
+	uint32_t	size;
+};
+
 static inline void nvme_cmd_fill_create_sq(struct nvme_create_sq *csq, 
 	uint16_t sqid, uint16_t cqid, uint32_t elements, uint8_t contig,
 	uint16_t prio)
@@ -190,5 +204,8 @@ static inline int nvme_io_compare(struct nvme_dev_info *ndev,
 {
 	return nvme_io_rw_common(ndev, wrap, nvme_cmd_compare);
 }
+
+int nvme_cmd_io_copy(int fd, struct nvme_copy_wrapper *wrap);
+int nvme_io_copy(struct nvme_dev_info *ndev, struct nvme_copy_wrapper *wrap);
 
 #endif /* !_UAPI_LIB_NVME_CMD_H_ */

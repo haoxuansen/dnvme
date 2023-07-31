@@ -89,6 +89,8 @@ int case_cmd_io_compare(struct nvme_tool *tool);
 int case_cmd_io_read_with_fua(struct nvme_tool *tool);
 int case_cmd_io_write_with_fua(struct nvme_tool *tool);
 
+int case_cmd_io_copy(struct nvme_tool *tool);
+
 
 /* ==================== Related to "test_fused.c" ==================== */
 

@@ -225,7 +225,7 @@ int nvme_format_nvm(struct nvme_dev_info *ndev, uint32_t nsid, uint8_t flags,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 
@@ -298,7 +298,7 @@ int nvme_identify_ctrl_list(struct nvme_dev_info *ndev, void *buf,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -351,7 +351,7 @@ int nvme_identify_ns_attached_ctrl_list(struct nvme_dev_info *ndev, void *buf,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -402,7 +402,7 @@ int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -454,7 +454,7 @@ int nvme_identify_ns_list_active(struct nvme_dev_info *ndev, void *buf,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -506,7 +506,7 @@ int nvme_identify_ns_list_allocated(struct nvme_dev_info *ndev, void *buf,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -555,7 +555,7 @@ int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl)
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -610,7 +610,7 @@ int nvme_identify_ns_active(struct nvme_dev_info *ndev, struct nvme_id_ns *ns,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -665,7 +665,7 @@ int nvme_identify_ns_allocated(struct nvme_dev_info *ndev,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	
@@ -720,7 +720,58 @@ int nvme_io_rw_common(struct nvme_dev_info *ndev, struct nvme_rwc_wrapper *wrap,
 		return ret < 0 ? ret : -ETIME;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+int nvme_cmd_io_copy(int fd, struct nvme_copy_wrapper *wrap)
+{
+	struct nvme_copy_cmd copy = {0};
+	struct nvme_64b_cmd cmd = {0};
+
+	copy.opcode = nvme_cmd_copy;
+	copy.flags = wrap->flags;
+	copy.nsid = cpu_to_le32(wrap->nsid);
+	copy.slba = cpu_to_le64(wrap->slba);
+	copy.ranges = wrap->ranges;
+	copy.desc_fmt = wrap->desc_fmt;
+
+	cmd.sqid = wrap->sqid;
+	cmd.cmd_buf_ptr = &copy;
+	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+		NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST;
+	cmd.data_buf_ptr = wrap->desc;
+	cmd.data_buf_size = wrap->size;
+	cmd.data_dir = DMA_BIDIRECTIONAL;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_io_copy(struct nvme_dev_info *ndev, struct nvme_copy_wrapper *wrap)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_io_copy(ndev->fd, wrap);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, wrap->sqid);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
 	

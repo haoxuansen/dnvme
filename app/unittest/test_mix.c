@@ -307,7 +307,7 @@ int case_disable_bus_master(struct nvme_tool *tool)
 		goto out;
 	}
 
-	ret = nvme_valid_cq_entry(&entry, sq->sqid, cid, 0);
+	ret = nvme_valid_cq_entry(&entry, sq->sqid, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		goto out;
 
