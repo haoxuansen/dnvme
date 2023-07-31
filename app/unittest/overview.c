@@ -359,11 +359,11 @@ static struct nvme_case g_case_table[] = {
 	/* Test meta data */
 	INIT_CASE(CASE_META, case_meta_node_contiguous,
 		"Create a contiguous meta node and delete it later"),
-	INIT_CASE(CASE_META + 1, case_meta_xfer_sgl,
+	INIT_CASE(CASE_META + 1, case_meta_xfer_separate_sgl,
 		"Meta data transferred as SGL"),
-	INIT_CASE(CASE_META + 2, case_meta_xfer_separate, 
-		"Meta data transferred as separate buffer"),
-	INIT_CASE(CASE_META + 3, case_meta_xfer_extlba,
+	INIT_CASE(CASE_META + 2, case_meta_xfer_separate_prp, 
+		"Meta data transferred as PRP"),
+	INIT_CASE(CASE_META + 3, case_meta_xfer_contig_lba,
 		"Meta data transferred contiguous with LBA data"),
 	
 	INIT_CASE(CASE_MIX, case_disable_bus_master,

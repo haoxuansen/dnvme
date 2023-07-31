@@ -101,9 +101,9 @@ int case_fused_operation(struct nvme_tool *tool);
 
 int case_meta_node_contiguous(struct nvme_tool *tool);
 
-int case_meta_xfer_sgl(struct nvme_tool *tool);
-int case_meta_xfer_separate(struct nvme_tool *tool);
-int case_meta_xfer_extlba(struct nvme_tool *tool);
+int case_meta_xfer_separate_sgl(struct nvme_tool *tool);
+int case_meta_xfer_separate_prp(struct nvme_tool *tool);
+int case_meta_xfer_contig_lba(struct nvme_tool *tool);
 
 
 /* ==================== Related to "test_mix.c" ==================== */

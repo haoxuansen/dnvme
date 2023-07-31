@@ -326,7 +326,12 @@ static int delete_meta_nodes(int fd, void *rnode, void *wnode,
 	return ret;
 }
 
-int case_meta_xfer_sgl(struct nvme_tool *tool)
+/**
+ * @brief Meta data is transferred as separate buffer, eg: SGL
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int case_meta_xfer_separate_sgl(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -399,7 +404,12 @@ out_del_meta:
 	return ret;
 }
 
-int case_meta_xfer_separate(struct nvme_tool *tool)
+/**
+ * @brief Meta data is transferred as separate buffer, eg: PRP
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int case_meta_xfer_separate_prp(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -471,16 +481,24 @@ out_del_meta:
 	return ret;
 }
 
-int case_meta_xfer_extlba(struct nvme_tool *tool)
+/**
+ * @brief Meta data is transferred contiguous with LBA Data
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int case_meta_xfer_contig_lba(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct meta_config cfg = {0};
+	uint32_t nlb = 8;
 	uint32_t size;
 	int ret;
 
-	cfg.ms = 8;
+	pr_notice("Please enter the meta size: ");
+	scanf("%hu", &cfg.ms);
+
 	cfg.lbads = 512;
 	cfg.meta_ext = 1;
 
@@ -498,18 +516,18 @@ int case_meta_xfer_extlba(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, 0, 8, 0, 0);
+	ret = send_io_write_cmd(tool, sq, 0, nlb, 0, 0);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
 
-	ret = send_io_read_cmd(tool, sq, 0, 8, 0, 0);
+	ret = send_io_read_cmd(tool, sq, 0, nlb, 0, 0);
 	if (ret < 0) {
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
-	size = (ndev->nss[0].lbads + ndev->nss[0].ms) * 8;
+	size = (ndev->nss[0].lbads + ndev->nss[0].ms) * nlb;
 
 	ret = memcmp(tool->rbuf, tool->wbuf, size);
 	if (ret) {
