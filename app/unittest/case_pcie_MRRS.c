@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
+#include <errno.h>
 
 #include "dnvme.h"
 #include "libnvme.h"
@@ -269,13 +270,6 @@ int case_pcie_MRRS(struct nvme_tool *tool)
         }
     }
 
-    if (test_flag != SUCCEED)
-    {
-        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
-    }
-    else
-    {
-        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
-    }
+    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
     return test_flag;
 }

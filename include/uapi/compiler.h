@@ -14,38 +14,23 @@
 
 #define __force
 
-#ifndef likely
+
 #define likely(x)			__builtin_expect(!!(x), 1)
-#endif
-
-#ifndef unlikely
 #define unlikely(x)			__builtin_expect(!!(x), 0)
-#endif
 
-#ifndef __init
 #define __init				__attribute__((constructor))
-#endif
-#ifndef __exit
 #define __exit				__attribute__((destructor))
-#endif
 
-#ifndef __deprecated
 #define __deprecated			__attribute__((deprecated))
-#endif
 
-#ifndef __unused
-#define __unused			__attribute__((unused))
-#endif
+#define __used				__attribute__((__used__))
+#define __unused			__attribute__((__unused__))
 
-#ifndef __weak
-#define __weak				__attribute__((weak))
-#endif
-
-#ifndef __nonnull
-#define __nonnull(x)			__attribute__((nonnull(x)))
-#endif
+#define __weak				__attribute__((__weak__))
 
 #define __optimize(x)			__attribute__((optimize(x)))
+
+#define __section(section)              __attribute__((__section__(section)))
 
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
 #define ___PASTE(a,b) a##b

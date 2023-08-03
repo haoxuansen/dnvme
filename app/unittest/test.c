@@ -13,8 +13,29 @@
 #include <errno.h>
 
 #include "libbase.h"
-
 #include "test.h"
+
+#define TEST_PASS "\n" \
+	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"pp       pp     aa       aa     ss              ss          \n" \
+	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa              ss              ss \n" \
+	"pp              aa       aa     sssssssssss     sssssssssss \n"
+
+#define TEST_FAIL "\n" \
+	"fffffffffff     aaaaaaaaaaa     iiiiiiiiiii     ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"fffffffffff     aaaaaaaaaaa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa         iii         ll          \n" \
+	"ff              aa       aa     iiiiiiiiiii     lllllllllll \n"
 
 #define TEST_REPORT_ARRAY_SIZE		64
 
@@ -71,4 +92,13 @@ void nvme_display_subcase_result(void)
 	pr_info("Total: %u, Pass: %u, Fail: %u, Skip: %u\n", report->idx,
 		pass, fail, skip);
 	report->idx = 0; /* clean for next using */
+}
+
+void nvme_display_test_result(int result, const char *desc)
+{
+	if (result < 0) {
+		pr_err("%s: \n %s", desc, TEST_FAIL);
+	} else {
+		pr_info("%s: \n %s", desc, TEST_PASS);
+	}
 }

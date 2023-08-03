@@ -14,6 +14,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "dnvme.h"
 #include "libnvme.h"
@@ -60,10 +61,7 @@ int test_4_peak_power(struct nvme_tool *tool)
         }
     }
 
-    if (test_flag != SUCCEED)
-        pr_info("%s test result: \n%s", __FUNCTION__, TEST_FAIL);
-    else
-        pr_info("%s test result: \n%s", __FUNCTION__, TEST_PASS);
+    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
     return test_flag;
 }
 

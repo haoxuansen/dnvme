@@ -17,28 +17,6 @@
 #include "sizes.h"
 #include "libnvme.h"
 
-#define TEST_PASS "\n" \
-	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
-	"pp       pp     aa       aa     ss              ss          \n" \
-	"pp       pp     aa       aa     ss              ss          \n" \
-	"pp       pp     aa       aa     ss              ss          \n" \
-	"ppppppppppp     aaaaaaaaaaa     sssssssssss     sssssssssss \n" \
-	"pp              aa       aa              ss              ss \n" \
-	"pp              aa       aa              ss              ss \n" \
-	"pp              aa       aa              ss              ss \n" \
-	"pp              aa       aa     sssssssssss     sssssssssss \n"
-
-#define TEST_FAIL "\n" \
-	"fffffffffff     aaaaaaaaaaa     iiiiiiiiiii     ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"fffffffffff     aaaaaaaaaaa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa         iii         ll          \n" \
-	"ff              aa       aa     iiiiiiiiiii     lllllllllll \n"
-
 #define NVME_TOOL_CQ_ENTRY_SIZE		SZ_1M /* CQES(16) * elements(64K) */
 #define NVME_TOOL_SQ_BUF_SIZE		SZ_4M /* SQES(64) * elements(64K) */
 #define NVME_TOOL_CQ_BUF_SIZE		SZ_1M /* CQES(16) * elements(64K) */
@@ -78,7 +56,7 @@ extern struct nvme_tool *g_nvme_tool;
 
 void nvme_record_subcase_result(const char *name, int result);
 void nvme_display_subcase_result(void);
-
+void nvme_display_test_result(int result, const char *desc);
 
 /* ==================== Related to "test_cmd.c" ==================== */
 

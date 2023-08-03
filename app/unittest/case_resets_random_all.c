@@ -257,12 +257,7 @@ int case_resets_random_all(struct nvme_tool *tool)
 			return ret;
 	} while (--loop > 0);
 
-	if (ret < 0) {
-		pr_err("%s\n", TEST_FAIL);
-		return ret;
-	}
-
-	pr_info("%s\n", TEST_PASS);
-	return 0;
+	nvme_display_test_result(ret, __func__);
+	return ret;
 }
 
