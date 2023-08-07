@@ -130,7 +130,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 }
 
-int case_pcie_MPS(struct nvme_tool *tool)
+static int case_pcie_MPS(struct nvme_tool *tool)
 {
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
@@ -198,6 +198,6 @@ int case_pcie_MPS(struct nvme_tool *tool)
         }
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_pcie_MPS, "?");

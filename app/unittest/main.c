@@ -23,7 +23,6 @@
 #include "dnvme.h"
 #include "libnvme.h"
 
-#include "overview.h"
 #include "common.h"
 #include "test.h"
 #include "unittest.h"
@@ -113,7 +112,7 @@ out:
 	return -ENOMEM;
 }
 
-void release_buffer(struct nvme_tool *tool)
+static void release_buffer(struct nvme_tool *tool)
 {
 	free(tool->meta_rbuf);
 	tool->meta_rbuf = NULL;
@@ -130,6 +129,131 @@ void release_buffer(struct nvme_tool *tool)
 	free(tool->entry);
 	tool->entry = NULL;
 }
+
+static int case_display_case_list(struct nvme_tool *tool)
+{
+	struct nvme_case *start = __start_nvme_case;
+	struct nvme_case *end = __stop_nvme_case;
+	struct nvme_case *entry;
+	unsigned int idx;
+
+	pr_color(LOG_B_CYAN, "==================== "
+		"NVMe Unit Test Case List ====================\n");
+
+	for (entry = start, idx = 0; entry < end; entry++, idx++) {
+		pr_color(LOG_N_CYAN, "Case %3u: %s", idx, entry->name);
+		pr_color(LOG_N, "\t%s\n", entry->desc);
+	}
+
+	return 0;
+}
+NVME_CASE_HEAD_SYMBOL(case_display_case_list, "Display all supported cases");
+
+static int case_collection(struct nvme_tool *tool)
+{
+	unsigned long *start = __start_nvme_autocase;
+	unsigned long *end = __stop_nvme_autocase;
+	struct nvme_case *cur;
+	unsigned int total;
+	unsigned int *array;
+	unsigned int loop = 1;
+	unsigned int i, j, k;
+	int ret;
+
+	BUG_ON(start > end);
+
+	if (start == end) {
+		pr_warn("autocase list is empty!\n");
+		return -EOPNOTSUPP;
+	}
+
+	total = ((unsigned long)end - (unsigned long)start) / 
+		sizeof(unsigned long);
+
+	array = calloc(1, sizeof(unsigned int) * total);
+	if (!array) {
+		pr_err("failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < total; i++)
+		array[i] = i;
+
+	fflush(stdout);
+	pr_notice("Please enter the number of loop to run: ");
+	scanf("%u", &loop);
+
+	for (k = 1; k <= loop; k++) {
+		pr_notice("Start execute autocase list %utimes...\n", k);
+
+		for (i = 0; i < total; i++) {
+			cur = (struct nvme_case *)start[array[i]];
+			ret = cur->func(tool);
+			nvme_record_case_result(cur->name, ret);
+		}
+		ret = nvme_display_case_report();
+
+		/* Shuffle the order of test cases */
+		for (i = 0; i < (total - 1); i++) {
+			j = i + rand() % (total - i);
+			swap(array[i], array[j]);
+		}
+	}
+
+	free(array);
+	return ret;
+}
+NVME_CASE_HEAD_SYMBOL(case_collection, "Execute cases in aotocase list");
+
+static int select_case_to_execute(struct nvme_tool *tool)
+{
+	struct nvme_case *start = __start_nvme_case;
+	struct nvme_case *end = __stop_nvme_case;
+	unsigned int total;
+	unsigned int select;
+	int ret;
+
+	BUG_ON(start >= end);
+
+	total = ((unsigned long)end - (unsigned long)start) / 
+		sizeof(struct nvme_case);
+	while (1) {
+		fflush(stdout);
+		pr_notice("Please enter the case ID that is ready to run: ");
+		scanf("%u", &select);
+
+		if (select >= total) {
+			pr_warn("The selected case number(%u) is out of range(%u)!"
+				"Now will exit...\n", select, total - 1);
+			break;
+		}
+
+		if (!start[select].func) {
+			pr_warn("Case %d is empty! please try again\n", select);
+			continue;
+		}
+
+		ret = start[select].func(tool);
+		nvme_display_test_result(ret, start[select].name);
+	} 
+
+	return 0;
+}
+
+
+#if IS_ENABLED(CONFIG_DEBUG_NO_DEVICE)
+int main(int argc, char *argv[])
+{
+	struct nvme_tool *tool = g_nvme_tool;
+
+	case_display_case_list(tool);
+	select_case_to_execute(tool);
+
+	pr_notice("********** END OF TEST **********\n\n");
+	return 0;
+}
+
+#else
 
 /**
  * @brief NVMe unit test entry
@@ -163,7 +287,7 @@ int main(int argc, char *argv[])
 		goto out;
 
 	case_display_case_list(tool);
-	nvme_select_case_to_execute(tool);
+	select_case_to_execute(tool);
 
 	nvme_disable_controller_complete(ndev->fd);
 	nvme_deinit(ndev);
@@ -175,4 +299,5 @@ out:
 	nvme_deinit(ndev);
 	return ret;
 }
+#endif /* !IS_ENABLED(CONFIG_DEBUG_NO_DEVICE) */
 

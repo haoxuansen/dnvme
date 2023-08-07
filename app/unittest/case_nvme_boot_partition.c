@@ -35,7 +35,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(rd_wr_boot_part_ccen_1, "ccen=1: Reading/Writing to a Boot Partition"),
 };
 
-int case_nvme_boot_partition(struct nvme_tool *tool)
+static int case_nvme_boot_partition(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
@@ -56,6 +56,8 @@ int case_nvme_boot_partition(struct nvme_tool *tool)
 
     return test_flag;
 }
+NVME_CASE_SYMBOL(case_nvme_boot_partition, "?");
+NVME_AUTOCASE_SYMBOL(case_nvme_boot_partition);
 
 static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
 {
@@ -197,7 +199,7 @@ int writeing_boot_partition(void)
     }
 
     memset((void *)boot_buffer, BYTE_RAND(), 128 * 1024);
-    pr_color(LOG_COLOR_GREEN, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
+    pr_color(LOG_N_GREEN, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
 
     if (SUCCEED == nvme_firmware_download(ndev->fd, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
     {

@@ -276,7 +276,7 @@ static void test_sub(void)
 
     struct arbitration_parameter arb_parameter = {0};
 
-    pr_color(LOG_COLOR_PURPLE, "this case will tests command_arbitration\n");
+    pr_color(LOG_N_PURPLE, "this case will tests command_arbitration\n");
     /*******************************************************************************************************************************/
     /**********************************************************************/
     pr_info("create SQ1 prio = LOW_PRIO\n");
@@ -524,7 +524,7 @@ static void test_sub(void)
      * ***************************************************/
 }
 
-int case_command_arbitration(struct nvme_tool *tool)
+static int case_command_arbitration(struct nvme_tool *tool)
 {
     struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
@@ -615,6 +615,8 @@ int case_command_arbitration(struct nvme_tool *tool)
         test_sub();
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_command_arbitration, "?");
+NVME_AUTOCASE_SYMBOL(case_command_arbitration);
+

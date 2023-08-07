@@ -548,7 +548,7 @@ out:
 	return ret;
 }
 
-int case_fused_operation(struct nvme_tool *tool)
+static int case_fused_operation(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_id_ctrl *id_ctrl = &ndev->id_ctrl;
@@ -576,8 +576,9 @@ int case_fused_operation(struct nvme_tool *tool)
 	ret |= subcase_compare_write_invalid(tool, sq);
 	ret |= subcase_compare_write_discontig(tool, sq);
 
-	nvme_display_subcase_result();
+	nvme_display_subcase_report();
 
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
+NVME_CASE_SYMBOL(case_fused_operation, "Fused operation in various situations");

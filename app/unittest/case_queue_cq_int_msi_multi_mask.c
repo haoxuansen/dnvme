@@ -101,7 +101,7 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
     uint32_t check_status = 0;
     uint32_t check_admin_status = 0;
 
-    pr_color(LOG_COLOR_PURPLE, ".1 use all cq, random irq_no\n");
+    pr_color(LOG_N_PURPLE, ".1 use all cq, random irq_no\n");
     if ((msi_mask_flag & 0x1) == 0x1)
     {
         check_admin_status = 1;
@@ -244,7 +244,7 @@ static void int_msi_multi_mask(void)
     uint32_t index_max = 9;
     uint32_t error_status = 0;
     uint32_t msi_mask_flag = 0;
-    pr_info("case_queue_cq_int_msi_multi_mask case start\n");
+    pr_info("case start\n");
     for (q_index = 0; q_index < index_max; q_index++)
     {
         test_flag = 0;
@@ -261,14 +261,14 @@ static void int_msi_multi_mask(void)
     if (error_status != 0)
     {
         test_flag = FAILED;
-        pr_err("case_queue_cq_int_msi_multi_mask case result is -1!!!!!\n");
+        pr_err("case result is -1!!!!!\n");
     }
     else
     {
         test_flag = SUCCEED;
-        pr_info("case_queue_cq_int_msi_multi_mask case result is 1!!!!!\n");
+        pr_info("case result is 1!!!!!\n");
     }
-    pr_info("case_queue_cq_int_msi_multi_mask case end!!!\n");
+    pr_info("case end!!!\n");
 }
 
 static void test_sub(void)
@@ -277,7 +277,7 @@ static void test_sub(void)
     int_msi_multi_mask();
 }
 
-int case_queue_cq_int_msi_multi_mask(struct nvme_tool *tool)
+static int case_queue_cq_int_msi_multi_mask(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 
@@ -288,6 +288,6 @@ int case_queue_cq_int_msi_multi_mask(struct nvme_tool *tool)
     
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_queue_cq_int_msi_multi_mask, "?");

@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include "sizes.h"
+#include "compiler.h"
 #include "libnvme.h"
 
 #define NVME_TOOL_CQ_ENTRY_SIZE		SZ_1M /* CQES(16) * elements(64K) */
@@ -22,6 +23,40 @@
 #define NVME_TOOL_CQ_BUF_SIZE		SZ_1M /* CQES(16) * elements(64K) */
 #define NVME_TOOL_RW_BUF_SIZE		SZ_2M
 #define NVME_TOOL_RW_META_SIZE		SZ_1M
+
+#define NVME_SEC_CASE(group)		__section(".nvme.case."#group)
+#define NVME_SEC_AUTOCASE(group)	__section(".nvme.autocase."#group)
+
+#define __NVME_CASE_SYMBOL(_fname, _desc, _group)	\
+static struct nvme_case __used				\
+	NVME_SEC_CASE(_group)				\
+	_nvme_case_##_fname = {				\
+		.name	= #_fname,			\
+		.desc	= _desc,			\
+		.func	= _fname			\
+	}
+
+/* Group: case will placed at the head of the list  */
+#define NVME_CASE_HEAD_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 0)
+/* Group: default */
+#define NVME_CASE_SYMBOL(fname, desc)		__NVME_CASE_SYMBOL(fname, desc, 1)
+/* Group: command */
+#define NVME_CASE_CMD_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 2)
+/* Group: queue */
+#define NVME_CASE_QUEUE_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 3)
+/* Group: power managment */
+#define NVME_CASE_PM_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 4)
+/* Group: meta data */
+#define NVME_CASE_META_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 5)
+
+#define __NVME_AUTOCASE_SYMBOL(_fname, _group)		\
+static unsigned long __used				\
+	NVME_SEC_AUTOCASE(_group)			\
+	_nvme_autocase_##_fname	= (unsigned long)&_nvme_case_##_fname
+
+/* Group: default */
+#define NVME_AUTOCASE_SYMBOL(fname)		__NVME_AUTOCASE_SYMBOL(fname, 1)
+
 
 struct nvme_usr_param {
 	const char	*devpath;
@@ -52,57 +87,28 @@ struct nvme_tool {
 	uint32_t	meta_wbuf_size;
 };
 
+typedef int (*case_func_t)(struct nvme_tool *tool);
+
+struct nvme_case {
+	const char	*name;
+	const char	*desc;
+	case_func_t	func;
+	void		*data; /* Rsvd, for section align */
+};
+
 extern struct nvme_tool *g_nvme_tool;
+extern struct nvme_case __start_nvme_case[];
+extern struct nvme_case __stop_nvme_case[];
+extern unsigned long __start_nvme_autocase[];
+extern unsigned long __stop_nvme_autocase[];
 
+void nvme_record_case_result(const char *name, int result);
 void nvme_record_subcase_result(const char *name, int result);
-void nvme_display_subcase_result(void);
+
+int nvme_display_case_report(void);
+int nvme_display_subcase_report(void);
+
 void nvme_display_test_result(int result, const char *desc);
-
-/* ==================== Related to "test_cmd.c" ==================== */
-
-int case_cmd_io_read(struct nvme_tool *tool);
-int case_cmd_io_write(struct nvme_tool *tool);
-int case_cmd_io_compare(struct nvme_tool *tool);
-
-int case_cmd_io_read_with_fua(struct nvme_tool *tool);
-int case_cmd_io_write_with_fua(struct nvme_tool *tool);
-
-int case_cmd_io_copy(struct nvme_tool *tool);
-
-
-/* ==================== Related to "test_fused.c" ==================== */
-
-int case_fused_operation(struct nvme_tool *tool);
-
-
-/* ==================== Related to "test_meta.c" ==================== */
-
-int case_meta_node_contiguous(struct nvme_tool *tool);
-
-int case_meta_xfer_separate_sgl(struct nvme_tool *tool);
-int case_meta_xfer_separate_prp(struct nvme_tool *tool);
-int case_meta_xfer_contig_lba(struct nvme_tool *tool);
-
-
-/* ==================== Related to "test_mix.c" ==================== */
-
-int case_disable_bus_master(struct nvme_tool *tool);
-
-
-/* ==================== Related to "test_pm.c" ==================== */
-
-int case_pm_switch_power_state(struct nvme_tool *tool);
-
-int case_pm_set_d0_state(struct nvme_tool *tool);
-int case_pm_set_d3hot_state(struct nvme_tool *tool);
-
-
-/* ==================== Related to "test_queue.c" ==================== */
-
-int case_queue_iocmd_to_asq(struct nvme_tool *tool);
-
-int case_queue_contiguous(struct nvme_tool *tool);
-int case_queue_discontiguous(struct nvme_tool *tool);
 
 #endif /* !_APP_TEST_H_ */
 

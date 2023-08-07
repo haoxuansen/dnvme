@@ -5,9 +5,10 @@ RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 
 pre:
 	$(Q)bash $(CUR_DIR_PATH)/prepare.sh
+	$(Q)bash $(CUR_DIR_PATH)/lds.sh
 
 $(TARGET): $(OBJS)
-	$(Q)$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+	$(Q)$(CC) $(LDFLAGS) $^ $(LDLIBS) -T test.lds -o $@
 
 build: pre $(TARGET)
 ifeq ($(RELEASE_DIR_EXIST),yes)
@@ -18,6 +19,7 @@ endif
 
 clean:
 	$(Q)rm -f $(OBJS)
+	$(Q)bash $(CUR_DIR_PATH)/lds.sh $@
 
 distclean: clean
 	$(Q)rm -f $(TARGET)

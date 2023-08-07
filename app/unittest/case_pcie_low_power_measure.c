@@ -73,7 +73,7 @@ static void test_sub(void)
     set_speed = 3; // gen1 gen2 gen3
     set_width = 4; // x1 x2 x4
 
-    pr_color(LOG_COLOR_RED, "\n .......... Set PCIe Gen%d, lane width X%d ..........\n", set_speed, set_width);
+    pr_color(LOG_N_RED, "\n .......... Set PCIe Gen%d, lane width X%d ..........\n", set_speed, set_width);
 
     // cfg speed (RC)
     pcie_RC_cfg_speed(set_speed);
@@ -100,7 +100,7 @@ static void test_sub(void)
     }
 
     scanf("%d", &cmds);
-    pr_color(LOG_COLOR_RED, "\n .......... Change low power state: ..........\n");
+    pr_color(LOG_N_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
     ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &reg_value);
@@ -137,7 +137,7 @@ static void test_sub(void)
         
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
         
-    pr_color(LOG_COLOR_PURPLE, "\tcq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
+    pr_color(LOG_N_PURPLE, "\tcq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     /**********************************************************************/
 
     scanf("%d", &cmds);
@@ -158,7 +158,7 @@ static void test_sub(void)
     pr_div("\tcq reaped ok! reap_num:%d\n", reap_num);
 }
 
-int case_pcie_low_power_measure(struct nvme_tool *tool)
+static int case_pcie_low_power_measure(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
@@ -189,6 +189,6 @@ int case_pcie_low_power_measure(struct nvme_tool *tool)
         }
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_pcie_low_power_measure, "?");

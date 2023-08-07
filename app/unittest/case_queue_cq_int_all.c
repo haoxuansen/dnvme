@@ -51,7 +51,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_multi_cq_map_one_int_vct, "tests multi_cq_map_one_int_vct"),
 };
 
-int case_queue_cq_int_all(struct nvme_tool *tool)
+static int case_queue_cq_int_all(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
@@ -72,6 +72,8 @@ int case_queue_cq_int_all(struct nvme_tool *tool)
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
+NVME_CASE_SYMBOL(case_queue_cq_int_all, "?");
+NVME_AUTOCASE_SYMBOL(case_queue_cq_int_all);
 
 static int sub_case_int_pin(void)
 {

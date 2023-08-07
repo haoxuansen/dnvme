@@ -40,7 +40,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_pending_bit, "tests all pending bit"),
 };
 
-int case_queue_cq_int_all_mask(struct nvme_tool *tool)
+static int case_queue_cq_int_all_mask(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
@@ -61,6 +61,8 @@ int case_queue_cq_int_all_mask(struct nvme_tool *tool)
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
+NVME_CASE_SYMBOL(case_queue_cq_int_all_mask, "?");
+NVME_AUTOCASE_SYMBOL(case_queue_cq_int_all_mask);
 
 static int sub_case_int_queue_mask(void)
 {

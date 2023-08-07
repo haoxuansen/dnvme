@@ -436,21 +436,21 @@ int arb_reap_all_cq(struct arbitration_parameter *arb_parameter)
 					case HIGH_PRIO:
 						if (loop == (get_higt_weight_q_min_num() / arb_parameter->Arbit_HPW))
 						{
-							pr_color(LOG_COLOR_PURPLE, "loop is end :%d\n", loop);
+							pr_color(LOG_N_PURPLE, "loop is end :%d\n", loop);
 							goto GOOUT;
 						}
 						break;
 					case MEDIUM_PRIO:
 						if (loop == (get_higt_weight_q_min_num() / arb_parameter->Arbit_MPW))
 						{
-							pr_color(LOG_COLOR_PURPLE, "loop is end :%d\n", loop);
+							pr_color(LOG_N_PURPLE, "loop is end :%d\n", loop);
 							goto GOOUT;
 						}
 						break;
 					case LOW_PRIO:
 						if (loop == (get_higt_weight_q_min_num() / arb_parameter->Arbit_LPW))
 						{
-							pr_color(LOG_COLOR_PURPLE, "loop is end :%d\n", loop);
+							pr_color(LOG_N_PURPLE, "loop is end :%d\n", loop);
 							goto GOOUT;
 						}
 						break;

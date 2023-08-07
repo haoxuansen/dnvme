@@ -246,7 +246,12 @@ out:
 	return ret;
 }
 
-int case_queue_iocmd_to_asq(struct nvme_tool *tool)
+/**
+ * @brief Send I/O read and write command to ASQ
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
@@ -269,6 +274,8 @@ int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 
 	return 0;
 }
+NVME_CASE_QUEUE_SYMBOL(case_queue_iocmd_to_asq,
+	"Send I/O read and write command to ASQ");
 
 /**
  * @brief Create I/O CQ & SQ which is contiguous, check whether the queue
@@ -276,7 +283,7 @@ int case_queue_iocmd_to_asq(struct nvme_tool *tool)
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-int case_queue_contiguous(struct nvme_tool *tool)
+static int case_queue_contiguous(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -296,11 +303,12 @@ int case_queue_contiguous(struct nvme_tool *tool)
 	ret |= subcase_iorw_prp(tool, sq, 10);
 	ret |= subcase_iorw_sgl(tool, sq, 10);
 
-	nvme_display_subcase_result();
+	nvme_display_subcase_report();
 
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
+NVME_CASE_QUEUE_SYMBOL(case_queue_contiguous, "Test contiguous I/O queue");
 
 /**
  * @brief Create I/O CQ & SQ which is discontiguous, check whether the queue
@@ -310,7 +318,7 @@ int case_queue_contiguous(struct nvme_tool *tool)
  * 
  * @warning Queues may not work properly after repeated creation and deletion
  */
-int case_queue_discontiguous(struct nvme_tool *tool)
+static int case_queue_discontiguous(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -333,8 +341,9 @@ int case_queue_discontiguous(struct nvme_tool *tool)
 	ret |= subcase_iorw_prp(tool, sq, 1);
 	ret |= subcase_iorw_sgl(tool, sq, 1);
 
-	nvme_display_subcase_result();
+	nvme_display_subcase_report();
 
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
+NVME_CASE_QUEUE_SYMBOL(case_queue_discontiguous, "Test discontiguous I/O queue");

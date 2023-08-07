@@ -14,110 +14,6 @@
 #include "unittest.h"
 
 /**
- * @brief make the test case list random 
- * 
- * @param arr 
- * @param cnt 
- */
-void random_list(TestCase_t *arr, uint32_t cnt)
-{
-    uint32_t num = 0;
-    TestCase_t temp;
-    srand((uint32_t)time(NULL));
-    for (uint32_t i = 0; i < (cnt - 1); i++)
-    {
-        num = i + rand() % (cnt - i);
-        temp = arr[i];
-        arr[i] = arr[num];
-        arr[num] = temp;
-    }
-}
-/**
- * @brief test list exe
- * 
- * @param CaseList 
- * @param NumOfCase 
- * @return uint32_t 
- */
-uint32_t test_list_exe(TestCase_t *CaseList, uint32_t NumOfCase)
-{
-    uint32_t idx;
-    TestReport_t test_report;
-    TestSuite_t test_suite =
-        {
-            __FILE__,
-            __DATE__,
-            __TIME__,
-            "dNVMe Unittest",
-            CaseList,
-            NumOfCase,
-        };
-
-    pr_color(LOG_COLOR_GREEN, "%s-%s %s start:\n", test_suite.Date, test_suite.Time, test_suite.TestSuiteTitle);
-
-    memset((void *)&test_report, 0, sizeof(TestReport_t));
-    test_report.tests = test_suite.NumOfTestCase;
-
-    pr_info("CaseNum|TestFuncName\n");
-    for (idx = 0; idx < test_suite.NumOfTestCase; idx++)
-    {
-        pr_info("%4d   |%-26s\n", idx, test_suite.TestCase[idx].FuncName);
-    }
-    /* Execute test cases */
-    for (idx = 0; idx < test_suite.NumOfTestCase; idx++)
-    {
-        pr_color(LOG_COLOR_GREEN, "\nCase:%d,%s() Start:\n", idx, test_suite.TestCase[idx].FuncName);
-        // if(test_suite.TestCase[idx].PreFunc != NULL)
-        // {
-        //     test_suite.TestCase[idx].PreFunc();
-        // }
-        test_report.executed++;
-        test_suite.TestCase[idx].Result = test_suite.TestCase[idx].CaseFunc(g_nvme_tool);
-        if (test_suite.TestCase[idx].Result == SUCCEED)
-        {
-            test_report.passed++;
-        }
-        else if(test_suite.TestCase[idx].Result == SKIPED)
-        {
-            test_report.skiped++;
-        }
-        else
-        {
-            test_report.failed++;
-        }
-        // if(test_suite.TestCase[idx].EndFunc != NULL)
-        // {
-        //     test_suite.TestCase[idx].EndFunc();
-        // }
-    }
-    pr_info("\n------------------------------------------------------------------\n");
-    pr_color(LOG_COLOR_GREEN, "%s result:\n", test_suite.TestSuiteTitle);
-    pr_info("CaseNum|Result|TestFuncName\n");
-    for (idx = 0; idx < test_suite.NumOfTestCase; idx++)
-    {
-        if (test_suite.TestCase[idx].Result == SUCCEED)
-        {
-            pr_info("%4d   | %s |%-26s\n", idx, "PASS", test_suite.TestCase[idx].FuncName);
-        }
-        else if (test_suite.TestCase[idx].Result == SKIPED)
-        {
-            pr_color(LOG_COLOR_CYAN,"%4d   | %s |%-26s\n", idx, "SKIP", test_suite.TestCase[idx].FuncName);
-        }
-        else
-        {
-            pr_color(LOG_COLOR_RED, "%4d   | %s |%-26s\n", idx, "FAIL", test_suite.TestCase[idx].FuncName);
-        }
-    }
-    pr_info("All Test Summary: %d Tests, %d Executed, %d Passed, %d Failed, %d Skiped, %d Warnings.\n",
-             test_report.tests,
-             test_report.executed,
-             test_report.passed,
-             test_report.failed,
-             test_report.skiped,
-             test_report.warnings);
-    return test_report.failed;
-}
-/**
  * @brief sub_case_list_exe
  * 
  * @param SubCaseHeader 
@@ -141,7 +37,7 @@ uint32_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseLis
     }
     for (idx = 0; idx < SubCaseNum; idx++)
     {
-        pr_color(LOG_COLOR_GREEN, "Case:%d,%s():%s\r\n", idx, SubCaseList[idx].FuncName, SubCaseList[idx].FuncDesc);
+        pr_color(LOG_N_GREEN, "Case:%d,%s():%s\r\n", idx, SubCaseList[idx].FuncName, SubCaseList[idx].FuncDesc);
         test_report.executed++;
         SubCaseList[idx].Result = SubCaseList[idx].CaseFunc();
         if (SubCaseList[idx].Result == SUCCEED)
@@ -171,11 +67,11 @@ uint32_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseLis
         }
         else if (SubCaseList[idx].Result == SKIPED)
         {
-            pr_color(LOG_COLOR_CYAN,"  %4d    | %s |%-26s\r\n", idx, "SKIP", SubCaseList[idx].FuncDesc);
+            pr_color(LOG_N_CYAN,"  %4d    | %s |%-26s\r\n", idx, "SKIP", SubCaseList[idx].FuncDesc);
         }
         else
         {
-            pr_color(LOG_COLOR_RED, "  %4d    | %s |%-26s\r\n", idx, "FAIL", SubCaseList[idx].FuncDesc);
+            pr_color(LOG_N_RED, "  %4d    | %s |%-26s\r\n", idx, "FAIL", SubCaseList[idx].FuncDesc);
         }
     }
     pr_info("SubCase Summary [%s]: %d Tests, %d Executed, %d Passed, %d Failed, %d Skiped, %d Warnings.\r\n",

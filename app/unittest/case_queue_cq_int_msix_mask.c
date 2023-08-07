@@ -92,7 +92,7 @@ static void test_all_cq_cmd(uint32_t msi_mask_flag)
     uint32_t check_status = 0;
     uint32_t check_admin_status = 0;
 
-    pr_color(LOG_COLOR_PURPLE, ".1 use all cq, random irq_no\n");
+    pr_color(LOG_N_PURPLE, ".1 use all cq, random irq_no\n");
     if ((msi_mask_flag & 0x1) == 0x1)
     {
         check_admin_status = 1;
@@ -268,7 +268,7 @@ static void test_sub(void)
     int_msix_multi_mask();
 }
 
-int case_queue_cq_int_msix_mask(struct nvme_tool *tool)
+static int case_queue_cq_int_msix_mask(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 
@@ -279,6 +279,6 @@ int case_queue_cq_int_msix_mask(struct nvme_tool *tool)
     
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_queue_cq_int_msix_mask, "?");

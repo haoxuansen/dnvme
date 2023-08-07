@@ -14,7 +14,6 @@
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
-#include "case_all.h"
 
 static uint32_t test_loop = 0;
 static uint64_t wr_slba = 0;
@@ -671,7 +670,7 @@ static SubCase_t sub_case_list[] = {
 	SUB_CASE(delete_runing_iocmd_queue, "delete a queue when iocmd is runing"),
 };
 
-int case_queue_delete_q(struct nvme_tool *tool)
+static int case_queue_delete_q(struct nvme_tool *tool)
 {
 	uint32_t ret;
 	uint32_t loop;
@@ -690,4 +689,6 @@ int case_queue_delete_q(struct nvme_tool *tool)
 	}
 	return 0;
 }
+NVME_CASE_SYMBOL(case_queue_delete_q, "?");
+NVME_AUTOCASE_SYMBOL(case_queue_delete_q);
 

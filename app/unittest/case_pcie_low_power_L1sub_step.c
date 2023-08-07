@@ -126,7 +126,7 @@ static void test_sub(void)
     set_speed = 3; // gen1 gen2 gen3
     set_width = 4; // x1 x2 x4
 
-    pr_color(LOG_COLOR_RED, "\n .......... Set PCIe Gen%d, lane width X%d ..........\n", set_speed, set_width);
+    pr_color(LOG_N_RED, "\n .......... Set PCIe Gen%d, lane width X%d ..........\n", set_speed, set_width);
 
     // cfg speed (RC)
     pcie_RC_cfg_speed(set_speed);
@@ -191,7 +191,7 @@ static void test_sub(void)
     pcie_L12_disable();
 }
 
-int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
+static int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
@@ -230,6 +230,6 @@ int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
         }
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_pcie_low_power_L1sub_step, "?");

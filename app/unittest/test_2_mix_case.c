@@ -23,7 +23,6 @@
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
-#include "case_all.h"
 
 static int test_flag = SUCCEED;
 static uint32_t test_loop = 0;
@@ -59,7 +58,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_fwdma_cmd, "send fwdma wr/rd cmd and check data"),
 };
 
-int test_2_mix_case(struct nvme_tool *tool)
+static int test_2_mix_case(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
@@ -84,6 +83,8 @@ int test_2_mix_case(struct nvme_tool *tool)
     }
     return test_flag;
 }
+NVME_CASE_SYMBOL(test_2_mix_case, "?");
+NVME_AUTOCASE_SYMBOL(test_2_mix_case);
 
 static int sub_case_pre(void)
 {
@@ -91,10 +92,10 @@ static int sub_case_pre(void)
 	struct nvme_dev_info *ndev = tool->ndev;
 
     pr_info("==>QID:%d\n", io_sq_id);
-    pr_color(LOG_COLOR_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
+    pr_color(LOG_N_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
     test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
 
-    pr_color(LOG_COLOR_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
+    pr_color(LOG_N_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     return test_flag;
 }
@@ -104,7 +105,7 @@ static int sub_case_end(void)
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 
-    pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
+    pr_color(LOG_N_PURPLE, "  Deleting SQID:%d,CQID:%d\n", io_sq_id, io_cq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
     test_flag |= nvme_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
     return test_flag;

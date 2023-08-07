@@ -166,10 +166,9 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 /**
  * @brief Disable bus master while reading or writing
  * 
- * @param tool 
  * @return 0 on success, otherwise a negative errno. 
  */
-int case_disable_bus_master(struct nvme_tool *tool)
+static int case_disable_bus_master(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -315,3 +314,5 @@ out:
 	delete_ioq(ndev, sq, cq);
 	return ret;
 }
+NVME_CASE_SYMBOL(case_disable_bus_master, 
+	"Disable bus master while reading or writing");

@@ -101,6 +101,4 @@ void pcie_RC_cfg_speed(int speed);
 void pcie_set_width(int width);
 void pcie_random_speed_width(void);
 
-void test_encrypt_decrypt(void);
-
 #endif

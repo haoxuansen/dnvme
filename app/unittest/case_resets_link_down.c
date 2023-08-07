@@ -99,7 +99,7 @@ static void test_sub(void)
     /*******************************************************************************************************************************/
 }
 
-int case_resets_link_down(struct nvme_tool *tool)
+static int case_resets_link_down(struct nvme_tool *tool)
 {
     int test_round = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
@@ -111,6 +111,6 @@ int case_resets_link_down(struct nvme_tool *tool)
         test_sub();
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_resets_link_down, "?");

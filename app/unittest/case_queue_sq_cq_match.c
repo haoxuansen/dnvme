@@ -52,7 +52,7 @@ static void test_sub(void)
     cq_size = 16384;
     sq_size = 16384;
 
-    pr_color(LOG_COLOR_PURPLE, "  Create contig sq assoc cq 1-max_sq_num, sq_size = %d\n", sq_size);
+    pr_color(LOG_N_PURPLE, "  Create contig sq assoc cq 1-max_sq_num, sq_size = %d\n", sq_size);
     for (index = 1; index <= ndev->max_sq_num; index++)
     {
         io_cq_id = io_sq_id = index;
@@ -154,7 +154,7 @@ static void test_sub(void)
     /*******************************************************************************************************************************/
 
     io_cq_id = rand() % ndev->max_sq_num + 1;
-    pr_color(LOG_COLOR_PURPLE,".2: cq %d <---> sq 1~ndev->max_sq_num\n", io_cq_id);
+    pr_color(LOG_N_PURPLE,".2: cq %d <---> sq 1~ndev->max_sq_num\n", io_cq_id);
     io_sq_id = 1;
 
     cq_size = 16384;
@@ -224,7 +224,7 @@ static void test_sub(void)
     /*******************************************************************************************************************************/
 
     io_cq_id = rand() % ndev->max_sq_num + 1;
-    pr_color(LOG_COLOR_PURPLE,".3: cq %d <---> sq ndev->max_sq_num~1\n", io_cq_id);
+    pr_color(LOG_N_PURPLE,".3: cq %d <---> sq ndev->max_sq_num~1\n", io_cq_id);
     io_sq_id = 1;
 
     cq_size = 16384;
@@ -293,7 +293,7 @@ static void test_sub(void)
 
     /*******************************************************************************************************************************/
     //5, 3, 2, 7, 6, 4, 8, 1
-    pr_color(LOG_COLOR_PURPLE,".4: cq 1 <---> sq 4 "
+    pr_color(LOG_N_PURPLE,".4: cq 1 <---> sq 4 "
                   "| cq 2 <---> sq 3 "
                   "| cq 3 <---> sq 1,2\n");
 
@@ -455,7 +455,7 @@ static void test_sub(void)
 
     io_cq_id = rand() % ndev->max_sq_num + 1;
     io_sq_id = rand() % ndev->max_sq_num + 1;
-    pr_color(LOG_COLOR_PURPLE,".5 random sq:%d/cq:%d  match\n", io_sq_id, io_cq_id);
+    pr_color(LOG_N_PURPLE,".5 random sq:%d/cq:%d  match\n", io_sq_id, io_cq_id);
 
     cq_size = 16384;
     sq_size = 16384;
@@ -514,7 +514,7 @@ static void test_sub(void)
     /*******************************************************************************************************************************/
 }
 
-int case_queue_sq_cq_match(struct nvme_tool *tool)
+static int case_queue_sq_cq_match(struct nvme_tool *tool)
 {
     int test_round = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
@@ -526,6 +526,8 @@ int case_queue_sq_cq_match(struct nvme_tool *tool)
         test_sub();
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_queue_sq_cq_match, "?");
+NVME_AUTOCASE_SYMBOL(case_queue_sq_cq_match);
+

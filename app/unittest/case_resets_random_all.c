@@ -214,7 +214,7 @@ static void show_case_description(void)
 		reset_type_string(PCIE_LINKDOWN_RESET));
 }
 
-int case_resets_random_all(struct nvme_tool *tool)
+static int case_resets_random_all(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -257,7 +257,8 @@ int case_resets_random_all(struct nvme_tool *tool)
 			return ret;
 	} while (--loop > 0);
 
-	nvme_display_test_result(ret, __func__);
 	return ret;
 }
+NVME_CASE_SYMBOL(case_resets_random_all, "?");
+NVME_AUTOCASE_SYMBOL(case_resets_random_all);
 

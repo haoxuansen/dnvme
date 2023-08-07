@@ -97,7 +97,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 }
 
-int case_pcie_low_power_L0s_L1_step(struct nvme_tool *tool)
+static int case_pcie_low_power_L0s_L1_step(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;
@@ -128,6 +128,6 @@ int case_pcie_low_power_L0s_L1_step(struct nvme_tool *tool)
         }
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_pcie_low_power_L0s_L1_step, "?");

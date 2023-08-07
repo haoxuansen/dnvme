@@ -300,7 +300,12 @@ out:
 	return ret;
 }
 
-int case_cmd_io_read(struct nvme_tool *tool)
+/**
+ * @brief Send a I/O read command to IOSQ
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int case_cmd_io_read(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -327,14 +332,17 @@ int case_cmd_io_read(struct nvme_tool *tool)
 		goto out;
 	}
 out:
-	ret = delete_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
 }
+NVME_CASE_CMD_SYMBOL(case_cmd_io_read, "Send a I/O read command to IOSQ");
 
-int case_cmd_io_read_with_fua(struct nvme_tool *tool)
+/**
+ * @brief Send a I/O read command with FUA flag to IOSQ
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int case_cmd_io_read_with_fua(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -361,14 +369,18 @@ int case_cmd_io_read_with_fua(struct nvme_tool *tool)
 		goto out;
 	}
 out:
-	ret = delete_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
 }
+NVME_CASE_CMD_SYMBOL(case_cmd_io_read_with_fua, 
+	"Send a I/O read command with FUA flag to IOSQ");
 
-int case_cmd_io_write(struct nvme_tool *tool)
+/**
+ * @brief Send a I/O write command to IOSQ
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int case_cmd_io_write(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -395,14 +407,17 @@ int case_cmd_io_write(struct nvme_tool *tool)
 		goto out;
 	}
 out:
-	ret = delete_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
 }
+NVME_CASE_CMD_SYMBOL(case_cmd_io_write, "Send a I/O write command to IOSQ");
 
-int case_cmd_io_write_with_fua(struct nvme_tool *tool)
+/**
+ * @brief Send a I/O write command with FUA flag to IOSQ
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int case_cmd_io_write_with_fua(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -429,14 +444,18 @@ int case_cmd_io_write_with_fua(struct nvme_tool *tool)
 		goto out;
 	}
 out:
-	ret = delete_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
 }
+NVME_CASE_CMD_SYMBOL(case_cmd_io_write_with_fua, 
+	"Send a I/O write command with FUA flag to IOSQ");
 
-int case_cmd_io_compare(struct nvme_tool *tool)
+/**
+ * @brief Send a I/O compare command to IOSQ
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int case_cmd_io_compare(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -473,12 +492,11 @@ int case_cmd_io_compare(struct nvme_tool *tool)
 		goto out;
 	}
 out:
-	ret = delete_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
 }
+NVME_CASE_CMD_SYMBOL(case_cmd_io_compare, 
+	"Send a I/O compare command to IOSQ");
 
 /**
  * @brief Copy command shall process success
@@ -858,7 +876,7 @@ out:
 	return ret;
 }
 
-int case_cmd_io_copy(struct nvme_tool *tool)
+static int case_cmd_io_copy(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_id_ctrl *id_ctrl = &ndev->id_ctrl;
@@ -894,8 +912,10 @@ int case_cmd_io_copy(struct nvme_tool *tool)
 	ret |= subcase_copy_invalid_nlb_single(tool, sq);
 	ret |= subcase_copy_invalid_nlb_sum(tool, sq);
 
-	nvme_display_subcase_result();
+	nvme_display_subcase_report();
 
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
+NVME_CASE_CMD_SYMBOL(case_cmd_io_copy, 
+	"Send I/O copy command to IOSQ in various scenarios");

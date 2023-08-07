@@ -43,7 +43,7 @@ uint16_t int_vertor = 0;
 uint16_t coals_disable = 0;
 
 
-int case_queue_cq_int_coalescing(struct nvme_tool *tool)
+static int case_queue_cq_int_coalescing(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;
@@ -98,6 +98,8 @@ int case_queue_cq_int_coalescing(struct nvme_tool *tool)
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
     return test_flag;
 }
+NVME_CASE_SYMBOL(case_queue_cq_int_coalescing, "?");
+NVME_AUTOCASE_SYMBOL(case_queue_cq_int_coalescing);
 
 static int sub_case_cq_int_coalescing(void)
 {

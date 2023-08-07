@@ -14,7 +14,6 @@
 #define FAILED (-1)
 #define SUCCEED (0)
 
-#define DISABLE (0)
 #define ENABLE (1)
 
 #define MIN(x,y) ((x)>(y)?(y):(x))

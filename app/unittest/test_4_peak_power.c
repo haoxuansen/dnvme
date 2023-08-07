@@ -25,7 +25,6 @@
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
-#include "case_all.h"
 
 static int test_flag = SUCCEED;
 
@@ -42,7 +41,7 @@ static uint64_t perf_ms = 0;
 static uint64_t perf_speed = 0;
 
 static uint8_t test_sub(void);
-int test_4_peak_power(struct nvme_tool *tool)
+static int test_4_peak_power(struct nvme_tool *tool)
 {
     uint32_t round_idx = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);
@@ -61,9 +60,9 @@ int test_4_peak_power(struct nvme_tool *tool)
         }
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(test_4_peak_power, "hc peak power test");
 
 static uint8_t test_sub(void)
 {
@@ -93,7 +92,7 @@ static uint8_t test_sub(void)
         io_cq_id = index;
         pr_info("==>CQID:%d\n", io_cq_id);
         /**********************************************************************/
-        pr_color(LOG_COLOR_PURPLE, "  Preparing io_cq_id %d, cq_size = %d \n", io_cq_id, cq_size);
+        pr_color(LOG_N_PURPLE, "  Preparing io_cq_id %d, cq_size = %d \n", io_cq_id, cq_size);
         cq_parameter.cq_size = cq_size;
         cq_parameter.irq_en = 1;
         cq_parameter.contig = 1;
@@ -105,7 +104,7 @@ static uint8_t test_sub(void)
         pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
         pr_info("==>SQID:%d\n", io_sq_id);
-        pr_color(LOG_COLOR_PURPLE, "  Preparing io_sq_id %d, sq_size = %d \n", io_sq_id, sq_size);
+        pr_color(LOG_N_PURPLE, "  Preparing io_sq_id %d, sq_size = %d \n", io_sq_id, sq_size);
         sq_parameter.sq_size = sq_size;
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
@@ -149,12 +148,12 @@ static uint8_t test_sub(void)
     {
         io_sq_id = index;
         io_cq_id = index;
-        //pr_color(LOG_COLOR_PURPLE, "  Deleting SQID:%x\n", io_sq_id);
+        //pr_color(LOG_N_PURPLE, "  Deleting SQID:%x\n", io_sq_id);
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
-        //pr_color(LOG_COLOR_PURPLE, "  Deleting CQID:%x\n", io_cq_id);
+        //pr_color(LOG_N_PURPLE, "  Deleting CQID:%x\n", io_cq_id);
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);

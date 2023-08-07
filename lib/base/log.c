@@ -19,21 +19,21 @@ const char *log_color(uint8_t level)
 {
 	switch (level) {
 	case LOG_LEVEL_EMERG:
-		return LOG_COLOR_PURPLE;
+		return LOG_B_PURPLE;
 	case LOG_LEVEL_ALERT:
-		return LOG_COLOR_DPURPLE;
+		return LOG_N_PURPLE;
 	case LOG_LEVEL_CRIT:
-		return LOG_COLOR_RED;
+		return LOG_B_RED;
 	case LOG_LEVEL_ERR:
-		return LOG_COLOR_DRED;
+		return LOG_N_RED;
 	case LOG_LEVEL_WARN:
-		return LOG_COLOR_YELLOW;
+		return LOG_B_YELLOW;
 	case LOG_LEVEL_NOTICE:
-		return LOG_COLOR_BLUE;
+		return LOG_B_BLUE;
 	case LOG_LEVEL_INFO:
-		return LOG_COLOR_GREEN;
+		return LOG_B_GREEN;
 	default:
-		return LOG_COLOR_NONE;
+		return "";
 	}
 }
 
@@ -44,7 +44,7 @@ static int log_vprint(uint8_t level, const char *fmt, va_list args)
 	char *text = textbuf;
 
 	ret = vsnprintf(text, sizeof(textbuf), fmt, args);
-	printf("%s[%d]%s", log_color(level), level, text);
+	printf("%s%s[%d]%s", LOG_N, log_color(level), level, text);
 
 	return ret;
 }

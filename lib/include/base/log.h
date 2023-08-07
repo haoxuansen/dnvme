@@ -57,9 +57,8 @@
 
 int log_print(uint8_t level, const char *fmt, ...);
 
-/* Obsolete, Don't use it in new places */
 #define pr_color(color, fmt, ...) \
-	printf(color pr_fmt(fmt), ##__VA_ARGS__)
+	printf(LOG_N color fmt, ##__VA_ARGS__)
 
 #define BUG_ON(cond)			assert(!(cond))
 #define WARN_ON(cond) \

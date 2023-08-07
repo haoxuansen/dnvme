@@ -33,17 +33,17 @@
 #include "color.h"
 
 #define dnvme_err(ndev, fmt, ...) \
-	dev_err(&ndev->dev, LOG_COLOR_RED fmt, ##__VA_ARGS__)
+	dev_err(&ndev->dev, LOG_B_RED fmt, ##__VA_ARGS__)
 #define dnvme_warn(ndev, fmt, ...) \
-	dev_warn(&ndev->dev, LOG_COLOR_YELLOW fmt, ##__VA_ARGS__)
+	dev_warn(&ndev->dev, LOG_B_YELLOW fmt, ##__VA_ARGS__)
 #define dnvme_notice(ndev, fmt, ...) \
-	dev_notice(&ndev->dev, LOG_COLOR_BLUE fmt, ##__VA_ARGS__)
+	dev_notice(&ndev->dev, LOG_B_BLUE fmt, ##__VA_ARGS__)
 #define dnvme_info(ndev, fmt, ...) \
-	dev_info(&ndev->dev, LOG_COLOR_GREEN fmt, ##__VA_ARGS__)
+	dev_info(&ndev->dev, LOG_B_GREEN fmt, ##__VA_ARGS__)
 #define dnvme_dbg(ndev, fmt, ...) \
-	dev_dbg(&ndev->dev, LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+	dev_dbg(&ndev->dev, LOG_N fmt, ##__VA_ARGS__)
 #define dnvme_vdbg(ndev, fmt, ...) \
-	dev_vdbg(&ndev->dev, LOG_COLOR_NONE fmt, ##__VA_ARGS__)
+	dev_vdbg(&ndev->dev, LOG_N fmt, ##__VA_ARGS__)
 
 #endif
 

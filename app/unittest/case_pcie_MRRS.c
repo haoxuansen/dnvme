@@ -201,7 +201,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 }
 
-int case_pcie_MRRS(struct nvme_tool *tool)
+static int case_pcie_MRRS(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     struct nvme_ctrl_property *prop = &ndev->prop;
@@ -270,6 +270,6 @@ int case_pcie_MRRS(struct nvme_tool *tool)
         }
     }
 
-    nvme_display_test_result(test_flag != SUCCEED ? -EPERM : 0, __func__);
-    return test_flag;
+    return test_flag != SUCCEED ? -EPERM : 0;
 }
+NVME_CASE_SYMBOL(case_pcie_MRRS, "?");

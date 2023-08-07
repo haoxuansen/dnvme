@@ -331,7 +331,7 @@ static int delete_meta_nodes(int fd, void *rnode, void *wnode,
  * 
  * @return 0 on success, otherwise a negative errno
  */
-int case_meta_xfer_separate_sgl(struct nvme_tool *tool)
+static int case_meta_xfer_separate_sgl(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -403,13 +403,15 @@ out_del_meta:
 	ret |= delete_meta_nodes(ndev->fd, NULL, NULL, rid, wid, cfg.ms * nlb);
 	return ret;
 }
+NVME_CASE_META_SYMBOL(case_meta_xfer_separate_sgl, 
+	"Meta data is transferred as SGL (Scatter/Gather List)");
 
 /**
  * @brief Meta data is transferred as separate buffer, eg: PRP
  * 
  * @return 0 on success, otherwise a negative errno
  */
-int case_meta_xfer_separate_prp(struct nvme_tool *tool)
+static int case_meta_xfer_separate_prp(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -480,13 +482,15 @@ out_del_meta:
 	ret |= delete_meta_nodes(ndev->fd, rmeta, wmeta, rid, wid, cfg.ms * nlb);
 	return ret;
 }
+NVME_CASE_META_SYMBOL(case_meta_xfer_separate_prp, 
+	"Meta data is transferred as PRP (Phsical Region Page)");
 
 /**
  * @brief Meta data is transferred contiguous with LBA Data
  * 
  * @return 0 on success, otherwise a negative errno
  */
-int case_meta_xfer_contig_lba(struct nvme_tool *tool)
+static int case_meta_xfer_contig_lba(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -541,13 +545,15 @@ out_del_ioq:
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
+NVME_CASE_META_SYMBOL(case_meta_xfer_contig_lba, 
+	"Meta data is transferred contiguous with LBA data");
 
 /**
  * @brief Create meta node which is contiguous, then delete it later.
  * 
  * @return 0 on success, otherwise a negative errno. 
  */
-int case_meta_node_contiguous(struct nvme_tool *tool)
+static int case_meta_node_contiguous(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_meta_create mc = {0};
@@ -596,4 +602,5 @@ out_del_node:
 	ret |= nvme_delete_meta_node(ndev->fd, mc.id);
 	return ret;
 }
-
+NVME_CASE_META_SYMBOL(case_meta_node_contiguous, 
+	"Create a contiguous meta node and delete it later");
