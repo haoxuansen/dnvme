@@ -119,24 +119,7 @@ void mem_disp(void *mem_addr, uint32_t data_size)
         ptr += column_cnt;
     }
 }
-/**
- * @brief memery data compare
- * 
- * @param mem_addr1 
- * @param mem_addr2 
- * @param data_size 
- * @return int 
- */
-int mem_cmp(uint32_t *mem_addr1, uint32_t *mem_addr2, uint32_t data_size)
-{
-    int idx = 0;
-    idx = memcmp(mem_addr1, mem_addr2, data_size);
-    if (idx)
-        pr_err("Compare ERROR!!! idx:%d\n", idx);
-    else
-        pr_div("Compare OK!!! \n");
-    return idx;
-}
+
 /**
  * @brief set memery data as pattern data
  * 
@@ -154,31 +137,6 @@ int mem_set(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size)
     {
         mem_addr1[idx] = pattern;
     }
-    return idx;
-}
-/**
- * @brief get dw memery data, compare with pattern data 
- * 
- * @param mem_addr1 
- * @param pattern 
- * @param data_size 
- * @return int 
- */
-int pat_cmp(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size)
-{
-    uint32_t idx = 0;
-    uint8_t flg = 0;
-    if (mem_addr1 == NULL)
-        return idx;
-    for (idx = 0; idx < (data_size / 4); idx++)
-    {
-        if (mem_addr1[idx] != pattern)
-            flg = 1;
-    }
-    if (flg)
-        pr_err("Compare ERROR!!! idx:%d\n", idx);
-    else
-        pr_div("Compare OK!!! \n");
     return idx;
 }
 

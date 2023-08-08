@@ -43,8 +43,6 @@ uint32_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseLis
 
 void mem_disp(void *mem_addr, uint32_t data_size);
 int mem_set(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size);
-int mem_cmp(uint32_t *mem_addr1, uint32_t *mem_addr2, uint32_t data_size);
 int dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size);
-int pat_cmp(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size);
 
 #endif

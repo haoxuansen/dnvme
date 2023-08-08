@@ -234,7 +234,7 @@ static int sub_case_fwdma_cmd(void)
         test_flag |= cq_gain(0, 1, &reap_num);
     }
 
-    if (mem_cmp(fwdma_wr_buffer, fwdma_rd_buffer, data_len))
+    if (memcmp(fwdma_wr_buffer, fwdma_rd_buffer, data_len))
     {
         pr_info("\nwrite_buffer Data:\n");
         mem_disp(fwdma_wr_buffer, data_len);
