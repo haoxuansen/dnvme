@@ -61,9 +61,11 @@ static SubCase_t sub_case_list[] = {
 
 static int test_5_fua_wr_rd_cmp(struct nvme_tool *tool)
 {
-    uint32_t round_idx = 0;
+	uint32_t round_idx = 0;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_ctrl_property *prop = &ndev->prop;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
+	uint16_t nr_sq = ctrl->nr_sq;
 
     cq_size = NVME_CAP_MQES(prop->cap);
     sq_size = NVME_CAP_MQES(prop->cap);
@@ -75,7 +77,7 @@ static int test_5_fua_wr_rd_cmp(struct nvme_tool *tool)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
+        for (uint32_t index = 1; index <= nr_sq; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -120,12 +122,21 @@ static int sub_case_write_read_compare(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	int ret;
 
-    for (uint32_t i = 0; i < (((ndev->nss[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / g_wr_nlb)); i++)
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
+    for (uint32_t i = 0; i < (((nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (nsze / g_wr_nlb)); i++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+        if ((wr_slba + wr_nlb) < nsze)
         {
             mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
             mem_set(tool->rbuf, 0, wr_nlb * LBA_DAT_SIZE);
@@ -165,12 +176,21 @@ static int sub_case_fua_write_read_compare(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	int ret;
 
-    for (uint32_t i = 0; i < (((ndev->nss[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / g_wr_nlb)); i++)
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
+    for (uint32_t i = 0; i < (((nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (nsze / g_wr_nlb)); i++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+        if ((wr_slba + wr_nlb) < nsze)
         {
             mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
             mem_set(tool->rbuf, 0, wr_nlb * LBA_DAT_SIZE);
@@ -207,12 +227,21 @@ static int sub_case_write_read_fua_compare(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	int ret;
 
-    for (uint32_t i = 0; i < (((ndev->nss[0].nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (ndev->nss[0].nsze / g_wr_nlb)); i++)
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
+    for (uint32_t i = 0; i < (((nsze / g_wr_nlb) > (sq_size - 1)) ? (sq_size - 1) : (nsze / g_wr_nlb)); i++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+        if ((wr_slba + wr_nlb) < nsze)
         {
             mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
             mem_set(tool->rbuf, 0, wr_nlb * LBA_DAT_SIZE);

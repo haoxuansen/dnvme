@@ -53,6 +53,7 @@ static SubCase_t sub_case_list[] = {
 static int case_iocmd_write_read(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
     uint32_t round_idx = 0;
 
     test_loop = 2;
@@ -60,7 +61,7 @@ static int case_iocmd_write_read(struct nvme_tool *tool)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
+        for (uint32_t index = 1; index <= ctrl->nr_sq; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -108,8 +109,18 @@ static int sub_case_write(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t index0 = 0;
-    uint32_t index1 = 0;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	uint32_t index0 = 0;
+	uint32_t index1 = 0;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
     cmd_cnt = 0;
     for (index0 = 1; index0 <= 24 + ARRAY_SIZE(wr_nlb_arr); index0++)
     {
@@ -124,16 +135,16 @@ static int sub_case_write(void)
         for (index1 = 0; index1 <= 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
             }
         }
-        for (index1 = (ndev->nss[0].nsze / 2); index1 <= (ndev->nss[0].nsze / 2) + 7; index1++)
+        for (index1 = (nsze / 2); index1 <= (nsze / 2) + 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
@@ -152,8 +163,18 @@ static int sub_case_read(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t index0 = 0;
-    uint32_t index1 = 0;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	uint32_t index0 = 0;
+	uint32_t index1 = 0;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
     cmd_cnt = 0;
     for (index0 = 1; index0 <= 24 + ARRAY_SIZE(wr_nlb_arr); index0++) //24+4
     {
@@ -168,16 +189,16 @@ static int sub_case_read(void)
         for (index1 = 0; index1 <= 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
                 cmd_cnt++;
             }
         }
-        for (index1 = (ndev->nss[0].nsze / 2); index1 <= (ndev->nss[0].nsze / 2) + 7; index1++)
+        for (index1 = (nsze / 2); index1 <= (nsze / 2) + 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
                 cmd_cnt++;
@@ -196,8 +217,18 @@ static int sub_case_write_read(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t index0 = 0;
-    uint32_t index1 = 0;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	uint32_t index0 = 0;
+	uint32_t index1 = 0;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
     cmd_cnt = 0;
     for (index0 = 1; index0 <= 24 + ARRAY_SIZE(wr_nlb_arr); index0++)
     {
@@ -212,7 +243,7 @@ static int sub_case_write_read(void)
         for (index1 = 0; index1 <= 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
@@ -220,10 +251,10 @@ static int sub_case_write_read(void)
                 cmd_cnt++;
             }
         }
-        for (index1 = (ndev->nss[0].nsze / 2); index1 <= (ndev->nss[0].nsze / 2) + 7; index1++)
+        for (index1 = (nsze / 2); index1 <= (nsze / 2) + 7; index1++)
         {
             wr_slba = index1;
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
@@ -244,16 +275,26 @@ static int sub_case_write_read_2(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t index0 = 0;
-    uint32_t index1 = 0;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint64_t nsze;
+	uint32_t index0 = 0;
+	uint32_t index1 = 0;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+
     cmd_cnt = 0;
     for (index0 = 0; index0 < 10; index0++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
         for (index1 = 0; index1 < (sq_size / 10); index1++)
         {
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
@@ -266,11 +307,11 @@ static int sub_case_write_read_2(void)
     cmd_cnt = 0;
     for (index0 = 0; index0 < 10; index0++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
         for (index1 = 0; index1 < (sq_size / 10); index1++)
         {
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;
@@ -283,11 +324,11 @@ static int sub_case_write_read_2(void)
     cmd_cnt = 0;
     for (index0 = 0; index0 < 10; index0++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
         for (index1 = 0; index1 < (sq_size / 20); index1++)
         {
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+            if ((wr_slba + wr_nlb) < nsze)
             {
                 test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
                 cmd_cnt++;

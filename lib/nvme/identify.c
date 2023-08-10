@@ -1,0 +1,195 @@
+/**
+ * @file identify.c
+ * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
+ * @brief 
+ * @version 0.1
+ * @date 2023-08-09
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
+#include <stdio.h>
+#include <errno.h>
+
+#include "libbase.h"
+#include "libnvme.h"
+
+/**
+ * @return The number of NVMe power states supported by the controller,
+ * 	otherwise a negative errno
+ * 
+ * @note A controller shall support at least one power state, and may
+ * 	support up to 31 additional power states (i.e., up to 32 total).
+ */
+int nvme_id_ctrl_npss(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	return (int)ctrl->id_ctrl->npss + 1; /* covert to 1's based value*/
+}
+
+/**
+ * @return PCI Vendor ID if success, otherwise a negative errno
+ */
+int nvme_id_ctrl_vid(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+
+	return le16_to_cpu(ctrl->id_ctrl->vid);
+}
+
+/**
+ * @brief Get the maximum value of a valid NSID for the NVM subsystem
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_id_ctrl_nn(struct nvme_ctrl_instance *ctrl, uint32_t *nn)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	*nn = le32_to_cpu(ctrl->id_ctrl->nn);
+	return 0;
+}
+
+/**
+ * @brief Get SGL support
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_id_ctrl_sgls(struct nvme_ctrl_instance *ctrl, uint32_t *sgls)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	*sgls = le32_to_cpu(ctrl->id_ctrl->sgls);
+	return 0;
+}
+
+static int check_id_ns_sanity(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	if (grp->nr_ns < nsid)
+		return -EINVAL;
+
+	if (grp->ns[nsid - 1].nsid != nsid)
+		return -ENODEV;
+
+	if (!grp->ns[nsid - 1].id_ns)
+		return -EFAULT;
+	
+	return 0;
+}
+
+/**
+ * @brief Get the total size of the namespace in logical blocks
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_id_ns_nsze(struct nvme_ns_group *grp, uint32_t nsid, uint64_t *nsze)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	*nsze = le64_to_cpu(grp->ns[nsid - 1].id_ns->nsze);
+	return 0;
+}
+
+/**
+ * @brief Get maximum single source range length
+ * 
+ * @details Get the maximum number of logical blocks that may be specified
+ * 	in the number of logical block field in each valid source range
+ * 	entries descriptor of a copy command.
+ * 
+ * @return mssrl on success, otherwise a negative errno
+ */
+int nvme_id_ns_mssrl(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+	
+	return le16_to_cpu(grp->ns[nsid - 1].id_ns->mssrl);
+}
+
+/**
+ * @brief Get maximum copy length
+ * 
+ * @details Get the maximum number of logical blocks that may be specified
+ * 	in a copy command.
+ * 
+ * @return 0 on success, otherwise a negative errno 
+ */
+int nvme_id_ns_mcl(struct nvme_ns_group *grp, uint32_t nsid, uint32_t *mcl)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	*mcl = le32_to_cpu(grp->ns[nsid - 1].id_ns->mcl);
+	return 0;
+}
+
+/**
+ * @brief Get maximum source range count
+ * 
+ * @details Get the maximum number of Source Range entries that may be used
+ * 	to specify source data in a Copy command.
+ * 
+ * @return The max source range count on success, otherwise a negative errno
+ * 
+ * @note Covert it to 1's based value in this function.
+ */
+int nvme_id_ns_msrc(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	return (int)grp->ns[nsid - 1].id_ns->msrc + 1;
+}
+
+/**
+ * @brief Get the number of metadata bytes provider per LBA
+ * 
+ * @return ms on success, otherwise a negative errno
+ */
+int nvme_id_ns_ms(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	return grp->ns[nsid - 1].meta_size;
+}
+
+/**
+ * @brief Get logical block size
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_id_ns_lbads(struct nvme_ns_group *grp, uint32_t nsid, uint32_t *lbads)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+	
+	*lbads = grp->ns[nsid - 1].blk_size;
+	return 0;
+}

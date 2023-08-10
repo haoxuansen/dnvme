@@ -68,15 +68,25 @@ static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
+	uint32_t lbads;
+	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = ndev->nss[0].nsid;
+	/* use first active namespace as default */
+	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+
+	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
+	if (ret < 0) {
+		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
+		return ret;
+	}
+	wrap.size = wrap.nlb * lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -89,16 +99,26 @@ static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
 	uint32_t i;
+	uint32_t lbads;
+	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = ndev->nss[0].nsid;
+	/* use first active namespace as default */
+	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+
+	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
+	if (ret < 0) {
+		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
+		return ret;
+	}
+	wrap.size = wrap.nlb * lbads;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
@@ -171,17 +191,28 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 static int case_disable_bus_master(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct nvme_completion entry = {0};
 	struct timeval start, end;
-	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
+	uint64_t nsze;
+	uint64_t slba;
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint32_t num = sq->size / 4;
 	uint32_t timeout = 0;
 	uint16_t cid;
 	uint32_t i;
 	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+	slba = rand() % (nsze / 2);
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {

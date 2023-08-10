@@ -56,9 +56,10 @@ static SubCase_t sub_case_list[] = {
 
 static int test_3_adm_wr_cache_fua(struct nvme_tool *tool)
 {
-    uint32_t round_idx = 0;
+	uint32_t round_idx = 0;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_ctrl_property *prop = &ndev->prop;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
     
     cq_size = NVME_CAP_MQES(prop->cap);
     sq_size = NVME_CAP_MQES(prop->cap);
@@ -69,7 +70,7 @@ static int test_3_adm_wr_cache_fua(struct nvme_tool *tool)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
+        for (uint32_t index = 1; index <= ctrl->nr_sq; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -115,6 +116,17 @@ static int sub_case_disable_volatile_wc(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint32_t lbads;
+	uint64_t nsze;
+	int ret;
+
+	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
 
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_VOLATILE_WC, false, 0);
     if (test_flag == FAILED)
@@ -122,13 +134,13 @@ static int sub_case_disable_volatile_wc(void)
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", false);
     test_flag |= nvme_admin_ring_dbl_reap_cq(ndev->fd);
     wr_nsid = 1;
-    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
     cmd_cnt = 0;
     for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+        if ((wr_slba + wr_nlb) < nsze)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             if (test_flag == FAILED)
@@ -146,6 +158,17 @@ static int sub_case_enable_volatile_wc(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint32_t lbads;
+	uint64_t nsze;
+	int ret;
+
+	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
 
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_VOLATILE_WC, true, 0);
     if (test_flag == FAILED)
@@ -153,13 +176,13 @@ static int sub_case_enable_volatile_wc(void)
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", true);
     test_flag |= nvme_admin_ring_dbl_reap_cq(ndev->fd);
     wr_nsid = 1;
-    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
     cmd_cnt = 0;
     for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
+        if ((wr_slba + wr_nlb) < nsze)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             if (test_flag == FAILED)

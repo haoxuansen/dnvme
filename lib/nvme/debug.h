@@ -16,6 +16,8 @@
 
 #include "dnvme.h"
 
+struct nvme_ctrl_property;
+
 void nvme_display_buffer(const char *str, void *buf, uint32_t size);
 
 void nvme_display_id_ctrl(struct nvme_id_ctrl *ctrl);
@@ -23,5 +25,6 @@ void nvme_display_id_ns(struct nvme_id_ns *ns, uint32_t nsid);
 
 void nvme_display_cap(uint64_t cap);
 void nvme_display_cc(uint32_t cc);
+void nvme_display_ctrl_property(struct nvme_ctrl_property *prop);
 
 #endif /* !_LIB_NVME_DEBUG_H_ */

@@ -363,7 +363,7 @@ struct nvme_id_power_state {
  * @note Refer to "NVMe Base Spec R2.0b - Figure 275"
  */
 struct nvme_id_ctrl {
-	__le16			vid;
+	__le16			vid;	/* PCI Vendor ID */
 	__le16			ssvid;
 	char			sn[20];
 	char			mn[40];

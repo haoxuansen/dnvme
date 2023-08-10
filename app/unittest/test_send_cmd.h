@@ -48,11 +48,6 @@ int nvme_io_read_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uin
 int nvme_io_compare_cmd(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
                      uint16_t control, void *data_addr);
 
-int send_nvme_write_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                     uint16_t control, uint32_t id, void *data_addr);
-int send_nvme_read_using_metabuff(int g_fd, uint8_t flags, uint16_t sq_id, uint32_t nsid, uint64_t slba, uint16_t nlb,
-                     uint16_t control, uint32_t id, void *data_addr);
-
 int nvme_ring_dbl_and_reap_cq(int g_fd, uint16_t sq_id, uint16_t cq_id, uint32_t expect_num);
 
 int nvme_set_feature_cmd(int g_fd, uint32_t nsid, uint8_t feat_id, uint16_t dw11l, uint16_t dw11h);

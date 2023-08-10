@@ -51,14 +51,16 @@ static SubCase_t sub_case_list[] = {
 static int case_iocmd_fw_io_cmd(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t round_idx = 0;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	uint16_t nr_sq = ctrl->nr_sq;
+	uint32_t round_idx = 0;
 
     test_loop = 2;
     pr_info("\ntest will loop number: %d\n", test_loop);
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
+        for (uint32_t index = 1; index <= nr_sq; index++)
         {
             io_sq_id = index;
             io_cq_id = index;

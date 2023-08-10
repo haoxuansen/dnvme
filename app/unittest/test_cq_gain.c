@@ -58,6 +58,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	int ret_val = SUCCEED;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
@@ -65,7 +66,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 	*reaped_num = 0;
 
 	// check cq id
-	if (cq_id > ndev->max_cq_num)
+	if (cq_id > ctrl->nr_cq)
 	{
 		pr_err("cq_id is exceed!!!\n");
 		return FAILED;
@@ -120,13 +121,14 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	int ret_val = SUCCEED;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
 
 	*reaped_num = 0;
 
-	if (cq_id > ndev->max_cq_num)
+	if (cq_id > ctrl->nr_cq)
 	{
 		pr_err("cq_id is exceed!!!\n");
 		return FAILED;

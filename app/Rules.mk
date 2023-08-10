@@ -27,7 +27,9 @@ RELEASE_DIR_EXIST := $(call check_dir_exist,$(OUTPUT_DIR))
 CFLAGS := $(RULE_CFLAGS)
 LDFLAGS := $(RULE_LDFLAGS)
 LDFLAGS += -static
-LDLIBS := -lbase -lnvme
+LDLIBS := -lall
+# LDFLAGS += -dynamic
+# LDLIBS := -lbase -lnvme
 
 # --------------------------------------------------------------------------- #
 # Recipes in rules

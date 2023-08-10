@@ -204,7 +204,8 @@ static void test_sub(void)
 static int case_pcie_MRRS(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_ctrl_property *prop = &ndev->prop;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
     int ret;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;

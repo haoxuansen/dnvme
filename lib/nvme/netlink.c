@@ -846,8 +846,10 @@ int nvme_gnl_connect(void)
 	addr.nl_groups = 0;
 
 	ret = bind(sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_nl));
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("failed to bind socket!(%d)\n", ret);
 		goto out;
+	}
 
 	return sockfd;
 out:

@@ -77,16 +77,19 @@ static uint8_t test_sub(void)
     uint32_t wr_nsid = 1;
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_ctrl_property *prop = &ndev->prop;
-    struct create_cq_parameter cq_parameter = {0};
-    struct create_sq_parameter sq_parameter = {0};
-    uint32_t reap_num = 0;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
+	struct create_cq_parameter cq_parameter = {0};
+	struct create_sq_parameter sq_parameter = {0};
+	uint32_t reap_num = 0;
+	uint16_t nr_sq = ctrl->nr_sq;
+   
     mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
     mem_set(tool->rbuf, 0, wr_nlb * LBA_DAT_SIZE);
     sq_size = NVME_CAP_MQES(prop->cap);
     cq_size = NVME_CAP_MQES(prop->cap);
 
-    for (index = 1; index <= ndev->max_sq_num; index++)
+    for (index = 1; index <= nr_sq; index++)
     {
         io_sq_id = index;
         io_cq_id = index;
@@ -117,7 +120,7 @@ static uint8_t test_sub(void)
         /**********************************************************************/
     }
     gettimeofday(&last_time, NULL);
-    for (index = 1; index <= ndev->max_sq_num; index++)
+    for (index = 1; index <= nr_sq; index++)
     {
         io_sq_id = index;
         cmd_cnt = 0;
@@ -129,22 +132,22 @@ static uint8_t test_sub(void)
             cmd_cnt++;
         }
     }
-    for (index = 1; index <= ndev->max_sq_num; index++)
+    for (index = 1; index <= nr_sq; index++)
     {
         io_sq_id = index;
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     }
-    for (index = 1; index <= ndev->max_sq_num; index++)
+    for (index = 1; index <= nr_sq; index++)
     {
         io_cq_id = index;
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
     }
     gettimeofday(&curr_time, NULL);
     perf_ms = (curr_time.tv_sec * 1000 + curr_time.tv_usec / 1000) - (last_time.tv_sec * 1000 + last_time.tv_usec / 1000);
-    perf_speed = ndev->max_sq_num * reap_num * wr_nlb / 2;
+    perf_speed = nr_sq * reap_num * wr_nlb / 2;
     pr_info("time:%lu ms,%lu,speed:%luMB/s\n", perf_ms, perf_speed, (perf_speed) / (perf_ms));
 
-    for (index = 1; index <= ndev->max_sq_num; index++)
+    for (index = 1; index <= nr_sq; index++)
     {
         io_sq_id = index;
         io_cq_id = index;

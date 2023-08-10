@@ -66,56 +66,65 @@ NVME_AUTOCASE_SYMBOL(case_queue_cq_int_all_mask);
 
 static int sub_case_int_queue_mask(void)
 {
-    uint32_t index = 0;
+	uint32_t index = 0;
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_sq_info *sqs = ndev->iosqs;
-    enum nvme_irq_type type;
-    int ret;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct nvme_sq_info *sqs = ndev->iosqs;
+	enum nvme_irq_type type;
+	uint64_t nsze;
+	uint16_t i;
+	uint8_t queue_num;
+	int ret;
 
-    type = nvme_select_irq_type_random();
-    ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
-    if (ret < 0)
-        return ret;
+	type = nvme_select_irq_type_random();
+	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
+	if (ret < 0)
+		return ret;
 
-    ret = nvme_create_all_ioq(ndev, 0);
-    if (ret < 0)
-        return ret;
+	ret = nvme_create_all_ioq(ndev, 0);
+	if (ret < 0)
+		return ret;
 
-    uint8_t queue_num = BYTE_RAND() % ndev->max_sq_num + 1;
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0)
+		return ret;
 
-    wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
-    wr_nlb = WORD_RAND() % 255 + 1;
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        io_sq_id = sqs[i].sqid;
-        sqs[i].cmd_cnt = 0;
+	queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
 
-        for (index = 0; index < 200; index++)
-        {
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
-            {
-                test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
-                sqs[i].cmd_cnt++;
-            }
-        }
-    }
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        io_sq_id = sqs[i].sqid;
-        io_cq_id = sqs[i].cqid;
-        test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-        nvme_mask_irq(ndev->fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
-    }
-    usleep(10000);
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        io_cq_id = sqs[i].cqid;
-        nvme_unmask_irq(ndev->fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
-        test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
-    }
-    nvme_delete_all_ioq(ndev);
-    return test_flag;
+	wr_slba = DWORD_RAND() % (nsze / 2);
+	wr_nlb = WORD_RAND() % 255 + 1;
+	for (i = 0; i < queue_num; i++)
+	{
+		io_sq_id = sqs[i].sqid;
+		sqs[i].cmd_cnt = 0;
+
+		for (index = 0; index < 200; index++)
+		{
+			if ((wr_slba + wr_nlb) < nsze)
+			{
+				test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				sqs[i].cmd_cnt++;
+			}
+		}
+	}
+	for (i = 0; i < queue_num; i++)
+	{
+		io_sq_id = sqs[i].sqid;
+		io_cq_id = sqs[i].cqid;
+		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		nvme_mask_irq(ndev->fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
+	}
+	usleep(10000);
+	for (i = 0; i < queue_num; i++)
+	{
+		io_cq_id = sqs[i].cqid;
+		nvme_unmask_irq(ndev->fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
+		test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+	}
+	nvme_delete_all_ioq(ndev);
+	return test_flag;
 }
 
 int msi_cap_access(void)
@@ -142,55 +151,63 @@ static int sub_case_pending_bit(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_sq_info *sqs = ndev->iosqs;
-    enum nvme_irq_type type;
-    int ret;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct nvme_sq_info *sqs = ndev->iosqs;
+	enum nvme_irq_type type;
+	uint64_t nsze;
+	uint8_t queue_num;
+	int ret;
 
 	type = nvme_select_irq_type_random();
 	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
 	if (ret < 0)
 		return ret;
 
-    ret = nvme_create_all_ioq(ndev, 0);
-    if (ret < 0)
-        return ret;
-    
-    uint8_t queue_num = BYTE_RAND() % ndev->max_sq_num + 1;
+	ret = nvme_create_all_ioq(ndev, 0);
+	if (ret < 0)
+		return ret;
 
-    wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
-    wr_nlb = WORD_RAND() % 255 + 1;
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        io_sq_id = sqs[i].sqid;
-        sqs[i].cmd_cnt = 0;
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0)
+		return ret;
 
-        for (uint32_t index = 0; index < 200; index++)
-        {
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
-            {
-                test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
-                sqs[i].cmd_cnt++;
-            }
-        }
-    }
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        io_sq_id = sqs[i].sqid;
-        test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-        nvme_mask_irq(ndev->fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
-    }
-    sleep(10);
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        io_cq_id = sqs[i].cqid;
-        if( (ndev->irq_type == NVME_INT_MSI_SINGLE)||(ndev->irq_type == NVME_INT_MSI_MULTI) )
-        {
-            msi_cap_access();
-        }
-        nvme_unmask_irq(ndev->fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
-        test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
-    }
+	queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
 
-    nvme_delete_all_ioq(ndev);
-    return test_flag;
+	wr_slba = DWORD_RAND() % (nsze / 2);
+	wr_nlb = WORD_RAND() % 255 + 1;
+	for (uint16_t i = 0; i < queue_num; i++)
+	{
+		io_sq_id = sqs[i].sqid;
+		sqs[i].cmd_cnt = 0;
+
+		for (uint32_t index = 0; index < 200; index++)
+		{
+			if ((wr_slba + wr_nlb) < nsze)
+			{
+				test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				sqs[i].cmd_cnt++;
+			}
+		}
+	}
+	for (uint16_t i = 0; i < queue_num; i++)
+	{
+		io_sq_id = sqs[i].sqid;
+		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		nvme_mask_irq(ndev->fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
+	}
+	sleep(10);
+	for (uint16_t i = 0; i < queue_num; i++)
+	{
+		io_cq_id = sqs[i].cqid;
+		if( (ndev->irq_type == NVME_INT_MSI_SINGLE)||(ndev->irq_type == NVME_INT_MSI_MULTI) )
+		{
+			msi_cap_access();
+		}
+		nvme_unmask_irq(ndev->fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
+		test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+	}
+
+	nvme_delete_all_ioq(ndev);
+	return test_flag;
 }

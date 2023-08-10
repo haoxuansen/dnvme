@@ -55,6 +55,7 @@ static SubCase_t sub_case_list[] = {
 static int test_6_all_ns_lbads_test(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
     uint32_t round_idx = 0;
 
     test_loop = 2;
@@ -63,7 +64,7 @@ static int test_6_all_ns_lbads_test(struct nvme_tool *tool)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
+        for (uint32_t index = 1; index <= ctrl->nr_sq; index++)
         {
             io_sq_id = index;
             io_cq_id = index;
@@ -108,49 +109,59 @@ static int sub_case_all_ns_wr_rd_cmp(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint32_t lbads;
+	uint32_t nn = 0;
+	int ret;
 
-    for (uint32_t ns_idx = 0; ns_idx < ndev->id_ctrl.nn; ns_idx++)
-    {
-        wr_nsid = ns_idx + 1;
-        wr_slba = 0;
-        wr_nlb = WORD_RAND() % 32 + 1;
+	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
+	if (ret < 0)
+		return ret;
 
-        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-        mem_set(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+	nvme_id_ctrl_nn(ndev->ctrl, &nn);
 
-        pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
-		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
+	for (uint32_t ns_idx = 0; ns_idx < nn; ns_idx++)
+	{
+		wr_nsid = ns_idx + 1;
+		wr_slba = 0;
+		wr_nlb = WORD_RAND() % 32 + 1;
 
-        cmd_cnt = 0;
-        test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
-        if (test_flag == SUCCEED)
-        {
-            cmd_cnt++;
-            test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-            test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-        }
-        else
-        {
-            goto out;
-        }
+		mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+		mem_set(tool->rbuf, 0, wr_nlb * lbads);
 
-        cmd_cnt = 0;
-        test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
-        if (test_flag == SUCCEED)
-        {
-            cmd_cnt++;
-            test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
-            test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
-        }
-        else
-        {
-            goto out;
-        }
-        if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
-        {
-            test_flag |= FAILED;
-        }
-    }
+		pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
+			wr_nsid, lbads, wr_slba, wr_nlb);
+
+		cmd_cnt = 0;
+		test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+		if (test_flag == SUCCEED)
+		{
+			cmd_cnt++;
+			test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+			test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+		}
+		else
+		{
+			goto out;
+		}
+
+		cmd_cnt = 0;
+		test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+		if (test_flag == SUCCEED)
+		{
+			cmd_cnt++;
+			test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+			test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+		}
+		else
+		{
+			goto out;
+		}
+		if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * lbads))
+		{
+			test_flag |= FAILED;
+		}
+	}
 out:
-    return test_flag;
+	return test_flag;
 }

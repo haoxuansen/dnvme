@@ -12,7 +12,15 @@
 #ifndef _UAPI_LIBBASE_H_
 #define _UAPI_LIBBASE_H_
 
+#include <unistd.h> /* for @usleep */
+
 #include "base/log.h"
 #include "base/minmax.h"
+
+#define msleep(ms)			usleep(1000 * (ms))
+
+/* ==================== related to "base.c" ==================== */
+
+int call_system(const char *command);
 
 #endif /* !_UAPI_LIBBASE_H_ */

@@ -20,10 +20,35 @@
 #include "libnvme.h"
 #include "test.h"
 
+struct test_data {
+	uint32_t	nsid;
+	uint64_t	nsze;
+	uint32_t	lbads;
+};
+
+static struct test_data g_test = {0};
 
 static bool is_support_fused(uint16_t fuses)
 {
 	return (fuses & NVME_CTRL_FUSES_COMPARE_WRITE) ? true : false;
+}
+
+static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
+{
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	int ret;
+
+	/* use first active namespace as default */
+	data->nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = nvme_id_ns_lbads(ns_grp, data->nsid, &data->lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	/* we have checked once, skip the check below */
+	nvme_id_ns_nsze(ns_grp, data->nsid, &data->nsze);
+	return 0;
 }
 
 static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
@@ -85,14 +110,15 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = ndev->nss[0].nsid;
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -106,15 +132,16 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 	uint32_t i;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = ndev->nss[0].nsid;
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
@@ -130,15 +157,16 @@ static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	wrap.nsid = ndev->nss[0].nsid;
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -152,16 +180,17 @@ static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 	uint32_t i;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	wrap.nsid = ndev->nss[0].nsid;
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
@@ -177,15 +206,16 @@ static int submit_io_compare_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	wrap.nsid = ndev->nss[0].nsid;
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -201,7 +231,8 @@ static int subcase_compare_write_success(struct nvme_tool *tool,
 	struct nvme_sq_info *sq)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	struct test_data *test = &g_test;
+	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint16_t ccid, wcid;
 	int ret;
@@ -268,7 +299,8 @@ static int subcase_compare_write_aborted(struct nvme_tool *tool,
 	struct nvme_sq_info *sq)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	struct test_data *test = &g_test;
+	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint16_t ccid, wcid;
 	int ret;
@@ -333,7 +365,8 @@ static int subcase_compare_write_invalid(struct nvme_tool *tool,
 	struct nvme_sq_info *sq)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	struct test_data *test = &g_test;
+	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint16_t ccid, wcid;
 	int ret;
@@ -398,7 +431,8 @@ static int subcase_compare_write_discontig(struct nvme_tool *tool,
 {
 	struct nvme_completion *entry;
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	struct test_data *test = &g_test;
+	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint16_t ccid, wcid, rcid;
 	int ret;
@@ -497,7 +531,8 @@ static int __unused subcase_compare_write_nonsupport(struct nvme_tool *tool,
 	struct nvme_sq_info *sq)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint64_t slba = rand() % (ndev->nss[0].nsze / 2);
+	struct test_data *test = &g_test;
+	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint16_t ccid, wcid;
 	int ret;
@@ -551,7 +586,7 @@ out:
 static int case_fused_operation(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_id_ctrl *id_ctrl = &ndev->id_ctrl;
+	struct nvme_id_ctrl *id_ctrl = ndev->ctrl->id_ctrl;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	int ret;
@@ -560,6 +595,10 @@ static int case_fused_operation(struct nvme_tool *tool)
 		pr_warn("controller not support fused operation!\n");
 		return -EOPNOTSUPP;
 	}
+
+	ret = init_test_data(ndev, &g_test);
+	if (ret < 0)
+		return ret;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {

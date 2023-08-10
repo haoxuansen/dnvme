@@ -26,7 +26,7 @@ LIB_DYNAMIC := $(addprefix lib,$(addsuffix .so,$(CUR_DIR_NAME)))
 
 SRCS := $(wildcard *.c)
 OBJS := $(SRCS:.c=.o)
-TARGETS := $(LIB_DYNAMIC) $(LIB_STATIC)
+TARGETS := $(LIB_DYNAMIC)
 
 # --------------------------------------------------------------------------- #
 # Recipes in rules

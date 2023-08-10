@@ -323,6 +323,9 @@ static int sub_case_iocmd_nvme_reg(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint32_t lbads;
+	int ret;
 
     // if(strstr(ndev->id_ctrl.mn, "Cougar"))
     // {
@@ -343,11 +346,15 @@ static int sub_case_iocmd_nvme_reg(void)
         wr_slba = 0;
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-        mem_set(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
+	if (ret < 0)
+		return ret;
+
+        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+        mem_set(tool->rbuf, 0, wr_nlb * lbads);
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
-		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
+		wr_nsid, lbads, wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
@@ -387,7 +394,7 @@ static int sub_case_iocmd_nvme_reg(void)
             pr_err("nvme_io_read_cmd");
             goto out;
         }
-        if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
+        if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * lbads))
         {
             test_flag |= FAILED;
             pr_err("dw_cmp");
@@ -403,6 +410,9 @@ static int sub_case_iocmd_nvme_reg_normal(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint32_t lbads;
+	int ret;
 
     //for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
     {
@@ -420,11 +430,15 @@ static int sub_case_iocmd_nvme_reg_normal(void)
         wr_slba = 0;
         wr_nlb = WORD_RAND() % 32 + 1;
 
-        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * ndev->nss[wr_nsid - 1].lbads);
-        mem_set(tool->rbuf, 0, wr_nlb * ndev->nss[wr_nsid - 1].lbads);
+	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
+	if (ret < 0)
+		return ret;
+
+        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+        mem_set(tool->rbuf, 0, wr_nlb * lbads);
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
-		wr_nsid, ndev->nss[wr_nsid - 1].lbads, wr_slba, wr_nlb);
+		wr_nsid, lbads, wr_slba, wr_nlb);
 
         cmd_cnt = 0;
         for (index = 0; index < (sq_size - 1); index++)
@@ -464,7 +478,7 @@ static int sub_case_iocmd_nvme_reg_normal(void)
             pr_err("nvme_io_read_cmd");
             goto out;
         }
-        if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * ndev->nss[wr_nsid - 1].lbads))
+        if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * lbads))
         {
             test_flag |= FAILED;
             pr_err("dw_cmp");

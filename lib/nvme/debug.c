@@ -13,6 +13,7 @@
 
 #include "byteorder.h"
 #include "libbase.h"
+#include "libnvme.h"
 #include "debug.h"
 
 static const char *lbaf_rp_string(uint8_t rp)
@@ -260,3 +261,13 @@ void nvme_display_cc(uint32_t cc)
 	pr_debug("~~~~~ Controller Configuration: 0x%x ~~~~~\n", cc);
 	pr_debug("\n");
 }
+
+void nvme_display_ctrl_property(struct nvme_ctrl_property *prop)
+{
+	pr_notice("NVMe Version: %u.%u.%u\n", NVME_VS_MJR(prop->vs), 
+		NVME_VS_MNR(prop->vs), NVME_VS_TER(prop->vs));
+
+	nvme_display_cap(prop->cap);
+	nvme_display_cc(prop->cc);
+}
+

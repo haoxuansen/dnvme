@@ -105,64 +105,73 @@ static int sub_case_cq_int_coalescing(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_sq_info *sqs = ndev->iosqs;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct nvme_sq_info *sqs = ndev->iosqs;
 	enum nvme_irq_type type;
 	int ret;
-    uint32_t index = 0;
-    uint8_t queue_num = BYTE_RAND() % ndev->max_sq_num + 1;
-    wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
-    wr_nlb = WORD_RAND() % 255 + 1;
+	uint64_t nsze;
+	uint32_t index = 0;
+	uint16_t i;
+	uint8_t queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
+
+	ret = nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
+	if (ret < 0)
+		return ret;
+
+	wr_slba = DWORD_RAND() % (nsze / 2);
+	wr_nlb = WORD_RAND() % 255 + 1;
 
 	type = nvme_select_irq_type_random();
 	ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, type);
 	if (ret < 0)
 		return ret;
 
-    ret = nvme_create_all_ioq(ndev, 0);
-    if (ret < 0)
-        return ret;
+	ret = nvme_create_all_ioq(ndev, 0);
+	if (ret < 0)
+		return ret;
 
-    /**********************************************************************/
-    aggr_time = 255; // max
-    aggr_thr = 5;    // 0' beaed
-    test_flag |= nvme_set_feature_cmd(ndev->fd, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
-    test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
-    test_flag |= cq_gain(0, 1, &reap_num);
-    /**********************************************************************/
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        int_vertor = sqs[i].cqid;
-        coals_disable = 0;
-        test_flag |= nvme_set_feature_cmd(ndev->fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
-    }
-    test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
-    test_flag |= cq_gain(0, queue_num, &reap_num);
-    /**********************************************************************/
+	/**********************************************************************/
+	aggr_time = 255; // max
+	aggr_thr = 5;    // 0' beaed
+	test_flag |= nvme_set_feature_cmd(ndev->fd, wr_nsid, NVME_FEAT_IRQ_COALESCE, ((aggr_time << 8) | aggr_thr), 0);
+	test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
+	test_flag |= cq_gain(0, 1, &reap_num);
+	/**********************************************************************/
+	for (uint16_t i = 0; i < queue_num; i++)
+	{
+		int_vertor = sqs[i].cqid;
+		coals_disable = 0;
+		test_flag |= nvme_set_feature_cmd(ndev->fd, wr_nsid, NVME_FEAT_IRQ_CONFIG, int_vertor, coals_disable);
+	}
+	test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
+	test_flag |= cq_gain(0, queue_num, &reap_num);
+	/**********************************************************************/
 
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        sqs[i].cmd_cnt = 0;
+	for (i = 0; i < queue_num; i++)
+	{
+		sqs[i].cmd_cnt = 0;
 
-        for (index = 0; index < 200; index++)
-        {
-            if ((wr_slba + wr_nlb) < ndev->nss[0].nsze)
-            {
-                test_flag |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
-                sqs[i].cmd_cnt++;
-            }
-        }
-    }
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        test_flag |= nvme_ring_sq_doorbell(ndev->fd, sqs[i].sqid);
-    }
-    for (uint16_t i = 0; i < queue_num; i++)
-    {
-        // io_cq_id = sqs[i].cq_id;
-        // test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
-        test_flag |= cq_gain_disp_cq(sqs[i].cqid, sqs[i].cmd_cnt, &reap_num, false);
-    }
+		for (index = 0; index < 200; index++)
+		{
+			if ((wr_slba + wr_nlb) < nsze)
+			{
+				test_flag |= nvme_send_iocmd(ndev->fd, 0, sqs[i].sqid, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				sqs[i].cmd_cnt++;
+			}
+		}
+	}
+	for (i = 0; i < queue_num; i++)
+	{
+		test_flag |= nvme_ring_sq_doorbell(ndev->fd, sqs[i].sqid);
+	}
+	for (i = 0; i < queue_num; i++)
+	{
+		// io_cq_id = sqs[i].cq_id;
+		// test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+		test_flag |= cq_gain_disp_cq(sqs[i].cqid, sqs[i].cmd_cnt, &reap_num, false);
+	}
 
-    nvme_delete_all_ioq(ndev);
-    return test_flag;
+	nvme_delete_all_ioq(ndev);
+	return test_flag;
 }

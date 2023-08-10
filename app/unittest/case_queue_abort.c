@@ -54,6 +54,7 @@ static SubCase_t sub_case_list[] = {
 static int case_queue_abort(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
     uint32_t round_idx = 0;
 
     test_loop = 1;
@@ -62,7 +63,7 @@ static int case_queue_abort(struct nvme_tool *tool)
     for (round_idx = 1; round_idx <= test_loop; round_idx++)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
-        for (uint32_t index = 1; index <= ndev->max_sq_num; index++)
+        for (uint32_t index = 1; index <= ctrl->nr_sq; index++)
         {
             test_flag = SUCCEED;
             io_sq_id = index;

@@ -15,7 +15,6 @@
 #include "libnvme.h"
 
 #define DEFAULT_IO_QUEUE_SIZE (65535)
-#define NSIDX(n) (n - 1)
 
 #define LBA_DAT_SIZE (512)
 

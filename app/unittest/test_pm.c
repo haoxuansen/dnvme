@@ -54,7 +54,8 @@ static int get_power_state(struct nvme_dev_info *ndev, uint8_t *ps)
 
 static int set_power_state(struct nvme_dev_info *ndev, uint8_t ps)
 {
-	struct nvme_ctrl_property *prop = &ndev->prop;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	uint8_t ps_new;
@@ -91,11 +92,19 @@ static int set_power_state(struct nvme_dev_info *ndev, uint8_t ps)
 	return 0;
 }
 
-static uint8_t select_next_power_state(struct nvme_dev_info *ndev)
+static int select_next_power_state(struct nvme_ctrl_instance *ctrl, uint8_t *sel)
 {
-	uint8_t num = ndev->id_ctrl.npss + 1;
+	uint8_t npss;
+	int ret;
 
-	if (ndev->vid == PCI_VENDOR_ID_MAXIO) {
+	ret = nvme_id_ctrl_npss(ctrl);
+	if (ret < 0) {
+		pr_err("failed to get NPSS!(%d)\n", ret);
+		return ret;
+	}
+	npss = ret;
+
+	if (nvme_id_ctrl_vid(ctrl) == PCI_VENDOR_ID_MAXIO) {
 		switch (rand() % 3) {
 		case 1:
 			return 3;
@@ -106,20 +115,22 @@ static uint8_t select_next_power_state(struct nvme_dev_info *ndev)
 			return 0;
 		}
 	} else {
-		return rand() % num;
+		return rand() % npss;
 	}
 }
 
 static int case_pm_switch_power_state(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ctrl_property *prop = &ndev->prop;
+	struct nvme_ctrl_property *prop = ndev->ctrl->prop;
 	uint8_t ps, ps_new;
 	uint32_t loop = 100;
 	int ret;
 
 	do {
-		ps = select_next_power_state(ndev);
+		ret = select_next_power_state(ndev->ctrl, &ps);
+		if (ret < 0)
+			return ret;
 
 		ret = set_power_state(ndev, ps);
 		if (ret < 0)

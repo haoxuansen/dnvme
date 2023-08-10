@@ -132,11 +132,12 @@ static void test_sub(void)
 
 static int case_pcie_MPS(struct nvme_tool *tool)
 {
-    int test_round = 0;
-    uint32_t u32_tmp_data = 0;
+	int test_round = 0;
+	uint32_t u32_tmp_data = 0;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_ctrl_property *prop = &ndev->prop;
-    int ret;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
+	int ret;
 
     cq_size = NVME_CAP_MQES(prop->cap);
     sq_size = NVME_CAP_MQES(prop->cap);

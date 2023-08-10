@@ -85,20 +85,33 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb, uint32_t meta_id, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
+	uint32_t lbads;
+	uint16_t ms;
+	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	wrap.nsid = ndev->nss[0].nsid;
+	/* use first active namespace as default */
+	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
+
+	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	ms = (uint16_t)nvme_id_ns_ms(ns_grp, wrap.nsid);
+
 	if (meta_id) {
-		wrap.size = wrap.nlb * ndev->nss[0].lbads;
+		wrap.size = wrap.nlb * lbads;
 		wrap.meta_id = meta_id;
 	} else {
-		wrap.size = wrap.nlb * (ndev->nss[0].lbads + ndev->nss[0].ms);
+		wrap.size = wrap.nlb * (lbads + ms);
 	}
 
 	BUG_ON(wrap.size > tool->wbuf_size);
@@ -111,20 +124,33 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb, uint32_t meta_id, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
+	uint32_t lbads;
+	uint16_t ms;
+	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	wrap.nsid = ndev->nss[0].nsid;
+	/* use first active namespace as default */
+	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
+
+	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	ms = (uint16_t)nvme_id_ns_ms(ns_grp, wrap.nsid);
+
 	if (meta_id) {
-		wrap.size = wrap.nlb * ndev->nss[0].lbads;
+		wrap.size = wrap.nlb * lbads;
 		wrap.meta_id = meta_id;
 	} else {
-		wrap.size = wrap.nlb * (ndev->nss[0].lbads + ndev->nss[0].ms);
+		wrap.size = wrap.nlb * (lbads + ms);
 	}
 
 	BUG_ON(wrap.size > tool->rbuf_size);
@@ -181,28 +207,36 @@ static int select_lbaf(struct nvme_id_ns *ns, struct meta_config *cfg)
 static int prepare_meta_config(struct nvme_dev_info *ndev, 
 	struct meta_config *cfg)
 {
-	struct nvme_ns_info *ns = &ndev->nss[0];
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ns_instance *ns;
+	struct nvme_id_ns *id_ns;
 	bool need_format = false;
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
 	uint32_t dw10;
 	uint32_t lbaf;
 	int ret;
 
-	ret = check_ns_capability(&ns->id_ns, cfg);
+	ns = &ns_grp->ns[nsid - 1];
+	id_ns = ns->id_ns;
+
+	ret = check_ns_capability(id_ns, cfg);
 	if (ret < 0)
 		return ret;
 
-	ret = check_ctrl_capability(&ndev->id_ctrl, cfg);
+	ret = check_ctrl_capability(ctrl->id_ctrl, cfg);
 	if (ret < 0)
 		return ret;
 
-	if ((cfg->meta_ext && !(ns->id_ns.flbas & NVME_NS_FLBAS_META_EXT)) || 
-		(!cfg->meta_ext && (ns->id_ns.flbas & NVME_NS_FLBAS_META_EXT))) {
+	if ((cfg->meta_ext && !(id_ns->flbas & NVME_NS_FLBAS_META_EXT)) || 
+		(!cfg->meta_ext && (id_ns->flbas & NVME_NS_FLBAS_META_EXT))) {
 		need_format = true;
 	}
-	lbaf = NVME_NS_FLBAS_LBA(ns->id_ns.flbas);
+	lbaf = NVME_NS_FLBAS_LBA(id_ns->flbas);
 
-	if (ns->ms != cfg->ms || ns->lbads != cfg->lbads) {
-		ret = select_lbaf(&ns->id_ns, cfg);
+	if (ns->meta_size != cfg->ms || ns->blk_size != cfg->lbads) {
+		ret = select_lbaf(id_ns, cfg);
 		if (ret < 0) {
 			pr_err("failed to find lbaf for ms(%u), lbads(%u)\n",
 				cfg->ms, cfg->lbads);
@@ -243,7 +277,7 @@ static int prepare_meta_config(struct nvme_dev_info *ndev,
 		return ret;
 	
 	pr_debug("after format ns:0x%x, lbads:%u, ms:%u, flbas:0x%x\n",
-		ns->nsid, ns->lbads, ns->ms, ns->id_ns.flbas);
+		ns->nsid, ns->blk_size, ns->meta_size, id_ns->flbas);
 
 	return 0;
 }
@@ -334,14 +368,22 @@ static int delete_meta_nodes(int fd, void *rnode, void *wnode,
 static int case_meta_xfer_separate_sgl(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct meta_config cfg = {0};
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
 	uint8_t flags = NVME_CMD_SGL_METASEG;
 	uint32_t wid = 1, rid = 2;
 	uint32_t nlb = 8;
 	uint32_t size;
+	uint32_t lbads;
 	int ret;
+
+	ret = nvme_id_ns_lbads(ns_grp, nsid, &lbads);
+	if (ret < 0)
+		return ret;
 
 	pr_notice("Please enter the meta size: ");
 	scanf("%hu", &cfg.ms);
@@ -381,7 +423,7 @@ static int case_meta_xfer_separate_sgl(struct nvme_tool *tool)
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
-	size = ndev->nss[0].lbads * nlb;
+	size = lbads * nlb;
 
 	ret = memcmp(tool->rbuf, tool->wbuf, size);
 	if (ret) {
@@ -414,15 +456,23 @@ NVME_CASE_META_SYMBOL(case_meta_xfer_separate_sgl,
 static int case_meta_xfer_separate_prp(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct meta_config cfg = {0};
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
 	void *rmeta = NULL;
 	void *wmeta = NULL;
 	uint32_t wid = 1, rid = 2;
 	uint32_t nlb = 8;
 	uint32_t size;
+	uint32_t lbads;
 	int ret;
+
+	ret = nvme_id_ns_lbads(ns_grp, nsid, &lbads);
+	if (ret < 0)
+		return ret;
 
 	pr_notice("Please enter the meta size: ");
 	scanf("%hu", &cfg.ms);
@@ -460,7 +510,7 @@ static int case_meta_xfer_separate_prp(struct nvme_tool *tool)
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
-	size = ndev->nss[0].lbads * nlb;
+	size = lbads * nlb;
 
 	ret = memcmp(tool->rbuf, tool->wbuf, size);
 	if (ret) {
@@ -493,12 +543,22 @@ NVME_CASE_META_SYMBOL(case_meta_xfer_separate_prp,
 static int case_meta_xfer_contig_lba(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct meta_config cfg = {0};
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
 	uint32_t nlb = 8;
 	uint32_t size;
+	uint32_t lbads;
+	uint16_t ms;
 	int ret;
+
+	ret = nvme_id_ns_lbads(ns_grp, nsid, &lbads);
+	if (ret < 0)
+		return ret;
+	ms = (uint16_t)nvme_id_ns_ms(ns_grp, nsid);
 
 	pr_notice("Please enter the meta size: ");
 	scanf("%hu", &cfg.ms);
@@ -531,7 +591,7 @@ static int case_meta_xfer_contig_lba(struct nvme_tool *tool)
 		pr_err("failed to read data!(%d)\n", ret);
 		goto out_del_ioq;
 	}
-	size = (ndev->nss[0].lbads + ndev->nss[0].ms) * nlb;
+	size = (lbads + ms) * nlb;
 
 	ret = memcmp(tool->rbuf, tool->wbuf, size);
 	if (ret) {

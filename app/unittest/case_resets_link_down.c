@@ -23,24 +23,29 @@ static char *disp_this_case = "this case will tests link down reset\n"
 
 static void test_sub(void)
 {
-    uint32_t index = 0;
-    uint32_t cmd_cnt = 0;
-    uint32_t io_sq_id = 1;
-    uint32_t io_cq_id = 1;
-    uint32_t cq_size = 4096;
-    uint32_t sq_size = 4096;
-    uint64_t wr_slba = 0;
-    uint16_t wr_nlb = 0;
-    uint32_t wr_nsid = 1;
+	uint32_t index = 0;
+	uint32_t cmd_cnt = 0;
+	uint32_t io_sq_id = 1;
+	uint32_t io_cq_id = 1;
+	uint32_t cq_size = 4096;
+	uint32_t sq_size = 4096;
+	uint64_t wr_slba = 0;
+	uint16_t wr_nlb = 0;
+	uint32_t wr_nsid = 1;
 
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    struct create_cq_parameter cq_parameter = {0};
-    struct create_sq_parameter sq_parameter = {0};
-    uint32_t reap_num = 0;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct create_cq_parameter cq_parameter = {0};
+	struct create_sq_parameter sq_parameter = {0};
+	uint32_t reap_num = 0;
+	uint64_t nsze;
+
+	nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
 
     /**********************************************************************/
-    io_sq_id = BYTE_RAND() % ndev->max_sq_num + 1;
+    io_sq_id = BYTE_RAND() % ctrl->nr_sq + 1;
     pr_info("create SQ %d\n", io_sq_id);
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
@@ -69,9 +74,9 @@ static void test_sub(void)
     /**********************************************************************/
     for (index = 0; index < (DWORD_RAND() % (sq_size - 2)) / 2 + 100; index++)
     {
-        wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
+        wr_slba = DWORD_RAND() % (nsze / 2);
         wr_nlb = WORD_RAND() % 255 + 1;
-        if (wr_slba + wr_nlb < ndev->nss[0].nsze)
+        if (wr_slba + wr_nlb < nsze)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             cmd_cnt++;

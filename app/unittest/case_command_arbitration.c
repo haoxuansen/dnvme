@@ -264,7 +264,7 @@ static void test_sub(void)
     uint32_t io_cq_id = 1;
     struct nvme_tool *tool = g_nvme_tool;
     struct nvme_dev_info *ndev = tool->ndev;
-    struct nvme_ctrl_property *prop = &ndev->prop;
+    struct nvme_ctrl_property *prop = ndev->ctrl->prop;
     uint32_t cq_size = NVME_CAP_MQES(prop->cap);
     uint32_t sq_size = NVME_CAP_MQES(prop->cap);
     uint64_t wr_slba = 0;

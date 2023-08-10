@@ -15,6 +15,7 @@
 #include "nvme/cmd.h"
 #include "nvme/core.h"
 #include "nvme/directive.h"
+#include "nvme/identify.h"
 #include "nvme/ioctl.h"
 #include "nvme/irq.h"
 #include "nvme/meta.h"

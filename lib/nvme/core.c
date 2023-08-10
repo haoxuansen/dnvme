@@ -26,6 +26,11 @@
 #include "libnvme.h"
 #include "debug.h"
 
+enum {
+	NVME_INIT_STAGE1,
+	NVME_INIT_STAGE2,
+};
+
 static inline void _nvme_check_size(void)
 {
 	BUILD_BUG_ON(sizeof(struct nvme_common_command) != 64);
@@ -91,33 +96,6 @@ static inline void _nvme_check_size(void)
 	/* Relate to nvme_cmd_zone_mgmt_recv command */
 	BUILD_BUG_ON(sizeof(struct nvme_zone_report) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_zone_descriptor) != 64);
-}
-
-/**
- * @return 0 on success, otherwise a negative errno.
- */
-int call_system(const char *command)
-{
-	int status;
-
-	status = system(command);
-	if (-1 == status) {
-		pr_err("system err!\n");
-		return -EPERM;
-	}
-
-	if (!WIFEXITED(status)) {
-		pr_err("abort with status:%d!\n", WEXITSTATUS(status));
-		return -EPERM;
-	}
-
-	if (WEXITSTATUS(status)) {
-		pr_err("failed to execute '%s'!(%d)\n", command, 
-			WEXITSTATUS(status));
-		return -EPERM;
-	}
-
-	return 0;
 }
 
 void nvme_fill_data(void *buf, uint32_t size)
@@ -189,38 +167,47 @@ void nvme_dump_data(void *buf, uint32_t size)
 	pr_debug("%s\n", str);
 }
 
-int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_info *ns)
+int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_instance *ns)
 {
+	struct nvme_id_ns *id_ns = ns->id_ns;
 	int ret;
-	uint8_t flbas;
 
-	ret = nvme_identify_ns_active(ndev, &ns->id_ns, ns->nsid);
+	ret = nvme_identify_ns_active(ndev, id_ns, ns->nsid);
 	if (ret < 0) {
 		pr_err("failed to get ns(%u) data!(%d)\n", ns->nsid, ret);
 		return ret;
 	}
 
-	ns->nsze = le64_to_cpu(ns->id_ns.nsze);
-	flbas = NVME_NS_FLBAS_LBA(ns->id_ns.flbas);
-	ns->lbads = 1 << ns->id_ns.lbaf[flbas].ds;
-	ns->ms = le16_to_cpu(ns->id_ns.lbaf[flbas].ms);
+	ns->fmt_idx = NVME_NS_FLBAS_LBA(id_ns->flbas);
+	ns->blk_size = 1 << id_ns->lbaf[ns->fmt_idx].ds;
+	ns->meta_size = le16_to_cpu(id_ns->lbaf[ns->fmt_idx].ms);
 	return 0;
 }
 
-static int request_io_queue_num(struct nvme_dev_info *ndev, uint16_t *nr_sq, 
-	uint16_t *nr_cq)
+/**
+ * @brief Request the max number of IOSQ & IOCQ from NVMe controller
+ *
+ * @return 0 on success, otherwise a negative errno
+ */
+static int request_io_queue_num(struct nvme_dev_info *ndev, 
+	struct nvme_ctrl_instance *ctrl)
 {
 	struct nvme_completion entry = {0};
+	/*
+	 * If the value specified is 65535, the controller should abort
+	 * the command with a status code of Invalid Field in Command
+	 */
+	uint16_t iosq = 65534;
+	uint16_t iocq = 65534;
 	uint16_t cid;
-	int fd = ndev->fd;
 	int ret;
 
-	ret = nvme_cmd_set_feat_num_queues(fd, *nr_sq, *nr_cq);
+	ret = nvme_cmd_set_feat_num_queues(ndev->fd, iosq, iocq);
 	if (ret < 0)
 		return ret;
 	cid = ret;
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
 	if (ret < 0)
 		return ret;
 
@@ -234,118 +221,310 @@ static int request_io_queue_num(struct nvme_dev_info *ndev, uint16_t *nr_sq,
 	if (ret < 0)
 		return ret;
 
-	*nr_sq = le32_to_cpu(entry.result.u32) & 0xffff;
-	*nr_cq = le32_to_cpu(entry.result.u32) >> 16;
+	ctrl->nr_sq = (le32_to_cpu(entry.result.u32) & 0xffff) + 1;
+	ctrl->nr_cq = (le32_to_cpu(entry.result.u32) >> 16) + 1;
 
+	pr_info("Controller has allocated %u IOSQ, %u IOCQ!\n", 
+		ctrl->nr_sq, ctrl->nr_cq);
 	return 0;
 }
 
-static int init_ns_data(struct nvme_dev_info *ndev)
+static int init_identify_ctrl_data(struct nvme_dev_info *ndev,
+	struct nvme_ctrl_instance *ctrl)
 {
-	struct nvme_ns_info *ns;
-	uint32_t nn = le32_to_cpu(ndev->id_ctrl.nn);
-	uint32_t last = 0;
-	uint32_t i;
-	uint8_t flbas;
-	__le32 *ns_list;
-	int ret = -ENOMEM;
+	struct nvme_id_ctrl *id_ctrl;
+	int ret;
 
-	WARN_ON(nn > 1024);
-
-	ns = calloc(nn, sizeof(*ns));
-	if (!ns) {
-		pr_err("failed to alloc for ns!(nn:%u)\n", nn);
+	id_ctrl = calloc(1, sizeof(*id_ctrl));
+	if (!id_ctrl) {
+		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;
 	}
 
-	ns_list = malloc(NVME_IDENTIFY_DATA_SIZE);
-	if (!ns_list) {
-		pr_err("failed to allo for ns list!\n");
+	ret = nvme_identify_ctrl(ndev, id_ctrl);
+	if (ret < 0)
 		goto out;
+
+	nvme_display_id_ctrl(id_ctrl);
+
+	ctrl->id_ctrl = id_ctrl;
+	return 0;
+out:
+	free(id_ctrl);
+	return ret;
+}
+
+static void release_identify_ctrl_data(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl) {
+		pr_warn("double free? identify ctrl data isn't exist!\n");
+		return;
 	}
-	memset(ns_list, 0, NVME_IDENTIFY_DATA_SIZE);
+
+	free(ctrl->id_ctrl);
+	ctrl->id_ctrl = NULL;
+}
+
+static int init_ctrl_property(struct nvme_dev_info *ndev, 
+	struct nvme_ctrl_instance *ctrl)
+{
+	struct nvme_ctrl_property *prop;
+	int fd = ndev->fd;
+	int ret;
+
+	prop = calloc(1, sizeof(*prop));
+	if (!prop) {
+		pr_err("failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+
+	ret = nvme_read_ctrl_cap(fd, &prop->cap);
+	if (ret < 0)
+		goto out;
+
+	ret = nvme_read_ctrl_vs(fd, &prop->vs);
+	if (ret < 0)
+		goto out;
+
+	ret = nvme_read_ctrl_cc(fd, &prop->cc);
+	if (ret < 0)
+		goto out;
+
+	nvme_display_ctrl_property(prop);
+
+	ctrl->prop = prop;
+	return 0;
+out:
+	free(prop);
+	return ret;
+}
+
+static void release_ctrl_property(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->prop) {
+		pr_warn("double free? ctrl property isn't exist!\n");
+		return;
+	}
+
+	free(ctrl->prop);
+	ctrl->prop = NULL;
+}
+
+static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
+{
+	struct nvme_ctrl_instance *ctrl;
+	int ret;
+
+	switch (stage) {
+	case NVME_INIT_STAGE1:
+		if (ndev->ctrl) {
+			pr_err("ctrl instance is already exist!\n");
+			return -EFAULT;
+		}
+
+		ctrl = calloc(1, sizeof(*ctrl));
+		if (!ctrl) {
+			pr_err("failed to alloc ctrl instance!\n");
+			return -ENOMEM;
+		}
+
+		ret = request_io_queue_num(ndev, ctrl);
+		if (ret < 0)
+			goto stage1_free_ctrl;
+
+		ret = init_identify_ctrl_data(ndev, ctrl);
+		if (ret < 0)
+			goto stage1_free_ctrl;
+
+		ndev->ctrl = ctrl;
+		break;
+
+	case NVME_INIT_STAGE2:
+		if (!ndev->ctrl) {
+			pr_err("ctrl instance isn't exist!\n");
+			return -EFAULT;
+		}
+
+		ret = init_ctrl_property(ndev, ndev->ctrl);
+		if (ret < 0)
+			return ret;
+		break;
+
+	default:
+		pr_err("stage(%u) is unknown!\n", stage);
+		return -EINVAL;
+	}
+
+	return 0;
+
+stage1_free_ctrl:
+	free(ctrl);
+	return ret;
+}
+
+static void release_ctrl_instance(struct nvme_dev_info *ndev, int stage)
+{
+	if (!ndev->ctrl) {
+		pr_warn("double free? ctrl instance isn't exist!\n");
+		return;
+	}
+
+	switch (stage) {
+	case NVME_INIT_STAGE1:
+		release_identify_ctrl_data(ndev->ctrl);
+		free(ndev->ctrl);
+		ndev->ctrl = NULL;
+		break;
+
+	case NVME_INIT_STAGE2:
+		release_ctrl_property(ndev->ctrl);
+		break;
+
+	default:
+		pr_warn("stage(%u) is unknown! ignored\n", stage);
+	}
+}
+
+static int init_ns_instance(struct nvme_dev_info *ndev, 
+	struct nvme_ns_instance *ns)
+{
+	struct nvme_id_ns *id_ns;
+	int ret;
+
+	id_ns = calloc(1, sizeof(*id_ns));
+	if (!id_ns) {
+		pr_err("failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+
+	ret = nvme_identify_ns_active(ndev, id_ns, ns->nsid);
+	if (ret < 0) {
+		pr_err("failed to get ns(%u) data!(%d)\n", ns->nsid, ret);
+		goto free_id_ns;
+	}
+	nvme_display_id_ns(id_ns, ns->nsid);
+
+	ns->id_ns = id_ns;
+	ns->fmt_idx = NVME_NS_FLBAS_LBA(id_ns->flbas);
+	ns->blk_size = 1 << id_ns->lbaf[ns->fmt_idx].ds;
+	ns->meta_size = le16_to_cpu(id_ns->lbaf[ns->fmt_idx].ms);
+
+	BUG_ON(ns->blk_size < 512);
+	return 0;
+free_id_ns:
+	free(id_ns);
+	return ret;
+}
+
+static void release_ns_instance(struct nvme_ns_instance *ns)
+{
+	if (ns->id_ns) {
+		free(ns->id_ns);
+		ns->id_ns = NULL;
+	}
+}
+
+static int init_ns_group(struct nvme_dev_info *ndev)
+{
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ns_group *ns_grp;
+	uint32_t nn;
+	uint32_t i;
+	uint32_t nsid;
+	uint32_t last = 0;
+	__le32 *ns_list;
+	int ret;
+
+	ret = nvme_id_ctrl_nn(ctrl, &nn);
+	if (ret < 0)
+		return ret;
+
+	if (nn > 1024) {
+		pr_warn("Support %u namespace? limit it to 1024!\n", nn);
+		nn = 1024;
+	}
+
+	ns_grp = calloc(1, sizeof(struct nvme_ns_group) + 
+			nn * sizeof(struct nvme_ns_instance));
+	if (!ns_grp) {
+		pr_err("failed to alloc ns group!\n");
+		return -ENOMEM;
+	}
+	ns_grp->nr_ns = nn;
+
+	ns_list = calloc(1, NVME_IDENTIFY_DATA_SIZE);
+	if (!ns_list) {
+		pr_err("failed to alloc ns list!\n");
+		goto free_ns_group;
+	}
 
 	ret = nvme_identify_ns_list_active(ndev, ns_list, 
 		NVME_IDENTIFY_DATA_SIZE, 0);
 	if (ret < 0) {
 		pr_err("failed to get active ns list!(%d)\n", ret);
-		goto out2;
+		goto free_ns_list;
 	}
 
-	for (i = 0; i < 1024 && ns_list[i] != 0; i++) {
-		BUG_ON(i >= nn);
+	for (i = 0; i < nn && ns_list[i] != 0; i++) {
 
-		ns[i].nsid = le32_to_cpu(ns_list[i]);
-		if (ns[i].nsid <= last) {
-			pr_err("The NSID in list must increase in order!\n");
-			goto out2;
+		nsid = le32_to_cpu(ns_list[i]);
+		if (nsid <= last) {
+			pr_err("NSID in list shall increase in order!\n");
+			goto free_ns_list;
 		}
-		last = ns[i].nsid;
+		last = nsid;
 
-		ret = nvme_identify_ns_active(ndev, &ns[i].id_ns, ns[i].nsid);
-		if (ret < 0) {
-			pr_err("failed to get ns(%u) data!(%d)\n", ns[i].nsid, ret);
-			goto out2;
+		if (nsid > nn) {
+			pr_warn("ignore the remaining namespaces which id >= %u!\n",
+				nsid);
+			break;
 		}
-		nvme_display_id_ns(&ns[i].id_ns, ns[i].nsid);
+		/* nsid start at 1 (zero is invalid) */
+		ns_grp->ns[nsid - 1].nsid = nsid;
 
-		ns[i].nsze = le64_to_cpu(ns[i].id_ns.nsze);
-		flbas = NVME_NS_FLBAS_LBA(ns[i].id_ns.flbas);
-		ns[i].lbads = 1 << ns[i].id_ns.lbaf[flbas].ds;
-		ns[i].ms = le16_to_cpu(ns[i].id_ns.lbaf[flbas].ms);
+		ret = init_ns_instance(ndev, &ns_grp->ns[nsid - 1]);
+		if (ret < 0)
+			goto rel_ns_instance;
 
-		if (!ns[i].nsze || ns[i].lbads < 512) {
-			pr_err("invlid nsze(%llu) or lbads(%u) in ns(%u)\n", 
-				ns[i].nsze, ns[i].lbads, ns[i].nsid);
-			ret = -EINVAL;
-			goto out2;
-		}
+		ns_grp->nr_act++;
 	}
 
-	ndev->nss = ns;
-	ndev->ns_num_total = nn;
-	ndev->ns_num_actual = i;
+	BUG_ON(!ns_grp->nr_act); /* no active namespace? */
 
-	free(ns_list);
+	ns_grp->act_list = ns_list;
+	ndev->ns_grp = ns_grp;
 	return 0;
-out2:
+
+rel_ns_instance:
+	for (i--; i > 0; i--) {
+		nsid = le32_to_cpu(ns_list[i]);
+		release_ns_instance(&ns_grp->ns[nsid - 1]);
+	}
+free_ns_list:
 	free(ns_list);
-out:
-	free(ns);
+free_ns_group:
+	free(ns_grp);
 	return ret;
 }
 
-static void deinit_ns_data(struct nvme_dev_info *ndev)
+static void release_ns_group(struct nvme_dev_info *ndev)
 {
-	free(ndev->nss);
-	ndev->nss = NULL;
-	ndev->ns_num_total = 0;
-	ndev->ns_num_actual = 0;
-}
+	struct nvme_ns_group *ns_grp;
+	uint32_t i;	
 
-static int init_ctrl_property(int fd, struct nvme_ctrl_property *prop)
-{
-	int ret;
+	if (!ndev->ns_grp) {
+		pr_warn("double free? ns group isn't exist!\n");
+		return;
+	}
+	ns_grp = ndev->ns_grp;
 
-	ret = nvme_read_ctrl_cap(fd, &prop->cap);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < ns_grp->nr_ns; i++)
+		release_ns_instance(&ns_grp->ns[i]);
 
-	nvme_display_cap(prop->cap);
-
-	ret = nvme_read_ctrl_vs(fd, &prop->vs);
-	if (ret < 0)
-		return ret;
-
-	pr_notice("NVMe Version: %u.%u.%u\n", NVME_VS_MJR(prop->vs), 
-		NVME_VS_MNR(prop->vs), NVME_VS_TER(prop->vs));
-
-	ret = nvme_read_ctrl_cc(fd, &prop->cc);
-	if (ret < 0)
-		return ret;
-
-	nvme_display_cc(prop->cc);
-	return 0;
+	free(ns_grp->act_list);
+	ns_grp->act_list = NULL;
+	free(ns_grp);
+	ndev->ns_grp = NULL;
 }
 
 static int init_capability(struct nvme_dev_info *ndev)
@@ -403,8 +582,6 @@ static int check_link_status(struct nvme_dev_info *ndev)
  */
 static int nvme_init_stage1(struct nvme_dev_info *ndev)
 {
-	uint16_t iosq_num = 0xff; /* expect */
-	uint16_t iocq_num = 0xff;
 	int ret;
 
 	ret = nvme_disable_controller_complete(ndev->fd);
@@ -422,38 +599,40 @@ static int nvme_init_stage1(struct nvme_dev_info *ndev)
 
 	ret = nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
 	if (ret < 0)
-		return ret;
+		goto out_gnl_disconnect;
 
 	ret = nvme_set_irq(ndev->fd, NVME_INT_PIN, 1);
 	if (ret < 0)
-		return ret;
+		goto out_gnl_disconnect;
 	ndev->irq_type = NVME_INT_PIN;
 	ndev->nr_irq = 1;
 
 	ret = nvme_enable_controller(ndev->fd);
 	if (ret < 0)
-		return ret;
+		goto out_gnl_disconnect;
 
-	ret = request_io_queue_num(ndev, &iosq_num, &iocq_num);
+	ret = init_ctrl_instance(ndev, NVME_INIT_STAGE1);
 	if (ret < 0)
-		return ret;
+		goto out_gnl_disconnect;
 
-	ndev->max_sq_num = iosq_num + 1;
-	ndev->max_cq_num = iocq_num + 1;
-	pr_info("Controller has allocated %u IOSQ, %u IOCQ!\n", 
-		ndev->max_sq_num, ndev->max_cq_num);
-
-	ret = nvme_identify_ctrl(ndev, &ndev->id_ctrl);
-	if (ret < 0)
-		return ret;
-
-	ndev->vid = le16_to_cpu(ndev->id_ctrl.vid);
-	nvme_display_id_ctrl(&ndev->id_ctrl);
 	return 0;
+
+out_gnl_disconnect:
+	nvme_gnl_disconnect(ndev->sock_fd);
+	ndev->sock_fd = -1;
+	return ret;
+}
+
+static void nvme_release_stage1(struct nvme_dev_info *ndev)
+{
+	release_ctrl_instance(ndev, NVME_INIT_STAGE1);
+	nvme_gnl_disconnect(ndev->sock_fd);
+	ndev->sock_fd = -1;
 }
 
 static int nvme_init_stage2(struct nvme_dev_info *ndev)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	int ret;
 
 	ret = nvme_disable_controller_complete(ndev->fd);
@@ -465,42 +644,51 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 		return ret;
 
 	/* the number of irq equals to (ACQ + IOCQ) */
-	ret = nvme_set_irq(ndev->fd, NVME_INT_MSIX, ndev->max_cq_num + 1);
+	ret = nvme_set_irq(ndev->fd, NVME_INT_MSIX, ctrl->nr_cq + 1);
 	if (ret < 0)
 		return ret;
 	ndev->irq_type = NVME_INT_MSIX;
-	ndev->nr_irq = ndev->max_cq_num + 1;
+	ndev->nr_irq = ctrl->nr_cq + 1;
 
 	ret = nvme_enable_controller(ndev->fd);
 	if (ret < 0)
 		return ret;
 
-	ret = init_ctrl_property(ndev->fd, &ndev->prop);
+	ret = init_ctrl_instance(ndev, NVME_INIT_STAGE2);
 	if (ret < 0)
 		return ret;
 
 	ret = nvme_init_ioq_info(ndev);
 	if (ret < 0)
-		return ret;
+		goto rel_ctrl_instance;
 
-	ret = init_ns_data(ndev);
+	ret = init_ns_group(ndev);
 	if (ret < 0)
-		goto out;
+		goto rel_ioq;
 
 	ret = init_capability(ndev);
 	if (ret < 0)
-		goto out2;
+		goto rel_ns_group;
 
 	ret = check_link_status(ndev);
 	if (ret < 0)
-		goto out2;
+		goto rel_ns_group;
 
 	return 0;
-out2:
-	deinit_ns_data(ndev);
-out:
+rel_ns_group:
+	release_ns_group(ndev);
+rel_ioq:
 	nvme_deinit_ioq_info(ndev);
+rel_ctrl_instance:
+	release_ctrl_instance(ndev, NVME_INIT_STAGE2);
 	return ret;
+}
+
+static void nvme_release_stage2(struct nvme_dev_info *ndev)
+{
+	release_ns_group(ndev);
+	nvme_deinit_ioq_info(ndev);
+	release_ctrl_instance(ndev, NVME_INIT_STAGE2);
 }
 
 struct nvme_dev_info *nvme_init(const char *devpath)
@@ -510,12 +698,11 @@ struct nvme_dev_info *nvme_init(const char *devpath)
 
 	_nvme_check_size();
 
-	ndev = malloc(sizeof(*ndev));
+	ndev = calloc(1, sizeof(*ndev));
 	if (!ndev) {
-		pr_err("failed to alloc nvme_dev_info!\n");
+		pr_err("failed to alloc memory!\n");
 		return NULL;
 	}
-	memset(ndev, 0, sizeof(*ndev));
 
 	ndev->fd = open(devpath, O_RDWR);
 	if (ndev->fd < 0) {
@@ -543,10 +730,8 @@ out:
 
 void nvme_deinit(struct nvme_dev_info *ndev)
 {
-	deinit_ns_data(ndev);
-	nvme_deinit_ioq_info(ndev);
-
-	nvme_gnl_disconnect(ndev->sock_fd);
+	nvme_release_stage2(ndev);
+	nvme_release_stage1(ndev);
 	close(ndev->fd);
 	free(ndev);
 }
@@ -554,7 +739,8 @@ void nvme_deinit(struct nvme_dev_info *ndev)
 int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
 	enum nvme_irq_type type)
 {
-	uint16_t nr_cq = ndev->max_cq_num + 1; /* ACQ + IOCQ */
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	uint16_t nr_cq = ctrl->nr_cq + 1; /* ACQ + IOCQ */
 	uint16_t nr_irq;
 	int ret;
 

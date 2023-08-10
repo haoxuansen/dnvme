@@ -26,6 +26,8 @@ static void test_sub(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	uint16_t nr_sq = ctrl->nr_sq;
     uint32_t q_index = 0;
     uint32_t qsize_index = 0;
 
@@ -67,7 +69,7 @@ static void test_sub(void)
         sq_size = q_size[qsize_index];
         cq_parameter.cq_size = cq_size;
         sq_parameter.sq_size = sq_size;
-        for (q_index = 1; q_index <= ndev->max_sq_num; q_index++)
+        for (q_index = 1; q_index <= nr_sq; q_index++)
         {
             /**********************************************************************/
             io_cq_id = q_index;
@@ -137,7 +139,7 @@ static void test_sub(void)
         sq_size = test2_sq_size[qsize_index];
         cq_parameter.cq_size = cq_size;
         sq_parameter.sq_size = sq_size;
-        for (q_index = 1; q_index <= ndev->max_sq_num; q_index++)
+        for (q_index = 1; q_index <= nr_sq; q_index++)
         {
             /**********************************************************************/
             io_cq_id = q_index;

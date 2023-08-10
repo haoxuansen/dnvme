@@ -142,15 +142,28 @@ static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
+	uint64_t nsze;
+	uint32_t lbads;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+	nvme_id_ns_lbads(ns_grp, nsid, &lbads);
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = ndev->nss[0].nsid;
-	wrap.slba = rand() % (ndev->nss[0].nsze / 2);
+	wrap.nsid = nsid;
+	wrap.slba = rand() % (nsze / 2);
 	wrap.nlb = 256;
 	wrap.buf = tool->rbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * lbads;
 
 	if (rand() % 2)
 		wrap.control = NVME_RW_FUA;
@@ -163,15 +176,28 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
+	/* use first active namespace as default */
+	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
+	uint64_t nsze;
+	uint32_t lbads;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
+	if (ret < 0) {
+		pr_err("failed to get nsze!(%d)\n", ret);
+		return ret;
+	}
+	nvme_id_ns_lbads(ns_grp, nsid, &lbads);
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = ndev->nss[0].nsid;
-	wrap.slba = rand() % (ndev->nss[0].nsze / 2);
+	wrap.nsid = nsid;
+	wrap.slba = rand() % (nsze / 2);
 	wrap.nlb = 256;
 	wrap.buf = tool->wbuf;
-	wrap.size = wrap.nlb * ndev->nss[0].lbads;
+	wrap.size = wrap.nlb * lbads;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 

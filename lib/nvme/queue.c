@@ -373,6 +373,7 @@ int nvme_delete_all_iocq(struct nvme_dev_info *ndev, struct nvme_cq_info *cqs,
 
 int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_cq_info *cqs = ndev->iocqs;
 	uint16_t irq_no;
 	uint16_t i;
@@ -388,15 +389,15 @@ int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
 		}
 		irq_no = rand() % ndev->nr_irq;
 
-		for (i = 0; i < ndev->max_cq_num; i++)
+		for (i = 0; i < ctrl->nr_cq; i++)
 			cqs[i].irq_no = irq_no;
 	}
 
-	ret = nvme_create_all_iocq(ndev, ndev->iocqs, ndev->max_cq_num);
+	ret = nvme_create_all_iocq(ndev, ndev->iocqs, ctrl->nr_cq);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_create_all_iosq(ndev, ndev->iosqs, ndev->max_sq_num);
+	ret = nvme_create_all_iosq(ndev, ndev->iosqs, ctrl->nr_sq);
 	if (ret < 0)
 		return ret;
 
@@ -405,13 +406,14 @@ int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
 
 int nvme_delete_all_ioq(struct nvme_dev_info *ndev)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	int ret;
 
-	ret = nvme_delete_all_iosq(ndev, ndev->iosqs, ndev->max_sq_num);
+	ret = nvme_delete_all_iosq(ndev, ndev->iosqs, ctrl->nr_sq);
 	if (ret < 0)
 		return ret;
 	
-	ret = nvme_delete_all_iocq(ndev, ndev->iocqs, ndev->max_cq_num);
+	ret = nvme_delete_all_iocq(ndev, ndev->iocqs, ctrl->nr_cq);
 	if (ret < 0)
 		return ret;
 	
@@ -566,8 +568,9 @@ int nvme_empty_sq_cmdlist(int fd, uint16_t sqid)
 static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
 {
 	struct nvme_sq_info *sq;
-	struct nvme_ctrl_property *prop = &ndev->prop;
-	uint16_t nr_sq = ndev->max_sq_num;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
+	uint16_t nr_sq = ctrl->nr_sq;
 	uint16_t mqes = NVME_CAP_MQES(prop->cap);
 	uint16_t qid;
 
@@ -590,8 +593,9 @@ static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
 static int nvme_alloc_iocq_info(struct nvme_dev_info *ndev)
 {
 	struct nvme_cq_info *cq;
-	struct nvme_ctrl_property *prop = &ndev->prop;
-	uint16_t nr_cq = ndev->max_cq_num;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
+	uint16_t nr_cq = ctrl->nr_cq;
 	uint16_t mqes = NVME_CAP_MQES(prop->cap);
 	uint16_t qid;
 
@@ -641,7 +645,9 @@ void nvme_deinit_ioq_info(struct nvme_dev_info *ndev)
 struct nvme_sq_info *nvme_find_iosq_info(struct nvme_dev_info *ndev, 
 	uint16_t sqid)
 {
-	if (sqid > ndev->max_sq_num)
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+
+	if (sqid > ctrl->nr_sq)
 		return NULL;
 	
 	if (ndev->iosqs[sqid - 1].sqid != sqid)
@@ -653,7 +659,9 @@ struct nvme_sq_info *nvme_find_iosq_info(struct nvme_dev_info *ndev,
 struct nvme_cq_info *nvme_find_iocq_info(struct nvme_dev_info *ndev, 
 	uint16_t cqid)
 {
-	if (cqid > ndev->max_cq_num)
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+
+	if (cqid > ctrl->nr_cq)
 		return NULL;
 	
 	if (ndev->iocqs[cqid - 1].cqid != cqid)
@@ -666,21 +674,20 @@ void nvme_reinit_ioq_info_random(struct nvme_dev_info *ndev)
 {
 	struct nvme_sq_info *sqs = ndev->iosqs;
 	struct nvme_cq_info *cqs = ndev->iocqs;
-	struct nvme_ctrl_property *prop = &ndev->prop;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct nvme_ctrl_property *prop = ctrl->prop;
 	uint16_t mqes = NVME_CAP_MQES(prop->cap);
-	uint16_t nr_cq = ndev->max_cq_num;
-	uint16_t nr_sq = ndev->max_sq_num;
 	uint16_t i;
 
-	for (i = 0; i < nr_sq; i++) {
-		sqs[i].cqid = rand() % nr_cq + 1; /* cqid range: 1 ~ nr_cq */
+	for (i = 0; i < ctrl->nr_sq; i++) {
+		sqs[i].cqid = rand() % ctrl->nr_cq + 1; /* cqid range: 1 ~ nr_cq */
 		sqs[i].size = rand() % (mqes - 512) + 512;
 
 		pr_debug("SQ:%u, element:%u, bind CQ:%u\n",
 			sqs[i].sqid, sqs[i].size, sqs[i].cqid);
 	}
 
-	for (i = 0; i < nr_cq; i++) {
+	for (i = 0; i < ctrl->nr_cq; i++) {
 		if (ndev->irq_type == NVME_INT_NONE || ndev->nr_irq == 0) {
 			cqs[i].irq_en = 0;
 		} else {
@@ -739,6 +746,8 @@ static void nvme_swap_iocq_info_random(struct nvme_cq_info *cqs, uint16_t nr_cq,
 
 void nvme_swap_ioq_info_random(struct nvme_dev_info *ndev)
 {
-	nvme_swap_iosq_info_random(ndev->iosqs, ndev->max_sq_num);
-	nvme_swap_iocq_info_random(ndev->iocqs, ndev->max_cq_num, ndev->nr_irq);
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+
+	nvme_swap_iosq_info_random(ndev->iosqs, ctrl->nr_sq);
+	nvme_swap_iocq_info_random(ndev->iocqs, ctrl->nr_cq, ndev->nr_irq);
 }
