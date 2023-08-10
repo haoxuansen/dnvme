@@ -12,7 +12,8 @@
 #ifndef _UAPI_LIBBASE_H_
 #define _UAPI_LIBBASE_H_
 
-#include <unistd.h> /* for @usleep */
+#include <unistd.h> /* for "@usleep" */
+#include <stdint.h> /* for "uint32_t" */
 
 #include "base/log.h"
 #include "base/minmax.h"
@@ -22,5 +23,8 @@
 /* ==================== related to "base.c" ==================== */
 
 int call_system(const char *command);
+
+int dump_data_to_console(void *buf, uint32_t size);
+int dump_data_to_file(void *buf, uint32_t size, const char *file);
 
 #endif /* !_UAPI_LIBBASE_H_ */

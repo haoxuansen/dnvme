@@ -643,11 +643,11 @@ static int case_meta_node_contiguous(struct nvme_tool *tool)
 	scanf("%d", &ret);
 
 	pr_debug("Origin meta data:\n");
-	nvme_dump_data(meta, mc.size);
+	dump_data_to_console(meta, mc.size);
 
 	nvme_fill_data(meta, mc.size);
 	pr_debug("New meta data:\n");
-	nvme_dump_data(meta, mc.size);
+	dump_data_to_console(meta, mc.size);
 
 	pr_notice("Is ready to delete meta node: ");
 	scanf("%d", &ret);

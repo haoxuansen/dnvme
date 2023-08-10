@@ -112,7 +112,6 @@ struct nvme_dev_info {
 };
 
 void nvme_fill_data(void *buf, uint32_t size);
-void nvme_dump_data(void *buf, uint32_t size);
 
 struct nvme_dev_info *nvme_init(const char *devpath);
 void nvme_deinit(struct nvme_dev_info *ndev);
