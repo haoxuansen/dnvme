@@ -21,6 +21,32 @@
 #include "libnvme.h"
 #include "test.h"
 
+struct test_data {
+	uint32_t	nsid;
+	uint64_t	nsze;
+	uint32_t	lbads;
+};
+
+static struct test_data g_test = {0};
+
+static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
+{
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	int ret;
+
+	/* use first active namespace as default */
+	data->nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = nvme_id_ns_lbads(ns_grp, data->nsid, &data->lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	/* we have checked once, skip the check below */
+	nvme_id_ns_nsze(ns_grp, data->nsid, &data->nsze);
+	return 0;
+}
+
 /**
  * @return 0 if bus master disabled, 1 if bus master enabled. 
  * 	Otherwise a negative errno.
@@ -68,25 +94,16 @@ static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
-	uint32_t lbads;
-	int ret;
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -99,26 +116,17 @@ static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 	uint32_t i;
-	uint32_t lbads;
-	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
@@ -191,14 +199,11 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 static int case_disable_bus_master(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct nvme_completion entry = {0};
+	struct test_data *test = &g_test;
 	struct timeval start, end;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
 	uint64_t slba;
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
 	uint32_t num = sq->size / 4;
@@ -207,12 +212,11 @@ static int case_disable_bus_master(struct nvme_tool *tool)
 	uint32_t i;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
-	slba = rand() % (nsze / 2);
+
+	slba = rand() % (test->nsze / 2);
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {

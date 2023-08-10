@@ -18,6 +18,8 @@ int nvme_id_ctrl_nn(struct nvme_ctrl_instance *ctrl, uint32_t *nn);
 int nvme_id_ctrl_sgls(struct nvme_ctrl_instance *ctrl, uint32_t *sgls);
 
 int nvme_id_ns_nsze(struct nvme_ns_group *grp, uint32_t nsid, uint64_t *nsze);
+int nvme_id_ns_flbas(struct nvme_ns_group *grp, uint32_t nsid);
+int nvme_id_ns_mc(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_mssrl(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_mcl(struct nvme_ns_group *grp, uint32_t nsid, uint32_t *mcl);
 int nvme_id_ns_msrc(struct nvme_ns_group *grp, uint32_t nsid);

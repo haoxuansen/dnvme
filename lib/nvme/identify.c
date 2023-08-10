@@ -101,6 +101,38 @@ int nvme_id_ns_nsze(struct nvme_ns_group *grp, uint32_t nsid, uint64_t *nsze)
 }
 
 /**
+ * @brief Get formatted LBA size
+ * 
+ * @return flbas on success, otherwise a negative errno
+ */
+int nvme_id_ns_flbas(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+	
+	return grp->ns[nsid - 1].id_ns->flbas;
+}
+
+/**
+ * @brief Get metadata capabilities
+ * 
+ * @return mc on success, otherwise a negative errno
+ */
+int nvme_id_ns_mc(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	return grp->ns[nsid - 1].id_ns->mc;
+}
+
+/**
  * @brief Get maximum single source range length
  * 
  * @details Get the maximum number of logical blocks that may be specified

@@ -21,6 +21,32 @@
 #include "test.h"
 #include "test_metrics.h"
 
+struct test_data {
+	uint32_t	nsid;
+	uint64_t	nsze;
+	uint32_t	lbads;
+};
+
+static struct test_data g_test = {0};
+
+static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
+{
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	int ret;
+
+	/* use first active namespace as default */
+	data->nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = nvme_id_ns_lbads(ns_grp, data->nsid, &data->lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	/* we have checked once, skip the check below */
+	nvme_id_ns_nsze(ns_grp, data->nsid, &data->nsze);
+	return 0;
+}
+
 static bool is_support_sgl(struct nvme_id_ctrl *ctrl)
 {
 	if ((ctrl->sgls & NVME_CTRL_SGLS_MASK) && 
@@ -115,26 +141,17 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
-	uint32_t lbads;
-	int ret;
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -147,27 +164,18 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb, uint8_t flags)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
-	uint32_t lbads;
+	struct test_data *test = &g_test;
 	uint32_t i;
-	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = flags;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
 
@@ -187,19 +195,9 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 static int subcase_iorw_prp(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint32_t loop)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
+	struct test_data *test = &g_test;
 	uint32_t nlb = 8;
-	uint32_t lbads;
 	int ret;
-
-	ret = nvme_id_ns_lbads(ns_grp, nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", nsid);
-		goto out;
-	}
 
 	while (loop--) {
 		ret = send_io_write_cmd(tool, sq, 0, nlb, 0);
@@ -210,7 +208,7 @@ static int subcase_iorw_prp(struct nvme_tool *tool, struct nvme_sq_info *sq,
 		if (ret < 0)
 			goto out;
 
-		ret = memcmp(tool->wbuf, tool->rbuf, nlb * lbads);
+		ret = memcmp(tool->wbuf, tool->rbuf, nlb * test->lbads);
 		if (ret) {
 			pr_err("failed to compare r/w data!(%d)\n", ret);
 			ret = -EIO;
@@ -236,12 +234,9 @@ static int subcase_iorw_sgl(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_id_ctrl *id_ctrl = ctrl->id_ctrl;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
+	struct test_data *test = &g_test;
 	uint8_t flags = NVME_CMD_SGL_METABUF;
 	uint32_t nlb = 8;
-	uint32_t lbads;
 	int ret;
 
 	if (!loop) {
@@ -255,12 +250,6 @@ static int subcase_iorw_sgl(struct nvme_tool *tool, struct nvme_sq_info *sq,
 		goto out;
 	}
 
-	ret = nvme_id_ns_lbads(ns_grp, nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", nsid);
-		goto out;
-	}
-
 	while (loop--) {
 		ret = send_io_write_cmd(tool, sq, 0, nlb, flags);
 		if (ret < 0)
@@ -270,7 +259,7 @@ static int subcase_iorw_sgl(struct nvme_tool *tool, struct nvme_sq_info *sq,
 		if (ret < 0)
 			goto out;
 
-		ret = memcmp(tool->wbuf, tool->rbuf, nlb * lbads);
+		ret = memcmp(tool->wbuf, tool->rbuf, nlb * test->lbads);
 		if (ret) {
 			pr_err("failed to compare r/w data!(%d)\n", ret);
 			ret = -EIO;
@@ -292,6 +281,10 @@ static int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
+
+	ret = init_test_data(ndev, &g_test);
+	if (ret < 0)
+		return ret;
 
 	ret = send_io_read_cmd(tool, &ndev->asq, 0, 8, 0);
 	if (ret < 0) {
@@ -326,6 +319,10 @@ static int case_queue_contiguous(struct nvme_tool *tool)
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	int ret = 0;
+
+	ret = init_test_data(ndev, &g_test);
+	if (ret < 0)
+		return ret;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -364,6 +361,10 @@ static int case_queue_discontiguous(struct nvme_tool *tool)
 
 	if (!is_support_discontig(ndev->ctrl))
 		return -EOPNOTSUPP;
+
+	ret = init_test_data(ndev, &g_test);
+	if (ret < 0)
+		return ret;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {

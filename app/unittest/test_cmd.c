@@ -41,9 +41,47 @@ struct test_cmd_copy {
 	struct source_range	entry[0];	/* I */
 };
 
+struct test_data {
+	uint32_t	nsid;
+	uint64_t	nsze;
+	uint32_t	lbads;
+
+	uint32_t	mcl;
+	uint32_t	msrc;
+	uint16_t	mssrl;
+};
+
+static struct test_data g_test = {0};
+
 static bool is_support_copy(uint16_t oncs)
 {
 	return (oncs & NVME_CTRL_ONCS_COPY) ? true : false;
+}
+
+/**
+ * @note May re-initialized? ignore...We shall to update this if data changed. 
+ */
+static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
+{
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	int ret;
+
+	/* use first active namespace as default */
+	data->nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = nvme_id_ns_lbads(ns_grp, data->nsid, &data->lbads);
+	if (ret < 0) {
+		pr_err("failed to get lbads!(%d)\n", ret);
+		return ret;
+	}
+	/* we have checked once, skip the check below */
+	nvme_id_ns_nsze(ns_grp, data->nsid, &data->nsze);
+
+	data->msrc = (uint16_t)nvme_id_ns_msrc(ns_grp, data->nsid);
+	data->mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, data->nsid);
+	nvme_id_ns_mcl(ns_grp, data->nsid, &data->mcl);
+
+	return 0;
 }
 
 static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
@@ -104,25 +142,16 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb, uint16_t control)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
-	uint32_t lbads;
-	int ret;
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
@@ -134,26 +163,17 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb, uint16_t control)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
-	uint32_t lbads;
+	struct test_data *test = &g_test;
 	uint32_t i;
-	int ret;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
@@ -169,25 +189,16 @@ static int send_io_compare_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_rwc_wrapper wrap = {0};
-	uint32_t lbads;
-	int ret;
+	struct test_data *test = &g_test;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
-
-	ret = nvme_id_ns_lbads(ns_grp, wrap.nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get ns(%u) lbads!\n", wrap.nsid);
-		return ret;
-	}
-	wrap.size = wrap.nlb * lbads;
+	wrap.size = wrap.nlb * test->lbads;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -268,8 +279,8 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	struct test_cmd_copy *copy)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_copy_wrapper wrap = {0};
+	struct test_data *test = &g_test;
 	uint32_t i;
 	uint16_t cid;
 	int ret;
@@ -294,8 +305,7 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	/* use first active namespace as default */
-	wrap.nsid = le32_to_cpu(ns_grp->act_list[0]);
+	wrap.nsid = test->nsid;
 	wrap.slba = copy->slba;
 	wrap.ranges = copy->ranges - 1;
 	wrap.desc_fmt = copy->desc_fmt;
@@ -340,22 +350,18 @@ out:
 static int case_cmd_io_read(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint64_t slba;
 	uint32_t nlb = rand() % 255 + 1;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
-	slba = rand() % (nsze / 2);
+
+	slba = rand() % (test->nsze / 2);
 
 	pr_debug("READ LBA:0x%llx + %u\n", slba, nlb);
 
@@ -388,22 +394,18 @@ NVME_CASE_CMD_SYMBOL(case_cmd_io_read, "Send a I/O read command to IOSQ");
 static int case_cmd_io_read_with_fua(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint64_t slba;
 	uint32_t nlb = rand() % 255 + 1;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
-	slba = rand() % (nsze / 2);
+
+	slba = rand() % (test->nsze / 2);
 
 	pr_debug("READ LBA:0x%llx + %u\n", slba, nlb);
 
@@ -437,22 +439,18 @@ NVME_CASE_CMD_SYMBOL(case_cmd_io_read_with_fua,
 static int case_cmd_io_write(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint64_t slba;
 	uint32_t nlb = rand() % 255 + 1;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
-	slba = rand() % (nsze / 2);
+
+	slba = rand() % (test->nsze / 2);
 
 	pr_debug("WRITE LBA:0x%llx + %u\n", slba, nlb);
 
@@ -485,22 +483,18 @@ NVME_CASE_CMD_SYMBOL(case_cmd_io_write, "Send a I/O write command to IOSQ");
 static int case_cmd_io_write_with_fua(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint64_t slba;
 	uint32_t nlb = rand() % 255 + 1;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
-	slba = rand() % (nsze / 2);
+
+	slba = rand() % (test->nsze / 2);
 
 	pr_debug("WRITE LBA:0x%llx + %u\n", slba, nlb);
 
@@ -534,21 +528,16 @@ NVME_CASE_CMD_SYMBOL(case_cmd_io_write_with_fua,
 static int case_cmd_io_compare(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
+	struct test_data *test = &g_test;
 	uint64_t slba = 0;
 	uint32_t nlb = 8;
-	uint32_t lbads;
 	int ret;
 
-	ret = nvme_id_ns_lbads(ns_grp, nsid, &lbads);
-	if (ret < 0) {
-		pr_err("failed to get lbads!\n");
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -569,7 +558,7 @@ static int case_cmd_io_compare(struct nvme_tool *tool)
 	}
 
 	/* check again */
-	ret = memcmp(tool->wbuf, tool->rbuf, lbads * nlb);
+	ret = memcmp(tool->wbuf, tool->rbuf, test->lbads * nlb);
 	if (ret != 0) {
 		pr_err("failed to compare read/write buffer!\n");
 		ret = -EIO;
@@ -590,32 +579,15 @@ NVME_CASE_CMD_SYMBOL(case_cmd_io_compare,
 static int subcase_copy_success(struct nvme_tool *tool, 
 	struct nvme_sq_info *sq)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct test_cmd_copy *copy = NULL;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint32_t sum = 0;
 	uint32_t entry;
 	uint32_t i;
-	uint32_t mcl;
-	uint16_t msrc;
-	uint16_t mssrl;
 	uint16_t limit = 256;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
-		goto out;
-	}
-	/* we have checked once, skip the check below */
-	msrc = (uint16_t)nvme_id_ns_msrc(ns_grp, nsid);
-	mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, nsid);
-	nvme_id_ns_mcl(ns_grp, nsid, &mcl);
-
-	entry = rand() % msrc + 1; /* 1~msrc */
+	entry = rand() % test->msrc + 1; /* 1~msrc */
 
 	copy = calloc(1, sizeof(struct test_cmd_copy) +
 			entry * sizeof(struct source_range));
@@ -626,7 +598,7 @@ static int subcase_copy_success(struct nvme_tool *tool,
 	}
 
 	copy->ranges = entry;
-	copy->slba = rand() % (nsze / 4) + (nsze / 4);
+	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
 
 	do {
@@ -634,11 +606,11 @@ static int subcase_copy_success(struct nvme_tool *tool,
 			pr_warn("NLB total is larger than MCL! try again?");
 
 		for (i = 0, sum = 0; i < copy->ranges; i++) {
-			copy->entry[i].slba = rand() % (nsze / 4);
-			copy->entry[i].nlb = rand() % min(mssrl, limit) + 1;
+			copy->entry[i].slba = rand() % (test->nsze / 4);
+			copy->entry[i].nlb = rand() % min(test->mssrl, limit) + 1;
 			sum += copy->entry[i].nlb;
 		}
-	} while (mcl < sum);
+	} while (test->mcl < sum);
 
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
@@ -669,19 +641,9 @@ out:
 static int subcase_copy_invalid_desc_format(struct nvme_tool *tool, 
 	struct nvme_sq_info *sq)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct test_cmd_copy *copy = NULL;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	int ret;
-
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
-		goto out;
-	}
 
 	copy = calloc(1, sizeof(struct test_cmd_copy) + 
 				sizeof(struct source_range));
@@ -691,11 +653,11 @@ static int subcase_copy_invalid_desc_format(struct nvme_tool *tool,
 		goto out;
 	}
 	copy->ranges = 1;
-	copy->slba = rand() % (nsze / 4) + (nsze / 4);
+	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	/* set invlid descriptor format */
 	copy->desc_fmt = 0xff;
 
-	copy->entry[0].slba = rand() % (nsze / 4);
+	copy->entry[0].slba = rand() % (test->nsze / 4);
 	copy->entry[0].nlb = 1;
 
 	ret = send_io_copy_cmd(tool, sq, copy);
@@ -744,30 +706,13 @@ static int __unused subcase_copy_mismatch_desc_format(struct nvme_tool *tool,
 static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 	struct nvme_sq_info *sq)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct test_cmd_copy *copy = NULL;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint32_t sum = 0;
 	uint32_t entry;
 	uint32_t i;
-	uint32_t mcl;
-	uint16_t msrc;
-	uint16_t mssrl;
 	uint16_t limit = 256;
 	int ret;
-
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
-		goto out;
-	}
-	/* we have checked once, skip the check below */
-	msrc = (uint16_t)nvme_id_ns_msrc(ns_grp, nsid);
-	mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, nsid);
-	nvme_id_ns_mcl(ns_grp, nsid, &mcl);
 
 	/*
 	 * NR field in copy command is 8-bit width, the max value is 0xff.
@@ -775,14 +720,14 @@ static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 	 *
 	 * MSRC max value convert to 1's based is (0xff + 1)
 	 */
-	if (msrc > 0xff) {
+	if (test->msrc > 0xff) {
 		pr_warn("Max source range count is 0xff! skip...\n");
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
 	/* set invalid range num */
-	entry = msrc + 1;
+	entry = test->msrc + 1;
 
 	copy = calloc(1, sizeof(struct test_cmd_copy) +
 			entry * sizeof(struct source_range));
@@ -793,7 +738,7 @@ static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 	}
 
 	copy->ranges = entry;
-	copy->slba = rand() % (nsze / 4) + (nsze / 4);
+	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
 
 	do {
@@ -801,11 +746,11 @@ static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 			pr_warn("NLB total is larger than MCL! try again?");
 
 		for (i = 0, sum = 0; i < copy->ranges; i++) {
-			copy->entry[i].slba = rand() % (nsze / 4);
-			copy->entry[i].nlb = rand() % min(mssrl, limit) + 1;
+			copy->entry[i].slba = rand() % (test->nsze / 4);
+			copy->entry[i].nlb = rand() % min(test->mssrl, limit) + 1;
 			sum += copy->entry[i].nlb;
 		}
-	} while (mcl < sum);
+	} while (test->mcl < sum);
 
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
@@ -838,44 +783,27 @@ out:
 static int subcase_copy_invalid_nlb_single(struct nvme_tool *tool,
 	struct nvme_sq_info *sq)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct test_cmd_copy *copy = NULL;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint32_t sum = 0;
 	uint32_t inject;
 	uint32_t dw0;
 	uint32_t entry;
 	uint32_t i;
-	uint32_t mcl;
-	uint16_t msrc;
-	uint16_t mssrl;
 	uint16_t limit = 256;
 	int ret;
-
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
-		goto out;
-	}
-	/* we have checked once, skip the check below */
-	msrc = (uint16_t)nvme_id_ns_msrc(ns_grp, nsid);
-	mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, nsid);
-	nvme_id_ns_mcl(ns_grp, nsid, &mcl);
 
 	/*
 	 * NLB field in copy descriptor is 16-bit width, the max value 
 	 * is 0xffff. If MSSRL is 0xffff, we can't set NLB larger!
 	 */
-	if (mssrl == 0xffff) {
+	if (test->mssrl == 0xffff) {
 		pr_warn("Max single source range length is 0xffff! skip...\n");
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
-	entry = rand() % msrc + 1; /* 1~msrc */
+	entry = rand() % test->msrc + 1; /* 1~msrc */
 
 	copy = calloc(1, sizeof(struct test_cmd_copy) + 
 			entry * sizeof(struct source_range));
@@ -886,7 +814,7 @@ static int subcase_copy_invalid_nlb_single(struct nvme_tool *tool,
 	}
 
 	copy->ranges = entry;
-	copy->slba = rand() % (nsze / 4) + (nsze / 4);
+	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
 
 	do {
@@ -894,15 +822,15 @@ static int subcase_copy_invalid_nlb_single(struct nvme_tool *tool,
 			pr_warn("NLB total is larger than MCL! try again?");
 
 		for (i = 0, sum = 0; i < copy->ranges; i++) {
-			copy->entry[i].slba = rand() % (nsze / 4);
-			copy->entry[i].nlb = rand() % min(mssrl, limit) + 1;
+			copy->entry[i].slba = rand() % (test->nsze / 4);
+			copy->entry[i].nlb = rand() % min(test->mssrl, limit) + 1;
 			sum += copy->entry[i].nlb;
 		}
-	} while (mcl < sum);
+	} while (test->mcl < sum);
 
 	inject = rand() % entry;
 	/* set invalid NLB in random source range */
-	copy->entry[inject].nlb = mssrl + 1;
+	copy->entry[inject].nlb = test->mssrl + 1;
 
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
@@ -947,38 +875,21 @@ out:
 static int subcase_copy_invalid_nlb_sum(struct nvme_tool *tool, 
 	struct nvme_sq_info *sq)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct test_cmd_copy *copy = NULL;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint64_t nsze;
+	struct test_data *test = &g_test;
 	uint32_t sum;
 	uint32_t entry;
 	uint32_t i;
-	uint32_t mcl;
-	uint16_t msrc;
-	uint16_t mssrl;
 	int ret;
 
-	ret = nvme_id_ns_nsze(ns_grp, nsid, &nsze);
-	if (ret < 0) {
-		pr_err("failed to get nsze!(%d)\n", ret);
-		goto out;
-	}
-	/* we have checked once, skip the check below */
-	msrc = (uint16_t)nvme_id_ns_msrc(ns_grp, nsid);
-	mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, nsid);
-	nvme_id_ns_mcl(ns_grp, nsid, &mcl);
-
-	sum = (uint32_t)msrc * (uint32_t)mssrl;
-	if (sum <= mcl) {
+	sum = (uint32_t)test->msrc * (uint32_t)test->mssrl;
+	if (sum <= test->mcl) {
 		pr_warn("(MSRC + 1) * MSSRL <= MCL : 0x%x vs 0x%x! skip...\n", 
-			sum, mcl);
+			sum, test->mcl);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
-	entry = msrc;
+	entry = test->msrc;
 
 	copy = calloc(1, sizeof(struct test_cmd_copy) + 
 			entry * sizeof(struct source_range));
@@ -989,13 +900,13 @@ static int subcase_copy_invalid_nlb_sum(struct nvme_tool *tool,
 	}
 
 	copy->ranges = entry;
-	copy->slba = rand() % (nsze / 4) + (nsze / 4);
+	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
 
 	for (i = 0; i < copy->ranges; i++) {
-		copy->entry[i].slba = rand() % (nsze / 4);
+		copy->entry[i].slba = rand() % (test->nsze / 4);
 		/* ensure the sum of NLB greater than MCL */
-		copy->entry[i].nlb = mssrl;
+		copy->entry[i].nlb = test->mssrl;
 	}
 
 	ret = send_io_copy_cmd(tool, sq, copy);
@@ -1020,30 +931,23 @@ static int case_cmd_io_copy(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_id_ctrl *id_ctrl = ndev->ctrl->id_ctrl;
-	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	/* use first active namespace as default */
-	uint32_t nsid = le32_to_cpu(ns_grp->act_list[0]);
-	uint32_t mcl;
-	uint16_t mssrl;
+	struct test_data *test = &g_test;
 	int ret;
 
-	ret = nvme_id_ns_mcl(ns_grp, nsid, &mcl);
-	if (ret < 0) {
-		pr_err("failed to get mcl!(%d)\n", ret);
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
 		return ret;
-	}
-	mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, nsid);
 
 	if (!is_support_copy(le16_to_cpu(id_ctrl->oncs))) {
 		pr_warn("controller not support copy command!\n");
 		return -EOPNOTSUPP;
 	}
 
-	if (!mssrl || !mcl || mssrl > mcl) {
+	if (!test->mssrl || !test->mcl || test->mssrl > test->mcl) {
 		pr_err("MSSRL:0x%x or MCL:0x%x is invalid!\n", 
-			le16_to_cpu(mssrl), le32_to_cpu(mcl));
+			le16_to_cpu(test->mssrl), le32_to_cpu(test->mcl));
 		return -EINVAL;
 	}
 
