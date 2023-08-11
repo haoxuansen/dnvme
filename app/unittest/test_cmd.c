@@ -19,8 +19,6 @@
 #include "test.h"
 #include "test_metrics.h"
 
-#define TEST_CMD_F_COMPARE		1
-
 struct source_range {
 	uint64_t	slba;
 	uint32_t	nlb;
@@ -38,6 +36,9 @@ struct test_cmd_copy {
 	uint8_t		desc_fmt;	/* I: descriptor format */
 	void		*desc;
 	uint32_t	size;
+
+	void		*rbuf;
+	uint32_t	rbuf_size;
 
 	uint32_t	ranges;		/* I */
 	struct source_range	entry[0];	/* I */
@@ -140,8 +141,8 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	return 0;
 }
 
-static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control)
+static int __send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, uint16_t control, void *rbuf, uint32_t size)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -152,17 +153,48 @@ static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.buf = tool->rbuf;
+	wrap.buf = rbuf;
 	wrap.size = wrap.nlb * test->lbads;
 	wrap.control = control;
 
-	BUG_ON(wrap.size > tool->rbuf_size);
+	BUG_ON(wrap.size > size);
 
 	return nvme_io_read(ndev, &wrap);
 }
 
+static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, uint16_t control)
+{
+	return __send_io_read_cmd(tool, sq, slba, nlb, control, 
+		tool->rbuf, tool->rbuf_size);
+}
+
+static int send_io_read_cmd_for_copy(struct nvme_tool *tool, 
+	struct nvme_sq_info *sq, struct test_cmd_copy *copy)
+{
+	struct test_data *test = &g_test;
+	uint32_t i;
+	uint32_t offset = 0;
+	int ret;
+
+	for (i = 0; i < copy->ranges; i++) {
+		BUG_ON(copy->rbuf_size < offset);
+
+		ret = __send_io_read_cmd(tool, sq, copy->entry[i].slba, 
+			copy->entry[i].nlb, 0, copy->rbuf + offset, 
+			copy->rbuf_size - offset);
+		if (ret < 0) {
+			pr_err("failed to read NLB(%u) from SLBA(0x%lx)!(%d)\n",
+				copy->entry[i].nlb, copy->entry[i].slba, ret);
+			return ret;
+		}
+		offset += copy->entry[i].nlb * test->lbads;
+	}
+	return 0;
+}
+
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control, uint32_t offset)
+	uint64_t slba, uint32_t nlb, uint16_t control)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -174,11 +206,11 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.buf = tool->wbuf + offset;
+	wrap.buf = tool->wbuf;
 	wrap.size = wrap.nlb * test->lbads;
 	wrap.control = control;
 
-	BUG_ON(wrap.size > (tool->wbuf_size - offset));
+	BUG_ON(wrap.size > tool->wbuf_size);
 
 	for (i = 0; i < (wrap.size / 4); i+= 4) {
 		*(uint32_t *)(wrap.buf + i) = (uint32_t)rand();
@@ -278,12 +310,11 @@ static void copy_desc_exit(struct test_cmd_copy *copy)
 }
 
 static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	struct test_cmd_copy *copy, uint32_t flags)
+	struct test_cmd_copy *copy)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_copy_wrapper wrap = {0};
 	struct test_data *test = &g_test;
-	uint32_t nr_blk = 0;
 	uint32_t i;
 	uint16_t cid;
 	int ret;
@@ -293,20 +324,13 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	 * a deallocated or unwritten logical block.
 	 */
 	for (i = 0; i < copy->ranges; i++) {
-		if (flags & TEST_CMD_F_COMPARE) {
-			ret = send_io_write_cmd(tool, sq, copy->entry[i].slba, 
-				copy->entry[i].nlb, 0, nr_blk * test->lbads);
-		} else {
-			ret = send_io_write_cmd(tool, sq, copy->entry[i].slba, 
-				copy->entry[i].nlb, 0, 0);
-		}
-
+		ret = send_io_write_cmd(tool, sq, copy->entry[i].slba, 
+			copy->entry[i].nlb, 0);
 		if (ret < 0) {
 			pr_err("failed to write NLB(%u) to SLBA(0x%lx)!(%d)\n",
 				copy->entry[i].nlb, copy->entry[i].slba, ret);
 			return ret;
 		}
-		nr_blk += copy->entry[i].nlb;
 	}
 
 	ret = copy_desc_init(copy);
@@ -474,7 +498,7 @@ static int case_cmd_io_write(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, slba, nlb, 0, 0);
+	ret = send_io_write_cmd(tool, sq, slba, nlb, 0);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out;
@@ -518,7 +542,7 @@ static int case_cmd_io_write_with_fua(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, slba, nlb, NVME_RW_FUA, 0);
+	ret = send_io_write_cmd(tool, sq, slba, nlb, NVME_RW_FUA);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
 		goto out;
@@ -559,7 +583,7 @@ static int case_cmd_io_compare(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret = send_io_write_cmd(tool, sq, slba, nlb, 0, 0);
+	ret = send_io_write_cmd(tool, sq, slba, nlb, 0);
 	ret |= send_io_read_cmd(tool, sq, slba, nlb, 0);
 	ret |= send_io_compare_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
@@ -607,6 +631,14 @@ static int subcase_copy_success(struct nvme_tool *tool,
 		goto out;
 	}
 
+	ret = posix_memalign(&copy->rbuf, CONFIG_UNVME_RW_BUF_ALIGN, 
+		NVME_TOOL_RW_BUF_SIZE);
+	if (ret) {
+		pr_err("failed to alloc memory!\n");
+		goto free_copy;
+	}
+	copy->rbuf_size = NVME_TOOL_RW_BUF_SIZE;
+
 	copy->ranges = entry;
 	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
@@ -622,29 +654,35 @@ static int subcase_copy_success(struct nvme_tool *tool,
 		}
 	} while (test->mcl < sum);
 
-	ret = send_io_copy_cmd(tool, sq, copy, TEST_CMD_F_COMPARE);
+	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
-		goto out2;
+		goto free_rbuf;
 	
 	if (copy->status != NVME_SC_SUCCESS) {
 		pr_err("status: 0x%x vs 0x%x\n", NVME_SC_SUCCESS, copy->status);
 		ret = -EINVAL;
-		goto out2;
+		goto free_rbuf;
 	}
+
+	ret = send_io_read_cmd_for_copy(tool, sq, copy);
+	if (ret < 0)
+		goto free_rbuf;
 
 	ret = send_io_read_cmd(tool, sq, copy->slba, sum, 0);
 	if (ret < 0)
-		goto out2;
+		goto free_rbuf;
 
-	if (memcmp(tool->wbuf, tool->rbuf, sum * test->lbads)) {
-		pr_err("The data in wbuf and rbuf are diffient! try dump...\n");
-		dump_data_to_file(tool->wbuf, sum * test->lbads, "./wbuf.bin");
-		dump_data_to_file(tool->rbuf, sum * test->lbads, "./rbuf.bin");
+	if (memcmp(copy->rbuf, tool->rbuf, sum * test->lbads)) {
+		pr_err("source data differs from target data! try dump...\n");
+		dump_data_to_file(copy->rbuf, sum * test->lbads, "./source.bin");
+		dump_data_to_file(tool->rbuf, sum * test->lbads, "./target.bin");
 		ret = -EIO;
-		goto out2;
+		goto free_rbuf;
 	}
 
-out2:
+free_rbuf:
+	free(copy->rbuf);
+free_copy:
 	free(copy);
 out:
 	nvme_record_subcase_result(__func__, ret);
@@ -682,7 +720,7 @@ static int subcase_copy_invalid_desc_format(struct nvme_tool *tool,
 	copy->entry[0].slba = rand() % (test->nsze / 4);
 	copy->entry[0].nlb = 1;
 
-	ret = send_io_copy_cmd(tool, sq, copy, 0);
+	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
 
@@ -774,7 +812,7 @@ static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 		}
 	} while (test->mcl < sum);
 
-	ret = send_io_copy_cmd(tool, sq, copy, 0);
+	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
 
@@ -854,7 +892,7 @@ static int subcase_copy_invalid_nlb_single(struct nvme_tool *tool,
 	/* set invalid NLB in random source range */
 	copy->entry[inject].nlb = test->mssrl + 1;
 
-	ret = send_io_copy_cmd(tool, sq, copy, 0);
+	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
 
@@ -931,7 +969,7 @@ static int subcase_copy_invalid_nlb_sum(struct nvme_tool *tool,
 		copy->entry[i].nlb = test->mssrl;
 	}
 
-	ret = send_io_copy_cmd(tool, sq, copy, 0);
+	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
 
