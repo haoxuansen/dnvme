@@ -331,7 +331,10 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 				copy->entry[i].nlb, copy->entry[i].slba, ret);
 			return ret;
 		}
+		pr_debug("source range[%u] slba:%lu, nlb:%u\n", i,
+			copy->entry[i].slba, copy->entry[i].nlb);
 	}
+	pr_debug("target slba:%lu\n", copy->slba);
 
 	ret = copy_desc_init(copy);
 	if (ret < 0)
@@ -616,9 +619,10 @@ static int subcase_copy_success(struct nvme_tool *tool,
 	struct test_cmd_copy *copy = NULL;
 	struct test_data *test = &g_test;
 	uint32_t sum = 0;
+	uint64_t start = 0;
 	uint32_t entry;
 	uint32_t i;
-	uint16_t limit = 256;
+	uint16_t limit = min((test->nsze / 4), (uint64_t)256);
 	int ret;
 
 	entry = rand() % test->msrc + 1; /* 1~msrc */
@@ -640,19 +644,29 @@ static int subcase_copy_success(struct nvme_tool *tool,
 	copy->rbuf_size = NVME_TOOL_RW_BUF_SIZE;
 
 	copy->ranges = entry;
-	copy->slba = rand() % (test->nsze / 4) + (test->nsze / 4);
 	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
 
 	do {
-		if (sum)
-			pr_warn("NLB total is larger than MCL! try again?");
+		if (copy->slba)
+			pr_warn("target slba + nlb > nsze! try again ?\n");
 
-		for (i = 0, sum = 0; i < copy->ranges; i++) {
-			copy->entry[i].slba = rand() % (test->nsze / 4);
-			copy->entry[i].nlb = rand() % min(test->mssrl, limit) + 1;
-			sum += copy->entry[i].nlb;
-		}
-	} while (test->mcl < sum);
+		do {
+			if (sum)
+				pr_warn("NLB total is larger than MCL! try again?\n");
+
+			for (i = 0, sum = 0; i < copy->ranges; i++) {
+				copy->entry[i].slba = rand() % (test->nsze / 4);
+				copy->entry[i].nlb = rand() % min(test->mssrl, limit) + 1;
+				sum += copy->entry[i].nlb;
+
+				if (start < (copy->entry[i].slba + copy->entry[i].nlb))
+					start = copy->entry[i].slba + copy->entry[i].nlb;
+			}
+		} while (test->mcl < sum);
+
+		copy->slba = rand() % (test->nsze / 4) + start;
+
+	} while ((copy->slba + sum) > test->nsze);
 
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
