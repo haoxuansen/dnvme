@@ -6,15 +6,15 @@
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 
 static char *disp_this_case = "this case will tests creat IO sq with different q size\n"
                               "each q(1-8) will be tests in this case,\n"
@@ -226,7 +226,7 @@ static int case_queue_create_q_size(struct nvme_tool *tool)
         test_sub();
     }
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_queue_create_q_size, "?");
 NVME_AUTOCASE_SYMBOL(case_queue_create_q_size);

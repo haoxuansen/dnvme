@@ -115,7 +115,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	}
 
 	BUG_ON(wrap.size > tool->wbuf_size);
-	nvme_fill_data(wrap.buf, wrap.size);
+	fill_data_with_random(wrap.buf, wrap.size);
 
 	return nvme_io_write(ndev, &wrap);
 }
@@ -332,7 +332,7 @@ static int create_meta_nodes(int fd, void **rnode, void **wnode,
 		}
 		*wnode = wbuf;
 	}
-	nvme_fill_data(*wnode, size);
+	fill_data_with_random(*wnode, size);
 	return 0;
 
 out_unmap_rnode:
@@ -645,7 +645,7 @@ static int case_meta_node_contiguous(struct nvme_tool *tool)
 	pr_debug("Origin meta data:\n");
 	dump_data_to_console(meta, mc.size);
 
-	nvme_fill_data(meta, mc.size);
+	fill_data_with_random(meta, mc.size);
 	pr_debug("New meta data:\n");
 	dump_data_to_console(meta, mc.size);
 

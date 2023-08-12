@@ -9,12 +9,13 @@
  * 
  */
 
-#ifndef _UAPI_LOG_H_
-#define _UAPI_LOG_H_
+#ifndef _UAPI_LIB_BASE_LOG_H_
+#define _UAPI_LIB_BASE_LOG_H_
 
-#include <stdint.h>
+#include <stdio.h> /* for "@printf" */
+#include <stdint.h> /* for "uint8_t" */
 #include <stdarg.h>
-#include <assert.h>
+#include <assert.h> /* for "@assert" */
 #include "color.h"
 
 #define LOG_LEVEL_EMERG			0
@@ -65,4 +66,4 @@ int log_print(uint8_t level, const char *fmt, ...);
 	((cond) ? pr_warn("%s:%d: %s: Assertion '!(%s)' failed.\n", __FILE__, \
 		__LINE__, __func__, #cond) : 0)
 
-#endif /* !_UAPI_LOG_H_ */
+#endif /* !_UAPI_LIB_BASE_LOG_H_ */

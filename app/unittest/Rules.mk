@@ -23,6 +23,7 @@ CUR_DIR_NAME := $(notdir $(CUR_DIR_PATH))
 # --------------------------------------------------------------------------- #
 
 CFLAGS += -include $(CUR_DIR_PATH)/auto_header.h
+# CFLAGS += -DCONFIG_DEBUG_NO_DEVICE=1
 
 # --------------------------------------------------------------------------- #
 # Targets

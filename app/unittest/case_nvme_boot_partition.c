@@ -1,22 +1,24 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 static void *boot_buffer;
 
@@ -45,9 +47,9 @@ static int case_nvme_boot_partition(struct nvme_tool *tool)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -84,7 +86,7 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
         goto error_out;
     }
     try_cnt = 0;
-    try_max = (WORD_MASK << 4);
+    try_max = (U16_MAX << 4);
     while (((u32_tmp_data >> 24) & 0x3) != 0x2)
     {
         ret_val = nvme_read_ctrl_property(ndev->fd, NVME_REG_BPINFO, sizeof(uint32_t), (uint8_t *)&u32_tmp_data);
@@ -100,10 +102,10 @@ static int read_one_boot_part(uint32_t bpid, uint32_t bprof, uint32_t bprsz)
             goto error_out;
         }
     }
-    return SUCCEED;
+    return 0;
 error_out:
-    test_flag = FAILED;
-    return FAILED;
+    test_flag = -1;
+    return -1;
 }
 
 int reading_boot_partition(void)
@@ -171,11 +173,11 @@ int reading_boot_partition(void)
         mem_disp((void *)boot_buffer, 256);
         close(fd);
     }
-    test_flag = SUCCEED;
+    test_flag = 0;
     return test_flag;
 error_out:
     pr_err("[%s]ioctl ret_val:%d!\n", __FUNCTION__, ret_val);
-    test_flag = FAILED;
+    test_flag = -1;
     return test_flag;
 }
 
@@ -198,10 +200,10 @@ int writeing_boot_partition(void)
         return test_flag;
     }
 
-    memset((void *)boot_buffer, BYTE_RAND(), 128 * 1024);
+    memset((void *)boot_buffer, (uint8_t)rand(), 128 * 1024);
     pr_color(LOG_N_GREEN, "Boot Partition dl_fw,wr_buf_addr:0x%lx\n", (uint64_t)boot_buffer);
 
-    if (SUCCEED == nvme_firmware_download(ndev->fd, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
+    if (0 == nvme_firmware_download(ndev->fd, (128 * 1024 / 4) - 1, 0, (uint8_t *)boot_buffer))
     {
         nvme_ring_sq_doorbell(ndev->fd, 0);
         cq_gain(0, 1, &reap_num);
@@ -233,7 +235,7 @@ static int rd_wr_boot_part_ccen_0(void)
 	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val;
     uint64_t cap;
-    // if(test_flag == FAILED)
+    // if(test_flag == -1)
     //     return test_flag;
     nvme_disable_controller_complete(ndev->fd);
 
@@ -259,10 +261,10 @@ static int rd_wr_boot_part_ccen_0(void)
         pr_warn("This Device does not support Boot Partitions!\n");
         goto skip_out;
     }
-    test_flag = SUCCEED;
+    test_flag = 0;
     return test_flag;
 error_out:
-    test_flag = FAILED;
+    test_flag = -1;
     return test_flag;
 skip_out:
     test_flag = SKIPED;
@@ -275,7 +277,7 @@ static int rd_wr_boot_part_ccen_1(void)
 	struct nvme_dev_info *ndev = tool->ndev;
     int ret_val;
     uint64_t cap;
-    // if(test_flag == FAILED)
+    // if(test_flag == -1)
     //     return test_flag;
     nvme_enable_controller(ndev->fd);
 
@@ -301,10 +303,10 @@ static int rd_wr_boot_part_ccen_1(void)
         pr_warn("This Device does not support Boot Partitions!\n");
         goto skip_out;
     }
-    test_flag = SUCCEED;
+    test_flag = 0;
     return test_flag;
 error_out:
-    test_flag = FAILED;
+    test_flag = -1;
     return test_flag;
 skip_out:
     test_flag = SKIPED;

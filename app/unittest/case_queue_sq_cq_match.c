@@ -1,18 +1,19 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_cq_gain.h"
 #include "test_send_cmd.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 
 static char *disp_this_case = ".1 one to one test: cq 1 <---> sq 1, from 1 to 8 \n"
                               ".1.1: after delete sq3/cq3 - sq5/cq5, run io cmd on the remain sq\n"
@@ -58,7 +59,7 @@ static void test_sub(void)
     for (index = 1; index <= nr_sq; index++)
     {
         io_cq_id = io_sq_id = index;
-        test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+        test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, 1, io_cq_id);
         test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
     }
 
@@ -162,7 +163,7 @@ static void test_sub(void)
     cq_size = 16384;
     sq_size = 16384;
 
-    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, 1, io_cq_id);
 
     pr_div("\n\033[35m  Preparing io_sq_id 1-ndev->max_sq_num: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
     cmd_cnt = 0;
@@ -232,7 +233,7 @@ static void test_sub(void)
     cq_size = 16384;
     sq_size = 16384;
 
-    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, 1, io_cq_id);
 
     pr_div("\n\033[35m  Preparing io_sq_id ndev->max_sq_num-1: io_cq_id = %d, sq_size = %d \033[0m\n", io_cq_id, sq_size);
     cmd_cnt = 0;
@@ -528,7 +529,7 @@ static int case_queue_sq_cq_match(struct nvme_tool *tool)
         test_sub();
     }
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_queue_sq_cq_match, "?");
 NVME_AUTOCASE_SYMBOL(case_queue_sq_cq_match);

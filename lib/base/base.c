@@ -16,7 +16,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <time.h>
 
+#include "compiler.h"
 #include "libbase.h"
 
 /**
@@ -41,6 +43,54 @@ int call_system(const char *command)
 		pr_err("failed to execute '%s'!(%d)\n", command, 
 			WEXITSTATUS(status));
 		return -EPERM;
+	}
+
+	return 0;
+}
+
+int fill_data_with_incseq(void *buf, uint32_t size)
+{
+	uint32_t i;
+
+	for (i = 0; i < size; i++) {
+		*(uint8_t *)(buf + i) = i & 0xff;
+	}
+	return 0;
+}
+
+int fill_data_with_decseq(void *buf, uint32_t size)
+{
+	uint32_t i;
+
+	for (i = 0; i < size; i++) {
+		*(uint8_t *)(buf + i) = 0xff - (i & 0xff);
+	}
+	return 0;
+}
+
+int fill_data_with_random(void *buf, uint32_t size)
+{
+	uint32_t oft = 0;
+
+	while (size >= 0x4) {
+		*(int *)(buf + oft) = rand();
+		size -= 0x4;
+		oft += 0x4;
+	}
+
+	if (!size)
+		return 0;
+
+	if (size >= 0x2) {
+		*(uint16_t *)(buf + oft) = (uint16_t)rand();
+		size -= 0x2;
+		oft += 0x2;
+	}
+
+	if (size >= 0x1) {
+		*(uint8_t *)(buf + oft) = (uint8_t)rand();
+		size -= 0x1;
+		oft += 0x1;
 	}
 
 	return 0;
@@ -129,5 +179,10 @@ int dump_data_to_file(void *buf, uint32_t size, const char *file)
 out:
         close(fd);
         return 0;
+}
+
+static void __init libbase_init(void)
+{
+	srand(time(NULL));
 }
 

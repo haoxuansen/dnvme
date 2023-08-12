@@ -7,16 +7,16 @@
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 
 static char *disp_this_case = "this case will tests link down reset\n"
                               "this case will send 100 IO cmd, wait 500 cmds back, then link down\n";
@@ -45,7 +45,7 @@ static void test_sub(void)
 	nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
 
     /**********************************************************************/
-    io_sq_id = BYTE_RAND() % ctrl->nr_sq + 1;
+    io_sq_id = (uint8_t)rand() % ctrl->nr_sq + 1;
     pr_info("create SQ %d\n", io_sq_id);
     /**********************************************************************/
     cq_parameter.cq_id = io_cq_id;
@@ -72,10 +72,10 @@ static void test_sub(void)
     wr_nlb = 8;
     cmd_cnt = 0;
     /**********************************************************************/
-    for (index = 0; index < (DWORD_RAND() % (sq_size - 2)) / 2 + 100; index++)
+    for (index = 0; index < ((uint32_t)rand() % (sq_size - 2)) / 2 + 100; index++)
     {
-        wr_slba = DWORD_RAND() % (nsze / 2);
-        wr_nlb = WORD_RAND() % 255 + 1;
+        wr_slba = (uint32_t)rand() % (nsze / 2);
+        wr_nlb = (uint16_t)rand() % 255 + 1;
         if (wr_slba + wr_nlb < nsze)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
@@ -89,7 +89,7 @@ static void test_sub(void)
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
     /**********************************************************************/
     //reap cq
-    test_flag |= cq_gain(io_cq_id, (DWORD_RAND() % (cmd_cnt + 1)), &reap_num);
+    test_flag |= cq_gain(io_cq_id, ((uint32_t)rand() % (cmd_cnt + 1)), &reap_num);
     pr_info("reaped cq num: %d\n", reap_num);
 
     /************************** Issue link down *********************/
@@ -116,6 +116,6 @@ static int case_resets_link_down(struct nvme_tool *tool)
         test_sub();
     }
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_resets_link_down, "?");

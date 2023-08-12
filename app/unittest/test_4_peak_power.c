@@ -10,6 +10,7 @@
  */
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
@@ -17,16 +18,16 @@
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "unittest.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 
 //Brief & Detail description
 static const char *case_brief =
@@ -53,14 +54,14 @@ static int test_4_peak_power(struct nvme_tool *tool)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
         test_sub();
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(test_4_peak_power, "hc peak power test");
 
@@ -84,7 +85,7 @@ static uint8_t test_sub(void)
 	uint32_t reap_num = 0;
 	uint16_t nr_sq = ctrl->nr_sq;
    
-    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * LBA_DAT_SIZE);
+    mem_set(tool->wbuf, (uint32_t)rand(), wr_nlb * LBA_DAT_SIZE);
     mem_set(tool->rbuf, 0, wr_nlb * LBA_DAT_SIZE);
     sq_size = NVME_CAP_MQES(prop->cap);
     cq_size = NVME_CAP_MQES(prop->cap);

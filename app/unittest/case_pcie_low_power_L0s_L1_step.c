@@ -8,16 +8,16 @@
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint8_t speed, width;
 
 static char *disp_this_case = "this case will tests PCIe low power step\n";
@@ -128,6 +128,6 @@ static int case_pcie_low_power_L0s_L1_step(struct nvme_tool *tool)
         }
     }
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_pcie_low_power_L0s_L1_step, "?");

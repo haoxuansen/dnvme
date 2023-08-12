@@ -23,9 +23,9 @@
 #include <sys/mman.h>
 
 #include "byteorder.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_cq_gain.h"

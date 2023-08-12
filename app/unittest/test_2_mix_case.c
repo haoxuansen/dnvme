@@ -10,21 +10,21 @@
  */
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
-
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 
 static void *fwdma_wr_buffer;
@@ -76,9 +76,9 @@ static int test_2_mix_case(struct nvme_tool *tool)
             io_cq_id = index;
             sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         }
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -94,7 +94,7 @@ static int sub_case_pre(void)
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_N_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, 1, io_cq_id);
 
     pr_color(LOG_N_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
@@ -130,8 +130,8 @@ static int sub_case_io_cmd(void)
 	for (uint32_t ns_idx = 0; ns_idx < nn; ns_idx++)
 	{
 		wr_nsid = ns_idx + 1;
-		// wr_slba = DWORD_RAND() % (ndev->nss[0].nsze / 2);
-		// wr_nlb = WORD_RAND() % 32 + 1;
+		// wr_slba = (uint32_t)rand() % (ndev->nss[0].nsze / 2);
+		// wr_nlb = (uint16_t)rand() % 32 + 1;
 		wr_slba = 0;
 		wr_nlb = 32;
 
@@ -150,12 +150,12 @@ static int sub_case_io_cmd(void)
 
 			if ((wr_slba + wr_nlb) < nsze)
 			{
-				mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+				mem_set(tool->wbuf, (uint32_t)rand(), wr_nlb * lbads);
 				mem_set(tool->rbuf, 0, wr_nlb * lbads);
 
 				cmd_cnt = 0;
 				test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
-				if (test_flag == SUCCEED)
+				if (test_flag == 0)
 				{
 					cmd_cnt++;
 					test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
@@ -168,7 +168,7 @@ static int sub_case_io_cmd(void)
 
 				cmd_cnt = 0;
 				test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
-				if (test_flag == SUCCEED)
+				if (test_flag == 0)
 				{
 					cmd_cnt++;
 					test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
@@ -180,7 +180,7 @@ static int sub_case_io_cmd(void)
 				}
 				tmp_fg = dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * lbads);
 				test_flag |= tmp_fg;
-				if (tmp_fg != SUCCEED)
+				if (tmp_fg != 0)
 				{
 					pr_info("[E] i:%d,wr_slba:%lx,wr_nlb:%x\n", i, wr_slba, wr_nlb);
 					pr_info("\nwrite_buffer Data:\n");
@@ -212,7 +212,7 @@ static int sub_case_fwdma_cmd(void)
         (posix_memalign(&fwdma_rd_buffer, 4096, 8192)))
     {
         pr_err("Memalign Failed\n");
-        return FAILED;
+        return -1;
     }
 #else
     fwdma_wr_buffer = malloc(8192);
@@ -220,12 +220,12 @@ static int sub_case_fwdma_cmd(void)
     if ((tool->wbuf == NULL) || (tool->rbuf == NULL))
     {
         pr_err("Malloc Failed\n");
-        return FAILED;
+        return -1;
     }
 #endif
     /**********************************************************************/
     pr_info("send_fwdma_wr/rd test crc enc-dec wr/rd\n");
-    data_len = 4096; //((WORD_RAND() % 255) + 1) * 16;
+    data_len = 4096; //(((uint16_t)rand() % 255) + 1) * 16;
     pr_info(" data_len:%d\n", data_len);
     memset((uint8_t *)fwdma_wr_buffer, rand() % 0xff, data_len);
     memset((uint8_t *)fwdma_rd_buffer, 0, data_len);
@@ -237,7 +237,7 @@ static int sub_case_fwdma_cmd(void)
 
     fwdma_parameter.addr = fwdma_wr_buffer;
     test_flag |= nvme_maxio_fwdma_wr(ndev->fd, &fwdma_parameter);
-    if (SUCCEED == test_flag)
+    if (0 == test_flag)
     {
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
         test_flag |= cq_gain(0, 1, &reap_num);
@@ -245,7 +245,7 @@ static int sub_case_fwdma_cmd(void)
 
     fwdma_parameter.addr = fwdma_rd_buffer;
     test_flag |= nvme_maxio_fwdma_rd(ndev->fd, &fwdma_parameter);
-    if (SUCCEED == test_flag)
+    if (0 == test_flag)
     {
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
         test_flag |= cq_gain(0, 1, &reap_num);

@@ -98,15 +98,6 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_zone_descriptor) != 64);
 }
 
-void nvme_fill_data(void *buf, uint32_t size)
-{
-	uint32_t i;
-
-	for (i = 0; i < size; i++) {
-		*(uint8_t *)(buf + i) = (uint8_t)rand();
-	}
-}
-
 int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_instance *ns)
 {
 	struct nvme_id_ns *id_ns = ns->id_ns;

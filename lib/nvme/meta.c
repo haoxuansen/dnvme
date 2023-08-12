@@ -16,7 +16,6 @@
 #include <sys/mman.h>
 #include <errno.h>
 
-#include "defs.h"
 #include "libbase.h"
 #include "libnvme.h"
 

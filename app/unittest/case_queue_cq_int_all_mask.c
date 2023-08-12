@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
+#include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
@@ -15,7 +17,7 @@
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 static uint32_t io_sq_id = 1;
 static uint32_t io_cq_id = 1;
@@ -52,9 +54,9 @@ static int case_queue_cq_int_all_mask(struct nvme_tool *tool)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -91,10 +93,10 @@ static int sub_case_int_queue_mask(void)
 	if (ret < 0)
 		return ret;
 
-	queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
+	queue_num = (uint8_t)rand() % ctrl->nr_sq + 1;
 
-	wr_slba = DWORD_RAND() % (nsze / 2);
-	wr_nlb = WORD_RAND() % 255 + 1;
+	wr_slba = (uint32_t)rand() % (nsze / 2);
+	wr_nlb = (uint16_t)rand() % 255 + 1;
 	for (i = 0; i < queue_num; i++)
 	{
 		io_sq_id = sqs[i].sqid;
@@ -131,7 +133,7 @@ int msi_cap_access(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    int ret_val = FAILED;
+    int ret_val = -1;
     struct pcie_msi_cap msi_cap;
 
     ret_val = pci_read_config_data(ndev->fd, ndev->msi.offset, sizeof(struct pcie_msi_cap), &msi_cap);
@@ -172,10 +174,10 @@ static int sub_case_pending_bit(void)
 	if (ret < 0)
 		return ret;
 
-	queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
+	queue_num = (uint8_t)rand() % ctrl->nr_sq + 1;
 
-	wr_slba = DWORD_RAND() % (nsze / 2);
-	wr_nlb = WORD_RAND() % 255 + 1;
+	wr_slba = (uint32_t)rand() % (nsze / 2);
+	wr_nlb = (uint16_t)rand() % 255 + 1;
 	for (uint16_t i = 0; i < queue_num; i++)
 	{
 		io_sq_id = sqs[i].sqid;

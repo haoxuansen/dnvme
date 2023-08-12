@@ -94,8 +94,6 @@ int ioctl_send_write_zero(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb,
 int ioctl_send_write_unc(int g_fd, uint16_t sq_id, uint64_t slba, uint16_t nlb);
 int ioctl_send_format(int g_fd, uint8_t lbaf);
 
-uint8_t pci_find_cap_ofst(int g_fd, uint8_t cap_id);
-
 void pcie_RC_cfg_speed(int speed);
 void pcie_set_width(int width);
 void pcie_random_speed_width(void);

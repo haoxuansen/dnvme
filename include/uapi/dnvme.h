@@ -14,7 +14,6 @@
 
 #include <linux/pci_regs.h>
 #include "linux/dma-direction.h"
-#include "bitops.h"
 #include "nvme.h"
 #include "dnvme/netlink.h"
 

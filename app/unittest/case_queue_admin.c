@@ -1,20 +1,22 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
+#include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 // static uint32_t io_sq_id = 1;
 // static uint32_t io_cq_id = 1;
@@ -50,9 +52,9 @@ static int case_queue_admin(struct nvme_tool *tool)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -101,7 +103,7 @@ static int sub_case_asq_size_loop_array(void)
             {
                 ret = nvme_cmd_keep_alive(ndev->fd);
 		if (ret < 0)
-			test_flag = FAILED;
+			test_flag = -1;
                 cmd_cnt++;
             }
             test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
@@ -127,7 +129,7 @@ static int sub_case_asq_size_loop_array(void)
         {
 	    ret = nvme_cmd_keep_alive(ndev->fd);
 	    if (ret < 0)
-		    test_flag = FAILED;
+		    test_flag = -1;
             cmd_cnt++;
         }
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
@@ -140,7 +142,7 @@ static int sub_case_asq_size_loop_array(void)
         {
 	    ret = nvme_cmd_keep_alive(ndev->fd);
 	    if (ret < 0)
-		    test_flag = FAILED;
+		    test_flag = -1;
             cmd_cnt++;
         }
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
@@ -180,7 +182,7 @@ static int sub_case_asq_size_random(void)
         {
 	    ret = nvme_cmd_keep_alive(ndev->fd);
 	    if (ret < 0)
-		    test_flag = FAILED;
+		    test_flag = -1;
             cmd_cnt ++;
         }
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);

@@ -8,16 +8,16 @@
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t pmcap = 0;
 
 static char *disp_this_case = "this case will tests PCIe PM\n";
@@ -54,7 +54,7 @@ static void test_sub(void)
     else
     {
         pr_err("D0 to D3 failed: D%d\n", u32_tmp_data);
-        test_flag = FAILED;
+        test_flag = -1;
     }
 
     //usleep(500000);
@@ -84,7 +84,7 @@ static void test_sub(void)
     else
     {
         pr_err("D3 to D0 failed: D%d\n", u32_tmp_data);
-        test_flag = FAILED;
+        test_flag = -1;
     }
 
     usleep(500000);
@@ -146,6 +146,6 @@ static int case_pcie_PM(struct nvme_tool *tool)
         }
     }
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_pcie_PM, "?");

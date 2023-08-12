@@ -9,10 +9,8 @@
  * 
  */
 
-#ifndef _LINUX_BITOPS_H
-#define _LINUX_BITOPS_H
-
-#include "defs.h"
+#ifndef _UAPI_LIB_BASE_BITOPS_H_
+#define _UAPI_LIB_BASE_BITOPS_H_
 
 #define BITS_PER_BYTE			8
 
@@ -47,4 +45,4 @@ static inline int test_and_clear_bit(unsigned int nr, unsigned long *addr)
 	return 0;
 }
 
-#endif /* !_LINUX_BITOPS_H */
+#endif /* !_UAPI_LIB_BASE_BITOPS_H_ */

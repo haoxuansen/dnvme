@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include "defs.h"
 #include "libbase.h"
 #include "libnvme.h"
 

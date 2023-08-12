@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
+#include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
@@ -15,7 +17,7 @@
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 static uint32_t cmd_cnt = 0;
 static uint32_t io_sq_id = 1;
@@ -63,9 +65,9 @@ static int case_queue_cq_int_all(struct nvme_tool *tool)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -120,8 +122,8 @@ static int sub_case_int_pin(void)
 	cmd_cnt = 0;
 	for (index = 0; index < 100; index++)
 	{
-	wr_slba = DWORD_RAND() % (nsze / 2);
-	wr_nlb = WORD_RAND() % 255 + 1;
+	wr_slba = (uint32_t)rand() % (nsze / 2);
+	wr_nlb = (uint16_t)rand() % 255 + 1;
 	if ((wr_slba + wr_nlb) < nsze)
 	{
 		test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
@@ -192,8 +194,8 @@ static int sub_case_int_msi_single(void)
 	cmd_cnt = 0;
 	for (index = 0; index < 100; index++)
 	{
-		wr_slba = DWORD_RAND() % (nsze / 2);
-		wr_nlb = WORD_RAND() % 255 + 1;
+		wr_slba = (uint32_t)rand() % (nsze / 2);
+		wr_nlb = (uint16_t)rand() % 255 + 1;
 		if ((wr_slba + wr_nlb) < nsze)
 		{
 			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
@@ -270,8 +272,8 @@ static int sub_case_int_msi_multi(void)
 	cmd_cnt = 0;
 	for (index = 0; index < 100; index++)
 	{
-		wr_slba = DWORD_RAND() % (nsze / 2);
-		wr_nlb = WORD_RAND() % 255 + 1;
+		wr_slba = (uint32_t)rand() % (nsze / 2);
+		wr_nlb = (uint16_t)rand() % 255 + 1;
 		if ((wr_slba + wr_nlb) < nsze)
 		{
 			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
@@ -345,8 +347,8 @@ static int sub_case_int_msix(void)
 	cmd_cnt = 0;
 	for (index = 0; index < 100; index++)
 	{
-		wr_slba = DWORD_RAND() % (nsze / 2);
-		wr_nlb = WORD_RAND() % 255 + 1;
+		wr_slba = (uint32_t)rand() % (nsze / 2);
+		wr_nlb = (uint16_t)rand() % 255 + 1;
 		if ((wr_slba + wr_nlb) < nsze)
 		{
 			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
@@ -398,10 +400,10 @@ static int sub_case_int_n_queue(void)
 	if (ret < 0)
 		return ret;
 
-	uint8_t queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
+	uint8_t queue_num = (uint8_t)rand() % ctrl->nr_sq + 1;
 
-	wr_slba = DWORD_RAND() % (nsze / 2);
-	wr_nlb = WORD_RAND() % 255 + 1;
+	wr_slba = (uint32_t)rand() % (nsze / 2);
+	wr_nlb = (uint16_t)rand() % 255 + 1;
 	for (uint16_t i = 0; i < queue_num; i++)
 	{
 		io_sq_id = sqs[i].sqid;
@@ -456,10 +458,10 @@ static int sub_case_multi_cq_map_one_int_vct(void)
 	if (ret < 0)
 		return ret;
 
-	uint8_t queue_num = BYTE_RAND() % ctrl->nr_sq + 1;
+	uint8_t queue_num = (uint8_t)rand() % ctrl->nr_sq + 1;
 
-	wr_slba = DWORD_RAND() % (nsze / 2);
-	wr_nlb = WORD_RAND() % 255 + 1;
+	wr_slba = (uint32_t)rand() % (nsze / 2);
+	wr_nlb = (uint16_t)rand() % 255 + 1;
 	for (uint16_t i = 0; i < queue_num; i++)
 	{
 		io_sq_id = sqs[i].sqid;

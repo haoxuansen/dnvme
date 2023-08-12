@@ -7,16 +7,16 @@
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint8_t speed, width;
 
 static char *disp_this_case = "this case will tests PCIe Reset cycle\n";
@@ -64,7 +64,7 @@ static void test_sub(void)
     else
     {
         pr_err("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
-        test_flag = FAILED;
+        test_flag = -1;
     }
 
     /************************** Issue link down *********************/
@@ -123,6 +123,6 @@ static int case_pcie_reset_cyc(struct nvme_tool *tool)
     
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_pcie_reset_cyc, "?");

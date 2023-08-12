@@ -10,7 +10,9 @@
  * 
  */
 
-#include "common.h"
+#include <string.h>
+
+#include "libbase.h"
 #include "unittest.h"
 
 /**
@@ -40,7 +42,7 @@ uint32_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseLis
         pr_color(LOG_N_GREEN, "Case:%d,%s():%s\r\n", idx, SubCaseList[idx].FuncName, SubCaseList[idx].FuncDesc);
         test_report.executed++;
         SubCaseList[idx].Result = SubCaseList[idx].CaseFunc();
-        if (SubCaseList[idx].Result == SUCCEED)
+        if (SubCaseList[idx].Result == 0)
         {
             test_report.passed++;
         }
@@ -61,7 +63,7 @@ uint32_t sub_case_list_exe(SubCaseHeader_t *SubCaseHeader, SubCase_t *SubCaseLis
     pr_info("SubCaseNum|Result|SubCaseName\r\n");
     for (idx = 0; idx < SubCaseNum; idx++)
     {
-        if (SubCaseList[idx].Result == SUCCEED)
+        if (SubCaseList[idx].Result == 0)
         {
             pr_info("  %4d    | %s |%-26s\r\n", idx, "PASS", SubCaseList[idx].FuncDesc);
         }
@@ -151,16 +153,16 @@ int mem_set(uint32_t *mem_addr1, uint32_t pattern, uint32_t data_size)
 int dw_cmp(uint32_t *addr_buf1, uint32_t *addr_buf2, uint32_t buf_size)
 {
     uint32_t idx = 0;
-    int flg = SUCCEED;
+    int flg = 0;
     for (idx = 0; idx < (buf_size / 4); idx++)
     {
         if (addr_buf1[idx] != addr_buf2[idx])
         {
-            flg = FAILED;
+            flg = -1;
             break;
         }
     }
-    if (flg == SUCCEED)
+    if (flg == 0)
     {
         pr_div("Compare OK!!! \n");
     }

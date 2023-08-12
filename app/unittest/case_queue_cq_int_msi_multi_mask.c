@@ -1,21 +1,22 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 #include "test_irq.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 
 static char *disp_this_case = "this case will tests MASK CQ interrupt type : msi\n"
                               ".1 use all cq, random irq_no\n"
@@ -133,13 +134,13 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
         {
             if (cq_gain(NVME_AQ_ID, 1, &reap_num))
             {
-                test_flag = SUCCEED;
+                test_flag = 0;
                 pr_info("int msi admin mask ok\n");
                 break;
             }
             else
             {
-                test_flag = FAILED;
+                test_flag = -1;
                 pr_err("int msi admin mask fail\n");
             }
         }
@@ -186,7 +187,7 @@ void test_all_cq_cmd(uint32_t msi_mask_flag)
             }
             else
             {
-                test_flag = FAILED;
+                test_flag = -1;
                 pr_err("check msi int %d mask fail\n", q_index);
             }
         }
@@ -222,18 +223,18 @@ void int_msi_signal_mask(void)
         test_all_cq_cmd(msi_mask_flag);
         if (test_flag != 0)
         {
-            error_status = FAILED;
+            error_status = -1;
             pr_err("int_msi_signal_mask %d mask bit fail\n", q_index);
         }
     }
     if (error_status != 0)
     {
-        test_flag = FAILED;
+        test_flag = -1;
         pr_err("case_queue_cq_int_msi_signal_mask case result is -1!!!!!\n");
     }
     else
     {
-        test_flag = SUCCEED;
+        test_flag = 0;
         pr_info("case_queue_cq_int_msi_signal_mask case result is 1!!!!!\n");
     }
     pr_info("case_queue_cq_int_msi_signal_mask case end!!!\n");
@@ -252,7 +253,7 @@ static void int_msi_multi_mask(void)
         msi_mask_flag = (msi_mask_flag << 0x1);
         int_mask_bit(msi_mask_flag);
         test_all_cq_cmd(msi_mask_flag);
-        if (test_flag != SUCCEED)
+        if (test_flag != 0)
         {
             error_status = 1;
             pr_err("int_msi_signal_mask %d mask bit fail\n", q_index);
@@ -260,12 +261,12 @@ static void int_msi_multi_mask(void)
     }
     if (error_status != 0)
     {
-        test_flag = FAILED;
+        test_flag = -1;
         pr_err("case result is -1!!!!!\n");
     }
     else
     {
-        test_flag = SUCCEED;
+        test_flag = 0;
         pr_info("case result is 1!!!!!\n");
     }
     pr_info("case end!!!\n");
@@ -288,6 +289,6 @@ static int case_queue_cq_int_msi_multi_mask(struct nvme_tool *tool)
     
     nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, NVME_INT_MSIX);
 
-    return test_flag != SUCCEED ? -EPERM : 0;
+    return test_flag != 0 ? -EPERM : 0;
 }
 NVME_CASE_SYMBOL(case_queue_cq_int_msi_multi_mask, "?");

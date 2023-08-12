@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 #include <errno.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
@@ -400,9 +401,9 @@ static int delete_runing_cmd_queue(void)
 	for (qid = 1; qid <= queue_num; qid++) {
 		cmd_cnt = 0;
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
-		wr_slba = DWORD_RAND() % (nsze / 2);
-		wr_nlb = WORD_RAND() % 255 + 1;
-		for (index = 0; index < MIN(cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
+		wr_slba = (uint32_t)rand() % (nsze / 2);
+		wr_nlb = (uint16_t)rand() % 255 + 1;
+		for (index = 0; index < min_t(uint32_t, cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
 		{
 			if ((wr_slba + wr_nlb) < nsze)
 			{
@@ -497,9 +498,9 @@ static int delete_runing_fua_cmd_queue(void)
 	{
 		cmd_cnt = 0;
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
-		wr_slba = DWORD_RAND() % (nsze / 2);
-		wr_nlb = WORD_RAND() % 255 + 1;
-		for (index = 0; index < MIN(cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
+		wr_slba = (uint32_t)rand() % (nsze / 2);
+		wr_nlb = (uint16_t)rand() % 255 + 1;
+		for (index = 0; index < min_t(uint32_t, cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
 		{
 			if ((wr_slba + wr_nlb) < nsze)
 			{
@@ -588,11 +589,11 @@ static int delete_runing_iocmd_queue(void)
 
 	/* use several queues */
 
-	queue_num = BYTE_RAND() % nr_sq + 1;
+	queue_num = (uint8_t)rand() % nr_sq + 1;
 
-	wr_slba = DWORD_RAND() % (nsze / 2);
-	wr_nlb = WORD_RAND() % 255 + 1;
-	cmd_num_per_q = (512 / nr_sq); //WORD_RAND() % 150 + 10;
+	wr_slba = (uint32_t)rand() % (nsze / 2);
+	wr_nlb = (uint16_t)rand() % 255 + 1;
+	cmd_num_per_q = (512 / nr_sq); //(uint16_t)rand() % 150 + 10;
 	for (i = 0; i < queue_num; i++)
 	{
 		//controller outstanding cmd num is 512

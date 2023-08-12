@@ -10,7 +10,7 @@
 typedef int (*CaseFunc_t)(struct nvme_tool *tool);
 typedef void (*VoidFunc_t)(void);
 
-#define SUB_CASE(cf, cn) {cf, #cf, cn, FAILED}
+#define SUB_CASE(cf, cn) {cf, #cf, cn, -1}
 typedef int (*SubCaseFunc_t)(void);
 typedef struct _SubCase_t
 {

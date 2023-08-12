@@ -17,9 +17,9 @@
 
 #include "byteorder.h"
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_metrics.h"
 #include "test_irq.h"
@@ -29,7 +29,7 @@ char *tmpfile_dump = "/tmp/dump_cq.txt";
 
 int disp_cq_data(struct nvme_completion *cq_entry, int reap_num)
 {
-	int ret_val = SUCCEED;
+	int ret_val = 0;
 
 	while (reap_num)
 	{
@@ -39,7 +39,7 @@ int disp_cq_data(struct nvme_completion *cq_entry, int reap_num)
 				cq_entry->command_id, cq_entry->result.u32, 
 				NVME_CQE_STATUS_TO_PHASE(cq_entry->status), cq_entry->sq_head,
 				cq_entry->sq_id, NVME_CQE_STATUS_TO_STATE(cq_entry->status));
-			ret_val = FAILED;
+			ret_val = -1;
 		}
 		else
 		{
@@ -59,7 +59,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
-	int ret_val = SUCCEED;
+	int ret_val = 0;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
 
@@ -69,7 +69,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 	if (cq_id > ctrl->nr_cq)
 	{
 		pr_err("cq_id is exceed!!!\n");
-		return FAILED;
+		return -1;
 	}
 
 	rp_cq.cqid = cq_id;
@@ -83,7 +83,7 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 		if (ret_val < 0)
 		{
 			pr_err("Call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
-			return FAILED;
+			return -1;
 		}
 
 		if (rp_cq.reaped)
@@ -106,13 +106,13 @@ int cq_gain(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num)
 				expect_num,
 				*reaped_num,
 				CQ_REAP_TO_US/(1000*100));
-			ret_val = FAILED;
+			ret_val = -1;
 			break;
 		}
 	}
 	if (disp_cq_data(tool->entry, *reaped_num))
 	{
-		ret_val = FAILED;
+		ret_val = -1;
 	}
 	return ret_val;
 }
@@ -122,7 +122,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
-	int ret_val = SUCCEED;
+	int ret_val = 0;
 	struct nvme_reap rp_cq  = {0};
 	uint64_t cq_to_cnt = 0;
 
@@ -131,7 +131,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 	if (cq_id > ctrl->nr_cq)
 	{
 		pr_err("cq_id is exceed!!!\n");
-		return FAILED;
+		return -1;
 	}
 
 	rp_cq.cqid = cq_id;
@@ -145,7 +145,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 		if (ret_val < 0)
 		{
 			pr_err("call cq_gain ioctl failed!!! cq_id: %d, expect_num: %d\n", cq_id, expect_num);
-			return FAILED;
+			return -1;
 		}
 
 		if (rp_cq.reaped)
@@ -167,7 +167,7 @@ int cq_gain_disp_cq(uint16_t cq_id, uint32_t expect_num, uint32_t *reaped_num , 
 				expect_num,
 				*reaped_num,
 				CQ_REAP_TO_US/(1000*100));
-			ret_val = FAILED;
+			ret_val = -1;
 			break;
 		}
 	}

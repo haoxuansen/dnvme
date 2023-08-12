@@ -532,7 +532,7 @@ enum {
 struct nvme_copy_desc_fmt0 {
 	__le64			rsvd0;
 	__le64			slba;
-	__le16			length;
+	__le16			length; /* 0's based */
 	__le16			rsvd4;
 	__le32			rsvd5;
 	__u8			tag[4];
@@ -543,7 +543,7 @@ struct nvme_copy_desc_fmt0 {
 struct nvme_copy_desc_fmt1 {
 	__le64			rsvd0;
 	__le64			slba;
-	__le16			length;
+	__le16			length; /* 0's based */
 	__le16			rsvd4;
 	__le32			rsvd5;
 	__le16			rsvd6;

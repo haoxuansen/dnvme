@@ -37,6 +37,7 @@ struct nvme_ns_instance {
 	uint16_t		meta_size;
 
 	struct nvme_id_ns	*id_ns;
+	struct nvme_ns_id_desc	*ns_id_desc;
 	struct nvme_id_ns_zns	*id_ns_zns;
 };
 
@@ -110,8 +111,6 @@ struct nvme_dev_info {
 
 	struct nvme_dev_public	dev_pub;
 };
-
-void nvme_fill_data(void *buf, uint32_t size);
 
 struct nvme_dev_info *nvme_init(const char *devpath);
 void nvme_deinit(struct nvme_dev_info *ndev);

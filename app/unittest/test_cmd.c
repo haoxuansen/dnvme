@@ -56,11 +56,6 @@ struct test_data {
 
 static struct test_data g_test = {0};
 
-static bool is_support_copy(uint16_t oncs)
-{
-	return (oncs & NVME_CTRL_ONCS_COPY) ? true : false;
-}
-
 /**
  * @note May re-initialized? ignore...We shall to update this if data changed. 
  */
@@ -247,7 +242,7 @@ static int copy_desc_fmt0_init(struct nvme_copy_desc_fmt0 *desc,
 	memset(desc, 0, sizeof(*desc) * num);
 	for (i = 0; i < num; i++) {
 		desc[i].slba = cpu_to_le64(range[i].slba);
-		desc[i].length = cpu_to_le16(range[i].nlb);
+		desc[i].length = cpu_to_le16(range[i].nlb - 1);
 	}
 	return 0;
 }
@@ -260,7 +255,7 @@ static int copy_desc_fmt1_init(struct nvme_copy_desc_fmt1 *desc,
 	memset(desc, 0, sizeof(*desc) * num);
 	for (i = 0; i < num; i++) {
 		desc[i].slba = cpu_to_le64(range[i].slba);
-		desc[i].length = cpu_to_le16(range[i].nlb);
+		desc[i].length = cpu_to_le16(range[i].nlb - 1);
 	}
 	return 0;
 }
@@ -639,6 +634,7 @@ static int subcase_copy_success(struct nvme_tool *tool,
 		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
 		goto free_copy;
 	}
 	copy->rbuf_size = NVME_TOOL_RW_BUF_SIZE;
@@ -1004,20 +1000,23 @@ out:
 static int case_cmd_io_copy(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_id_ctrl *id_ctrl = ndev->ctrl->id_ctrl;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
 	struct test_data *test = &g_test;
 	int ret;
 
+	ret = nvme_ctrl_support_copy_cmd(ndev->ctrl);
+	if (ret == 0) {
+		pr_warn("device not support copy cmd! skip...\n");
+		return -EOPNOTSUPP;
+	} else if (ret < 0) {
+		pr_err("failed to check capability!(%d)\n", ret);
+		return ret;
+	}
+
 	ret = init_test_data(ndev, test);
 	if (ret < 0)
 		return ret;
-
-	if (!is_support_copy(le16_to_cpu(id_ctrl->oncs))) {
-		pr_warn("controller not support copy command!\n");
-		return -EOPNOTSUPP;
-	}
 
 	if (!test->mssrl || !test->mcl || test->mssrl > test->mcl) {
 		pr_err("MSSRL:0x%x or MCL:0x%x is invalid!\n", 

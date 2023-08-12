@@ -7,9 +7,9 @@
 #include <string.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
@@ -106,7 +106,7 @@ reg_desc pcie_ids_reg[] =
         {.addr = 0x002c, .mark = 0xffffffff, .type = RO},
 };
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 static uint32_t cmd_cnt = 0;
 static uint32_t io_sq_id = 1;
@@ -169,9 +169,9 @@ static int case_register_test(struct nvme_tool *tool)
     {
         pr_info("\ntest cnt: %d\n", round_idx);
         sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -187,7 +187,7 @@ static uint32_t sub_case_pre(void)
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_N_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, 1, io_cq_id);
 
     pr_color(LOG_N_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
@@ -230,7 +230,7 @@ static int sub_case_nvme_reg_normal(void)
                           nvme_ctrl_reg[i].mark,
                           u32_tmp_data,
                           nvme_ctrl_reg[i].def_val);
-                test_flag = FAILED;
+                test_flag = -1;
             }
 #if 1
             rand_data = rand();
@@ -251,7 +251,7 @@ static int sub_case_nvme_reg_normal(void)
                           nvme_ctrl_reg[i].mark,
                           u32_tmp_data,
                           nvme_ctrl_reg[i].def_val);
-                test_flag = FAILED;
+                test_flag = -1;
             }
 #endif
         }
@@ -287,7 +287,7 @@ static int sub_case_pcie_reg_normal(void)
                           pcie_ids_reg[i].mark,
                           u32_tmp_data,
                           pcie_ids_reg[i].def_val);
-                test_flag = FAILED;
+                test_flag = -1;
             }
 #if 1
             rand_data = rand();
@@ -308,7 +308,7 @@ static int sub_case_pcie_reg_normal(void)
                           pcie_ids_reg[i].mark,
                           u32_tmp_data,
                           pcie_ids_reg[i].def_val);
-                test_flag = FAILED;
+                test_flag = -1;
             }
 #endif
         }
@@ -344,13 +344,13 @@ static int sub_case_iocmd_nvme_reg(void)
 
         wr_nsid = 1;
         wr_slba = 0;
-        wr_nlb = WORD_RAND() % 32 + 1;
+        wr_nlb = (uint16_t)rand() % 32 + 1;
 
 	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
 	if (ret < 0)
 		return ret;
 
-        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+        mem_set(tool->wbuf, (uint32_t)rand(), wr_nlb * lbads);
         mem_set(tool->rbuf, 0, wr_nlb * lbads);
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
@@ -362,7 +362,7 @@ static int sub_case_iocmd_nvme_reg(void)
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             cmd_cnt++;
         }
-        if (test_flag == SUCCEED)
+        if (test_flag == 0)
         {
             test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
@@ -382,7 +382,7 @@ static int sub_case_iocmd_nvme_reg(void)
             test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
             cmd_cnt++;
         }
-        if (test_flag == SUCCEED)
+        if (test_flag == 0)
         {
             test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
@@ -396,7 +396,7 @@ static int sub_case_iocmd_nvme_reg(void)
         }
         if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * lbads))
         {
-            test_flag |= FAILED;
+            test_flag |= -1;
             pr_err("dw_cmp");
             goto out;
         }
@@ -428,13 +428,13 @@ static int sub_case_iocmd_nvme_reg_normal(void)
 
         wr_nsid = 1;
         wr_slba = 0;
-        wr_nlb = WORD_RAND() % 32 + 1;
+        wr_nlb = (uint16_t)rand() % 32 + 1;
 
 	ret = nvme_id_ns_lbads(ns_grp, wr_nsid, &lbads);
 	if (ret < 0)
 		return ret;
 
-        mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+        mem_set(tool->wbuf, (uint32_t)rand(), wr_nlb * lbads);
         mem_set(tool->rbuf, 0, wr_nlb * lbads);
 
         pr_info("sq_id:%d nsid:%d lbads:%d slba:%ld nlb:%d\n", io_sq_id, 
@@ -446,7 +446,7 @@ static int sub_case_iocmd_nvme_reg_normal(void)
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
             cmd_cnt++;
         }
-        if (test_flag == SUCCEED)
+        if (test_flag == 0)
         {
             test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
@@ -466,7 +466,7 @@ static int sub_case_iocmd_nvme_reg_normal(void)
             test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
             cmd_cnt++;
         }
-        if (test_flag == SUCCEED)
+        if (test_flag == 0)
         {
             test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
             sleep(1);
@@ -480,7 +480,7 @@ static int sub_case_iocmd_nvme_reg_normal(void)
         }
         if (dw_cmp(tool->wbuf, tool->rbuf, wr_nlb * lbads))
         {
-            test_flag |= FAILED;
+            test_flag |= -1;
             pr_err("dw_cmp");
             goto out;
         }

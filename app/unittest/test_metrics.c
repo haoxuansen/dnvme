@@ -22,9 +22,9 @@
 #include <stdint.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "test_send_cmd.h"
 #include "test_metrics.h"

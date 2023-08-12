@@ -10,21 +10,22 @@
  */
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"
 #include "test_send_cmd.h"
 #include "test_cq_gain.h"
 
-static int test_flag = SUCCEED;
+static int test_flag = 0;
 static uint32_t test_loop = 0;
 static uint32_t cmd_cnt = 0;
 static uint32_t io_sq_id = 1;
@@ -76,9 +77,9 @@ static int test_3_adm_wr_cache_fua(struct nvme_tool *tool)
             io_cq_id = index;
             sub_case_list_exe(&sub_case_header, sub_case_list, ARRAY_SIZE(sub_case_list));
         }
-        if (FAILED == test_flag)
+        if (-1 == test_flag)
         {
-            pr_err("test_flag == FAILED\n");
+            pr_err("test_flag == -1\n");
             break;
         }
     }
@@ -94,7 +95,7 @@ static int sub_case_pre(void)
 
     pr_info("==>QID:%d\n", io_sq_id);
     pr_color(LOG_N_PURPLE, "  Create contig cq_id:%d, cq_size = %d\n", io_cq_id, cq_size);
-    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, ENABLE, io_cq_id);
+    test_flag |= nvme_create_contig_iocq(ndev->fd, io_cq_id, cq_size, 1, io_cq_id);
 
     pr_color(LOG_N_PURPLE, "  Create contig sq_id:%d, assoc cq_id = %d, sq_size = %d\n", io_sq_id, io_cq_id, sq_size);
     test_flag |= nvme_create_contig_iosq(ndev->fd, io_sq_id, io_cq_id, sq_size, MEDIUM_PRIO);
@@ -129,21 +130,21 @@ static int sub_case_disable_volatile_wc(void)
 	nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
 
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_VOLATILE_WC, false, 0);
-    if (test_flag == FAILED)
+    if (test_flag == -1)
         return test_flag;
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", false);
     test_flag |= nvme_admin_ring_dbl_reap_cq(ndev->fd);
     wr_nsid = 1;
-    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+    mem_set(tool->wbuf, (uint32_t)rand(), wr_nlb * lbads);
     cmd_cnt = 0;
-    for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
+    for (uint32_t i = 0; i < ((uint32_t)rand() % 50 + 30); i++)
     {
-        wr_slba = DWORD_RAND() % (nsze / 2);
-        wr_nlb = WORD_RAND() % 255 + 1;
+        wr_slba = (uint32_t)rand() % (nsze / 2);
+        wr_nlb = (uint16_t)rand() % 255 + 1;
         if ((wr_slba + wr_nlb) < nsze)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
-            if (test_flag == FAILED)
+            if (test_flag == -1)
                 return test_flag;
             cmd_cnt++;
         }
@@ -171,21 +172,21 @@ static int sub_case_enable_volatile_wc(void)
 	nvme_id_ns_nsze(ns_grp, wr_nsid, &nsze);
 
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_VOLATILE_WC, true, 0);
-    if (test_flag == FAILED)
+    if (test_flag == -1)
         return test_flag;
     pr_info("NVME_FEAT_VOLATILE_WC:%d\n", true);
     test_flag |= nvme_admin_ring_dbl_reap_cq(ndev->fd);
     wr_nsid = 1;
-    mem_set(tool->wbuf, DWORD_RAND(), wr_nlb * lbads);
+    mem_set(tool->wbuf, (uint32_t)rand(), wr_nlb * lbads);
     cmd_cnt = 0;
-    for (uint32_t i = 0; i < (DWORD_RAND() % 50 + 30); i++)
+    for (uint32_t i = 0; i < ((uint32_t)rand() % 50 + 30); i++)
     {
-        wr_slba = DWORD_RAND() % (nsze / 2);
-        wr_nlb = WORD_RAND() % 255 + 1;
+        wr_slba = (uint32_t)rand() % (nsze / 2);
+        wr_nlb = (uint16_t)rand() % 255 + 1;
         if ((wr_slba + wr_nlb) < nsze)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
-            if (test_flag == FAILED)
+            if (test_flag == -1)
                 return test_flag;
             cmd_cnt++;
         }

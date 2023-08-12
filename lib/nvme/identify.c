@@ -16,6 +16,26 @@
 #include "libnvme.h"
 
 /**
+ * @brief Check whether the controller supports Copy command.
+ * 
+ * @return Details are listed below.
+ * 	1: support the NVM Command Set Copy command.
+ * 	0: don't support the NVM Command Set Copy command.
+ * 	-ENODEV: identify controller data not exist. 
+ */
+int nvme_ctrl_support_copy_cmd(struct nvme_ctrl_instance *ctrl)
+{
+	uint16_t oncs;
+
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+
+	oncs = le16_to_cpu(ctrl->id_ctrl->oncs);
+	
+	return (oncs & NVME_CTRL_ONCS_COPY) ? 1 : 0;
+}
+
+/**
  * @return The number of NVMe power states supported by the controller,
  * 	otherwise a negative errno
  * 

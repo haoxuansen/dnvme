@@ -8,22 +8,25 @@
  * @copyright Copyright (c) 2018-2019 Maxio-Tech
  * 
  */
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/time.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
 #include <malloc.h>
-#include <stdint.h>
-#include <sys/mman.h>
-#include <sys/time.h>
 
 #include "dnvme.h"
+#include "libbase.h"
 #include "libnvme.h"
 
-#include "common.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_irq.h"
@@ -273,8 +276,6 @@ int main(int argc, char *argv[])
 		pr_err("Please specify a nvme device!\n");
 		return -EINVAL;
 	}
-
-	srand(time(NULL));
 
 	ndev = nvme_init(argv[1]);
 	if (!ndev)
