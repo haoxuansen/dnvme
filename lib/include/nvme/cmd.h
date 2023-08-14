@@ -96,6 +96,7 @@ int nvme_cmd_delete_iosq(int fd, uint16_t sqid);
 int nvme_cmd_delete_iocq(int fd, uint16_t cqid);
 
 int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);
+int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);;
 
 /**
  * @brief Set feature named power management
@@ -111,6 +112,11 @@ static inline int nvme_cmd_set_feat_power_mgmt(int fd, uint8_t ps, uint8_t wh)
 		NVME_POWER_MGMT_FOR_WH(wh) | NVME_POWER_MGMT_FOR_PS(ps));
 }
 
+static inline int nvme_cmd_get_feat_power_mgmt(int fd, uint32_t sel)
+{
+	return nvme_cmd_get_feature(fd, 0, sel | NVME_FEAT_POWER_MGMT, 0);
+}
+
 static inline int nvme_cmd_set_feat_num_queues(int fd, uint16_t nr_sq, 
 	uint16_t nr_cq)
 {
@@ -118,12 +124,21 @@ static inline int nvme_cmd_set_feat_num_queues(int fd, uint16_t nr_sq,
 		((uint32_t)nr_cq << 16) | nr_sq);
 }
 
-int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);
-
-static inline int nvme_cmd_get_feat_power_mgmt(int fd, uint32_t sel)
+static inline int nvme_cmd_set_feat_write_protect(int fd, uint32_t nsid, 
+	uint32_t sel, uint32_t state)
 {
-	return nvme_cmd_get_feature(fd, 0, sel | NVME_FEAT_POWER_MGMT, 0);
+	return nvme_cmd_set_feature(fd, nsid, sel | NVME_FEAT_WRITE_PROTECT, state);
 }
+int nvme_set_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid, 
+	uint32_t sel, uint32_t state);
+
+static inline int nvme_cmd_get_feat_write_protect(int fd, uint32_t nsid, 
+	uint32_t sel)
+{
+	return nvme_cmd_get_feature(fd, nsid, sel | NVME_FEAT_WRITE_PROTECT, 0);
+}
+int nvme_get_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid, 
+	uint32_t sel);
 
 int nvme_cmd_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10);
 int nvme_format_nvm(struct nvme_dev_info *ndev, uint32_t nsid, uint8_t flags, 

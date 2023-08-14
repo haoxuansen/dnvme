@@ -156,6 +156,8 @@ struct nvme_feat_host_behavior {
 
 /* ==================== NVME_FEAT_WRITE_PROTECT(0x84) ==================== */
 
+#define NVME_NS_WPS_MASK		0x7
+
 /**
  * @brief Write Protect State
  */

@@ -40,6 +40,11 @@ struct test_cmd_copy {
 	void		*rbuf;
 	uint32_t	rbuf_size;
 
+	uint32_t	skip_write:1;
+
+	/*
+	 * The following fields shall be placed at the end of this structure
+	 */
 	uint32_t	ranges;		/* I */
 	struct source_range	entry[0];	/* I */
 };
@@ -314,6 +319,9 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	uint16_t cid;
 	int ret;
 
+	if (unlikely(copy->skip_write))
+		goto skip_write;
+
 	/*
 	 * Avoid the read portion of a copy operation attemps to access
 	 * a deallocated or unwritten logical block.
@@ -330,7 +338,7 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 			copy->entry[i].slba, copy->entry[i].nlb);
 	}
 	pr_debug("target slba:%lu\n", copy->slba);
-
+skip_write:
 	ret = copy_desc_init(copy);
 	if (ret < 0)
 		return ret;
@@ -700,6 +708,78 @@ out:
 }
 
 /**
+ * @brief Copy command shall process failed due to dest LBA range contains
+ * 	read-only blocks.
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int subcase_copy_to_read_only(struct nvme_tool *tool, 
+	struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_cmd_copy *copy = NULL;
+	struct test_data *test = &g_test;
+	uint16_t limit = min_t(uint64_t, (test->nsze / 4), 256);
+	int ret;
+
+	ret = nvme_ctrl_support_write_protect(ndev->ctrl);
+	if (ret == 0) {
+		pr_warn("device not support write protect! skip...\n");
+		ret = -EOPNOTSUPP;
+		goto out;
+	} else if (ret < 0) {
+		pr_err("failed to check capability!(%d)\n", ret);
+		goto out;
+	}
+
+	ret = nvme_get_feat_write_protect(ndev, test->nsid, NVME_FEAT_SEL_CUR);
+	if (ret < 0)
+		goto out;
+	
+	if (ret == NVME_NS_NO_WRITE_PROTECT) {
+		ret = nvme_set_feat_write_protect(ndev, test->nsid, 
+			NVME_FEAT_SEL_CUR, NVME_NS_WRITE_PROTECT);
+		if (ret < 0) {
+			pr_err("failed to set nsid(%u) to write protect "
+				"state!(%d)\n", test->nsid, ret);
+			goto out;
+		}
+	}
+
+	copy = calloc(1, sizeof(struct test_cmd_copy) + 
+		sizeof(struct source_range));
+	if (!copy) {
+		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	copy->ranges = 1;
+	copy->desc_fmt = NVME_COPY_DESC_FMT_32B;
+	copy->entry[0].slba = rand() % (test->nsze / 4);
+	copy->entry[0].nlb = rand() % min(test->mssrl, limit) + 1;
+	copy->slba = copy->entry[0].slba + copy->entry[0].nlb +
+		rand() % (test->nsze / 4);
+	copy->skip_write = 1;
+
+	ret = send_io_copy_cmd(tool, sq, copy);
+	if (ret < 0)
+		goto free_copy;
+	
+	if (copy->status != NVME_SC_READ_ONLY) {
+		pr_err("status: 0x%x vs 0x%x\n", NVME_SC_READ_ONLY, copy->status);
+		ret = -EINVAL;
+		goto free_copy;
+	}
+
+free_copy:
+	free(copy);
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
  * @brief Copy command shall process failed due to invalid descriptor format
  * 
  * @return 0 on success, otherwise a negative errno
@@ -1035,6 +1115,7 @@ static int case_cmd_io_copy(struct nvme_tool *tool)
 		return ret;
 
 	ret |= subcase_copy_success(tool, sq);
+	ret |= subcase_copy_to_read_only(tool, sq);
 	ret |= subcase_copy_invalid_desc_format(tool, sq);
 	ret |= subcase_copy_invalid_range_num(tool, sq);
 	ret |= subcase_copy_invalid_nlb_single(tool, sq);

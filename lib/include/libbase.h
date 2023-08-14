@@ -40,7 +40,7 @@ int fill_data_with_incseq(void *buf, uint32_t size);
 int fill_data_with_decseq(void *buf, uint32_t size);
 int fill_data_with_random(void *buf, uint32_t size);
 
-int dump_data_to_console(void *buf, uint32_t size);
+int dump_data_to_console(void *buf, uint32_t size, const char *desc);
 int dump_data_to_file(void *buf, uint32_t size, const char *file);
 
 #endif /* !_UAPI_LIBBASE_H_ */

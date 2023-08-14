@@ -96,13 +96,15 @@ int fill_data_with_random(void *buf, uint32_t size)
 	return 0;
 }
 
-int dump_data_to_console(void *buf, uint32_t size)
+int dump_data_to_console(void *buf, uint32_t size, const char *desc)
 {
 	uint32_t oft = 0;
 	char string[256];
 	char *str = string;
 	unsigned char *ptr = buf;
 	int ret;
+
+	pr_debug("%s\n", desc);
 
 	while (size >= 0x10) {
 		snprintf(str, sizeof(string), 

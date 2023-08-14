@@ -13,6 +13,7 @@
 #define _UAPI_LIB_NVME_IDENTIFY_H_
 
 int nvme_ctrl_support_copy_cmd(struct nvme_ctrl_instance *ctrl);
+int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl);
 
 int nvme_id_ctrl_npss(struct nvme_ctrl_instance *ctrl);
 int nvme_id_ctrl_vid(struct nvme_ctrl_instance *ctrl);

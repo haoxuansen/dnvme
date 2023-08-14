@@ -642,12 +642,9 @@ static int case_meta_node_contiguous(struct nvme_tool *tool)
 	pr_notice("Is ready to dump meta data: ");
 	scanf("%d", &ret);
 
-	pr_debug("Origin meta data:\n");
-	dump_data_to_console(meta, mc.size);
-
+	dump_data_to_console(meta, mc.size, "Origin meta data");
 	fill_data_with_random(meta, mc.size);
-	pr_debug("New meta data:\n");
-	dump_data_to_console(meta, mc.size);
+	dump_data_to_console(meta, mc.size, "New meta data");
 
 	pr_notice("Is ready to delete meta node: ");
 	scanf("%d", &ret);

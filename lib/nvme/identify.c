@@ -36,6 +36,22 @@ int nvme_ctrl_support_copy_cmd(struct nvme_ctrl_instance *ctrl)
 }
 
 /**
+ * @brief Check whether the controller supports Write Protect.
+ * 
+ * @return Details are listed below.
+ * 	1: support the Write Protect.
+ * 	0: don't support the Write Protect.
+ * 	-ENODEV: identify controller data not exist. 
+ */
+int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	return (ctrl->id_ctrl->nwpc & NVME_CTRL_NWPC_WP) ? 1 : 0;
+}
+
+/**
  * @return The number of NVMe power states supported by the controller,
  * 	otherwise a negative errno
  * 

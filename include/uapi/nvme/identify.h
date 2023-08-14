@@ -303,6 +303,18 @@ enum {
 	NVME_CTRL_VWC_PRESENT		= 1 << 0,
 };
 
+
+/**
+ * @brief Namespace Write Protection Capabilities
+ * 
+ * @note See "struct nvme_id_ctrl -> nwpc" for details.
+ */
+enum {
+	NVME_CTRL_NWPC_WP	= 1 << 0,
+	NVME_CTRL_NWPC_WPUPC	= 1 << 1,
+	NVME_CTRL_NWPC_PWP	= 1 << 2,
+};
+
 /**
  * @brief SGL Support
  * 
@@ -465,6 +477,7 @@ enum {
 	NVME_NIDT_NGUID		= 0x02,
 	NVME_NIDT_UUID		= 0x03,
 	NVME_NIDT_CSI		= 0x04,
+	NVME_NIDT_FENCE		= 0x05,
 };
 
 /**
@@ -473,9 +486,10 @@ enum {
  * @note Refer to "NVM Express Base Specification R2.0b - Figure 277"
  */
 struct nvme_ns_id_desc {
-	__u8 nidt;
-	__u8 nidl;
-	__le16 reserved;
+	__u8	nidt;
+	__u8	nidl;
+	__le16	reserved;
+	__u8	nid[0];
 };
 
 

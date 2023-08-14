@@ -187,6 +187,70 @@ int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
+/**
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_set_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid, 
+	uint32_t sel, uint32_t state)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_set_feat_write_protect(ndev->fd, nsid, sel, state);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/**
+ * @return namespace write protect state on succcess, otherwise a negative errno
+ */
+int nvme_get_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid, 
+	uint32_t sel)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_get_feat_write_protect(ndev->fd, nsid, sel);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	return le32_to_cpu(entry.result.u32) & NVME_NS_WPS_MASK;
+}
+
 int nvme_cmd_format_nvm(int fd, uint32_t nsid, uint8_t flags, uint32_t dw10)
 {
 	struct nvme_64b_cmd cmd = {0};

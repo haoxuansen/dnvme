@@ -185,7 +185,7 @@ out:
 	return ret;
 }
 
-static void release_identify_ctrl_data(struct nvme_ctrl_instance *ctrl)
+static void deinit_identify_ctrl_data(struct nvme_ctrl_instance *ctrl)
 {
 	if (!ctrl->id_ctrl) {
 		pr_warn("double free? identify ctrl data isn't exist!\n");
@@ -230,7 +230,7 @@ out:
 	return ret;
 }
 
-static void release_ctrl_property(struct nvme_ctrl_instance *ctrl)
+static void deinit_ctrl_property(struct nvme_ctrl_instance *ctrl)
 {
 	if (!ctrl->prop) {
 		pr_warn("double free? ctrl property isn't exist!\n");
@@ -293,7 +293,7 @@ stage1_free_ctrl:
 	return ret;
 }
 
-static void release_ctrl_instance(struct nvme_dev_info *ndev, int stage)
+static void deinit_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 {
 	if (!ndev->ctrl) {
 		pr_warn("double free? ctrl instance isn't exist!\n");
@@ -302,13 +302,13 @@ static void release_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 
 	switch (stage) {
 	case NVME_INIT_STAGE1:
-		release_identify_ctrl_data(ndev->ctrl);
+		deinit_identify_ctrl_data(ndev->ctrl);
 		free(ndev->ctrl);
 		ndev->ctrl = NULL;
 		break;
 
 	case NVME_INIT_STAGE2:
-		release_ctrl_property(ndev->ctrl);
+		deinit_ctrl_property(ndev->ctrl);
 		break;
 
 	default:
@@ -316,8 +316,7 @@ static void release_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 	}
 }
 
-static int init_ns_instance(struct nvme_dev_info *ndev, 
-	struct nvme_ns_instance *ns)
+static int init_id_ns(struct nvme_dev_info *ndev, struct nvme_ns_instance *ns)
 {
 	struct nvme_id_ns *id_ns;
 	int ret;
@@ -347,12 +346,131 @@ free_id_ns:
 	return ret;
 }
 
-static void release_ns_instance(struct nvme_ns_instance *ns)
+static void deinit_id_ns(struct nvme_ns_instance *ns)
 {
 	if (ns->id_ns) {
 		free(ns->id_ns);
 		ns->id_ns = NULL;
 	}
+}
+
+static int parse_ns_id_desc(struct nvme_ns_instance *ns, void *data, uint32_t size)
+{
+	struct nvme_ns_id_desc *desc;
+	void *list = data;
+	int remain = size;
+	uint8_t len;
+	int ret = -EINVAL;
+
+	for (desc = list; desc->nidt != 0; desc = list) {
+		switch (desc->nidt) {
+		case NVME_NIDT_EUI64:
+			len = NVME_NIDT_EUI64_LEN;
+			break;
+		case NVME_NIDT_NGUID:
+			len = NVME_NIDT_NGUID_LEN;
+			break;
+		case NVME_NIDT_UUID:
+			len = NVME_NIDT_UUID_LEN;
+			break;
+		case NVME_NIDT_CSI:
+			len = NVME_NIDT_CSI_LEN;
+			break;
+		default:
+			pr_err("namespace identifer type(%u) is invalid!\n", 
+				desc->nidt);
+			goto out;
+		}
+
+		if (desc->nidl != len) {
+			pr_err("NIDL shall be %u for NIDT(%u), but actually is %u!\n",
+				len, desc->nidt, desc->nidl);
+			goto out;
+		}
+
+		if (ns->ns_id_desc[desc->nidt]) {
+			pr_err("multiple desc with the same namespace "
+				"identifier type(%u)!\n", desc->nidt);
+			goto out;
+		}
+		ns->ns_id_desc[desc->nidt] = desc;
+		list += sizeof(struct nvme_ns_id_desc) + len;
+		remain -= (sizeof(struct nvme_ns_id_desc) + len);
+
+		if (remain <= sizeof(struct nvme_ns_id_desc)) {
+			pr_warn("remain size is too small! skip ...\n");
+			break;
+		}
+	}
+	ns->ns_id_desc_raw = data;
+	return 0;
+out:
+	dump_data_to_console(data, size, "namespace identifier desc list");
+	memset(ns->ns_id_desc, 0, sizeof(ns->ns_id_desc));
+	return ret;
+}
+
+static int init_ns_id_desc(struct nvme_dev_info *ndev, 
+	struct nvme_ns_instance *ns)
+{
+	void *data;
+	int ret;
+
+	data = calloc(1, NVME_IDENTIFY_DATA_SIZE);
+	if (!data) {
+		pr_err("failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+
+	ret = nvme_identify_ns_desc_list(ndev, data, NVME_IDENTIFY_DATA_SIZE,
+		ns->nsid);
+	if (ret < 0) {
+		pr_err("failed to get ns desc list!(%d)\n", ret);
+		goto free_data;
+	}
+
+	ret = parse_ns_id_desc(ns, data, NVME_IDENTIFY_DATA_SIZE);
+	if (ret < 0)
+		goto free_data;
+
+	return 0;
+free_data:
+	free(data);
+	return ret;
+}
+
+static void deinit_ns_id_desc(struct nvme_ns_instance *ns)
+{
+	if (ns->ns_id_desc_raw) {
+		memset(ns->ns_id_desc, 0, sizeof(ns->ns_id_desc));
+		free(ns->ns_id_desc_raw);
+		ns->ns_id_desc_raw = NULL;
+	}
+}
+
+static int init_ns_instance(struct nvme_dev_info *ndev, 
+	struct nvme_ns_instance *ns)
+{
+	int ret;
+
+	ret = init_id_ns(ndev, ns);
+	if (ret < 0)
+		return ret;
+
+	ret = init_ns_id_desc(ndev, ns);
+	if (ret < 0)
+		goto exit_id_ns;
+
+	return 0;
+exit_id_ns:
+	deinit_id_ns(ns);
+	return ret;
+}
+
+static void deinit_ns_instance(struct nvme_ns_instance *ns)
+{
+	deinit_ns_id_desc(ns);
+	deinit_id_ns(ns);
 }
 
 static int init_ns_group(struct nvme_dev_info *ndev)
@@ -415,7 +533,7 @@ static int init_ns_group(struct nvme_dev_info *ndev)
 
 		ret = init_ns_instance(ndev, &ns_grp->ns[nsid - 1]);
 		if (ret < 0)
-			goto rel_ns_instance;
+			goto exit_ns_instance;
 
 		ns_grp->nr_act++;
 	}
@@ -426,10 +544,10 @@ static int init_ns_group(struct nvme_dev_info *ndev)
 	ndev->ns_grp = ns_grp;
 	return 0;
 
-rel_ns_instance:
+exit_ns_instance:
 	for (i--; i > 0; i--) {
 		nsid = le32_to_cpu(ns_list[i]);
-		release_ns_instance(&ns_grp->ns[nsid - 1]);
+		deinit_ns_instance(&ns_grp->ns[nsid - 1]);
 	}
 free_ns_list:
 	free(ns_list);
@@ -438,7 +556,7 @@ free_ns_group:
 	return ret;
 }
 
-static void release_ns_group(struct nvme_dev_info *ndev)
+static void deinit_ns_group(struct nvme_dev_info *ndev)
 {
 	struct nvme_ns_group *ns_grp;
 	uint32_t i;	
@@ -450,7 +568,7 @@ static void release_ns_group(struct nvme_dev_info *ndev)
 	ns_grp = ndev->ns_grp;
 
 	for (i = 0; i < ns_grp->nr_ns; i++)
-		release_ns_instance(&ns_grp->ns[i]);
+		deinit_ns_instance(&ns_grp->ns[i]);
 
 	free(ns_grp->act_list);
 	ns_grp->act_list = NULL;
@@ -556,7 +674,7 @@ out_gnl_disconnect:
 
 static void nvme_release_stage1(struct nvme_dev_info *ndev)
 {
-	release_ctrl_instance(ndev, NVME_INIT_STAGE1);
+	deinit_ctrl_instance(ndev, NVME_INIT_STAGE1);
 	nvme_gnl_disconnect(ndev->sock_fd);
 	ndev->sock_fd = -1;
 }
@@ -591,35 +709,35 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 
 	ret = nvme_init_ioq_info(ndev);
 	if (ret < 0)
-		goto rel_ctrl_instance;
+		goto exit_ctrl_instance;
 
 	ret = init_ns_group(ndev);
 	if (ret < 0)
-		goto rel_ioq;
+		goto exit_ioq;
 
 	ret = init_capability(ndev);
 	if (ret < 0)
-		goto rel_ns_group;
+		goto exit_ns_group;
 
 	ret = check_link_status(ndev);
 	if (ret < 0)
-		goto rel_ns_group;
+		goto exit_ns_group;
 
 	return 0;
-rel_ns_group:
-	release_ns_group(ndev);
-rel_ioq:
+exit_ns_group:
+	deinit_ns_group(ndev);
+exit_ioq:
 	nvme_deinit_ioq_info(ndev);
-rel_ctrl_instance:
-	release_ctrl_instance(ndev, NVME_INIT_STAGE2);
+exit_ctrl_instance:
+	deinit_ctrl_instance(ndev, NVME_INIT_STAGE2);
 	return ret;
 }
 
 static void nvme_release_stage2(struct nvme_dev_info *ndev)
 {
-	release_ns_group(ndev);
+	deinit_ns_group(ndev);
 	nvme_deinit_ioq_info(ndev);
-	release_ctrl_instance(ndev, NVME_INIT_STAGE2);
+	deinit_ctrl_instance(ndev, NVME_INIT_STAGE2);
 }
 
 struct nvme_dev_info *nvme_init(const char *devpath)

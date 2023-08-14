@@ -37,7 +37,8 @@ struct nvme_ns_instance {
 	uint16_t		meta_size;
 
 	struct nvme_id_ns	*id_ns;
-	struct nvme_ns_id_desc	*ns_id_desc;
+	struct nvme_ns_id_desc	*ns_id_desc[NVME_NIDT_FENCE];
+	void			*ns_id_desc_raw;
 	struct nvme_id_ns_zns	*id_ns_zns;
 };
 
