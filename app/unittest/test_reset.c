@@ -345,8 +345,8 @@ static int do_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 {
 	struct test_data *test = &g_test;
 	/* ensure "slba + nlb <= nsze */
-	uint64_t slba = rand() / (test->nsze / 2);
-	uint32_t nlb = rand() / min((test->nsze / 2), (uint64_t)256) + 1;
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
 
 	return send_io_read_cmd(tool, sq, slba, nlb, 0);
 }
@@ -355,8 +355,8 @@ static int do_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 {
 	struct test_data *test = &g_test;
 	/* ensure "slba + nlb <= nsze */
-	uint64_t slba = rand() / (test->nsze / 2);
-	uint32_t nlb = rand() / min((test->nsze / 2), (uint64_t)256) + 1;
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
 
 	return send_io_write_cmd(tool, sq, slba, nlb, 0);
 }
@@ -370,7 +370,7 @@ static int do_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 	uint64_t start = 0;
 	uint32_t entry = rand() % test->msrc + 1; /* 1~msrc */
 	uint32_t i;
-	uint16_t limit = min((test->nsze / 4), (uint64_t)256);
+	uint16_t limit = min_t(uint64_t, test->nsze / 4, 256);
 	int ret;
 
 	ret = nvme_ctrl_support_copy_cmd(ndev->ctrl);
@@ -477,9 +477,95 @@ static int do_nvme_subsystem_reset(struct nvme_dev_info *ndev)
 	return nvme_reset_subsystem(ndev->fd);
 }
 
+/**
+ * @brief Check whether function level reset is supported
+ * 
+ * @param pxcap PCI Express Capability offset
+ * @return 1 if support FLR, 0 if not support FLR, otherwise a negative errno.
+ */
+static int pcie_is_support_flr(int fd, uint8_t pxcap)
+{
+	uint32_t devcap;
+	int ret;
+
+	ret = pci_exp_read_device_capability(fd, pxcap, &devcap);
+	if (ret < 0)
+		return ret;
+
+	return (devcap & PCI_EXP_DEVCAP_FLR) ? 1 : 0;
+}
+
+/**
+ * @brief Do function level reset
+ * 
+ * @param pxcap PCI Express Capability offset
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int pcie_do_flr_legacy(int fd, uint8_t pxcap)
+{
+	uint32_t bar[6];
+	uint16_t devctrl;
+	uint16_t cmd, cmd_bkup;
+	int ret;
+
+	/* backup register data */
+	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+	
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+	cmd_bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	
+	/* do function level reset */
+	ret = pci_exp_read_device_control(fd, pxcap, &devctrl);
+	if (ret < 0)
+		return ret;
+
+	devctrl |= PCI_EXP_DEVCTL_BCR_FLR;
+	ret = pci_exp_write_device_control(fd, pxcap, devctrl);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Refer to PCIe Base Spec R5.0 Ch6.6.2:
+	 *   After an FLR has been initiated by writing a 1b to the Initiate
+	 * Function Level Reset bit, the Function must complete the FLR 
+	 * within 100ms.
+	 */
+	msleep(100);
+
+	/* restore register data */
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+
+	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	cmd |= cmd_bkup;
+	ret = pci_hd_write_command(fd, cmd);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int do_pcie_func_level_reset(struct nvme_dev_info *ndev)
 {
-	return pcie_do_flr(ndev->fd);
+	int ret;
+
+	ret = pcie_is_support_flr(ndev->fd, ndev->express.offset);
+	if (ret < 0)
+		return ret;
+	else if (ret == 0)
+		return -EOPNOTSUPP;
+
+	return pcie_do_flr_legacy(ndev->fd, ndev->express.offset);
+	// return pcie_do_flr(ndev->fd);
 }
 
 static int do_pcie_d0d3_reset(struct nvme_dev_info *ndev)
@@ -502,14 +588,120 @@ static int do_pcie_d0d3_reset(struct nvme_dev_info *ndev)
 	return 0;
 }
 
+/**
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int pcie_do_hot_reset_legacy(int fd)
+{
+	uint32_t bar[6];
+	uint16_t cmd, bkup;
+	int ret;
+
+	/* backup register data */
+	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+
+	/* do hot reset */
+	ret = call_system("setpci -s " RC_BRIDGE_CONTROL ".b=40:40");
+	if (ret < 0)
+		return ret;
+	msleep(50);
+	
+	ret = call_system("setpci -s " RC_BRIDGE_CONTROL ".b=00:40");
+	if (ret < 0)
+		return ret;
+	msleep(50);
+
+	/* restore register data */
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+
+	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	cmd |= bkup;
+	ret = pci_hd_write_command(fd, cmd);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int do_pcie_hot_reset(struct nvme_dev_info *ndev)
 {
-	return pcie_do_hot_reset(ndev->fd);
+	return pcie_do_hot_reset_legacy(ndev->fd);
+	// return pcie_do_hot_reset(ndev->fd);
+}
+
+/**
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int pcie_do_link_down_legacy(int fd)
+{
+	uint32_t bar[6];
+	uint16_t cmd, bkup;
+	int ret;
+
+	/* backup register data */
+	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+
+	/* do hot reset */
+	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=10:10");
+	if (ret < 0)
+		return ret;
+	msleep(100);
+	
+	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=00:10");
+	if (ret < 0)
+		return ret;
+	msleep(100);
+
+	/* restore register data */
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+
+	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	cmd |= bkup;
+	ret = pci_hd_write_command(fd, cmd);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int do_pcie_linkdown_reset(struct nvme_dev_info *ndev)
 {
-	return pcie_do_link_down(ndev->fd);
+	return pcie_do_link_down_legacy(ndev->fd);
+	// return pcie_do_link_down(ndev->fd);
 }
 
 static int do_random_reset(struct nvme_dev_info *ndev)

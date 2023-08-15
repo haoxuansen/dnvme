@@ -720,7 +720,8 @@ static int subcase_copy_to_read_only(struct nvme_tool *tool,
 	struct test_cmd_copy *copy = NULL;
 	struct test_data *test = &g_test;
 	uint16_t limit = min_t(uint64_t, (test->nsze / 4), 256);
-	int ret;
+	int recovery = 0;
+	int ret, tmp;
 
 	ret = nvme_ctrl_support_write_protect(ndev->ctrl);
 	if (ret == 0) {
@@ -744,6 +745,7 @@ static int subcase_copy_to_read_only(struct nvme_tool *tool,
 				"state!(%d)\n", test->nsid, ret);
 			goto out;
 		}
+		recovery = 1;
 	}
 
 	copy = zalloc(sizeof(struct test_cmd_copy) + 
@@ -751,7 +753,7 @@ static int subcase_copy_to_read_only(struct nvme_tool *tool,
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");
 		ret = -ENOMEM;
-		goto out;
+		goto out_recovery;
 	}
 
 	copy->ranges = 1;
@@ -774,6 +776,20 @@ static int subcase_copy_to_read_only(struct nvme_tool *tool,
 
 free_copy:
 	free(copy);
+out_recovery:
+	if (recovery) {
+		/*
+		 * If use @ret to receive return value, may destroy the origin 
+		 * value of @ret.(eg: @ret<0, new=0 ==> @ret=0, lost errno)
+		 */
+		tmp = nvme_set_feat_write_protect(ndev, test->nsid, 
+			NVME_FEAT_SEL_CUR, NVME_NS_NO_WRITE_PROTECT);
+		if (tmp < 0) {
+			pr_err("failed to set nsid(%u) to no write protect "
+				"state!(%d)\n", test->nsid, ret);
+			ret |= tmp;
+		}
+	}
 out:
 	nvme_record_subcase_result(__func__, ret);
 	return ret;
