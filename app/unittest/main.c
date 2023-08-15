@@ -38,7 +38,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 {
 	int ret;
 
-	tool->entry = calloc(1, NVME_TOOL_CQ_ENTRY_SIZE);
+	tool->entry = zalloc(NVME_TOOL_CQ_ENTRY_SIZE);
 	if (!tool->entry) {
 		pr_err("failed to alloc for CQ entry!\n");
 		return -ENOMEM;
@@ -79,14 +79,14 @@ static int alloc_buffer(struct nvme_tool *tool)
 	memset(tool->wbuf, 0, NVME_TOOL_RW_BUF_SIZE);
 	tool->wbuf_size = NVME_TOOL_RW_BUF_SIZE;
 
-	tool->meta_rbuf = calloc(1, NVME_TOOL_RW_META_SIZE);
+	tool->meta_rbuf = zalloc(NVME_TOOL_RW_META_SIZE);
 	if (!tool->meta_rbuf) {
 		pr_err("failed to alloc meta rbuf!\n");
 		goto out5;
 	}
 	tool->meta_rbuf_size = NVME_TOOL_RW_META_SIZE;
 
-	tool->meta_wbuf = calloc(1, NVME_TOOL_RW_META_SIZE);
+	tool->meta_wbuf = zalloc(NVME_TOOL_RW_META_SIZE);
 	if (!tool->meta_wbuf) {
 		pr_err("failed to alloc meta wbuf!\n");
 		goto out6;
@@ -173,7 +173,7 @@ static int case_collection(struct nvme_tool *tool)
 	total = ((unsigned long)end - (unsigned long)start) / 
 		sizeof(unsigned long);
 
-	array = calloc(1, sizeof(unsigned int) * total);
+	array = zalloc(sizeof(unsigned int) * total);
 	if (!array) {
 		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;

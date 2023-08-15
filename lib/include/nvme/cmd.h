@@ -124,6 +124,20 @@ static inline int nvme_cmd_set_feat_num_queues(int fd, uint16_t nr_sq,
 		((uint32_t)nr_cq << 16) | nr_sq);
 }
 
+static inline int nvme_cmd_set_feat_iocs_profile(int fd, uint32_t sel, 
+	uint32_t index)
+{
+	return nvme_cmd_set_feature(fd, 0, sel | NVME_FEAT_IOCS_PROFILE, index);
+}
+int nvme_set_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel, 
+	uint32_t index);
+
+static inline int nvme_cmd_get_feat_iocs_profile(int fd, uint32_t sel)
+{
+	return nvme_cmd_get_feature(fd, 0, sel | NVME_FEAT_IOCS_PROFILE, 0);
+}
+int nvme_get_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel);
+
 static inline int nvme_cmd_set_feat_write_protect(int fd, uint32_t nsid, 
 	uint32_t sel, uint32_t state)
 {
@@ -147,41 +161,55 @@ int nvme_format_nvm(struct nvme_dev_info *ndev, uint32_t nsid, uint8_t flags,
 int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf, 
 	uint32_t size);
 
-int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl);
-int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl);
-
 int nvme_cmd_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid);
 int nvme_identify_ns_active(struct nvme_dev_info *ndev, struct nvme_id_ns *ns, 
 	uint32_t nsid);
 
-int nvme_cmd_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid);
-int nvme_identify_ns_allocated(struct nvme_dev_info *ndev, 
-	struct nvme_id_ns *ns, uint32_t nsid);
-
-int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
-	uint32_t nsid);
-int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf, 
-	uint32_t size, uint32_t nsid);
+int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl);
+int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl);
 
 int nvme_cmd_identify_ns_list_active(int fd, void *buf, uint32_t size, 
 	uint32_t nsid);
 int nvme_identify_ns_list_active(struct nvme_dev_info *ndev, void *buf, 
 	uint32_t size, uint32_t nsid);
 
+int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
+	uint32_t nsid);
+int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid);
+
+int nvme_cmd_identify_cs_ns(int fd, void *buf, uint32_t size, uint32_t nsid,
+	uint8_t csi);
+int nvme_identify_cs_ns(struct nvme_dev_info *ndev, void *buf, uint32_t size, 
+	uint32_t nsid, uint8_t csi);
+
+int nvme_cmd_identify_cs_ctrl(int fd, void *buf, uint32_t size, uint8_t csi);
+int nvme_identify_cs_ctrl(struct nvme_dev_info *ndev, void *buf, uint32_t size,
+	uint8_t csi);
+
 int nvme_cmd_identify_ns_list_allocated(int fd, void *buf, uint32_t size, 
 	uint32_t nsid);
 int nvme_identify_ns_list_allocated(struct nvme_dev_info *ndev, void *buf, 
 	uint32_t size, uint32_t nsid);
+
+int nvme_cmd_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid);
+int nvme_identify_ns_allocated(struct nvme_dev_info *ndev, 
+	struct nvme_id_ns *ns, uint32_t nsid);
+
+int nvme_cmd_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size,
+	uint32_t nsid, uint16_t cntid);
+int nvme_identify_ns_attached_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid, uint16_t cntid);
 
 int nvme_cmd_identify_ctrl_list(int fd, void *buf, uint32_t size, 
 	uint16_t cntid);
 int nvme_identify_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
 	uint32_t size, uint16_t cntid);
 
-int nvme_cmd_identify_ns_attached_ctrl_list(int fd, void *buf, uint32_t size,
-	uint32_t nsid, uint16_t cntid);
-int nvme_identify_ns_attached_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
-	uint32_t size, uint32_t nsid, uint16_t cntid);
+int nvme_cmd_identify_ctrl_csc_list(int fd, struct nvme_id_ctrl_csc *csc, 
+	uint16_t cntid);
+int nvme_identify_ctrl_csc_list(struct nvme_dev_info *ndev, 
+	struct nvme_id_ctrl_csc *csc, uint16_t cntid);
 
 int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode);
 int nvme_io_rw_common(struct nvme_dev_info *ndev, struct nvme_rwc_wrapper *wrap, 

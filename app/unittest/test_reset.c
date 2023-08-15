@@ -382,7 +382,7 @@ static int do_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 		return ret;
 	}
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) +
+	copy = zalloc(sizeof(struct test_cmd_copy) +
 			entry * sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");

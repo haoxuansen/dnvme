@@ -24,15 +24,24 @@ enum {
 	NVME_ID_CNS_CTRL		= 0x01,
 	NVME_ID_CNS_NS_ACTIVE_LIST	= 0x02,
 	NVME_ID_CNS_NS_DESC_LIST	= 0x03,
-	NVME_ID_CNS_CS_NS		= 0x05,
+	NVME_ID_CNS_NVM_SET_LIST	= 0x04,
+	NVME_ID_CNS_CS_NS_ACTIVE	= 0x05,
 	NVME_ID_CNS_CS_CTRL		= 0x06,
+	NVME_ID_CNS_CS_NS_ACTIVE_LIST	= 0x07,
+	NVME_ID_CNS_NS_INDEPENDENT	= 0x08,
 	NVME_ID_CNS_NS_PRESENT_LIST	= 0x10,
 	NVME_ID_CNS_NS_PRESENT		= 0x11,
 	NVME_ID_CNS_CTRL_NS_LIST	= 0x12,
 	NVME_ID_CNS_CTRL_LIST		= 0x13,
+	NVME_ID_CNS_PRMRY_CTRL_CAP	= 0x14,
 	NVME_ID_CNS_SCNDRY_CTRL_LIST	= 0x15,
 	NVME_ID_CNS_NS_GRANULARITY	= 0x16,
 	NVME_ID_CNS_UUID_LIST		= 0x17,
+	NVME_ID_CNS_DOMAIN_LIST		= 0x18,
+	NVME_ID_CNS_ENDRNC_GRP_LIST	= 0x19,
+	NVME_ID_CNS_CS_NS_ALLOC_LIST	= 0x1a,
+	NVME_ID_CNS_CS_NS_ALLOC		= 0x1b,
+	NVME_ID_CNS_CTRL_CSC_LIST	= 0x1c, /* Command Set Combination */
 };
 
 /**
@@ -43,8 +52,9 @@ enum {
  * 	2. Refer to "NVM Express Base Specification R2.0b - Figure 274"
  */
 enum {
-	NVME_CSI_NVM			= 0,
-	NVME_CSI_ZNS			= 2,
+	NVME_CSI_NVM		= 0x00,
+	NVME_CSI_KEY		= 0x01,
+	NVME_CSI_ZNS		= 0x02,
 };
 
 struct nvme_identify {
@@ -174,7 +184,7 @@ struct nvme_lbaf {
 };
 
 /**
- * @brief NVM Command Set Identify Namespace Data Structure
+ * @brief NVM Command Set Identify Namespace Data Structure (CNS 00h)
  * 
  * @note Refer to "NVM Express NVM Command Set Specification R1.0b - ch4.1.5.1"
  */
@@ -481,7 +491,7 @@ enum {
 };
 
 /**
- * @brief Namespace Identification Descriptor list
+ * @brief Namespace Identification Descriptor list (CNS 03h)
  * 
  * @note Refer to "NVM Express Base Specification R2.0b - Figure 277"
  */
@@ -493,7 +503,28 @@ struct nvme_ns_id_desc {
 };
 
 
-/* ==================== NVME_ID_CNS_CS_NS(0x05) ==================== */
+/* ==================== NVME_ID_CNS_CS_NS_ACTIVE(0x05) ==================== */
+
+/**
+ * @brief Extended LBA Format Data Structure
+ */
+struct nvme_nvm_elbaf {
+	__le32			dw0;
+};
+
+/**
+ * @brief I/O Command Set Specific Identify Namesapce Data Structure 
+ *	for the NVM Command Set (CNS 05h, CSI 00h)
+ * 
+ * @note Refer to "NVM Express NVM Command Set Specification - Figure 100"
+ */
+struct nvme_id_ns_nvm {
+	__le64			lbstm;
+	__u8			pic;
+	__u8			rsvd9[3];
+	struct nvme_nvm_elbaf	elbaf[64];
+	__u8			rsvd268[3828];
+};
 
 /**
  * @brief LBA Format Extension Data Structure
@@ -506,7 +537,7 @@ struct nvme_zns_lbafe {
 
 /**
  * @brief I/O Command Set Specific Identify Namesapce Data Structure 
- *	for the Zoned Namespace Command Set
+ *	for the Zoned Namespace Command Set (CNS 05h, CSI 02h)
  * 
  * @note Refer to "NVM Express Zoned Namespace Command Set Specification
  * 	R1.1c - ch4.1.5.1"
@@ -529,6 +560,22 @@ struct nvme_id_ns_zns {
 
 /**
  * @brief I/O Command Set Specific Identify Controller Data Structure
+ * 	for the NVM Command Set
+ * 
+ * @note Refer to "NVM Express NVM Command Set Specification - Figure 102"
+ */
+struct nvme_id_ctrl_nvm {
+	__u8	vsl;
+	__u8	wzsl;
+	__u8	wusl;
+	__u8	dmrl;
+	__le32	dmrsl;
+	__le64	dmsl;
+	__u8	rsvd16[4080];
+};
+
+/**
+ * @brief I/O Command Set Specific Identify Controller Data Structure
  * 	for the Zoned Namespace Command Set
  * 
  * @note Refer to "NVM Express Zoned Namespace Command Set Specification
@@ -542,5 +589,14 @@ struct nvme_id_ctrl_zns {
 /* ==================== NVME_ID_CNS_CTRL_NS_LIST(0x12) ==================== */
 
 /* ==================== NVME_ID_CNS_CTRL_LIST(0x13) ==================== */
+
+/* ==================== NVME_ID_CNS_CTRL_CSC_LIST(0x1c) ==================== */
+
+/**
+ * @brief Identify I/O Command Set Data Structure
+ */
+struct nvme_id_ctrl_csc {
+	__le64	vector[512];
+};
 
 #endif /* !_UAPI_NVME_IDENTIFY_H_ */

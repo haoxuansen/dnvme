@@ -630,7 +630,7 @@ static int subcase_copy_success(struct nvme_tool *tool,
 
 	entry = rand() % test->msrc + 1; /* 1~msrc */
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) +
+	copy = zalloc(sizeof(struct test_cmd_copy) +
 			entry * sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");
@@ -746,7 +746,7 @@ static int subcase_copy_to_read_only(struct nvme_tool *tool,
 		}
 	}
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) + 
+	copy = zalloc(sizeof(struct test_cmd_copy) + 
 		sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");
@@ -795,7 +795,7 @@ static int subcase_copy_invalid_desc_format(struct nvme_tool *tool,
 	struct test_data *test = &g_test;
 	int ret;
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) + 
+	copy = zalloc(sizeof(struct test_cmd_copy) + 
 				sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");
@@ -879,7 +879,7 @@ static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 	/* set invalid range num */
 	entry = test->msrc + 1;
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) +
+	copy = zalloc(sizeof(struct test_cmd_copy) +
 			entry * sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");
@@ -955,7 +955,7 @@ static int subcase_copy_invalid_nlb_single(struct nvme_tool *tool,
 
 	entry = rand() % test->msrc + 1; /* 1~msrc */
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) + 
+	copy = zalloc(sizeof(struct test_cmd_copy) + 
 			entry * sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");
@@ -1041,7 +1041,7 @@ static int subcase_copy_invalid_nlb_sum(struct nvme_tool *tool,
 	}
 	entry = test->msrc;
 
-	copy = calloc(1, sizeof(struct test_cmd_copy) + 
+	copy = zalloc(sizeof(struct test_cmd_copy) + 
 			entry * sizeof(struct source_range));
 	if (!copy) {
 		pr_err("failed to alloc memory!\n");

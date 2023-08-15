@@ -96,11 +96,11 @@ static struct nl_msg *__nlmsg_alloc(size_t len)
 
 	BUG_ON(len < nlmsg_total_size(0));
 
-	nm = calloc(1, sizeof(*nm));
+	nm = zalloc(sizeof(*nm));
 	if (!nm)
 		return NULL;
 
-	nm->nm_nlh = calloc(1, len);
+	nm->nm_nlh = zalloc(len);
 	if (!nm->nm_nlh)
 		goto out;
 

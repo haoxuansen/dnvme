@@ -14,6 +14,7 @@
 
 #include <unistd.h> /* for "@usleep" */
 #include <stdint.h> /* for "uint32_t" */
+#include <stdlib.h> /* for "@calloc" */
 
 #define msleep(ms)			usleep(1000 * (ms))
 
@@ -33,6 +34,11 @@
 #include "base/minmax.h"
 
 /* ==================== related to "base.c" ==================== */
+
+static inline void *zalloc(size_t size)
+{
+	return zalloc(size);
+}
 
 int call_system(const char *command);
 

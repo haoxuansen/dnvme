@@ -72,9 +72,12 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_id_ns) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_id_power_state) != 32);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ns_nvm) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ns_zns) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_zns_lbafe) != 16);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl_nvm) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl_zns) != 4096);
+	BUILD_BUG_ON(sizeof(struct nvme_id_ctrl_csc) != 4096);
 
 	/* Relate to nvme_admin_set_features command */
 	/* Relate to nvme_admin_get_features command */
@@ -166,7 +169,7 @@ static int init_identify_ctrl_data(struct nvme_dev_info *ndev,
 	struct nvme_id_ctrl *id_ctrl;
 	int ret;
 
-	id_ctrl = calloc(1, sizeof(*id_ctrl));
+	id_ctrl = zalloc(sizeof(*id_ctrl));
 	if (!id_ctrl) {
 		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;
@@ -203,7 +206,7 @@ static int init_ctrl_property(struct nvme_dev_info *ndev,
 	int fd = ndev->fd;
 	int ret;
 
-	prop = calloc(1, sizeof(*prop));
+	prop = zalloc(sizeof(*prop));
 	if (!prop) {
 		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;
@@ -241,6 +244,121 @@ static void deinit_ctrl_property(struct nvme_ctrl_instance *ctrl)
 	ctrl->prop = NULL;
 }
 
+static int init_id_cs_ctrl(struct nvme_dev_info *ndev, 
+	struct nvme_ctrl_instance *ctrl)
+{
+	struct nvme_ctrl_property *prop = ctrl->prop;
+	uint32_t cap_css = NVME_CAP_CSS(prop->cap);
+	uint32_t cc_css;
+	uint64_t vector;
+	int ret;
+
+	ret = nvme_read_ctrl_cc(ndev->fd, &prop->cc);
+	if (ret < 0)
+		return ret;
+	cc_css = NVME_CC_TO_CSS(prop->cc);
+
+	if ((cap_css & NVME_CAP_CSS_CSI) && (cc_css == NVME_CC_CSS_CSI)) {
+		ctrl->id_ctrl_csc = zalloc(sizeof(struct nvme_id_ctrl_csc));
+		if (!ctrl->id_ctrl_csc) {
+			pr_err("failed to alloc memory!\n");
+			return -ENOMEM;
+		}
+
+		ret = nvme_identify_ctrl_csc_list(ndev, ctrl->id_ctrl_csc, 0xffff);
+		if (ret < 0) {
+			pr_err("failed to get I/O cmd set combination list!(%d)\n", ret);
+			goto out;
+		}
+
+		ret = nvme_get_feat_iocs_profile(ndev, NVME_FEAT_SEL_CUR);
+		if (ret < 0)
+			goto out;
+		
+		vector = le64_to_cpu(ctrl->id_ctrl_csc->vector[ret]);
+		if (vector & BIT(NVME_CSI_NVM)) {
+			ctrl->id_ctrl_nvm = zalloc(sizeof(struct nvme_id_ctrl_nvm));
+			if (!ctrl->id_ctrl_nvm) {
+				pr_err("failed to alloc memory!\n");
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			ret = nvme_identify_cs_ctrl(ndev, ctrl->id_ctrl_nvm, 
+				sizeof(struct nvme_id_ctrl_nvm), NVME_CSI_NVM);
+			if (ret < 0) {
+				pr_err("failed to get NVM cmd set identify "
+					"ctrl data!(%d)\n", ret);
+				goto out;
+			}
+		}
+		if (vector & BIT(NVME_CSI_ZNS)) {
+			ctrl->id_ctrl_zns = zalloc(sizeof(struct nvme_id_ctrl_zns));
+			if (!ctrl->id_ctrl_zns) {
+				pr_err("failed to alloc memory!\n");
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			ret = nvme_identify_cs_ctrl(ndev, ctrl->id_ctrl_zns, 
+				sizeof(struct nvme_id_ctrl_zns), NVME_CSI_ZNS);
+			if (ret < 0) {
+				pr_err("failed to get ZNS cmd set identify "
+					"ctrl data!(%d)\n", ret);
+				goto out;
+			}
+		}
+
+	} else if ((cap_css & NVME_CAP_CSS_NVM) && (cc_css == NVME_CC_CSS_NVM)) {
+		ctrl->id_ctrl_nvm = zalloc(sizeof(struct nvme_id_ctrl_nvm));
+		if (!ctrl->id_ctrl_nvm) {
+			pr_err("failed to alloc memory!\n");
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		ret = nvme_identify_cs_ctrl(ndev, ctrl->id_ctrl_nvm, 
+			sizeof(struct nvme_id_ctrl_nvm), NVME_CSI_NVM);
+		if (ret < 0) {
+			pr_err("failed to get NVM cmd set identify "
+				"ctrl data!(%d)\n", ret);
+			goto out;
+		}
+	}
+
+	return 0;
+out:
+	if (ctrl->id_ctrl_zns) {
+		free(ctrl->id_ctrl_zns);
+		ctrl->id_ctrl_zns = NULL;
+	}
+	if (ctrl->id_ctrl_nvm) {
+		free(ctrl->id_ctrl_nvm);
+		ctrl->id_ctrl_nvm = NULL;
+	}
+	if (ctrl->id_ctrl_csc) {
+		free(ctrl->id_ctrl_csc);
+		ctrl->id_ctrl_csc = NULL;
+	}
+	return ret;
+}
+
+static void deinit_id_cs_ctrl(struct nvme_ctrl_instance *ctrl)
+{
+	if (ctrl->id_ctrl_zns) {
+		free(ctrl->id_ctrl_zns);
+		ctrl->id_ctrl_zns = NULL;
+	}
+	if (ctrl->id_ctrl_nvm) {
+		free(ctrl->id_ctrl_nvm);
+		ctrl->id_ctrl_nvm = NULL;
+	}
+	if (ctrl->id_ctrl_csc) {
+		free(ctrl->id_ctrl_csc);
+		ctrl->id_ctrl_csc = NULL;
+	}
+}
+
 static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 {
 	struct nvme_ctrl_instance *ctrl;
@@ -253,7 +371,7 @@ static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 			return -EFAULT;
 		}
 
-		ctrl = calloc(1, sizeof(*ctrl));
+		ctrl = zalloc(sizeof(*ctrl));
 		if (!ctrl) {
 			pr_err("failed to alloc ctrl instance!\n");
 			return -ENOMEM;
@@ -279,6 +397,10 @@ static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 		ret = init_ctrl_property(ndev, ndev->ctrl);
 		if (ret < 0)
 			return ret;
+
+		ret = init_id_cs_ctrl(ndev, ndev->ctrl);
+		if (ret < 0)
+			goto stage2_exit_ctrl_prop;
 		break;
 
 	default:
@@ -290,6 +412,10 @@ static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 
 stage1_free_ctrl:
 	free(ctrl);
+	return ret;
+
+stage2_exit_ctrl_prop:
+	deinit_ctrl_property(ndev->ctrl);
 	return ret;
 }
 
@@ -308,6 +434,7 @@ static void deinit_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 		break;
 
 	case NVME_INIT_STAGE2:
+		deinit_id_cs_ctrl(ndev->ctrl);
 		deinit_ctrl_property(ndev->ctrl);
 		break;
 
@@ -321,7 +448,7 @@ static int init_id_ns(struct nvme_dev_info *ndev, struct nvme_ns_instance *ns)
 	struct nvme_id_ns *id_ns;
 	int ret;
 
-	id_ns = calloc(1, sizeof(*id_ns));
+	id_ns = zalloc(sizeof(*id_ns));
 	if (!id_ns) {
 		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;
@@ -416,7 +543,7 @@ static int init_ns_id_desc(struct nvme_dev_info *ndev,
 	void *data;
 	int ret;
 
-	data = calloc(1, NVME_IDENTIFY_DATA_SIZE);
+	data = zalloc(NVME_IDENTIFY_DATA_SIZE);
 	if (!data) {
 		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;
@@ -448,6 +575,63 @@ static void deinit_ns_id_desc(struct nvme_ns_instance *ns)
 	}
 }
 
+static int init_id_cs_ns(struct nvme_dev_info *ndev, 
+	struct nvme_ns_instance *ns)
+{
+	void *data;
+	uint8_t csi;
+	int ret;
+
+	if (!ns->ns_id_desc[NVME_NIDT_CSI]) {
+		pr_warn("CSI descriptor don't exist! skip...\n");
+		return 0;
+	}
+	csi = ns->ns_id_desc[NVME_NIDT_CSI]->nid[0];
+
+	data = zalloc(NVME_IDENTIFY_DATA_SIZE);
+	if (!data) {
+		pr_err("failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+
+	ret = nvme_identify_cs_ns(ndev, data, NVME_IDENTIFY_DATA_SIZE, 
+		ns->nsid, csi);
+	if (ret < 0) {
+		pr_err("failed to get identify ns(%u) data for csi(%u)!(%d)\n",
+			ns->nsid, csi, ret);
+		goto free_data;
+	}
+
+	switch (csi) {
+	case NVME_CSI_NVM:
+		ns->id_ns_nvm = data;
+		break;
+	case NVME_CSI_ZNS:
+		ns->id_ns_zns = data;
+		break;
+	default:
+		pr_warn("csi(%u) is unknown!\n", csi);
+		goto free_data;
+	}
+
+	return 0;
+free_data:
+	free(data);
+	return ret;
+}
+
+static void deinit_id_cs_ns(struct nvme_ns_instance *ns)
+{
+	if (ns->id_ns_nvm) {
+		free(ns->id_ns_nvm);
+		ns->id_ns_nvm = NULL;
+	}
+	if (ns->id_ns_zns) {
+		free(ns->id_ns_zns);
+		ns->id_ns_zns = NULL;
+	}
+}
+
 static int init_ns_instance(struct nvme_dev_info *ndev, 
 	struct nvme_ns_instance *ns)
 {
@@ -461,7 +645,13 @@ static int init_ns_instance(struct nvme_dev_info *ndev,
 	if (ret < 0)
 		goto exit_id_ns;
 
+	ret = init_id_cs_ns(ndev, ns);
+	if (ret < 0)
+		goto exit_ns_id_desc;
+
 	return 0;
+exit_ns_id_desc:
+	deinit_ns_id_desc(ns);
 exit_id_ns:
 	deinit_id_ns(ns);
 	return ret;
@@ -469,6 +659,7 @@ exit_id_ns:
 
 static void deinit_ns_instance(struct nvme_ns_instance *ns)
 {
+	deinit_id_cs_ns(ns);
 	deinit_ns_id_desc(ns);
 	deinit_id_ns(ns);
 }
@@ -493,7 +684,7 @@ static int init_ns_group(struct nvme_dev_info *ndev)
 		nn = 1024;
 	}
 
-	ns_grp = calloc(1, sizeof(struct nvme_ns_group) + 
+	ns_grp = zalloc(sizeof(struct nvme_ns_group) + 
 			nn * sizeof(struct nvme_ns_instance));
 	if (!ns_grp) {
 		pr_err("failed to alloc ns group!\n");
@@ -501,7 +692,7 @@ static int init_ns_group(struct nvme_dev_info *ndev)
 	}
 	ns_grp->nr_ns = nn;
 
-	ns_list = calloc(1, NVME_IDENTIFY_DATA_SIZE);
+	ns_list = zalloc(NVME_IDENTIFY_DATA_SIZE);
 	if (!ns_list) {
 		pr_err("failed to alloc ns list!\n");
 		goto free_ns_group;
@@ -747,7 +938,7 @@ struct nvme_dev_info *nvme_init(const char *devpath)
 
 	_nvme_check_size();
 
-	ndev = calloc(1, sizeof(*ndev));
+	ndev = zalloc(sizeof(*ndev));
 	if (!ndev) {
 		pr_err("failed to alloc memory!\n");
 		return NULL;

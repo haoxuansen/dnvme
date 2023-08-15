@@ -109,7 +109,13 @@ enum {
 
 /* NVME_REG_CC */
 #define NVME_CC_ENABLE			BIT(0)
-#define NVME_CC_CSS_SHIFT		4
+/* bit[6:4] I/O Command Set Selected */
+#define NVME_CC_FOR_CSS(css)		(((css) & 0x7) << 4)
+#define NVME_CC_TO_CSS(cc)		(((cc) >> 4) & 0x7)
+#define NVME_CC_CSS_NVM			0
+#define NVME_CC_CSS_CSI			6
+#define NVME_CC_CSS_ADMIN		7
+
 #define NVME_CC_FOR_MPS(mps)		(((mps) & 0xf) << 7)
 #define NVME_CC_TO_MPS(cc)		(((cc) >> 7) & 0xf)
 #define NVME_CC_AMS_SHIFT		11
@@ -120,15 +126,6 @@ enum {
 #define NVME_CC_FOR_IOCQES(cqes)	(((cqes) & 0xf) << 20)
 #define NVME_CC_TO_IOCQES(cc)		(((cc) >> 20) & 0xf)
 #define NVME_CC_IOCQES_MASK		NVME_CC_FOR_IOCQES(0xf)
-
-/**
- * @brief I/O Command Set Selected
- */
-enum {
-	NVME_CC_CSS_NVM		= 0 << NVME_CC_CSS_SHIFT,
-	NVME_CC_CSS_CSI		= 6 << NVME_CC_CSS_SHIFT,
-	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
-};
 
 /**
  * @brief Arbitration Mechanism Selected

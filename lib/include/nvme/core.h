@@ -39,6 +39,7 @@ struct nvme_ns_instance {
 	struct nvme_id_ns	*id_ns;
 	struct nvme_ns_id_desc	*ns_id_desc[NVME_NIDT_FENCE];
 	void			*ns_id_desc_raw;
+	struct nvme_id_ns_nvm	*id_ns_nvm;
 	struct nvme_id_ns_zns	*id_ns_zns;
 };
 
@@ -70,6 +71,9 @@ struct nvme_ctrl_instance {
 
 	struct nvme_id_ctrl	*id_ctrl;
 	struct nvme_ctrl_property	*prop;
+	struct nvme_id_ctrl_nvm	*id_ctrl_nvm;
+	struct nvme_id_ctrl_zns	*id_ctrl_zns;
+	struct nvme_id_ctrl_csc *id_ctrl_csc;
 };
 
 /**

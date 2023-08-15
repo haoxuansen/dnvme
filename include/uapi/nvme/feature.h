@@ -41,6 +41,12 @@ enum {
 	NVME_FEAT_PLM_WINDOW	= 0x14,
 	NVME_FEAT_HOST_BEHAVIOR	= 0x16,
 	NVME_FEAT_SANITIZE	= 0x17,
+	NVME_FEAT_EGRP_EVENT	= 0x18,
+	NVME_FEAT_IOCS_PROFILE	= 0x19,
+	NVME_FEAT_SPINUP_CTRL	= 0x1a,
+	NVME_FEAT_ECTRL_META	= 0x7d,
+	NVME_FEAT_CTRL_META	= 0x7e,
+	NVME_FEAT_NS_META	= 0x7f,
 	NVME_FEAT_SW_PROGRESS	= 0x80,
 	NVME_FEAT_HOST_ID	= 0x81,
 	NVME_FEAT_RESV_MASK	= 0x82,
@@ -153,6 +159,12 @@ struct nvme_feat_host_behavior {
 	__u8	lbafee;
 	__u8	resv1[509];
 };
+
+
+/* ==================== NVME_FEAT_IOCS_PROFILE(0x19) ==================== */
+
+#define NVME_IOCS_CI_MASK		0x1ff
+
 
 /* ==================== NVME_FEAT_WRITE_PROTECT(0x84) ==================== */
 

@@ -187,6 +187,68 @@ int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11)
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
+int nvme_set_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel, 
+	uint32_t index)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_set_feat_iocs_profile(ndev->fd, sel, index);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+/**
+ * @brief Get the index of the currently selected I/O command set combination
+ *
+ * @return IOCSCI on succcess, otherwise a negative errno
+ */
+int nvme_get_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_get_feat_iocs_profile(ndev->fd, sel);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	return le32_to_cpu(entry.result.u32) & NVME_IOCS_CI_MASK;
+}
+
 /**
  * @return 0 on success, otherwise a negative errno.
  */
@@ -320,34 +382,401 @@ int nvme_cmd_identify(int fd, struct nvme_identify *identify, void *buf,
 /**
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
+ * 
+ * @note It that specified namespace is an inactive NSID, then the controller
+ *  returns a zero filled data structure.
  */
-int nvme_cmd_identify_ctrl_list(int fd, void *buf, uint32_t size, 
-	uint16_t cntid)
+int nvme_cmd_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid)
 {
 	struct nvme_identify identify = {0};
 
 	identify.opcode = nvme_admin_identify;
-	identify.cns = NVME_ID_CNS_CTRL_LIST;
-	identify.ctrlid = cpu_to_le16(cntid);
+	identify.nsid = cpu_to_le32(nsid);
+	identify.cns = NVME_ID_CNS_NS;
 
-	return nvme_cmd_identify(fd, &identify, buf, size);
+	return nvme_cmd_identify(fd, &identify, ns, sizeof(*ns));
 }
 
 /**
- * @brief Get Controller list.
+ * @brief Get Identify Namespace data structure for the specified NSID or
+ *  the common namespace capabilities for the NVM Command Set
  * 
- * @param cntid A controller list is returned containing a controller 
- *  identifier greater than or equal to the value specified in this field.
+ * @param ns point to the identify namespace data structure
+ * @param nsid An active NSID
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
-	uint32_t size, uint16_t cntid)
+int nvme_identify_ns_active(struct nvme_dev_info *ndev, struct nvme_id_ns *ns, 
+	uint32_t nsid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ctrl_list(ndev->fd, buf, size, cntid);
+	ret = nvme_cmd_identify_ns_active(ndev->fd, ns, nsid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_CTRL;
+
+	return nvme_cmd_identify(fd, &identify, ctrl, sizeof(*ctrl));
+}
+
+/**
+ * @brief Get Identify Controller data structure for the controller 
+ *  processing the command.
+ * 
+ * @param ctrl point to the identify controller data structure
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ctrl(ndev->fd, ctrl);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ns_list_active(int fd, void *buf, uint32_t size, 
+	uint32_t nsid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_NS_ACTIVE_LIST;
+	identify.nsid = cpu_to_le32(nsid);
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get Active Namespace ID List
+ * 
+ * @param nsid This field may be cleared to 0h to retrive a Namespace List
+ *  including the namespace starting with NSID of 1h.
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns_list_active(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns_list_active(ndev->fd, buf, size, nsid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
+	uint32_t nsid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_NS_DESC_LIST;
+	identify.nsid = cpu_to_le32(nsid);
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get Namespace Identification Descriptor list.
+ * 
+ * @param nsid An active NSID
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns_desc_list(ndev->fd, buf, size, nsid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_cs_ns(int fd, void *buf, uint32_t size, uint32_t nsid,
+	uint8_t csi)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_CS_NS_ACTIVE;
+	identify.nsid = cpu_to_le32(nsid);
+	identify.csi = csi;
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get I/O command set specific identify namespace data structure
+ * 
+ * @param nsid An active NSID
+ * @param csi Command Set Identifier
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_identify_cs_ns(struct nvme_dev_info *ndev, void *buf, uint32_t size, 
+	uint32_t nsid, uint8_t csi)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_cs_ns(ndev->fd, buf, size, nsid, csi);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_cs_ctrl(int fd, void *buf, uint32_t size, uint8_t csi)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_CS_CTRL;
+	identify.csi = csi;
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get I/O command set specific identify controller data structure
+ * 
+ * @param csi Command Set Identifier
+ * 
+ * @return 0 on success, otherwise a negative errno 
+ */
+int nvme_identify_cs_ctrl(struct nvme_dev_info *ndev, void *buf, uint32_t size,
+	uint8_t csi)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_cs_ctrl(ndev->fd, buf, size, csi);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
+int nvme_cmd_identify_ns_list_allocated(int fd, void *buf, uint32_t size, 
+	uint32_t nsid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.cns = NVME_ID_CNS_NS_PRESENT_LIST;
+	identify.nsid = cpu_to_le32(nsid);
+
+	return nvme_cmd_identify(fd, &identify, buf, size);
+}
+
+/**
+ * @brief Get Allocated Namespace ID List
+ * 
+ * @param nsid This field may be cleared to 0h to retrive a Namespace List
+ *  including the namespace starting with NSID of 1h.
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns_list_allocated(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint32_t nsid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns_list_allocated(ndev->fd, buf, size, nsid);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ * 
+ * @note It that specified namespace is an unallocated NSID, then the controller
+ *  returns a zero filled data structure.
+ */
+int nvme_cmd_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid)
+{
+	struct nvme_identify identify = {0};
+
+	identify.opcode = nvme_admin_identify;
+	identify.nsid = cpu_to_le32(nsid);
+	identify.cns = NVME_ID_CNS_NS_PRESENT;
+
+	return nvme_cmd_identify(fd, &identify, ns, sizeof(*ns));
+}
+
+/**
+ * @brief Get Identify Namespace data structure for the specified NSID or
+ *  the common namespace capabilities for the NVM Command Set
+ * 
+ * @param ns point to the identify namespace data structure
+ * @param nsid An allocated NSID
+ * @return 0 on success, otherwise a negative errno.
+ */
+int nvme_identify_ns_allocated(struct nvme_dev_info *ndev, 
+	struct nvme_id_ns *ns, uint32_t nsid)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_identify_ns_allocated(ndev->fd, ns, nsid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
@@ -426,32 +855,33 @@ int nvme_identify_ns_attached_ctrl_list(struct nvme_dev_info *ndev, void *buf,
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
  */
-int nvme_cmd_identify_ns_desc_list(int fd, void *buf, uint32_t size,
-	uint32_t nsid)
+int nvme_cmd_identify_ctrl_list(int fd, void *buf, uint32_t size, 
+	uint16_t cntid)
 {
 	struct nvme_identify identify = {0};
 
 	identify.opcode = nvme_admin_identify;
-	identify.cns = NVME_ID_CNS_NS_DESC_LIST;
-	identify.nsid = cpu_to_le32(nsid);
+	identify.cns = NVME_ID_CNS_CTRL_LIST;
+	identify.ctrlid = cpu_to_le16(cntid);
 
 	return nvme_cmd_identify(fd, &identify, buf, size);
 }
 
 /**
- * @brief Get Namespace Identification Descriptor list.
+ * @brief Get Controller list.
  * 
- * @param nsid An active NSID
+ * @param cntid A controller list is returned containing a controller 
+ *  identifier greater than or equal to the value specified in this field.
  * @return 0 on success, otherwise a negative errno.
  */
-int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf, 
-	uint32_t size, uint32_t nsid)
+int nvme_identify_ctrl_list(struct nvme_dev_info *ndev, void *buf, 
+	uint32_t size, uint16_t cntid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_desc_list(ndev->fd, buf, size, nsid);
+	ret = nvme_cmd_identify_ctrl_list(ndev->fd, buf, size, cntid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
@@ -473,248 +903,26 @@ int nvme_identify_ns_desc_list(struct nvme_dev_info *ndev, void *buf,
 	return 0;
 }
 
-/**
- * @return The assigned command identifier if success, otherwise a negative
- *  errno.
- */
-int nvme_cmd_identify_ns_list_active(int fd, void *buf, uint32_t size, 
-	uint32_t nsid)
+int nvme_cmd_identify_ctrl_csc_list(int fd, struct nvme_id_ctrl_csc *csc, 
+	uint16_t cntid)
 {
 	struct nvme_identify identify = {0};
 
 	identify.opcode = nvme_admin_identify;
-	identify.cns = NVME_ID_CNS_NS_ACTIVE_LIST;
-	identify.nsid = cpu_to_le32(nsid);
+	identify.cns = NVME_ID_CNS_CTRL_CSC_LIST;
+	identify.ctrlid = cpu_to_le16(cntid);
 
-	return nvme_cmd_identify(fd, &identify, buf, size);
+	return nvme_cmd_identify(fd, &identify, csc, sizeof(*csc));
 }
 
-/**
- * @brief Get Active Namespace ID List
- * 
- * @param nsid This field may be cleared to 0h to retrive a Namespace List
- *  including the namespace starting with NSID of 1h.
- * @return 0 on success, otherwise a negative errno.
- */
-int nvme_identify_ns_list_active(struct nvme_dev_info *ndev, void *buf, 
-	uint32_t size, uint32_t nsid)
+int nvme_identify_ctrl_csc_list(struct nvme_dev_info *ndev, 
+	struct nvme_id_ctrl_csc *csc, uint16_t cntid)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_identify_ns_list_active(ndev->fd, buf, size, nsid);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
-	
-	return 0;
-}
-
-/**
- * @return The assigned command identifier if success, otherwise a negative
- *  errno.
- */
-int nvme_cmd_identify_ns_list_allocated(int fd, void *buf, uint32_t size, 
-	uint32_t nsid)
-{
-	struct nvme_identify identify = {0};
-
-	identify.opcode = nvme_admin_identify;
-	identify.cns = NVME_ID_CNS_NS_PRESENT_LIST;
-	identify.nsid = cpu_to_le32(nsid);
-
-	return nvme_cmd_identify(fd, &identify, buf, size);
-}
-
-/**
- * @brief Get Allocated Namespace ID List
- * 
- * @param nsid This field may be cleared to 0h to retrive a Namespace List
- *  including the namespace starting with NSID of 1h.
- * @return 0 on success, otherwise a negative errno.
- */
-int nvme_identify_ns_list_allocated(struct nvme_dev_info *ndev, void *buf, 
-	uint32_t size, uint32_t nsid)
-{
-	struct nvme_completion entry = {0};
-	uint16_t cid;
-	int ret;
-
-	ret = nvme_cmd_identify_ns_list_allocated(ndev->fd, buf, size, nsid);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
-	
-	return 0;
-}
-
-/**
- * @return The assigned command identifier if success, otherwise a negative
- *  errno.
- */
-int nvme_cmd_identify_ctrl(int fd, struct nvme_id_ctrl *ctrl)
-{
-	struct nvme_identify identify = {0};
-
-	identify.opcode = nvme_admin_identify;
-	identify.cns = NVME_ID_CNS_CTRL;
-
-	return nvme_cmd_identify(fd, &identify, ctrl, sizeof(*ctrl));
-}
-
-/**
- * @brief Get Identify Controller data structure for the controller 
- *  processing the command.
- * 
- * @param ctrl point to the identify controller data structure
- * @return 0 on success, otherwise a negative errno.
- */
-int nvme_identify_ctrl(struct nvme_dev_info *ndev, struct nvme_id_ctrl *ctrl)
-{
-	struct nvme_completion entry = {0};
-	uint16_t cid;
-	int ret;
-
-	ret = nvme_cmd_identify_ctrl(ndev->fd, ctrl);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
-	
-	return 0;
-}
-
-/**
- * @return The assigned command identifier if success, otherwise a negative
- *  errno.
- * 
- * @note It that specified namespace is an inactive NSID, then the controller
- *  returns a zero filled data structure.
- */
-int nvme_cmd_identify_ns_active(int fd, struct nvme_id_ns *ns, uint32_t nsid)
-{
-	struct nvme_identify identify = {0};
-
-	identify.opcode = nvme_admin_identify;
-	identify.nsid = cpu_to_le32(nsid);
-	identify.cns = NVME_ID_CNS_NS;
-
-	return nvme_cmd_identify(fd, &identify, ns, sizeof(*ns));
-}
-
-/**
- * @brief Get Identify Namespace data structure for the specified NSID or
- *  the common namespace capabilities for the NVM Command Set
- * 
- * @param ns point to the identify namespace data structure
- * @param nsid An active NSID
- * @return 0 on success, otherwise a negative errno.
- */
-int nvme_identify_ns_active(struct nvme_dev_info *ndev, struct nvme_id_ns *ns, 
-	uint32_t nsid)
-{
-	struct nvme_completion entry = {0};
-	uint16_t cid;
-	int ret;
-
-	ret = nvme_cmd_identify_ns_active(ndev->fd, ns, nsid);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
-	
-	return 0;
-}
-
-/**
- * @return The assigned command identifier if success, otherwise a negative
- *  errno.
- * 
- * @note It that specified namespace is an unallocated NSID, then the controller
- *  returns a zero filled data structure.
- */
-int nvme_cmd_identify_ns_allocated(int fd, struct nvme_id_ns *ns, uint32_t nsid)
-{
-	struct nvme_identify identify = {0};
-
-	identify.opcode = nvme_admin_identify;
-	identify.nsid = cpu_to_le32(nsid);
-	identify.cns = NVME_ID_CNS_NS_PRESENT;
-
-	return nvme_cmd_identify(fd, &identify, ns, sizeof(*ns));
-}
-
-/**
- * @brief Get Identify Namespace data structure for the specified NSID or
- *  the common namespace capabilities for the NVM Command Set
- * 
- * @param ns point to the identify namespace data structure
- * @param nsid An allocated NSID
- * @return 0 on success, otherwise a negative errno.
- */
-int nvme_identify_ns_allocated(struct nvme_dev_info *ndev, 
-	struct nvme_id_ns *ns, uint32_t nsid)
-{
-	struct nvme_completion entry = {0};
-	uint16_t cid;
-	int ret;
-
-	ret = nvme_cmd_identify_ns_allocated(ndev->fd, ns, nsid);
+	ret = nvme_cmd_identify_ctrl_csc_list(ndev->fd, csc, cntid);
 	if (ret < 0)
 		return ret;
 	cid = ret;
