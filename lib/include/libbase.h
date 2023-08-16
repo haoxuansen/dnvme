@@ -37,7 +37,7 @@
 
 static inline void *zalloc(size_t size)
 {
-	return zalloc(size);
+	return calloc(1, size);
 }
 
 int call_system(const char *command);
