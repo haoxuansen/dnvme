@@ -17,6 +17,8 @@ int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl);
 
 int nvme_id_ctrl_npss(struct nvme_ctrl_instance *ctrl);
 int nvme_id_ctrl_vid(struct nvme_ctrl_instance *ctrl);
+int nvme_id_ctrl_hmminds(struct nvme_ctrl_instance *ctrl, uint32_t *hmminds);
+int nvme_id_ctrl_hmmaxd(struct nvme_ctrl_instance *ctrl);
 int nvme_id_ctrl_nn(struct nvme_ctrl_instance *ctrl, uint32_t *nn);
 int nvme_id_ctrl_sgls(struct nvme_ctrl_instance *ctrl, uint32_t *sgls);
 

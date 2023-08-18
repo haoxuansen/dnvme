@@ -78,6 +78,33 @@ int nvme_id_ctrl_vid(struct nvme_ctrl_instance *ctrl)
 }
 
 /**
+ * @brief Get host memory buffer minimum descriptor entry size (in 4KiB units)
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_id_ctrl_hmminds(struct nvme_ctrl_instance *ctrl, uint32_t *hmminds)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+
+	*hmminds = le32_to_cpu(ctrl->id_ctrl->hmminds);
+	return 0;
+}
+
+/**
+ * @brief Get host memory maximum descriptors entries
+ * 
+ * @return HMMAXD on success, otherwise a negative errno
+ */
+int nvme_id_ctrl_hmmaxd(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+
+	return le16_to_cpu(ctrl->id_ctrl->hmmaxd);
+}
+
+/**
  * @brief Get the maximum value of a valid NSID for the NVM subsystem
  * 
  * @return 0 on success, otherwise a negative errno

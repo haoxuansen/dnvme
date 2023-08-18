@@ -261,6 +261,17 @@ struct nvme_cmb {
 	unsigned int	cqda:1;
 };
 
+struct nvme_hmb {
+	struct nvme_feat_hmb_descriptor	*desc;
+	dma_addr_t	desc_addr;
+	size_t		desc_size;
+	unsigned int	desc_num;
+
+	void		*buf;
+	dma_addr_t	buf_addr;
+	size_t		buf_size;
+};
+
 /**
  * @brief Representation of a NVMe device
  * 
@@ -293,6 +304,7 @@ struct nvme_device {
 
 	struct nvme_irq_set	irq_set;
 	struct nvme_capability	cap;
+	struct nvme_hmb		*hmb;
 	struct nvme_pmr		*pmr;
 	struct nvme_cmb		*cmb;
 

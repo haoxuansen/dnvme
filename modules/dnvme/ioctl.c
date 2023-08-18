@@ -576,3 +576,139 @@ int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *
 	return 0;
 }
 
+static int dnvme_fill_hmb_descriptor(struct nvme_device *ndev, 
+	struct nvme_hmb *hmb, struct nvme_hmb_alloc *alloc)
+{
+	unsigned int i;
+	size_t offset = 0;
+
+	for (i = 0; i < alloc->nr_desc; i++) {
+		hmb->desc[i].addr = cpu_to_le64(hmb->buf_addr + offset);
+		hmb->desc[i].size = cpu_to_le32(alloc->bsize[i]);
+		offset += alloc->bsize[i];
+
+		dnvme_info(ndev, "desc idx: %u, addr: 0x%llx, size: 0x%x\n", i, 
+			le64_to_cpu(hmb->desc[i].addr), 
+			le32_to_cpu(hmb->desc[i].size));
+	}
+	hmb->desc_num = alloc->nr_desc;
+	return 0;
+}
+
+int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nvme_hmb_alloc head;
+	struct nvme_hmb_alloc *copy;
+	struct nvme_hmb *hmb;
+	size_t size;
+	size_t buf_size = 0;
+	u32 i;
+	int ret;
+
+	if (ndev->hmb) {
+		dnvme_err(ndev, "hmb already exist! please release it first!\n");
+		return -EPERM;
+	}
+
+	if (copy_from_user(&head, uhmb, sizeof(head))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	if (head.nr_desc > (PAGE_SIZE / sizeof(struct nvme_feat_hmb_descriptor))) {
+		dnvme_err(ndev, "The number(%u) of descriptors exceeded the limit!\n",
+			head.nr_desc);
+		return -EINVAL;
+	}
+
+	size = sizeof(head) + sizeof(head.nr_desc) * head.nr_desc;
+
+	copy = kzalloc(size, GFP_KERNEL);
+	if (!copy) {
+		dnvme_err(ndev, "failed to alloc for %u desc!\n", head.nr_desc);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(copy, uhmb, size)) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
+
+	hmb = kzalloc(sizeof(*hmb), GFP_KERNEL);
+	if (!hmb) {
+		dnvme_err(ndev, "failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < copy->nr_desc; i++)
+		buf_size += copy->bsize[i];
+
+	hmb->buf = dma_alloc_coherent(&pdev->dev, buf_size, &hmb->buf_addr, 
+		GFP_KERNEL);
+	if (!hmb->buf) {
+		dnvme_err(ndev, "failed to alloc host memory buffer with "
+			"size 0x%lx!\n", buf_size);
+		ret = -ENOMEM;
+		goto out2;
+	}
+	memset(hmb->buf, 0, buf_size);
+	hmb->buf_size = buf_size;
+	dnvme_info(ndev, "HMB buffer addr: 0x%llx, size: 0x%lx\n",
+		hmb->buf_addr, hmb->buf_size);
+
+	hmb->desc = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, 
+		&hmb->desc_addr, GFP_KERNEL);
+	if (!hmb->desc) {
+		dnvme_err(ndev, "failed to alloc host memory descriptor with "
+			"size 0x%lx!\n", PAGE_SIZE);
+		ret = -ENOMEM;
+		goto free_hmb;
+	}
+	memset(hmb->desc, 0, PAGE_SIZE);
+	hmb->desc_size = PAGE_SIZE;
+	dnvme_info(ndev, "HMB desc addr: 0x%llx, size: 0x%lx\n", 
+		hmb->desc_addr, PAGE_SIZE);
+
+	dnvme_fill_hmb_descriptor(ndev, hmb, copy);
+
+	head.desc_list = hmb->desc_addr;
+	if (copy_to_user(uhmb, &head, sizeof(head))) {
+		dnvme_err(ndev, "failed to copy to user space!\n");
+		ret = -EFAULT;
+		goto free_desc;
+	}
+	ndev->hmb = hmb;
+
+	kfree(copy);
+	return 0;
+free_desc:
+	dma_free_coherent(&pdev->dev, hmb->desc_size, hmb->desc, hmb->desc_addr);
+free_hmb:
+	dma_free_coherent(&pdev->dev, hmb->buf_size, hmb->buf, hmb->buf_addr);
+out2:
+	kfree(hmb);
+out:
+	kfree(copy);
+	return ret;
+}
+
+int dnvme_release_hmb(struct nvme_device *ndev)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nvme_hmb *hmb;
+
+	if (!ndev->hmb)
+		return 0;
+
+	hmb = ndev->hmb;
+	dma_free_coherent(&pdev->dev, hmb->desc_size, hmb->desc, hmb->desc_addr);
+	dma_free_coherent(&pdev->dev, hmb->buf_size, hmb->buf, hmb->buf_addr);
+	kfree(hmb);
+	ndev->hmb = NULL;
+
+	return 0;
+}
+

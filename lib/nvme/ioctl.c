@@ -171,3 +171,28 @@ int nvme_set_device_state(int fd, enum nvme_state state)
 	}
 	return 0;
 }
+
+int nvme_alloc_host_mem_buffer(int fd, struct nvme_hmb_alloc *alloc)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_ALLOC_HMB, alloc);
+	if (ret < 0) {
+		pr_err("failed to alloc hmb!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
+int nvme_release_host_mem_buffer(int fd)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_RELEASE_HMB);
+	if (ret < 0) {
+		pr_err("failed to release hmb!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+

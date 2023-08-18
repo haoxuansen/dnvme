@@ -81,7 +81,9 @@ static inline void _nvme_check_size(void)
 
 	/* Relate to nvme_admin_set_features command */
 	/* Relate to nvme_admin_get_features command */
+	BUILD_BUG_ON(sizeof(struct nvme_feat_lba_range_type) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_feat_auto_pst) != 256);
+	BUILD_BUG_ON(sizeof(struct nvme_feat_hmb_attribute) != 4096);
 	BUILD_BUG_ON(sizeof(struct nvme_feat_host_behavior) != 512);
 
 	/* Relate to nvme_admin_directive_send command */
@@ -91,6 +93,12 @@ static inline void _nvme_check_size(void)
 
 	/* Relate to nvme_fabrics_type_connect command */
 	BUILD_BUG_ON(sizeof(struct nvmf_connect_data) != 1024);
+
+	/* Relate to nvme_cmd_resv_report command */
+	BUILD_BUG_ON(sizeof(struct nvme_reg_ctrl) != 24);
+	BUILD_BUG_ON(sizeof(struct nvme_resv_status) != 24);
+	BUILD_BUG_ON(sizeof(struct nvme_reg_ctrl_extend) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_resv_status_extend) != 64);
 
 	/* Relate to nvme_cmd_copy command */
 	BUILD_BUG_ON(sizeof(struct nvme_copy_desc_fmt0) != 32);
@@ -252,6 +260,9 @@ static int init_id_cs_ctrl(struct nvme_dev_info *ndev,
 	uint32_t cc_css;
 	uint64_t vector;
 	int ret;
+
+	if (prop->vs < NVME_VS(2, 0, 0))
+		return 0;
 
 	ret = nvme_read_ctrl_cc(ndev->fd, &prop->cc);
 	if (ret < 0)

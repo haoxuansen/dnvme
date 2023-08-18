@@ -56,6 +56,18 @@ struct nvme_copy_wrapper {
 	uint32_t	size;
 };
 
+struct nvme_hmb_wrapper {
+	uint32_t	sel;
+
+	/* for set feature */
+	uint32_t	dw11;
+	uint32_t	hsize;
+	uint64_t	hmdla;
+	uint32_t	hmdlec;
+	/* for get feature */
+	struct nvme_feat_hmb_attribute *attr;
+};
+
 static inline void nvme_cmd_fill_create_sq(struct nvme_create_sq *csq, 
 	uint16_t sqid, uint16_t cqid, uint32_t elements, uint8_t contig,
 	uint16_t prio)
@@ -123,6 +135,12 @@ static inline int nvme_cmd_set_feat_num_queues(int fd, uint16_t nr_sq,
 	return nvme_cmd_set_feature(fd, 0, NVME_FEAT_NUM_QUEUES, 
 		((uint32_t)nr_cq << 16) | nr_sq);
 }
+
+int nvme_cmd_set_feat_hmb(int fd, struct nvme_hmb_wrapper *wrap);
+int nvme_set_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap);
+
+int nvme_cmd_get_feat_hmb(int fd, struct nvme_hmb_wrapper *wrap);
+int nvme_get_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap);
 
 static inline int nvme_cmd_set_feat_iocs_profile(int fd, uint32_t sel, 
 	uint32_t index)

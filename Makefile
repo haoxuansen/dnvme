@@ -80,6 +80,7 @@ distclean:
 	$(Q)make -C lib $@
 	$(Q)make -C app $@
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
+	$(Q)rm -rf $(TOP_DIR)/include/config
 	$(Q)rm -rf $(OUTPUT_DIR)
 PHONY += distclean
 

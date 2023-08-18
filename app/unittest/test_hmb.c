@@ -1,9 +1,9 @@
 /**
- * @file test_reset.c
+ * @file test_hmb.c
  * @author yeqiang_xu <yeqiang_xu@maxio-tech.com>
- * @brief 
+ * @brief Test host memory buffer
  * @version 0.1
- * @date 2023-03-31
+ * @date 2023-08-17
  * 
  * @copyright Copyright (c) 2023
  * 
@@ -14,17 +14,9 @@
 #include <string.h>
 #include <errno.h>
 
-#include "pci_regs_ext.h"
 #include "libbase.h"
 #include "libnvme.h"
 #include "test.h"
-
-struct reset_ops {
-	 const char	*name;
-	 int (*reset)(struct nvme_dev_info *);
-};
-
-#define INIT_RESET_OPS(_name, _reset) { .name = _name, .reset = _reset}
 
 struct source_range {
 	uint64_t	slba;
@@ -53,22 +45,25 @@ struct test_cmd_copy {
 
 struct test_data {
 	uint32_t	nsid;
-	uint64_t	nsze;
 	uint32_t	lbads;
+	uint64_t	nsze;
 
 	uint32_t	mcl;
 	uint32_t	msrc;
 	uint16_t	mssrl;
+
+	uint32_t	page_size;
+	uint32_t	min_buf_size;
+	uint32_t	max_desc_entry;
 };
 
 static struct test_data g_test = {0};
 
-/**
- * @note May re-initialized? ignore...We shall to update this if data changed. 
- */
 static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
 {
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint32_t cc;
+	uint32_t hmminds;
 	int ret;
 
 	/* use first active namespace as default */
@@ -86,6 +81,34 @@ static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
 	data->mssrl = (uint16_t)nvme_id_ns_mssrl(ns_grp, data->nsid);
 	nvme_id_ns_mcl(ns_grp, data->nsid, &data->mcl);
 
+	ret = nvme_read_ctrl_cc(ndev->fd, &cc);
+	if (ret < 0) {
+		pr_err("failed to get controller configuration!(%d)\n", ret);
+		return ret;
+	}
+	data->page_size = 1 << (12 + NVME_CC_TO_MPS(cc));
+
+	ret = nvme_id_ctrl_hmminds(ndev->ctrl, &hmminds);
+	if (ret < 0) {
+		pr_err("failed to get hmminds!(%d)\n", ret);
+		return ret;
+	}
+	if (!hmminds) {
+		pr_notice("Set the default value of min_buf_size to 0x%x\n",
+			data->page_size);
+		data->min_buf_size = data->page_size;
+	} else {
+		data->min_buf_size = hmminds * SZ_4K;
+	}
+	
+	data->max_desc_entry = (uint32_t)nvme_id_ctrl_hmmaxd(ndev->ctrl);
+	if (!data->max_desc_entry) {
+		pr_notice("Set the default value of max_desc_entry to 8\n");
+		data->max_desc_entry = 8;
+	}
+
+	pr_debug("page_size: 0x%x, min_buf_size: 0x%x, max_desc_entry: %u\n",
+		data->page_size, data->min_buf_size, data->max_desc_entry);
 	return 0;
 }
 
@@ -117,6 +140,26 @@ static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	ret = nvme_create_iosq(ndev, &csq_wrap);
 	if (ret < 0) {
 		pr_err("failed to create iosq:%u!(%d)\n", sq->sqid, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
+	struct nvme_cq_info *cq)
+{
+	int ret;
+
+	ret = nvme_delete_iosq(ndev, sq->sqid);
+	if (ret < 0) {
+		pr_err("failed to delete iosq:%u!(%d)\n", sq->sqid, ret);
+		return ret;
+	}
+
+	ret = nvme_delete_iocq(ndev, cq->cqid);
+	if (ret < 0) {
+		pr_err("failed to delete iocq:%u!(%d)\n", cq->cqid, ret);
 		return ret;
 	}
 
@@ -456,304 +499,12 @@ free_copy:
 	return ret;
 }
 
-static int do_io_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
-{
-	int ret;
-
-	ret = do_io_read_cmd(tool, sq);
-	if (ret < 0) {
-		pr_err("failed to do io read cmd!(%d)\n", ret);
-		return ret;
-	}
-	ret = do_io_write_cmd(tool, sq);
-	if (ret < 0) {
-		pr_err("failed to do io write cmd!(%d)\n", ret);
-		return ret;
-	}
-	ret = do_io_copy_cmd(tool, sq);
-	if (ret < 0) {
-		pr_err("failed to do io copy cmd!(%d)\n", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int do_nvme_ctrl_reset(struct nvme_dev_info *ndev)
-{
-	return nvme_disable_controller_complete(ndev->fd);
-}
-
-static int do_nvme_subsystem_reset(struct nvme_dev_info *ndev)
-{
-	return nvme_reset_subsystem(ndev->fd);
-}
-
-/**
- * @brief Check whether function level reset is supported
- * 
- * @param pxcap PCI Express Capability offset
- * @return 1 if support FLR, 0 if not support FLR, otherwise a negative errno.
- */
-static int pcie_is_support_flr(int fd, uint8_t pxcap)
-{
-	uint32_t devcap;
-	int ret;
-
-	ret = pci_exp_read_device_capability(fd, pxcap, &devcap);
-	if (ret < 0)
-		return ret;
-
-	return (devcap & PCI_EXP_DEVCAP_FLR) ? 1 : 0;
-}
-
-/**
- * @brief Do function level reset
- * 
- * @param pxcap PCI Express Capability offset
- * @return 0 on success, otherwise a negative errno.
- */
-static int pcie_do_flr_legacy(int fd, uint8_t pxcap)
-{
-	uint32_t bar[6];
-	uint16_t devctrl;
-	uint16_t cmd, cmd_bkup;
-	int ret;
-
-	/* backup register data */
-	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
-	if (ret < 0)
-		return ret;
-	
-	ret = pci_hd_read_command(fd, &cmd);
-	if (ret < 0)
-		return ret;
-	cmd_bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-	
-	/* do function level reset */
-	ret = pci_exp_read_device_control(fd, pxcap, &devctrl);
-	if (ret < 0)
-		return ret;
-
-	devctrl |= PCI_EXP_DEVCTL_BCR_FLR;
-	ret = pci_exp_write_device_control(fd, pxcap, devctrl);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Refer to PCIe Base Spec R5.0 Ch6.6.2:
-	 *   After an FLR has been initiated by writing a 1b to the Initiate
-	 * Function Level Reset bit, the Function must complete the FLR 
-	 * within 100ms.
-	 */
-	msleep(100);
-
-	/* restore register data */
-	ret = pci_hd_read_command(fd, &cmd);
-	if (ret < 0)
-		return ret;
-
-	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-	cmd |= cmd_bkup;
-	ret = pci_hd_write_command(fd, cmd);
-	if (ret < 0)
-		return ret;
-
-	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int do_pcie_func_level_reset(struct nvme_dev_info *ndev)
-{
-	int ret;
-
-	ret = pcie_is_support_flr(ndev->fd, ndev->express.offset);
-	if (ret < 0)
-		return ret;
-	else if (ret == 0)
-		return -EOPNOTSUPP;
-
-	return pcie_do_flr_legacy(ndev->fd, ndev->express.offset);
-	// return pcie_do_flr(ndev->fd);
-}
-
-static int do_pcie_d0d3_reset(struct nvme_dev_info *ndev)
-{
-	int ret;
-
-	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
-		PCI_PM_CTRL_STATE_D3HOT);
-	if (ret < 0) {
-		pr_err("failed to set D3 hot state!\n");
-		return ret;
-	}
-
-	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset,
-		PCI_PM_CTRL_STATE_D0);
-	if (ret < 0) {
-		pr_err("failed to set D0 state!\n");
-		return ret;
-	}
-	return 0;
-}
-
-/**
- * @return 0 on success, otherwise a negative errno.
- */
-static int pcie_do_hot_reset_legacy(int fd)
-{
-	uint32_t bar[6];
-	uint16_t cmd, bkup;
-	int ret;
-
-	/* backup register data */
-	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
-	if (ret < 0)
-		return ret;
-
-	ret = pci_hd_read_command(fd, &cmd);
-	if (ret < 0)
-		return ret;
-	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-
-	/* do hot reset */
-	ret = call_system("setpci -s " RC_BRIDGE_CONTROL ".b=40:40");
-	if (ret < 0)
-		return ret;
-	msleep(100);
-	
-	ret = call_system("setpci -s " RC_BRIDGE_CONTROL ".b=00:40");
-	if (ret < 0)
-		return ret;
-	msleep(100);
-
-	/* restore register data */
-	ret = pci_hd_read_command(fd, &cmd);
-	if (ret < 0)
-		return ret;
-
-	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-	cmd |= bkup;
-	ret = pci_hd_write_command(fd, cmd);
-	if (ret < 0)
-		return ret;
-
-	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
-	if (ret < 0)
-		return ret;
-
-	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int do_pcie_hot_reset(struct nvme_dev_info *ndev)
-{
-	return pcie_do_hot_reset_legacy(ndev->fd);
-	// return pcie_do_hot_reset(ndev->fd);
-}
-
-/**
- * @return 0 on success, otherwise a negative errno.
- */
-static int pcie_do_link_down_legacy(int fd)
-{
-	uint32_t bar[6];
-	uint16_t cmd, bkup;
-	int ret;
-
-	/* backup register data */
-	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
-	if (ret < 0)
-		return ret;
-
-	ret = pci_hd_read_command(fd, &cmd);
-	if (ret < 0)
-		return ret;
-	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-
-	/* do hot reset */
-	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=10:10");
-	if (ret < 0)
-		return ret;
-	msleep(100);
-	
-	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=00:10");
-	if (ret < 0)
-		return ret;
-	msleep(100);
-
-	/* restore register data */
-	ret = pci_hd_read_command(fd, &cmd);
-	if (ret < 0)
-		return ret;
-
-	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
-	cmd |= bkup;
-	ret = pci_hd_write_command(fd, cmd);
-	if (ret < 0)
-		return ret;
-
-	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
-	if (ret < 0)
-		return ret;
-
-	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int do_pcie_linkdown_reset(struct nvme_dev_info *ndev)
-{
-	return pcie_do_link_down_legacy(ndev->fd);
-	// return pcie_do_link_down(ndev->fd);
-}
-
-static int do_random_reset(struct nvme_dev_info *ndev)
-{
-	static struct reset_ops ops[] = {
-		INIT_RESET_OPS("NVMe Controller Reset", do_nvme_ctrl_reset),
-		INIT_RESET_OPS("NVMe Subsystem Reset", do_nvme_subsystem_reset),
-		INIT_RESET_OPS("PCIe Function Level Reset", do_pcie_func_level_reset),
-		INIT_RESET_OPS("PCIe D0&D3 Reset", do_pcie_d0d3_reset),
-		INIT_RESET_OPS("PCIe Hot Reset", do_pcie_hot_reset),
-		INIT_RESET_OPS("PCIe Linkdown Reset", do_pcie_linkdown_reset),
-	};
-	int sel = rand() % ARRAY_SIZE(ops);
-	int ret;
-	
-	ret = ops[sel].reset(ndev);
-	if (ret < 0) {
-		if (ret == -EOPNOTSUPP) {
-			pr_warn("device not support %s!\n", ops[sel].name);
-			return 0;
-		}
-		pr_err("failed to do %s!(%d)\n", ops[sel].name, ret);
-		return ret;
-	}
-	pr_debug("do %s ok!\n", ops[sel].name);
-	return 0;
-}
-
-static int case_reset_all_random(struct nvme_tool *tool)
+static int do_io_cmd(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
 	struct nvme_cq_info *cq;
-	struct test_data *test = &g_test;
-	int loop = 50;
 	int ret;
-
-	ret = init_test_data(ndev, test);
-	if (ret < 0)
-		return ret;
 
 	cq = nvme_find_iocq_info(ndev, sq->cqid);
 	if (!cq) {
@@ -761,31 +512,194 @@ static int case_reset_all_random(struct nvme_tool *tool)
 		return -ENODEV;
 	}
 
-	do {
-		ret = create_ioq(ndev, sq, cq);
-		if (ret < 0)
-			return ret;
+	ret = create_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
 
-		ret = do_io_cmd(tool, sq);
-		if (ret < 0)
-			return ret;
+	ret |= do_io_read_cmd(tool, sq);
+	ret |= do_io_write_cmd(tool, sq);
+	ret |= do_io_copy_cmd(tool, sq);
 
-		ret = do_random_reset(ndev);
-		if (ret < 0)
-			return ret;
-
-		msleep(10);
-
-		ret = nvme_reinit(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE, 
-			NVME_INT_MSIX);
-		if (ret < 0)
-			return ret;
-	} while (--loop > 0);
-
+	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_SYMBOL(case_reset_all_random, 
-	"Randomly select one of the following reset types and repeat N times\n"
-	"\t NVMe Controller Reset / NVMe Subsystem Reset/ PCIe Function Level Reset\n"
-	"\t PCIe D0&D3 Reset / PCIe Hot Reset / PCIe Linkdown Reset");
-NVME_AUTOCASE_SYMBOL(case_reset_all_random);
+
+/**
+ * @brief Send commands during host memory buffer is enabled
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int subcase_hmb_work_normal(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_data *test = &g_test;
+	struct nvme_hmb_alloc *hmb_alloc;
+	struct nvme_hmb_wrapper wrap = {0};
+	uint32_t size = ALIGN(test->min_buf_size, test->page_size);
+	uint32_t entry = rand() % test->max_desc_entry + 1;
+	uint32_t i;
+	int ret, tmp;
+
+	hmb_alloc = zalloc(sizeof(struct nvme_hmb_alloc) + 
+		sizeof(uint32_t) * entry);
+	if (!hmb_alloc) {
+		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+	hmb_alloc->nr_desc = entry;
+
+	for (i = 0; i < entry; i++)
+		hmb_alloc->bsize[i] = size;
+
+	ret = nvme_alloc_host_mem_buffer(ndev->fd, hmb_alloc);
+	if (ret < 0)
+		goto free_hmb_alloc;
+
+	/* enable host memory buffer */
+	wrap.sel = NVME_FEAT_SEL_CUR;
+	wrap.dw11 = NVME_HOST_MEM_ENABLE;
+	wrap.hsize = entry * size;
+	wrap.hmdla = hmb_alloc->desc_list;
+	wrap.hmdlec = entry;
+
+	ret = nvme_set_feat_hmb(ndev, &wrap);
+	if (ret < 0)
+		goto free_hmb_buf;
+
+	ret = do_io_cmd(tool);
+	if (ret < 0)
+		goto disable_hmb;
+
+disable_hmb:
+	memset(&wrap, 0, sizeof(wrap));
+	wrap.sel = NVME_FEAT_SEL_CUR;
+
+	tmp = nvme_set_feat_hmb(ndev, &wrap);
+	if (tmp < 0) {
+		ret |= tmp;
+		/* skip release if device still using HMB? */
+		goto free_hmb_alloc;
+	}
+
+free_hmb_buf:
+	tmp = nvme_release_host_mem_buffer(ndev->fd);
+	if (tmp < 0)
+		ret |= tmp;
+free_hmb_alloc:
+	free(hmb_alloc);
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
+ * @brief Enable the host memory buffer repeatly
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ * 
+ * @note If the host memory buffer is enabled, then a Set Features command
+ * 	to enable the host memory buffer shall abort with a status code
+ * 	of Command Sequence Error.
+ */
+static int subcase_hmb_double_enable(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_data *test = &g_test;
+	struct nvme_hmb_alloc *hmb_alloc;
+	struct nvme_hmb_wrapper wrap = {0};
+	struct nvme_completion entry = {0};
+	uint32_t size = ALIGN(test->min_buf_size, test->page_size);
+	uint32_t nr_desc = rand() % test->max_desc_entry + 1;
+	uint32_t i;
+	uint16_t cid;
+	int ret, tmp;
+
+	hmb_alloc = zalloc(sizeof(struct nvme_hmb_alloc) + 
+		sizeof(uint32_t) * nr_desc);
+	if (!hmb_alloc) {
+		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+	hmb_alloc->nr_desc = nr_desc;
+
+	for (i = 0; i < nr_desc; i++)
+		hmb_alloc->bsize[i] = size;
+
+	ret = nvme_alloc_host_mem_buffer(ndev->fd, hmb_alloc);
+	if (ret < 0)
+		goto free_hmb_alloc;
+
+	/* enable host memory buffer */
+	wrap.sel = NVME_FEAT_SEL_CUR;
+	wrap.dw11 = NVME_HOST_MEM_ENABLE;
+	wrap.hsize = nr_desc * size;
+	wrap.hmdla = hmb_alloc->desc_list;
+	wrap.hmdlec = nr_desc;
+
+	ret = nvme_set_feat_hmb(ndev, &wrap);
+	if (ret < 0)
+		goto free_hmb_buf;
+
+	/* enable host memory buffer again */
+	ret = nvme_cmd_set_feat_hmb(ndev->fd, &wrap);
+	if (ret < 0)
+		goto disable_hmb;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		goto disable_hmb;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		ret = -ETIME;
+		goto disable_hmb;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_CMD_SEQ_ERROR);
+	if (ret < 0)
+		goto disable_hmb;
+
+disable_hmb:
+	memset(&wrap, 0, sizeof(wrap));
+	wrap.sel = NVME_FEAT_SEL_CUR;
+
+	tmp = nvme_set_feat_hmb(ndev, &wrap);
+	if (tmp < 0) {
+		ret |= tmp;
+		/* skip release if device still using HMB? */
+		goto free_hmb_alloc;
+	}
+
+free_hmb_buf:
+	tmp = nvme_release_host_mem_buffer(ndev->fd);
+	if (tmp < 0)
+		ret |= tmp;
+free_hmb_alloc:
+	free(hmb_alloc);
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+static int case_host_mem_buffer(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_data *test = &g_test;
+	int ret;
+
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
+		return ret;
+
+	ret |= subcase_hmb_work_normal(tool);
+	ret |= subcase_hmb_double_enable(tool);
+
+	nvme_display_subcase_report();
+	return ret;
+}
+NVME_CASE_CMD_SYMBOL(case_host_mem_buffer, 
+	"Test host memory buffer in various scenarios");

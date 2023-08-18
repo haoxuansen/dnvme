@@ -516,6 +516,67 @@ struct nvme_dsm_range {
 	__le64			slba;
 };
 
+/* ==================== nvme_cmd_resv_report(0x0e) ==================== */
+
+/**
+ * @brief Registered Controller Data Structure
+ * 
+ * @note
+ * 	1. See "struct nvme_resv_status -> regctl" for details.
+ * 	2. Refer to "NVM Express Base Specification R2.0b - Figure 406"
+ */
+struct nvme_reg_ctrl {
+	__le16	cntlid;
+	__u8	rcsts;
+	__u8	rsvd3[5];
+	__le64	hostid;
+	__le64	rkey;
+};
+
+/**
+ * @brief Registered Controller Extended Data Structure
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 407"
+ */
+struct nvme_reg_ctrl_extend {
+	__le16	cntlid;
+	__u8	rcsts;
+	__u8	rsvd3[5];
+	__le64	rkey;
+	__u8	hostid[16];
+	__u8	rsvd32[32];
+};
+
+/**
+ * @brief Reservation Status Data Structure
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 404"
+ */
+struct nvme_resv_status {
+	__le32			gen;
+	__u8			rtype;
+	__u8			regctl[2];
+	__u8			rsvd7[2];
+	__u8			ptpls;
+	__u8			rsvd10[14];
+	struct nvme_reg_ctrl	regctl_ds[0];
+};
+
+/**
+ * @brief Reservation Status Data Structure
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 405"
+ */
+struct nvme_resv_status_extend {
+	__le32			gen;
+	__u8			rtype;
+	__u8			regctl[2];
+	__u8			rsvd7[2];
+	__u8			ptpls;
+	__u8			rsvd10[54];
+	struct nvme_reg_ctrl_extend	regctl_ds[0];
+};
+
 
 /* ==================== nvme_cmd_copy(0x19) ==================== */
 

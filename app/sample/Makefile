@@ -3,16 +3,17 @@ RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 
 .DEFAULT_GOAL := build
 
-build: $(TARGETS)
+build: $(TGTS)
 ifeq ($(RELEASE_DIR_EXIST),yes)
-	$(Q)cp $(TARGETS) $(RELEASE_LIB_DIR)/
+	$(Q)cp $(TGTS) $(OUTPUT_DIR)/
 else
-	$(warning "$(RELEASE_LIB_DIR)" not exist!)
+	$(warning "$(OUTPUT_DIR)" not exist!)
 endif
 
 clean:
-	$(Q)rm -f $(TARGETS)
+	$(Q)rm -f $(OBJS)
 
 distclean: clean
+	$(Q)rm -f $(TGTS)
 
 .PHONY: build clean distclean

@@ -28,11 +28,11 @@ endif
 clean:
 	$(Q)make -C base $@
 	$(Q)make -C nvme $@
-	$(Q)-rm $(OBJS)
+	$(Q)rm -f $(OBJS)
 
 distclean:
 	$(Q)make -C base $@
 	$(Q)make -C nvme $@
-	$(Q)-rm $(OBJS) $(TARGETS)
+	$(Q)rm -f $(OBJS) $(TARGETS)
 
 .PHONY: build clean distclean

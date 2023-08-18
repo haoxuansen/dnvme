@@ -60,6 +60,9 @@ enum {
 	NVME_UNMASK_IRQ,
 
 	NVME_EMPTY_CMD_LIST,
+
+	NVME_ALLOC_HMB,
+	NVME_RELEASE_HMB,
 };
 
 enum nvme_region {
@@ -300,6 +303,12 @@ struct nvme_dev_public {
 	int		family;
 };
 
+struct nvme_hmb_alloc {
+	uint64_t	desc_list;	/* physical address */
+	uint32_t	nr_desc;	/* desciptor entry number */
+	uint32_t	bsize[0];	/* buffer size */
+};
+
 #define NVME_IOCTL_GET_SQ_INFO \
 	_IOWR('N', NVME_GET_SQ_INFO, struct nvme_sq_public)
 #define NVME_IOCTL_GET_CQ_INFO \
@@ -346,5 +355,10 @@ struct nvme_dev_public {
 #define NVME_IOCTL_MASK_IRQ		_IOW('N', NVME_MASK_IRQ, uint16_t)
 /* uint16_t: specified irq identify */
 #define NVME_IOCTL_UNMASK_IRQ		_IOW('N', NVME_UNMASK_IRQ, uint16_t)
+
+#define NVME_IOCTL_ALLOC_HMB \
+	_IOWR('N', NVME_ALLOC_HMB, struct nvme_hmb_alloc)
+#define NVME_IOCTL_RELEASE_HMB \
+	_IO('N', NVME_RELEASE_HMB)
 
 #endif /* !_UAPI_DNVME_H_ */

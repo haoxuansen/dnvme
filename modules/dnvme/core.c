@@ -172,6 +172,7 @@ void dnvme_cleanup_device(struct nvme_device *ndev, enum nvme_state state)
 	/* Clean Up the data structures */
 	dnvme_delete_all_queues(ndev, state);
 	dnvme_delete_meta_nodes(ndev);
+	dnvme_release_hmb(ndev);
 }
 
 /**
@@ -330,6 +331,14 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	case NVME_IOCTL_UNMASK_IRQ:
 		ret = dnvme_unmask_interrupt(&ndev->irq_set, (u16)arg);
+		break;
+
+	case NVME_IOCTL_ALLOC_HMB:
+		ret = dnvme_alloc_hmb(ndev, argp);
+		break;
+
+	case NVME_IOCTL_RELEASE_HMB:
+		ret = dnvme_release_hmb(ndev);
 		break;
 
 	default:

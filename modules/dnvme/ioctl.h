@@ -29,4 +29,7 @@ int dnvme_create_admin_queue(struct nvme_device *ndev,
 int dnvme_prepare_sq(struct nvme_device *ndev, struct nvme_prep_sq __user *uprep);
 int dnvme_prepare_cq(struct nvme_device *ndev, struct nvme_prep_cq __user *uprep);
 
+int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb);
+int dnvme_release_hmb(struct nvme_device *ndev);
+
 #endif /* !_DNVME_IOCTL_H_ */

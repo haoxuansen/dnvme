@@ -27,6 +27,22 @@
 
 #define BIT(x)				(1UL << (x))
 
+/**
+ * upper_32_bits - return bits 32-63 of a number
+ * @n: the number we're accessing
+ *
+ * A basic shift-right of a 64- or 32-bit quantity.  Use this to suppress
+ * the "right shift count >= width of type" warning when that quantity is
+ * 32-bits.
+ */
+#define upper_32_bits(n)		((u32)(((n) >> 16) >> 16))
+
+/**
+ * lower_32_bits - return bits 0-31 of a number
+ * @n: the number we're accessing
+ */
+#define lower_32_bits(n) 		((u32)((n) & 0xffffffff))
+
 #include "base/types.h"
 #include "base/limits.h"
 #include "base/bitops.h"

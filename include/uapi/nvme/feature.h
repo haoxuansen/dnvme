@@ -36,22 +36,23 @@ enum {
 	NVME_FEAT_KATO		= 0x0f,
 	NVME_FEAT_HCTM		= 0x10,
 	NVME_FEAT_NOPSC		= 0x11,
-	NVME_FEAT_RRL		= 0x12,
-	NVME_FEAT_PLM_CONFIG	= 0x13,
-	NVME_FEAT_PLM_WINDOW	= 0x14,
-	NVME_FEAT_HOST_BEHAVIOR	= 0x16,
-	NVME_FEAT_SANITIZE	= 0x17,
-	NVME_FEAT_EGRP_EVENT	= 0x18,
-	NVME_FEAT_IOCS_PROFILE	= 0x19,
-	NVME_FEAT_SPINUP_CTRL	= 0x1a,
-	NVME_FEAT_ECTRL_META	= 0x7d,
-	NVME_FEAT_CTRL_META	= 0x7e,
-	NVME_FEAT_NS_META	= 0x7f,
-	NVME_FEAT_SW_PROGRESS	= 0x80,
-	NVME_FEAT_HOST_ID	= 0x81,
-	NVME_FEAT_RESV_MASK	= 0x82,
-	NVME_FEAT_RESV_PERSIST	= 0x83,
-	NVME_FEAT_WRITE_PROTECT	= 0x84,
+	NVME_FEAT_RRL		= 0x12, /* R1.4 */
+	NVME_FEAT_PLM_CONFIG	= 0x13, /* R1.4 */
+	NVME_FEAT_PLM_WINDOW	= 0x14, /* R1.4 */
+	NVME_FEAT_LBA_STS_RI	= 0x15, /* R1.4 */
+	NVME_FEAT_HOST_BEHAVIOR	= 0x16, /* R1.4 */
+	NVME_FEAT_SANITIZE	= 0x17, /* R1.4 */
+	NVME_FEAT_EGRP_EVENT	= 0x18, /* R1.4 */
+	NVME_FEAT_IOCS_PROFILE	= 0x19, /* R2.0 */
+	NVME_FEAT_SPINUP_CTRL	= 0x1a, /* R2.0 */
+	NVME_FEAT_ECTRL_META	= 0x7d, /* R2.0 */
+	NVME_FEAT_CTRL_META	= 0x7e, /* R2.0 */
+	NVME_FEAT_NS_META	= 0x7f, /* R2.0 */
+	NVME_FEAT_SW_PROGRESS	= 0x80, /* R2.0 */
+	NVME_FEAT_HOST_ID	= 0x81, /* R2.0 */
+	NVME_FEAT_RESV_MASK	= 0x82, /* R2.0 */
+	NVME_FEAT_RESV_PERSIST	= 0x83, /* R2.0 */
+	NVME_FEAT_WRITE_PROTECT	= 0x84, /* R2.0 */
 	NVME_FEAT_VENDOR_START	= 0xC0,
 	NVME_FEAT_VENDOR_END	= 0xFF,
 };
@@ -91,6 +92,43 @@ struct nvme_features {
 /* bit[4:0] Power State */
 #define NVME_POWER_MGMT_FOR_PS(ps)	(((ps) & 0x1f) << 0)
 #define NVME_POWER_MGMT_TO_PS(dw)	(((dw) >> 0) & 0x1f)
+
+/* ==================== NVME_FEAT_LBA_RANGE(0x03) ==================== */
+
+/**
+ * @note See "struct nvme_lba_range_type -> type" for details
+ */
+enum {
+	NVME_LBART_TYPE_GENERAL	= 0x00, /* General Purpose */
+	NVME_LBART_TYPE_FS	= 0x01, /* Filesystem */
+	NVME_LBART_TYPE_RAID	= 0x02,
+	NVME_LBART_TYPE_CACHE	= 0x03,
+	NVME_LBART_TYPE_SWAP	= 0x04,
+};
+
+/**
+ * @note See "struct nvme_lba_range_type -> attr" for details
+ */
+enum {
+	NVME_LBART_ATTR_TEMP	= 1 << 0,
+	NVME_LBART_ATTR_HIDE	= 1 << 1,
+};
+
+/**
+ * @brief LBA Range Type - Data Structure Entry
+ * 
+ * @note Refer to "NVM Express NVM Command Set Specification R1.0b - Figure 83"
+ */
+struct nvme_feat_lba_range_type {
+	__u8			type;
+	__u8			attr;
+	__u8			rsvd2[14];
+	__le64			slba;
+	__le64			nlb;
+	__u8			guid[16];
+	__u8			rsvd48[16];
+};
+
 
 /* ==================== NVME_FEAT_TEMP_THRESH(0x04) ==================== */
 
@@ -140,6 +178,31 @@ struct nvme_feat_auto_pst {
 enum {
 	NVME_HOST_MEM_ENABLE	= 1 << 0,
 	NVME_HOST_MEM_RETURN	= 1 << 1,
+};
+
+
+/**
+ * @brief Host Memory Buffer Descriptor
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 336"
+ */
+struct nvme_feat_hmb_descriptor {
+	__le64			addr;
+	__le32			size;
+	__u8			rsvd12[4];
+};
+
+/**
+ * @brief Host Memory Buffer - Attribute Data Structure
+ * 
+ * @note Refer to "NVM Express Base Specification R2.0b - Figure 338"
+ */
+struct nvme_feat_hmb_attribute {
+	__le32		hsize;
+	__le32		hmdlal;
+	__le32		hmdlau;
+	__le32		hmdlec;
+	__u8		rsvd16[4080];
 };
 
 /* ==================== NVME_FEAT_HOST_BEHAVIOR(0x16) ==================== */
