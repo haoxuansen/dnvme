@@ -712,7 +712,7 @@ struct nvme_zone_mgmt_recv_cmd {
 	__le64			rsvd2[2];
 	union nvme_data_ptr	dptr;
 	__le64			slba;
-	__le32			numd;
+	__le32			numd; /* 0's based */
 	__u8			zra;
 	__u8			zrasf;
 	__u8			pr;

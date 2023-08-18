@@ -12,8 +12,9 @@
 #ifndef _UAPI_LIBNVME_H_
 #define _UAPI_LIBNVME_H_
 
-#include "nvme/cmd.h"
 #include "nvme/core.h"
+#include "nvme/cmd.h"
+#include "nvme/cmd_zns.h"
 #include "nvme/directive.h"
 #include "nvme/identify.h"
 #include "nvme/ioctl.h"
