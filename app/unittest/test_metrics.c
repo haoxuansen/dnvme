@@ -21,7 +21,6 @@
 #include <malloc.h>
 #include <stdint.h>
 
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

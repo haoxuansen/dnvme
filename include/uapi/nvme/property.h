@@ -115,6 +115,7 @@ enum {
 #define NVME_CC_CSS_NVM			0
 #define NVME_CC_CSS_CSI			6
 #define NVME_CC_CSS_ADMIN		7
+#define NVME_CC_CSS_MASK		NVME_CC_FOR_CSS(0x7)
 
 #define NVME_CC_FOR_MPS(mps)		(((mps) & 0xf) << 7)
 #define NVME_CC_TO_MPS(cc)		(((cc) >> 7) & 0xf)

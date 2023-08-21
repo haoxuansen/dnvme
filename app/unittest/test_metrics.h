@@ -11,7 +11,6 @@
 #ifndef _TEST_METRICS_H_
 #define _TEST_METRICS_H_
 
-#include "dnvme.h"
 #include "libnvme.h"
 
 #define DEFAULT_IO_QUEUE_SIZE (65535)

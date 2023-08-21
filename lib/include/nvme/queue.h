@@ -12,17 +12,9 @@
 #ifndef _UAPI_LIB_NVME_QUEUE_H_
 #define _UAPI_LIB_NVME_QUEUE_H_
 
-#include <stdint.h>
-#include <sys/mman.h>
-
-#include "dnvme.h"
-#include "ioctl.h"
-
 /* Create IO Queue Flags */
 #define NVME_CIOQ_F_CQS_BIND_SINGLE_IRQ	(1 << 0)
 #define NVME_CIOQ_F_SQS_BIND_SINGLE_CQ	(1 << 1)
-
-struct nvme_dev_info;
 
 /**
  * @brief For create submission queue
@@ -47,25 +39,6 @@ struct nvme_ccq_wrapper {
 	uint8_t		irq_en;
 	uint8_t		contig;
 	void		*buf;
-	uint32_t	size;
-};
-
-/*
- * @cmd_cnt: Records the number of commands submitted to the queue, 
- * 	excluding those that have been executed and retrieved CQE.
- */
-struct nvme_sq_info {
-	uint16_t	sqid;
-	uint16_t	cqid;
-	uint32_t	size;
-
-	uint16_t	cmd_cnt;
-};
-
-struct nvme_cq_info {
-	uint16_t	cqid;
-	uint16_t	irq_no;
-	uint8_t		irq_en;
 	uint32_t	size;
 };
 

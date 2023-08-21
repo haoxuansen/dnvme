@@ -23,7 +23,6 @@
 #include <ctype.h>
 #include <malloc.h>
 
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

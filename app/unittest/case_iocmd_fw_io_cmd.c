@@ -4,7 +4,6 @@
 #include <malloc.h>
 #include <string.h>
 
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

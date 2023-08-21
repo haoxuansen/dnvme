@@ -16,7 +16,6 @@
 
 #include "libbase.h"
 #include "byteorder.h"
-#include "dnvme.h"
 #include "pci_ids_ext.h"
 #include "pci_regs_ext.h"
 

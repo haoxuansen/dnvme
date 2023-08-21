@@ -12,8 +12,6 @@
 #ifndef _UAPI_LIB_NVME_DIRECTIVE_H_
 #define _UAPI_LIB_NVME_DIRECTIVE_H_
 
-#include "core.h"
-
 int nvme_cmd_dir_rcv_id_param(struct nvme_dev_info *ndev, 
 	struct nvme_dir_identify_params *param, uint32_t nsid);
 

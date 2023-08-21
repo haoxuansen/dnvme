@@ -16,7 +16,6 @@
 #include <unistd.h>
 
 #include "byteorder.h"
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

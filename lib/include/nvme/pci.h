@@ -12,11 +12,6 @@
 #ifndef _UAPI_LIB_NVME_PCI_H_
 #define _UAPI_LIB_NVME_PCI_H_
 
-#include <stdint.h>
-
-#include "dnvme.h"
-#include "ioctl.h"
-
 static inline int pci_read_config_data(int fd, uint32_t oft, uint32_t len, void *buf)
 {
 	return nvme_read_generic(fd, NVME_PCI_CONFIG, oft, len, buf);

@@ -21,7 +21,6 @@
 #include <linux/genetlink.h>
 
 #include "compiler.h"
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

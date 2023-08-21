@@ -15,8 +15,8 @@
 #include <malloc.h>
 #include <string.h>
 
-#include "dnvme.h"
 #include "libbase.h"
+#include "libnvme.h"
 #include "test.h"
 #include "unittest.h"
 #include "test_metrics.h"

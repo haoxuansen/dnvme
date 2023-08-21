@@ -531,7 +531,7 @@ struct nvme_id_ns_nvm {
  */
 struct nvme_zns_lbafe {
 	__le64			zsze;
-	__u8			zdes;
+	__u8			zdes; /* in 64B units */
 	__u8			rsvd9[7];
 };
 
@@ -549,9 +549,14 @@ struct nvme_id_ns_zns {
 	__le32			mor;
 	__le32			rrl;
 	__le32			frl;
-	__u8			rsvd20[2796];
-	struct nvme_zns_lbafe	lbafe[16];
-	__u8			rsvd3072[768];
+	__le32			rrl1;
+	__le32			rrl2;
+	__le32			rrl3;
+	__le32			frl1;
+	__le32			frl2;
+	__le32			frl3;
+	__u8			rsvd44[2772];
+	struct nvme_zns_lbafe	lbafe[64];
 	__u8			vs[256];
 };
 

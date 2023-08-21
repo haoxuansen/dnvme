@@ -12,9 +12,6 @@
 #ifndef _UAPI_LIB_NVME_IOCTL_H_
 #define _UAPI_LIB_NVME_IOCTL_H_
 
-#include <stdint.h>
-#include "dnvme.h"
-
 void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type);
 
 int nvme_get_dev_info(int fd, struct nvme_dev_public *pub);
@@ -45,6 +42,12 @@ static inline int nvme_read_ctrl_property(int fd, uint32_t oft, uint32_t len,
 	return nvme_read_generic(fd, NVME_BAR0_BAR1, oft, len, buf);
 }
 
+static inline int nvme_write_ctrl_property(int fd, uint32_t oft, uint32_t len,
+	void *buf)
+{
+	return nvme_write_generic(fd, NVME_BAR0_BAR1, oft, len, buf);
+}
+
 static inline int nvme_read_ctrl_cap(int fd, uint64_t *val)
 {
 	return nvme_read_ctrl_property(fd, NVME_REG_CAP, 8, val);
@@ -60,10 +63,9 @@ static inline int nvme_read_ctrl_cc(int fd, uint32_t *val)
 	return nvme_read_ctrl_property(fd, NVME_REG_CC, 4, val);
 }
 
-static inline int nvme_write_ctrl_property(int fd, uint32_t oft, uint32_t len,
-	void *buf)
+static inline int nvme_write_ctrl_cc(int fd, uint32_t val)
 {
-	return nvme_write_generic(fd, NVME_BAR0_BAR1, oft, len, buf);
+	return nvme_write_ctrl_property(fd, NVME_REG_CC, 4, &val);
 }
 
 int nvme_set_device_state(int fd, enum nvme_state state);

@@ -12,12 +12,6 @@
 #ifndef _UAPI_LIB_NVME_META_H_
 #define _UAPI_LIB_NVME_META_H_
 
-#include <stdint.h>
-#include <sys/mman.h>
-
-#include "dnvme.h"
-#include "ioctl.h"
-
 int nvme_create_meta_node(int fd, struct nvme_meta_create *mc);
 int nvme_delete_meta_node(int fd, uint16_t id);
 

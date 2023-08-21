@@ -12,9 +12,6 @@
 #ifndef _UAPI_LIB_NVME_NETLINK_H_
 #define _UAPI_LIB_NVME_NETLINK_H_
 
-#include <stdint.h>
-#include "core.h"
-
 int nvme_gnl_cmd_reap_cqe_timeout(struct nvme_dev_info *ndev, uint16_t cqid,
 	uint32_t expect, void *buf, uint32_t size, int timeout);
 

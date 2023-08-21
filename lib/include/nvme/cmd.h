@@ -12,12 +12,6 @@
 #ifndef _UAPI_LIB_NVME_CMD_H_
 #define _UAPI_LIB_NVME_CMD_H_
 
-#include <stdint.h>
-
-#include "byteorder.h"
-#include "dnvme.h"
-#include "core.h"
-
 /**
  * @brief For nvme_rw_command
  * 

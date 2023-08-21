@@ -15,6 +15,8 @@
 int nvme_ctrl_support_copy_cmd(struct nvme_ctrl_instance *ctrl);
 int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl);
 
+int nvme_ns_support_zns_command_set(struct nvme_ns_instance *ns);
+
 int nvme_id_ctrl_npss(struct nvme_ctrl_instance *ctrl);
 int nvme_id_ctrl_vid(struct nvme_ctrl_instance *ctrl);
 int nvme_id_ctrl_hmminds(struct nvme_ctrl_instance *ctrl, uint32_t *hmminds);

@@ -260,11 +260,6 @@ static int prepare_meta_config(struct nvme_dev_info *ndev,
 	dw10 &= ~NVME_FMT_SES_MASK;
 	dw10 |= NVME_FMT_SES_USER;
 	
-	ret = nvme_update_ns_info(ndev, ns);
-	if (ret < 0)
-		return ret;
-	pr_debug("update ns info ok!\n");
-	
 	ret = nvme_format_nvm(ndev, ns->nsid, 0, dw10);
 	if (ret < 0) {
 		pr_err("failed to format ns:0x%x!(%d)\n", ns->nsid, ret);
@@ -272,7 +267,7 @@ static int prepare_meta_config(struct nvme_dev_info *ndev,
 	}
 	pr_debug("format ns ok!\n");
 	
-	ret = nvme_update_ns_info(ndev, ns);
+	ret = nvme_update_ns_instance(ndev, ns, NVME_EVT_FORMAT_NVM);
 	if (ret < 0)
 		return ret;
 	

@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

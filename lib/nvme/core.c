@@ -109,7 +109,8 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_zone_descriptor) != 64);
 }
 
-int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_instance *ns)
+int nvme_update_ns_instance(struct nvme_dev_info *ndev, 
+		struct nvme_ns_instance *ns, enum nvme_event evt)
 {
 	struct nvme_id_ns *id_ns = ns->id_ns;
 	int ret;
@@ -320,22 +321,7 @@ static int init_id_cs_ctrl(struct nvme_dev_info *ndev,
 			}
 		}
 
-	} else if ((cap_css & NVME_CAP_CSS_NVM) && (cc_css == NVME_CC_CSS_NVM)) {
-		ctrl->id_ctrl_nvm = zalloc(sizeof(struct nvme_id_ctrl_nvm));
-		if (!ctrl->id_ctrl_nvm) {
-			pr_err("failed to alloc memory!\n");
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		ret = nvme_identify_cs_ctrl(ndev, ctrl->id_ctrl_nvm, 
-			sizeof(struct nvme_id_ctrl_nvm), NVME_CSI_NVM);
-		if (ret < 0) {
-			pr_err("failed to get NVM cmd set identify "
-				"ctrl data!(%d)\n", ret);
-			goto out;
-		}
-	}
+	} 
 
 	return 0;
 out:

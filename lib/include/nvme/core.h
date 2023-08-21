@@ -12,12 +12,9 @@
 #ifndef _UAPI_LIB_NVME_CORE_H_
 #define _UAPI_LIB_NVME_CORE_H_
 
-#include <stdint.h>
-#include <unistd.h>
-
-#include "pci_caps.h"
-#include "dnvme.h"
-#include "queue.h"
+enum nvme_event {
+	NVME_EVT_FORMAT_NVM,
+};
 
 /*
  * @nsid: Namespace identifier
@@ -76,6 +73,25 @@ struct nvme_ctrl_instance {
 	struct nvme_id_ctrl_csc *id_ctrl_csc;
 };
 
+/*
+ * @cmd_cnt: Records the number of commands submitted to the queue, 
+ * 	excluding those that have been executed and retrieved CQE.
+ */
+struct nvme_sq_info {
+	uint16_t	sqid;
+	uint16_t	cqid;
+	uint32_t	size;
+
+	uint16_t	cmd_cnt;
+};
+
+struct nvme_cq_info {
+	uint16_t	cqid;
+	uint16_t	irq_no;
+	uint8_t		irq_en;
+	uint32_t	size;
+};
+
 /**
  * @brief NVMe device information
  * 
@@ -123,6 +139,7 @@ void nvme_deinit(struct nvme_dev_info *ndev);
 int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz, 
 	enum nvme_irq_type type);
 
-int nvme_update_ns_info(struct nvme_dev_info *ndev, struct nvme_ns_instance *ns);
+int nvme_update_ns_instance(struct nvme_dev_info *ndev, 
+		struct nvme_ns_instance *ns, enum nvme_event evt);
 
 #endif /* !_UAPI_LIB_NVME_CORE_H_ */

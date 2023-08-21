@@ -6,7 +6,6 @@
 #include <string.h>
 #include <errno.h>
 
-#include "dnvme.h"
 #include "libbase.h"
 #include "libnvme.h"
 

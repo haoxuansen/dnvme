@@ -12,6 +12,13 @@
 #ifndef _UAPI_LIBNVME_H_
 #define _UAPI_LIBNVME_H_
 
+#include <stdint.h> /* for "uint32_t" ... */
+#include <sys/mman.h> /** for "@mmap" */
+
+#include "byteorder.h"
+#include "pci_caps.h"
+#include "dnvme.h"
+
 #include "nvme/core.h"
 #include "nvme/cmd.h"
 #include "nvme/cmd_zns.h"

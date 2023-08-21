@@ -52,6 +52,25 @@ int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl)
 }
 
 /**
+ * @brief Check whether the namespace supports ZNS Command Set.
+ * 
+ * @return Details are listed below.
+ * 	1: support zns command set.
+ * 	0: don't support zns command set.
+ * 	-ENODEV: namespace identify descirptor not exist.
+ */
+int nvme_ns_support_zns_command_set(struct nvme_ns_instance *ns)
+{
+	uint8_t csi;
+
+	if (!ns->ns_id_desc_raw || !ns->ns_id_desc[NVME_NIDT_CSI])
+		return -ENODEV;
+
+	csi = ns->ns_id_desc[NVME_NIDT_CSI]->nid[0];
+	return (csi & NVME_CSI_ZNS) ? 1 : 0;
+}
+
+/**
  * @return The number of NVMe power states supported by the controller,
  * 	otherwise a negative errno
  * 
