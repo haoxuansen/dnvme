@@ -1,0 +1,49 @@
+#!/bin/bash
+
+TOP_DIR=`pwd`
+OUTPUT_DIR=$TOP_DIR/output
+
+source $TOP_DIR/scripts/log.sh
+
+# --------------------------------------------------------------------------- #
+# Function
+# --------------------------------------------------------------------------- #
+
+# $1: parameter to be parsed
+parse_param()
+{
+	local key=${1%%=*}
+	local value=${1#*=}
+
+	if [[ "$key" = "devnode" ]]; then
+		NVME_DEV_NODE=$value
+	fi
+}
+
+display_configuration()
+{
+	NOTICE "==================== Configuration List ===================="
+	INFO "\t devnode: $NVME_DEV_NODE"
+}
+
+# --------------------------------------------------------------------------- #
+# Default
+# --------------------------------------------------------------------------- #
+NVME_DEV_NODE=/dev/nvme0
+
+# --------------------------------------------------------------------------- #
+# Execute
+# --------------------------------------------------------------------------- #
+
+for arg in $@ ; do
+	parse_param $arg
+done
+
+display_configuration
+
+make distclean
+make
+pushd $OUTPUT_DIR
+	./insmod.sh
+	./nvmetool $NVME_DEV_NODE
+popd

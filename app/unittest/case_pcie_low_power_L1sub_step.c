@@ -26,6 +26,7 @@ void pcie_L11_enable(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
 
     // RC enable L1
@@ -39,18 +40,19 @@ void pcie_L11_enable(void)
 
     // EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_L11_disable(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
 
     // EP disable L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     // EP disable L1.1
     system("setpci -s 2:0.0 1d8.b=00");
@@ -66,16 +68,18 @@ void pcie_L12_enable(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
     int ret;
     uint32_t u32_tmp_data = 0;
     uint32_t reg_data = 0;
     // get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x28, &reg_data);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x28, &reg_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data = reg_data | 0x400; // bit[10] LTR enable
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x28, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, exp_oft + 0x28, 4, (uint8_t *)&u32_tmp_data);
 
     // RC enable L1
     system("setpci -s 0:1b.4 50.b=42");
@@ -88,18 +92,19 @@ void pcie_L12_enable(void)
 
     // EP enable L1
     u32_tmp_data = reg_value | 0x02;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, exp_oft + 0x10, 4, (uint8_t *)&u32_tmp_data);
 }
 
 void pcie_L12_disable(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
 
     // EP disable L1
     u32_tmp_data = reg_value;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
 
     // EP disable L1.2
     system("setpci -s 2:0.0 188.b=00");
@@ -115,6 +120,7 @@ static void test_sub(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     int cmds;
     int ret;
     uint32_t tmp;
@@ -179,7 +185,7 @@ static void test_sub(void)
     //clkreq# rise
     pr_info("\nL1.2 exit then enter\n");
 
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &tmp);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &tmp);
     if (ret < 0)
     	exit(-1);
 
@@ -193,6 +199,8 @@ static void test_sub(void)
 static int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;
@@ -201,7 +209,7 @@ static int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -210,7 +218,7 @@ static int case_pcie_low_power_L1sub_step(struct nvme_tool *tool)
     pr_info("\nPower up linked status: Gen%d, X%d\n", speed, width);
 
     // get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &reg_value);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x10, &reg_value);
     if (ret < 0)
     	exit(-1);
 

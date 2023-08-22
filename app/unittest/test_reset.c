@@ -148,7 +148,7 @@ static int init_test_data_for_cmd_copy(struct nvme_dev_info *ndev,
 	uint32_t sum = 0;
 	uint64_t start = 0;
 	uint32_t entry;
-	uint32_t i;
+	uint32_t i, j;
 	uint16_t limit = min_t(uint64_t, data->nsze / 4, 256);
 	int ret;
 
@@ -161,7 +161,7 @@ static int init_test_data_for_cmd_copy(struct nvme_dev_info *ndev,
 		return ret;
 	}
 
-	for (i = 0; i < TEST_IO_CMD_ROUND; i++) {
+	for (j = 0; j < TEST_IO_CMD_ROUND; j++) {
 		entry = rand() % data->msrc + 1; /* 1~msrc */
 
 		copy = zalloc(sizeof(struct test_cmd_copy) +
@@ -203,7 +203,7 @@ static int init_test_data_for_cmd_copy(struct nvme_dev_info *ndev,
 		if (ret < 0)
 			goto out;
 
-		data->copy[i] = copy;
+		data->copy[j] = copy;
 	}
 
 	return 0;
@@ -407,7 +407,51 @@ static int do_nvme_ctrl_reset(struct nvme_dev_info *ndev)
 
 static int do_nvme_subsystem_reset(struct nvme_dev_info *ndev)
 {
-	return nvme_reset_subsystem(ndev->fd);
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint32_t bar[6];
+	uint16_t cmd, bkup;
+	int fd = ndev->fd;
+	int ret;
+
+	if (nvme_is_maxio_falcon_lite(pdev))
+		return nvme_reset_subsystem(ndev->fd);
+
+	/* backup register data */
+	ret = pci_read_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+
+	/* do subsystem reset */
+	ret = nvme_reset_subsystem(ndev->fd);
+	if (ret < 0)
+		return ret;
+	msleep(100);
+
+	/* restore register data */
+	ret = pci_hd_read_command(fd, &cmd);
+	if (ret < 0)
+		return ret;
+
+	cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
+	cmd |= bkup;
+	ret = pci_hd_write_command(fd, cmd);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_write_config_data(fd, PCI_BASE_ADDRESS_0, sizeof(bar), bar);
+	if (ret < 0)
+		return ret;
+
+	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 /**
@@ -489,31 +533,33 @@ static int pcie_do_flr_legacy(int fd, uint8_t pxcap)
 
 static int do_pcie_func_level_reset(struct nvme_dev_info *ndev)
 {
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
 	int ret;
 
-	ret = pcie_is_support_flr(ndev->fd, ndev->express.offset);
+	ret = pcie_is_support_flr(ndev->fd, exp_oft);
 	if (ret < 0)
 		return ret;
 	else if (ret == 0)
 		return -EOPNOTSUPP;
 
-	return pcie_do_flr_legacy(ndev->fd, ndev->express.offset);
+	return pcie_do_flr_legacy(ndev->fd, exp_oft);
 	// return pcie_do_flr(ndev->fd);
 }
 
 static int do_pcie_d0d3_reset(struct nvme_dev_info *ndev)
 {
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t pm_oft = pdev->pm.offset;
 	int ret;
 
-	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
-		PCI_PM_CTRL_STATE_D3HOT);
+	ret = pcie_set_power_state(ndev->fd, pm_oft, PCI_PM_CTRL_STATE_D3HOT);
 	if (ret < 0) {
 		pr_err("failed to set D3 hot state!\n");
 		return ret;
 	}
 
-	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset,
-		PCI_PM_CTRL_STATE_D0);
+	ret = pcie_set_power_state(ndev->fd, pm_oft, PCI_PM_CTRL_STATE_D0);
 	if (ret < 0) {
 		pr_err("failed to set D0 state!\n");
 		return ret;

@@ -18,6 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 
+#include "pci_ids_ext.h"
 #include "dnvme.h"
 #include "io.h"
 #include "core.h"
@@ -84,12 +85,17 @@ static int dnvme_set_ctrl_state(struct nvme_device *ndev, bool enabled)
 
 static int dnvme_reset_subsystem(struct nvme_device *ndev)
 {
+	struct pci_dev *pdev = ndev->pdev;
 	void __iomem *bar0 = ndev->bar[0];
 	u32 rstval = 0x4e564d65; /* "NVMe" */
 
 	dnvme_writel(bar0, NVME_REG_NSSR, rstval);
 
-	return dnvme_wait_ready(ndev, false);
+	if (pdev->vendor == PCI_VENDOR_ID_MAXIO && 
+			pdev->device == PCI_DEVICE_ID_FALCON_LITE)
+		return dnvme_wait_ready(ndev, false);
+
+	return 0;
 }
 
 int dnvme_set_device_state(struct nvme_device *ndev, enum nvme_state state)

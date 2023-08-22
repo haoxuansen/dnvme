@@ -764,51 +764,62 @@ static void deinit_ns_group(struct nvme_dev_info *ndev)
 	ndev->ns_grp = NULL;
 }
 
-static int init_capability(struct nvme_dev_info *ndev)
+static int init_pci_dev_instance(struct nvme_dev_info *ndev)
 {
-	int ret;
-
-	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_MSI, 
-					&ndev->msi, sizeof(ndev->msi));
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_MSIX,
-					&ndev->msix, sizeof(ndev->msix));
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_PM,
-					&ndev->pm, sizeof(ndev->pm));
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_get_pci_capability(ndev->fd, PCI_CAP_ID_EXP,
-					&ndev->express, sizeof(ndev->express));
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int check_link_status(struct nvme_dev_info *ndev)
-{
-	int ret;
+	struct pci_dev_instance *pdev = NULL;
 	uint16_t link_sts;
+	int fd = ndev->fd;
+	int ret;
 
-	ret = pci_exp_read_link_status(ndev->fd, ndev->express.offset, &link_sts);
-	if (ret < 0) {
-		pr_err("failed to read link status reg!(%d)\n", ret);
-		return ret;
+	pdev = zalloc(sizeof(*pdev));
+	if (!pdev) {
+		pr_err("failed to alloc memory!\n");
+		return -ENOMEM;
 	}
 
-	ndev->link_speed = link_sts & PCI_EXP_LNKSTA_CLS;
-	ndev->link_width = (link_sts & PCI_EXP_LNKSTA_NLW) >> 
+	ret = pci_hd_read_vendor_id(fd, &pdev->vendor_id);
+	ret |= pci_hd_read_device_id(fd, &pdev->device_id);
+
+	ret |= nvme_get_pci_capability(fd, PCI_CAP_ID_MSI, 
+					&pdev->msi, sizeof(pdev->msi));
+	ret |= nvme_get_pci_capability(fd, PCI_CAP_ID_MSIX,
+					&pdev->msix, sizeof(pdev->msix));
+	ret |= nvme_get_pci_capability(fd, PCI_CAP_ID_PM,
+					&pdev->pm, sizeof(pdev->pm));
+	ret |= nvme_get_pci_capability(fd, PCI_CAP_ID_EXP,
+					&pdev->express, sizeof(pdev->express));
+	if (ret < 0)
+		goto free_pdev;
+
+	ret = pci_exp_read_link_status(fd, pdev->express.offset, &link_sts);
+	if (ret < 0) {
+		pr_err("failed to read link status reg!(%d)\n", ret);
+		goto free_pdev;
+	}
+	pdev->link_speed = link_sts & PCI_EXP_LNKSTA_CLS;
+	pdev->link_width = (link_sts & PCI_EXP_LNKSTA_NLW) >> 
 		PCI_EXP_LNKSTA_NLW_SHIFT;
 
 	pr_info("Current Link Speed: Gen%u, Width: x%u\n", 
-		ndev->link_speed, ndev->link_width);
+		pdev->link_speed, pdev->link_width);
+
+	ndev->pdev = pdev;
 	return 0;
+
+free_pdev:
+	free(pdev);
+	return ret;
+}
+
+static void deinit_pci_dev_instance(struct nvme_dev_info *ndev)
+{
+	if (!ndev->pdev) {
+		pr_warn("double free? pci device isn't exist!\n");
+		return;
+	}
+
+	free(ndev->pdev);
+	ndev->pdev = NULL;
 }
 
 /**
@@ -903,11 +914,7 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		goto exit_ioq;
 
-	ret = init_capability(ndev);
-	if (ret < 0)
-		goto exit_ns_group;
-
-	ret = check_link_status(ndev);
+	ret = init_pci_dev_instance(ndev);
 	if (ret < 0)
 		goto exit_ns_group;
 
@@ -923,6 +930,7 @@ exit_ctrl_instance:
 
 static void nvme_release_stage2(struct nvme_dev_info *ndev)
 {
+	deinit_pci_dev_instance(ndev);
 	deinit_ns_group(ndev);
 	nvme_deinit_ioq_info(ndev);
 	deinit_ctrl_instance(ndev, NVME_INIT_STAGE2);

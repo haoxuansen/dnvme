@@ -16,6 +16,19 @@ enum nvme_event {
 	NVME_EVT_FORMAT_NVM,
 };
 
+struct pci_dev_instance {
+	uint16_t		vendor_id;
+	uint16_t		device_id;
+
+	uint32_t		link_speed;
+	uint32_t		link_width;
+
+	struct pci_cap_pm	pm;
+	struct pci_cap_express	express;
+	struct pci_cap_msi	msi;
+	struct pci_cap_msix	msix;
+};
+
 /*
  * @nsid: Namespace identifier
  * @fmt_idx: The format index was used to format the namespace
@@ -116,22 +129,21 @@ struct nvme_dev_info {
 	uint8_t		io_sqes;
 	uint8_t		io_cqes;
 
+	struct pci_dev_instance		*pdev;
 	struct nvme_ns_group		*ns_grp;
 	struct nvme_ctrl_instance	*ctrl;
-
-	uint32_t	link_speed;
-	uint32_t	link_width;
-
-	struct pci_cap_pm	pm;
-	struct pci_cap_express	express;
-	struct pci_cap_msi	msi;
-	struct pci_cap_msix	msix;
 
 	enum nvme_irq_type	irq_type;
 	uint16_t		nr_irq;
 
 	struct nvme_dev_public	dev_pub;
 };
+
+static inline int nvme_is_maxio_falcon_lite(struct pci_dev_instance *pdev)
+{
+	return (pdev->vendor_id == PCI_VENDOR_ID_MAXIO && 
+		pdev->device_id == PCI_DEVICE_ID_FALCON_LITE) ? 1 : 0;
+}
 
 struct nvme_dev_info *nvme_init(const char *devpath);
 void nvme_deinit(struct nvme_dev_info *ndev);

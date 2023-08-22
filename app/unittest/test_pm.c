@@ -15,10 +15,6 @@
 #include <errno.h>
 
 #include "libbase.h"
-#include "byteorder.h"
-#include "pci_ids_ext.h"
-#include "pci_regs_ext.h"
-
 #include "libnvme.h"
 #include "test.h"
 
@@ -157,9 +153,10 @@ NVME_CASE_PM_SYMBOL(case_pm_switch_power_state,
 static int case_pm_set_d0_state(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
 	int ret;
 
-	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
+	ret = pcie_set_power_state(ndev->fd, pdev->pm.offset, 
 		PCI_PM_CTRL_STATE_D0);
 	if (ret < 0) {
 		pr_err("failed to set PCIe power state to D0!(%d)\n", ret);
@@ -172,9 +169,10 @@ NVME_CASE_PM_SYMBOL(case_pm_set_d0_state, "Set PCIe power state to D0");
 static int case_pm_set_d3hot_state(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
 	int ret;
 
-	ret = pcie_set_power_state(ndev->fd,  ndev->pm.offset, 
+	ret = pcie_set_power_state(ndev->fd, pdev->pm.offset, 
 		PCI_PM_CTRL_STATE_D3HOT);
 	if (ret < 0) {
 		pr_err("failed to set PCIe power state to D3 hot!(%d)\n", ret);

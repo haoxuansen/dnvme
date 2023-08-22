@@ -38,6 +38,8 @@ static void set_pcie_mps_128(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -45,15 +47,15 @@ static void set_pcie_mps_128(void)
     //system("setpci -s 0:1b.4 48.b=0f");
 
     // EP set MPS 128
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFF1F;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, exp_oft + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -68,23 +70,25 @@ static void set_pcie_mps_256(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
-    uint32_t u32_tmp_data = 0;
-    int ret;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
+	uint32_t u32_tmp_data = 0;
+	int ret;
 
     // RC set MPS 256
     //system("setpci -s 0:1b.4 48.b=2f");
 
     // EP set MPS 256
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFF1F;
     u32_tmp_data |= 0x20;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, exp_oft + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -134,6 +138,7 @@ static int case_pcie_MPS(struct nvme_tool *tool)
 	int test_round = 0;
 	uint32_t u32_tmp_data = 0;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ctrl_property *prop = ctrl->prop;
 	int ret;
@@ -169,7 +174,7 @@ static int case_pcie_MPS(struct nvme_tool *tool)
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Payload Size support
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x4, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x4, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 

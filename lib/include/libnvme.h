@@ -17,6 +17,8 @@
 
 #include "byteorder.h"
 #include "pci_caps.h"
+#include "pci_ids_ext.h"
+#include "pci_regs_ext.h"
 #include "dnvme.h"
 
 #include "nvme/core.h"

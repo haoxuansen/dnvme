@@ -132,10 +132,11 @@ int msi_cap_access(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     int ret_val = -1;
     struct pcie_msi_cap msi_cap;
 
-    ret_val = pci_read_config_data(ndev->fd, ndev->msi.offset, sizeof(struct pcie_msi_cap), &msi_cap);
+    ret_val = pci_read_config_data(ndev->fd, pdev->msi.offset, sizeof(struct pcie_msi_cap), &msi_cap);
 
     pr_info("\nmsi_cap_id: %#x\n",msi_cap.cap_id);
     pr_info("msg_ctrl: %#x\n",msi_cap.msg_ctrl);

@@ -150,6 +150,8 @@ static void test_sub(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
     int cmds = 0;
     int ret;
     uint32_t u32_tmp_data = 0;
@@ -168,7 +170,7 @@ static void test_sub(void)
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 
     // check Link status register
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -189,7 +191,7 @@ static void test_sub(void)
     pr_color(LOG_N_RED, "\n .......... Change low power state: ..........\n");
 
     //get register value
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &reg_value);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x10, &reg_value);
     if (ret < 0)
     	exit(-1);
 
@@ -223,6 +225,7 @@ static void test_sub(void)
 static int case_pcie_low_power_pcipm_l1sub(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     int test_round = 0;
     uint32_t offset, u32_tmp_data = 0;
     int ret;
@@ -231,7 +234,7 @@ static int case_pcie_low_power_pcipm_l1sub(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, pdev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

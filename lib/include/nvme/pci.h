@@ -54,6 +54,16 @@ static inline int pci_write_config_dword(int fd, uint32_t oft, uint32_t val)
 
 /* ==================== PCI Header ==================== */
 
+static inline int pci_hd_read_vendor_id(int fd, uint16_t *val)
+{
+	return pci_read_config_word(fd, PCI_VENDOR_ID, val);
+}
+
+static inline int pci_hd_read_device_id(int fd, uint16_t *val)
+{
+	return pci_read_config_word(fd, PCI_DEVICE_ID, val);
+}
+
 static inline int pci_hd_read_command(int fd, uint16_t *val)
 {
 	return pci_read_config_word(fd, PCI_COMMAND, val);

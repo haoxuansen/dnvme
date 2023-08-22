@@ -26,6 +26,7 @@ static void test_sub(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint16_t data;
     uint8_t set_speed, set_width, cur_speed, cur_width;
     int ret;
@@ -48,7 +49,7 @@ static void test_sub(void)
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 
     // check Link status register
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, &data);
+    ret = pci_read_config_word(ndev->fd, pdev->express.offset + 0x12, &data);
     if (ret < 0)
     	exit(-1);
     
@@ -68,6 +69,7 @@ static void test_sub(void)
 static int case_pcie_link_speed_width_cyc(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     int test_round = 0;
     uint16_t u32_tmp_data = 0;
     int ret;
@@ -77,7 +79,7 @@ static int case_pcie_link_speed_width_cyc(struct nvme_tool *tool)
     pr_info("%s\n", disp_this_case);
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, &u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, pdev->express.offset + 0x12, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

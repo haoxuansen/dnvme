@@ -247,6 +247,11 @@ static int select_case_to_execute(struct nvme_tool *tool)
 int main(int argc, char *argv[])
 {
 	struct nvme_tool *tool = g_nvme_tool;
+	int i;
+
+	for (i = 0; i < argc; i++) {
+		pr_info("argv[%d]: %s\n", i, argv[i]);
+	}
 
 	case_display_case_list(tool);
 	select_case_to_execute(tool);

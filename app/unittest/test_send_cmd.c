@@ -1254,6 +1254,7 @@ void pcie_random_speed_width(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
     uint8_t set_speed, set_width, cur_speed, cur_width;
     uint8_t speed_arr[] = {1, 2, 3};
@@ -1263,13 +1264,13 @@ void pcie_random_speed_width(void)
     // get speed and width random
     set_speed = speed_arr[(uint8_t)rand() % ARRAY_SIZE(speed_arr)];
     set_width = width_arr[(uint8_t)rand() % ARRAY_SIZE(width_arr)];
-    if (ndev->link_speed < set_speed)
+    if (pdev->link_speed < set_speed)
     {
-        set_speed = ndev->link_speed;
+        set_speed = pdev->link_speed;
     }
-    if (ndev->link_width < set_width)
+    if (pdev->link_width < set_width)
     {
-        set_width = ndev->link_width;
+        set_width = pdev->link_width;
     }
     pr_info("Set_PCIe_Gen%d, lane width X%d\n", set_speed, set_width);
     // fflush(stdout);
@@ -1280,7 +1281,7 @@ void pcie_random_speed_width(void)
 
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
     // check Link status register
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, pdev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

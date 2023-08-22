@@ -12,6 +12,6 @@
 #define _UAPI_PCI_IDS_EXT_H_
 
 #define PCI_VENDOR_ID_MAXIO		0x1e4b
-#define PCI_DEVICE_ID_1602		0x1602
+#define PCI_DEVICE_ID_FALCON_LITE	0x1602
 
 #endif /* !_UAPI_PCI_IDS_EXT_H_ */

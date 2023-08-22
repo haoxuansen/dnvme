@@ -39,15 +39,16 @@ static void set_pcie_mrrs_128(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 128
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFF8FFF;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 }
 
@@ -55,16 +56,17 @@ static void set_pcie_mrrs_256(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 256
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x1000;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 }
 
@@ -72,16 +74,17 @@ static void set_pcie_mrrs_512(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
     int ret;
     // EP set MRRS 512
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x2000;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 }
 
@@ -111,6 +114,7 @@ static void set_pcie_rcb_64(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -118,15 +122,15 @@ static void set_pcie_rcb_64(void)
     //system("setpci -s 0:1b.4 50.b=40");
 
     // EP set RCB 64
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFFF7;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
 
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
@@ -138,6 +142,7 @@ static void set_pcie_rcb_128(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     uint32_t u32_tmp_data = 0;
     int ret;
 
@@ -145,16 +150,16 @@ static void set_pcie_rcb_128(void)
     //system("setpci -s 0:1b.4 50.b=48");
 
     // EP set RCB 128
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data &= 0xFFFFFFF7;
     u32_tmp_data |= 0x08;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
     pcie_retrain_link(RC_CAP_LINK_CONTROL);
     
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x10, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -203,6 +208,7 @@ static void test_sub(void)
 static int case_pcie_MRRS(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ctrl_property *prop = ctrl->prop;
     int ret;
@@ -241,7 +247,7 @@ static int case_pcie_MRRS(struct nvme_tool *tool)
     pr_info("  cq reaped ok! reap_num:%d\n", reap_num);
 
     // first displaly EP Max Read Request Size
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     

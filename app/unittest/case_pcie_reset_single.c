@@ -25,6 +25,8 @@ static void test_sub(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t exp_oft = pdev->express.offset;
     uint32_t u32_tmp_data = 0;
     uint8_t cur_speed, cur_width;
     int cmds;
@@ -35,7 +37,7 @@ static void test_sub(void)
     pcie_do_hot_reset(ndev->fd);
 
     // check status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -57,7 +59,7 @@ static void test_sub(void)
     pcie_do_link_down(ndev->fd);
 
     // check status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -76,12 +78,12 @@ static void test_sub(void)
 
     /************************** Issue FLR reset *********************/
     pr_info("\nIssue FLR reset\n");
-    ret = pci_read_config_dword(ndev->fd, ndev->express.offset + 0x8, &u32_tmp_data);
+    ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)
     	exit(-1);
 
     u32_tmp_data |= 0x00008000;
-    pci_write_config_data(ndev->fd, ndev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
+    pci_write_config_data(ndev->fd, exp_oft + 0x8, 4, (uint8_t *)&u32_tmp_data);
     usleep(100000); // 100 ms
 
     ret = pci_read_config_dword(ndev->fd, 0x4, &u32_tmp_data);
@@ -93,7 +95,7 @@ static void test_sub(void)
     usleep(100000); // 100 ms
 
     // check status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
@@ -113,6 +115,7 @@ static void test_sub(void)
 static int case_pcie_reset_single(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
     int test_round = 0;
     uint32_t u32_tmp_data = 0;
     int ret;
@@ -122,7 +125,7 @@ static int case_pcie_reset_single(struct nvme_tool *tool)
     /**********************************************************************/
 
     // first displaly power up link status
-    ret = pci_read_config_word(ndev->fd, ndev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
+    ret = pci_read_config_word(ndev->fd, pdev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)
     	exit(-1);
     
