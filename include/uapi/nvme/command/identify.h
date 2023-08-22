@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_NVME_IDENTIFY_H_
-#define _UAPI_NVME_IDENTIFY_H_
-
 /**
  * @brief Controller or Namespace Structure
  * 
@@ -603,5 +600,3 @@ struct nvme_id_ctrl_zns {
 struct nvme_id_ctrl_csc {
 	__le64	vector[512];
 };
-
-#endif /* !_UAPI_NVME_IDENTIFY_H_ */

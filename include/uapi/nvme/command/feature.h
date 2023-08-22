@@ -10,9 +10,6 @@
  * 
  */
 
-#ifndef _UAPI_NVME_FEATURE_H_
-#define _UAPI_NVME_FEATURE_H_
-
 /**
  * @brief Feature Identifiers
  * 
@@ -242,5 +239,3 @@ enum {
 	NVME_NS_WRITE_PROTECT_POWER_CYCLE,
 	NVME_NS_WRITE_PROTECT_PERMANENT,
 };
-
-#endif /* !_UAPI_NVME_FEATURE_H_ */

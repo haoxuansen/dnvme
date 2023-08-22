@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_NVMA_LOG_PAGE_H_
-#define _UAPI_NVMA_LOG_PAGE_H_
-
 /**
  * @brief Log Page Identifiers
  * 
@@ -369,5 +366,3 @@ struct nvmf_disc_rsp_page_hdr {
 	__u8		resv14[1006];
 	struct nvmf_disc_rsp_page_entry entries[];
 };
-
-#endif /* !_UAPI_NVMA_LOG_PAGE_H_ */

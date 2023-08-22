@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_NVME_DIRECTIVE_H_
-#define _UAPI_NVME_DIRECTIVE_H_
-
 /**
  * @brief Directive Types
  * 
@@ -101,5 +98,3 @@ struct nvme_dir_streams_params {
 	__le16	nso;
 	__u8	rsvd2[6];
 };
-
-#endif /* !_UAPI_NVME_DIRECTIVE_H_ */

@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_NVME_FABRICS_H_
-#define _UAPI_NVME_FABRICS_H_
-
 enum nvmf_capsule_command {
 	nvme_fabrics_type_property_set	= 0x00,
 	nvme_fabrics_type_connect	= 0x01,
@@ -100,5 +97,3 @@ struct nvmf_property_get_command {
 	__le32		offset;
 	__u8		resv4[16];
 };
-
-#endif /* !_UAPI_NVME_FABRICS_H_ */

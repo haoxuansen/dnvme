@@ -242,7 +242,7 @@ struct nvme_create_sq {
 };
 
 /* ==================== nvme_admin_get_log_page(0x02) ==================== */
-#include "nvme/log_page.h"
+#include "nvme/command/log_page.h"
 
 /* ==================== nvme_admin_delete_cq(0x04) ==================== */
 
@@ -276,7 +276,7 @@ struct nvme_create_cq {
 };
 
 /* ==================== nvme_admin_identify(0x06) ==================== */
-#include "nvme/identify.h"
+#include "nvme/command/identify.h"
 
 /* ==================== nvme_admin_abort_cmd(0x08) ==================== */
 
@@ -292,7 +292,7 @@ struct nvme_abort_cmd {
 
 /* ==================== nvme_admin_set_features(0x09) ==================== */
 /* ==================== nvme_admin_get_features(0x0a) ==================== */
-#include "nvme/feature.h"
+#include "nvme/command/feature.h"
 
 /* ==================== nvme_admin_async_event(0x0c) ==================== */
 
@@ -349,7 +349,7 @@ struct nvme_download_firmware {
 
 /* ==================== nvme_admin_directive_send(0x19) ==================== */
 /* ==================== nvme_admin_directive_recv(0x1a) ==================== */
-#include "nvme/directive.h"
+#include "nvme/command/directive.h"
 
 /* ==================== nvme_admin_dbbuf(0x7c) ==================== */
 
@@ -367,7 +367,7 @@ struct nvme_dbbuf {
 };
 
 /* ==================== nvme_admin_fabrics(0x7f) ==================== */
-#include "nvme/fabrics.h"
+#include "nvme/command/fabrics.h"
 
 /* ==================== nvme_admin_format_nvm(0x80) ==================== */
 
@@ -399,6 +399,9 @@ struct nvme_format_cmd {
 	__le32			cdw10;
 	__u32			rsvd11[5];
 };
+
+/* ==================== nvme_admin_vendor_start(0xc0) ==================== */
+#include "nvme/command/vendor.h"
 
 /* ~~~~~~~~~~~~~~~~~~~~ nvme_io_opcode ~~~~~~~~~~~~~~~~~~~~ */
 
