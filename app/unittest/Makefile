@@ -8,9 +8,13 @@ pre:
 	$(Q)bash $(CUR_DIR_PATH)/lds.sh
 
 $(TARGET): $(OBJS)
-	$(Q)$(CC) $(LDFLAGS) $^ $(LDLIBS) -T test.lds -o $@
+	$(Q)$(CC) $(LDFLAGS) $^ $(LDLIBS) -T test.lds -Wl,-Map,$(TARGET).map -o $@
 
-build: pre $(TARGET)
+$(TARGET).asm: $(TARGET)
+	@echo "  OBJDUMP \t $@"
+	$(Q)$(OBJDUMP) -S $(TARGET) > $(TARGET).asm
+
+build: pre $(TARGET) $(TARGET).asm
 ifeq ($(RELEASE_DIR_EXIST),yes)
 	$(Q)cp $(TARGET) $(OUTPUT_DIR)/
 else
@@ -22,6 +26,6 @@ clean:
 	$(Q)bash $(CUR_DIR_PATH)/lds.sh $@
 
 distclean: clean
-	$(Q)rm -f $(TARGET)
+	$(Q)rm -f $(TARGET) $(TARGET).map $(TARGET).asm
 
 .PHONY: build clean distclean

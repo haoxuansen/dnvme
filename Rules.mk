@@ -41,6 +41,8 @@ RULE_CFLAGS += -include $(CUR_DIR_PATH)/include/uapi/kconfig.h
 RULE_LDFLAGS := -L$(RELEASE_LIB_DIR)
 
 CC := gcc
+LD := ld
+OBJDUMP := objdump
 
 # --------------------------------------------------------------------------- #
 # Function
