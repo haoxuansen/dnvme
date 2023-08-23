@@ -65,7 +65,7 @@ int nvme_create_asq(struct nvme_dev_info *ndev, uint32_t elements)
 	}
 	ndev->asq.sqid = NVME_AQ_ID;
 	ndev->asq.cqid = NVME_AQ_ID;
-	ndev->asq.size = elements;
+	ndev->asq.nr_entry = elements;
 	return 0;
 }
 
@@ -89,7 +89,7 @@ int nvme_create_acq(struct nvme_dev_info *ndev, uint32_t elements)
 		return ret;
 	}
 	ndev->acq.cqid = NVME_AQ_ID;
-	ndev->acq.size = elements;
+	ndev->acq.nr_entry = elements;
 	return 0;
 }
 
@@ -215,7 +215,7 @@ int nvme_create_all_iosq(struct nvme_dev_info *ndev, struct nvme_sq_info *sqs,
 	for (i = 0; i < nr_sq; i++) {
 		wrap.sqid = sqs[i].sqid;
 		wrap.cqid = sqs[i].cqid;
-		wrap.elements = sqs[i].size;
+		wrap.elements = sqs[i].nr_entry;
 		wrap.prio = NVME_SQ_PRIO_MEDIUM;
 		wrap.contig = 1;
 
@@ -334,7 +334,7 @@ int nvme_create_all_iocq(struct nvme_dev_info *ndev, struct nvme_cq_info *cqs,
 
 	for (i = 0; i < nr_cq; i++) {
 		wrap.cqid = cqs[i].cqid;
-		wrap.elements = cqs[i].size;
+		wrap.elements = cqs[i].nr_entry;
 		wrap.irq_no = cqs[i].irq_no;
 		wrap.irq_en = cqs[i].irq_en;
 		wrap.contig = 1;
@@ -571,7 +571,7 @@ static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ctrl_property *prop = ctrl->prop;
 	uint16_t nr_sq = ctrl->nr_sq;
-	uint16_t mqes = NVME_CAP_MQES(prop->cap);
+	uint32_t mqes = NVME_CAP_MQES(prop->cap) + 1; /* convert to 1's based */
 	uint16_t qid;
 
 	sq = calloc(nr_sq, sizeof(*sq));
@@ -583,7 +583,10 @@ static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
 	for (qid = 1; qid <= nr_sq; qid++) {
 		sq[qid - 1].sqid = qid;
 		sq[qid - 1].cqid = qid;
-		sq[qid - 1].size = rand() % (mqes - 512) + 512;
+		if (mqes > 256)
+			sq[qid - 1].nr_entry = rand() % (mqes - 255) + 256;
+		else
+			sq[qid - 1].nr_entry = mqes;
 	}
 
 	ndev->iosqs = sq;
@@ -596,7 +599,7 @@ static int nvme_alloc_iocq_info(struct nvme_dev_info *ndev)
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ctrl_property *prop = ctrl->prop;
 	uint16_t nr_cq = ctrl->nr_cq;
-	uint16_t mqes = NVME_CAP_MQES(prop->cap);
+	uint32_t mqes = NVME_CAP_MQES(prop->cap) + 1; /* convert to 1's based */
 	uint16_t qid;
 
 	cq = calloc(nr_cq, sizeof(*cq));
@@ -608,7 +611,10 @@ static int nvme_alloc_iocq_info(struct nvme_dev_info *ndev)
 	for (qid = 1; qid <= nr_cq; qid++) {
 		cq[qid - 1].cqid = qid;
 		cq[qid - 1].irq_no = qid;
-		cq[qid - 1].size = rand() % (mqes - 512) + 512;
+		if (mqes > 256)
+			cq[qid - 1].nr_entry = rand() % (mqes - 255) + 256;
+		else
+			cq[qid - 1].nr_entry = mqes;
 	}
 
 	ndev->iocqs = cq;
@@ -681,10 +687,10 @@ void nvme_reinit_ioq_info_random(struct nvme_dev_info *ndev)
 
 	for (i = 0; i < ctrl->nr_sq; i++) {
 		sqs[i].cqid = rand() % ctrl->nr_cq + 1; /* cqid range: 1 ~ nr_cq */
-		sqs[i].size = rand() % (mqes - 512) + 512;
+		sqs[i].nr_entry = rand() % (mqes - 512) + 512;
 
 		pr_debug("SQ:%u, element:%u, bind CQ:%u\n",
-			sqs[i].sqid, sqs[i].size, sqs[i].cqid);
+			sqs[i].sqid, sqs[i].nr_entry, sqs[i].cqid);
 	}
 
 	for (i = 0; i < ctrl->nr_cq; i++) {
@@ -694,10 +700,10 @@ void nvme_reinit_ioq_info_random(struct nvme_dev_info *ndev)
 			cqs[i].irq_en = 1;
 			cqs[i].irq_no = rand() % ndev->nr_irq;
 		}
-		cqs[i].size = rand() % (mqes - 512) + 512;
+		cqs[i].nr_entry = rand() % (mqes - 512) + 512;
 
 		pr_debug("CQ:%u, element:%u, irq_en:%u, irq_no:%u\n",
-			cqs[i].cqid, cqs[i].size, cqs[i].irq_en, cqs[i].irq_no);
+			cqs[i].cqid, cqs[i].nr_entry, cqs[i].irq_en, cqs[i].irq_no);
 	}
 }
 
@@ -714,9 +720,9 @@ static void nvme_swap_iosq_info_random(struct nvme_sq_info *sqs, uint16_t nr_sq)
 		sqs[num].cqid = tmp.cqid;
 
 		num = i + rand() % (nr_sq - i);
-		tmp.size = sqs[i].size;
-		sqs[i].size = sqs[num].size;
-		sqs[num].size = tmp.size;
+		tmp.nr_entry = sqs[i].nr_entry;
+		sqs[i].nr_entry = sqs[num].nr_entry;
+		sqs[num].nr_entry = tmp.nr_entry;
 	}
 }
 
@@ -738,9 +744,9 @@ static void nvme_swap_iocq_info_random(struct nvme_cq_info *cqs, uint16_t nr_cq,
 	/* The last cq info has been exchanged with the previous one */
 	for (i = 0; i < (nr_cq - 1); i++) {
 		num = i + rand() % (nr_cq - i);
-		tmp.size = cqs[i].size;
-		cqs[i].size = cqs[num].size;
-		cqs[num].size = tmp.size;
+		tmp.nr_entry = cqs[i].nr_entry;
+		cqs[i].nr_entry = cqs[num].nr_entry;
+		cqs[num].nr_entry = tmp.nr_entry;
 	}
 }
 

@@ -145,7 +145,7 @@ static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	int ret;
 
 	ccq_wrap.cqid = cq->cqid;
-	ccq_wrap.elements = cq->size;
+	ccq_wrap.elements = cq->nr_entry;
 	ccq_wrap.irq_no = cq->irq_no;
 	ccq_wrap.irq_en = cq->irq_en;
 	ccq_wrap.contig = 1;
@@ -158,7 +158,7 @@ static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 
 	csq_wrap.sqid = sq->sqid;
 	csq_wrap.cqid = sq->cqid;
-	csq_wrap.elements = sq->size;
+	csq_wrap.elements = sq->nr_entry;
 	csq_wrap.prio = NVME_SQ_PRIO_MEDIUM;
 	csq_wrap.contig = 1;
 
@@ -206,7 +206,7 @@ static int case_disable_bus_master(struct nvme_tool *tool)
 	struct timeval start, end;
 	uint64_t slba;
 	uint32_t nlb = rand() % 256 + 1; /* 1~256 */
-	uint32_t num = sq->size / 4;
+	uint32_t num = sq->nr_entry / 4;
 	uint32_t timeout = 0;
 	uint16_t cid;
 	uint32_t i;

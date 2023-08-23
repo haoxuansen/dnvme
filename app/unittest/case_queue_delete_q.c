@@ -402,7 +402,7 @@ static int delete_runing_cmd_queue(void)
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
 		wr_slba = (uint32_t)rand() % (nsze / 2);
 		wr_nlb = (uint16_t)rand() % 255 + 1;
-		for (index = 0; index < min_t(uint32_t, cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
+		for (index = 0; index < min_t(uint32_t, cmd_num_per_q, sqs[qid - 1].nr_entry) / 2; index++)
 		{
 			if ((wr_slba + wr_nlb) < nsze)
 			{
@@ -499,7 +499,7 @@ static int delete_runing_fua_cmd_queue(void)
 		cmd_num_per_q = (rand() % 12 + 1) * 10;
 		wr_slba = (uint32_t)rand() % (nsze / 2);
 		wr_nlb = (uint16_t)rand() % 255 + 1;
-		for (index = 0; index < min_t(uint32_t, cmd_num_per_q, sqs[qid - 1].size) / 2; index++)
+		for (index = 0; index < min_t(uint32_t, cmd_num_per_q, sqs[qid - 1].nr_entry) / 2; index++)
 		{
 			if ((wr_slba + wr_nlb) < nsze)
 			{

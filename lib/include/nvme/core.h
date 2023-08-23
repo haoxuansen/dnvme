@@ -93,7 +93,7 @@ struct nvme_ctrl_instance {
 struct nvme_sq_info {
 	uint16_t	sqid;
 	uint16_t	cqid;
-	uint32_t	size;
+	uint32_t	nr_entry; /* 1's based */
 
 	uint16_t	cmd_cnt;
 };
@@ -102,7 +102,7 @@ struct nvme_cq_info {
 	uint16_t	cqid;
 	uint16_t	irq_no;
 	uint8_t		irq_en;
-	uint32_t	size;
+	uint32_t	nr_entry; /* 1's based */
 };
 
 /**
