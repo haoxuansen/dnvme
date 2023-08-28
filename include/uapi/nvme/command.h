@@ -772,6 +772,24 @@ enum {
 	NVME_RW_APPEND_PIREMAP		= 1 << 9,
 };
 
+struct nvme_zone_append_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2;
+	__le64			metadata;
+	union nvme_data_ptr	dptr;
+	__le64			zslba;
+	__le16			length; /* 0's based */
+	__le16			control;
+	__le16			rsvd13;
+	__le16			dspec;
+	__le32			reftag;
+	__le16			apptag;
+	__le16			appmask;
+};
+
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 struct nvme_command {
