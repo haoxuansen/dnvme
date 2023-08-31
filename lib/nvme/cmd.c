@@ -1057,9 +1057,17 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 	cmd.data_buf_ptr = wrap->buf;
 	cmd.data_buf_size = wrap->size;
 	cmd.data_dir = DMA_BIDIRECTIONAL;
-	cmd.meta_id = wrap->meta_id;
-	if (cmd.meta_id)
+
+	if (wrap->meta_id) {
+		cmd.meta_id = wrap->meta_id;
 		cmd.bit_mask |= NVME_MASK_MPTR;
+	}
+	if (wrap->use_bit_bucket) {
+		cmd.use_bit_bucket = 1;
+		cmd.nr_bit_bucket = wrap->nr_bit_bucket;
+		cmd.bit_bucket = wrap->bit_bucket;
+		BUG_ON(!cmd.nr_bit_bucket || !cmd.bit_bucket);
+	}
 
 	return nvme_submit_64b_cmd(fd, &cmd);
 }

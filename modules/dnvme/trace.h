@@ -119,6 +119,11 @@ DEFINE_EVENT(nvme_log_sgl, dnvme_sgl_set_data,
 	TP_ARGS(sge)
 );
 
+DEFINE_EVENT(nvme_log_sgl, dnvme_sgl_set_bit_bucket, 
+	TP_PROTO(struct nvme_sgl_desc *sge),
+	TP_ARGS(sge)
+);
+
 DEFINE_EVENT(nvme_log_sgl, dnvme_sgl_set_seg, 
 	TP_PROTO(struct nvme_sgl_desc *sge),
 	TP_ARGS(sge)

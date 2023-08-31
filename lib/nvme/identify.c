@@ -52,6 +52,74 @@ int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl)
 }
 
 /**
+ * @brief Check whether the controller supports SGLs.
+ * 
+ * @return Details are listed below.
+ * 	NVME_CTRL_SGLS_SUPPORT4: support SGLs with 4B align.
+ * 	NVME_CTRL_SGLS_SUPPORT: support SGLs.
+ * 	NVME_CTRL_SGLS_UNSUPPORT: don't support SGLs.
+ * 	-ENODEV: identify controller data not exist. 
+ */
+int nvme_ctrl_support_sgl(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	return le32_to_cpu(ctrl->id_ctrl->sgls) & NVME_CTRL_SGLS_MASK;
+}
+
+/**
+ * @brief Check whether the controller supports Keyed SGL Data Block descriptor.
+ * 
+ * @return Details are listed below.
+ * 	1: support Keyed SGL Data Block descriptor.
+ * 	0: don't support Keyed SGL Data Block descriptor.
+ * 	-ENODEV: identify controller data not exist. 
+ */
+int nvme_ctrl_support_keyed_sgl_data_block(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	return (le32_to_cpu(ctrl->id_ctrl->sgls) & 
+		NVME_CTRL_SGLS_KEYED_DATA_BLOCK) ? 1 : 0;
+}
+
+/**
+ * @brief Check whether the controller supports SGL Bit Bucket descriptor.
+ * 
+ * @return Details are listed below.
+ * 	1: support SGL Bit Bucket descriptor.
+ * 	0: don't support SGL Bit Bucket descriptor.
+ * 	-ENODEV: identify controller data not exist. 
+ */
+int nvme_ctrl_support_sgl_bit_bucket(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	return (le32_to_cpu(ctrl->id_ctrl->sgls) & 
+		NVME_CTRL_SGLS_BIT_BUCKET) ? 1 : 0;
+}
+
+/**
+ * @brief Check whether the controller supports SGL Data Block descriptor.
+ * 
+ * @return Details are listed below.
+ * 	1: support SGL Data Block descriptor.
+ * 	0: don't support SGL Data Block descriptor.
+ * 	-ENODEV: identify controller data not exist. 
+ */
+int nvme_ctrl_support_sgl_data_block(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	return (le32_to_cpu(ctrl->id_ctrl->sgls) & 
+		NVME_CTRL_SGLS_DATA_BLOCK) ? 1 : 0;
+}
+
+/**
  * @brief Check whether the namespace supports ZNS Command Set.
  * 
  * @return Details are listed below.

@@ -14,11 +14,22 @@
 #include <linux/pci.h>
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
+#include <linux/sort.h>
 
 #include "trace.h"
 #include "core.h"
 #include "queue.h"
 #include "debug.h"
+
+struct sgl_desc_entry {
+	dma_addr_t	addr;
+	unsigned int	length;
+};
+
+struct sgl_desc_list {
+	unsigned int		nr_entry;
+	struct sgl_desc_entry	entry[0];
+};
 
 /**
  * @brief Check whether the cmd uses SGLS.
@@ -36,12 +47,24 @@ static bool dnvme_use_sgls(struct nvme_common_command *ccmd, struct nvme_64b_cmd
 	return true;
 }
 
-void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg)
+static void __dnvme_sgl_set_data(struct nvme_sgl_desc *sge, u64 addr, u32 length)
 {
-	sge->addr = cpu_to_le64(sg_dma_address(sg));
-	sge->length = cpu_to_le32(sg_dma_len(sg));
+	sge->addr = cpu_to_le64(addr);
+	sge->length = cpu_to_le32(length);
 	sge->type = NVME_SGL_TYPE_DATA_DESC << 4;
 	trace_dnvme_sgl_set_data(sge);
+}
+
+void dnvme_sgl_set_data(struct nvme_sgl_desc *sge, struct scatterlist *sg)
+{
+	__dnvme_sgl_set_data(sge, sg_dma_address(sg), sg_dma_len(sg));
+}
+
+void dnvme_sgl_set_bit_bucket(struct nvme_sgl_desc *sge, unsigned int length)
+{
+	sge->length = cpu_to_le32(length);
+	sge->type = NVME_SGL_TYPE_BIT_BUCKET_DESC << 4;
+	trace_dnvme_sgl_set_bit_bucket(sge);
 }
 
 void dnvme_sgl_set_seg(struct nvme_sgl_desc *sge, dma_addr_t dma_addr, 
@@ -241,6 +264,323 @@ void dnvme_unmap_user_page(struct nvme_device *ndev, struct nvme_prps *prps)
 	}
 }
 
+/* sort from small to large */
+static int dnvme_compare_sgl_bit_bucket(const void *a, const void *b)
+{
+	const struct nvme_sgl_bit_bucket *bucket1 = a;
+	const struct nvme_sgl_bit_bucket *bucket2 = b;
+
+	if (bucket1->offset > bucket2->offset)
+		return 1;
+	else if (bucket1->offset < bucket2->offset)
+		return -1;
+	else
+		return 0;
+}
+
+static void dnvme_sort_sgl_bit_bucket(struct nvme_device *ndev,
+	struct nvme_sgl_bit_bucket *bit_bucket, unsigned int nr_bit_bucket)
+{
+	unsigned int i;
+
+	sort(bit_bucket, nr_bit_bucket, sizeof(struct nvme_sgl_bit_bucket),
+		dnvme_compare_sgl_bit_bucket, NULL);
+
+	dnvme_dbg(ndev, "bit bucket after sort:\n");
+	for (i = 0; i < nr_bit_bucket; i++) {
+		dnvme_dbg(ndev, "idx:%u, offset:0x%x, length:0x%x\n", 
+			i, bit_bucket[i].offset, bit_bucket[i].length);
+	}
+}
+
+static int dnvme_count_sgl_desc_num(struct nvme_device *ndev, 
+	struct scatterlist *sg, struct nvme_sgl_bit_bucket *bit_bucket, 
+	unsigned int nr_bit_bucket)
+{
+	struct scatterlist *sge;
+	unsigned int offset;
+	unsigned int i;
+	int num = 0;
+
+	for (i = 0; i < nr_bit_bucket; i++) {
+		offset = 0;
+
+		for (sge = sg; sge != NULL; sge = sg_next(sge)) {
+			/* Bit Bucket insert at the beginning or end of SG */
+			if (bit_bucket[i].offset == offset ||
+				bit_bucket[i].offset == (offset + sg_dma_len(sge))) {
+				num += 1;
+				break;
+			}
+			offset += sg_dma_len(sge);
+		}
+
+		/* Bit Bucket insert in the middle of SG */
+		if (!sge)
+			num += 2;
+	}
+
+	for (sge = sg; sge != NULL; sge = sg_next(sge)) {
+		num += 1;
+	}
+
+	dnvme_dbg(ndev, "need %d descriptors\n", num);
+	return num;
+}
+
+static struct sgl_desc_list *dnvme_init_sgl_desc_list(struct nvme_device *ndev, 
+	struct scatterlist *sg, struct nvme_sgl_bit_bucket *bit_bucket,
+	unsigned int nr_bit_bucket, unsigned int nr_desc)
+{
+	struct scatterlist *sge;
+	struct sgl_desc_list *list;
+	unsigned int offset = 0;
+	unsigned int last_bit_offset = 0;
+	unsigned int sg_oft;
+	unsigned int sg_len;
+	unsigned int desc = 0;
+	unsigned int bit;
+	dma_addr_t sg_addr;
+
+	list = kzalloc(sizeof(struct sgl_desc_list) + 
+		nr_desc * sizeof(struct sgl_desc_entry), GFP_KERNEL);
+	if (!list) {
+		dnvme_err(ndev, "failed to alloc sgl desc list!\n");
+		return NULL;
+	}
+
+	/* init bit bucket descriptor which insert before all SGs */
+	for (bit = 0; bit < nr_bit_bucket; bit++) {
+		if (bit_bucket[bit].offset > offset)
+			break;
+
+		list->entry[desc].addr = 0;
+		list->entry[desc].length = bit_bucket[bit].length;
+		desc++;
+
+		last_bit_offset = bit_bucket[bit].offset;
+	}
+
+	for (sge = sg; sge; sge = sg_next(sge)) {
+		sg_addr = sg_dma_address(sge);
+		sg_len = sg_dma_len(sge);
+		sg_oft = 0;
+
+		while (bit < nr_bit_bucket) {
+			if (bit_bucket[bit].offset < (offset + sg_len)) {
+				if (last_bit_offset != bit_bucket[bit].offset) {
+					WARN_ON(last_bit_offset > bit_bucket[bit].offset);
+
+					/* data block descriptor before bit bucket descriptor */
+					list->entry[desc].addr = sg_addr + sg_oft;
+					list->entry[desc].length = 
+						bit_bucket[bit].offset - (offset + sg_oft);
+					sg_oft += list->entry[desc].length;
+					desc++;
+				}
+				/* bit bucket descriptor */
+				list->entry[desc].addr = 0;
+				list->entry[desc].length = bit_bucket[bit].length;
+				desc++;
+
+				last_bit_offset = bit_bucket[bit].offset; /* update */
+				bit++;
+				continue;
+			}
+
+			if (bit_bucket[bit].offset == (offset + sg_len)) {
+				if (last_bit_offset != bit_bucket[bit].offset) {
+					WARN_ON(last_bit_offset > bit_bucket[bit].offset);
+
+					/* data block descriptor before bit bucket descriptor */
+					list->entry[desc].addr = sg_addr + sg_oft;
+					list->entry[desc].length = sg_len - sg_oft;
+					sg_oft += list->entry[desc].length;
+					desc++;
+				}
+				/* bit bucket descriptor */
+				list->entry[desc].addr = 0;
+				list->entry[desc].length = bit_bucket[bit].length;
+				desc++;
+
+				last_bit_offset = bit_bucket[bit].offset; /* update */
+				bit++;
+				continue;
+			}
+
+			if (bit_bucket[bit].offset > (offset + sg_len)) {
+				if ((sg_len - sg_oft) > 0) {
+					list->entry[desc].addr = sg_addr + sg_oft;
+					list->entry[desc].length = sg_len - sg_oft;
+					sg_oft += list->entry[desc].length;
+					desc++;
+				}
+				break;
+			}
+		}
+
+		/* The rest are data block description */
+		if (bit >= nr_bit_bucket && (sg_len - sg_oft) > 0) {
+			list->entry[desc].addr = sg_addr + sg_oft;
+			list->entry[desc].length = sg_len - sg_oft;
+			sg_oft += list->entry[desc].length;
+			desc++;
+		}
+
+		offset += sg_len;
+	}
+
+	/* init bit bucket descriptor which insert after all SGs? */
+	while (bit < nr_bit_bucket) {
+		list->entry[desc].addr = 0;
+		list->entry[desc].length = bit_bucket[bit].length;
+		desc++;
+		bit++;
+	}
+
+	if (desc != nr_desc) {
+		dnvme_err(ndev, "alloc desc is %u, but filled desc is %u!\n",
+			nr_desc, desc);
+		goto out;
+	}
+
+	list->nr_entry = nr_desc;
+	return list;
+out:
+	kfree(list);
+	return NULL;
+}
+
+static void dnvme_deinit_sgl_desc_list(struct sgl_desc_list *list)
+{
+	kfree(list);
+}
+
+static int dnvme_cmd_setup_sgl(struct nvme_device *ndev, 
+		struct nvme_64b_cmd *cmd,
+		struct nvme_common_command *ccmd, 
+		struct nvme_prps *prps)
+{
+	struct dma_pool *pool = prps->pg_pool;
+	struct nvme_sgl_desc *sgl_desc;
+	struct nvme_sgl_bit_bucket *bit_bucket;
+	struct sgl_desc_list *desc_list;
+	void **prp_list;
+	dma_addr_t *prp_dma;
+	/* The number of SGL bit bucket descriptors required */
+	unsigned int nr_bit_bucket = cmd->nr_bit_bucket;
+	/* The number of SGL descriptors required */
+	unsigned int nr_desc = prps->num_map_pgs; 
+	unsigned int nr_seg; /* The number of SGL segments required */
+	int ret = -ENOMEM;
+	int i, j, k, m;
+
+	if (nr_desc == 1 && nr_bit_bucket == 0) {
+		dnvme_sgl_set_data(&ccmd->dptr.sgl, prps->sg);
+		return 0;
+	}
+
+	if (nr_bit_bucket) {
+		bit_bucket = kzalloc(nr_bit_bucket * 
+			sizeof(struct nvme_sgl_bit_bucket), GFP_KERNEL);
+		if (!bit_bucket) {
+			dnvme_err(ndev, "failed to alloc bit bucket!\n");
+			return -ENOMEM;
+		}
+
+		if (copy_from_user(bit_bucket, cmd->bit_bucket, 
+			nr_bit_bucket * sizeof(struct nvme_sgl_bit_bucket))) {
+			dnvme_err(ndev, "failed to copy from user space!\n");
+			ret = -EFAULT;
+			goto free_bit_bucket;
+		}
+		dnvme_sort_sgl_bit_bucket(ndev, bit_bucket, nr_bit_bucket);
+
+		nr_desc = dnvme_count_sgl_desc_num(ndev, prps->sg, bit_bucket, 
+			nr_bit_bucket);
+	}
+	desc_list = dnvme_init_sgl_desc_list(ndev, prps->sg, bit_bucket, 
+		nr_bit_bucket, nr_desc);
+	if (!desc_list) {
+		ret = -EPERM;
+		goto free_bit_bucket;
+	}
+	
+	nr_seg = DIV_ROUND_UP(sizeof(struct nvme_sgl_desc) * nr_desc, 
+		PAGE_SIZE - sizeof(struct nvme_sgl_desc));
+
+	prp_list = kzalloc(sizeof(void *) * nr_seg, GFP_KERNEL);
+	if (!prp_list) {
+		dnvme_err(ndev, "failed to alloc for prp list!\n");
+		goto deinit_list;
+	}
+
+	prp_dma = kzalloc(sizeof(dma_addr_t) * nr_seg, GFP_KERNEL);
+	if (!prp_dma) {
+		dnvme_err(ndev, "failed to alloc for prp dma!\n");
+		goto free_prp_list;
+	}
+
+	for (i = 0; i < nr_seg; i++) {
+		prp_list[i] = dma_pool_alloc(pool, GFP_KERNEL | __GFP_ZERO, &prp_dma[i]);
+		if (!prp_list[i]) {
+			dnvme_err(ndev, "failed to alloc for sgl page!\n");
+			goto free_sgl_page;
+		}
+	}
+
+	prps->prp_list = prp_list;
+	prps->nr_pages = nr_seg;
+	prps->pg_addr = prp_dma;
+	dnvme_sgl_set_seg(&ccmd->dptr.sgl, prp_dma[0], nr_desc);
+
+	/* j: page index, k: desc index in a page, m: entry index in desc_list */
+	for (j = 0, k = 0, m = 0; nr_desc > 0;) {
+		WARN_ON(j >= nr_seg); /* sanity check */
+
+		sgl_desc = prp_list[j];
+
+		if (k == (NVME_SGES_PER_PAGE - 1)) {
+			/* SGL segment last descriptor pointer to next SGL segment */
+			j++;
+			dnvme_sgl_set_seg(&sgl_desc[k], prp_dma[j], nr_desc);
+			k = 0;
+			continue;
+		}
+
+		if (desc_list->entry[m].addr)
+			__dnvme_sgl_set_data(&sgl_desc[k], desc_list->entry[m].addr,
+				desc_list->entry[m].length);
+		else
+			dnvme_sgl_set_bit_bucket(&sgl_desc[k], 
+					desc_list->entry[m].length);
+	
+		k++;
+		m++;
+		nr_desc--;
+	}
+
+	dnvme_deinit_sgl_desc_list(desc_list);
+	if (nr_bit_bucket)
+		kfree(bit_bucket);
+
+	return 0;
+free_sgl_page:
+	for (i--; i >= 0; i--) {
+		dma_pool_free(pool, prp_list[i], prp_dma[i]);
+	}
+	kfree(prp_dma);
+free_prp_list:
+	kfree(prp_list);
+deinit_list:
+	dnvme_deinit_sgl_desc_list(desc_list);
+free_bit_bucket:
+	if (nr_bit_bucket)
+		kfree(bit_bucket);
+	return ret;
+}
+
+#if 0
 static int dnvme_cmd_setup_sgl(struct nvme_device *ndev, 
 		struct nvme_common_command *ccmd, 
 		struct nvme_prps *prps)
@@ -317,7 +657,7 @@ out:
 	kfree(prp_list);
 	return ret;
 }
-
+#endif
 static void dnvme_free_prp_list(struct nvme_device *ndev, struct nvme_prps *prps)
 {
 	struct dma_pool *pool = prps->pg_pool;
@@ -612,7 +952,7 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev,
 		goto out_free_prp;
 
 	if (dnvme_use_sgls(ccmd, cmd))
-		ret = dnvme_cmd_setup_sgl(ndev, ccmd, prps);
+		ret = dnvme_cmd_setup_sgl(ndev, cmd, ccmd, prps);
 	else
 		ret = dnvme_setup_prps(ndev, cmd, ccmd, prps);
 

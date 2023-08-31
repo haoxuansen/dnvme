@@ -49,6 +49,9 @@ struct test_cmd_copy {
 	struct source_range	entry[0];	/* I */
 };
 
+/*
+ * FLAGS: R - restore after use
+ */
 struct test_data {
 	uint32_t	nsid;
 	uint64_t	nsze;
@@ -57,17 +60,44 @@ struct test_data {
 	uint32_t	mcl;
 	uint32_t	msrc;
 	uint16_t	mssrl;
+
+	uint8_t		flags; /* R */
+	uint16_t	control; /* R */
+
+	uint32_t	is_sup_sgl:1;
+	uint32_t	is_sup_sgl_bit_bucket:1;
+	uint32_t	is_use_sgl_bit_bucket:1; /* R */
+
+	uint32_t	nr_bit_bucket; /* R */
+	struct nvme_sgl_bit_bucket	*bit_bucket; /* R */
 };
 
 static struct test_data g_test = {0};
+
+/* Restore the value after use to avoid impact on the next subcase */
+static void restore_test_data(struct test_data *data)
+{
+	data->flags = 0;
+	data->control = 0;
+	data->is_use_sgl_bit_bucket = 0;
+	data->nr_bit_bucket = 0;
+	data->bit_bucket = NULL;
+}
 
 /**
  * @note May re-initialized? ignore...We shall to update this if data changed. 
  */
 static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	int ret;
+
+	if (nvme_ctrl_support_sgl(ctrl) > 0 && 
+		nvme_ctrl_support_sgl_data_block(ctrl) > 0)
+		data->is_sup_sgl = 1;
+	if (nvme_ctrl_support_sgl_bit_bucket(ctrl) > 0)
+		data->is_sup_sgl_bit_bucket = 1;
 
 	/* use first active namespace as default */
 	data->nsid = le32_to_cpu(ns_grp->act_list[0]);
@@ -142,7 +172,7 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 }
 
 static int __send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control, void *rbuf, uint32_t size)
+	uint64_t slba, uint32_t nlb, void *rbuf, uint32_t size)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -150,22 +180,28 @@ static int __send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
+	wrap.flags = test->flags;
 	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = rbuf;
 	wrap.size = wrap.nlb * test->lbads;
-	wrap.control = control;
+	wrap.control = test->control;
 
+	if (test->is_use_sgl_bit_bucket) {
+		wrap.use_bit_bucket = 1;
+		wrap.nr_bit_bucket = test->nr_bit_bucket;
+		wrap.bit_bucket = test->bit_bucket;
+	}
 	BUG_ON(wrap.size > size);
 
 	return nvme_io_read(ndev, &wrap);
 }
 
 static int send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control)
+	uint64_t slba, uint32_t nlb)
 {
-	return __send_io_read_cmd(tool, sq, slba, nlb, control, 
+	return __send_io_read_cmd(tool, sq, slba, nlb, 
 		tool->rbuf, tool->rbuf_size);
 }
 
@@ -181,7 +217,7 @@ static int send_io_read_cmd_for_copy(struct nvme_tool *tool,
 		BUG_ON(copy->rbuf_size < offset);
 
 		ret = __send_io_read_cmd(tool, sq, copy->entry[i].slba, 
-			copy->entry[i].nlb, 0, copy->rbuf + offset, 
+			copy->entry[i].nlb, copy->rbuf + offset, 
 			copy->rbuf_size - offset);
 		if (ret < 0) {
 			pr_err("failed to read NLB(%u) from SLBA(0x%lx)!(%d)\n",
@@ -194,7 +230,7 @@ static int send_io_read_cmd_for_copy(struct nvme_tool *tool,
 }
 
 static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control)
+	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -203,13 +239,19 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
+	wrap.flags = test->flags;
 	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
 	wrap.size = wrap.nlb * test->lbads;
-	wrap.control = control;
+	wrap.control = test->control;
 
+	if (test->is_use_sgl_bit_bucket) {
+		wrap.use_bit_bucket = 1;
+		wrap.nr_bit_bucket = test->nr_bit_bucket;
+		wrap.bit_bucket = test->bit_bucket;
+	}
 	BUG_ON(wrap.size > tool->wbuf_size);
 
 	for (i = 0; i < (wrap.size / 4); i+= 4) {
@@ -328,7 +370,7 @@ static int send_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	 */
 	for (i = 0; i < copy->ranges; i++) {
 		ret = send_io_write_cmd(tool, sq, copy->entry[i].slba, 
-			copy->entry[i].nlb, 0);
+			copy->entry[i].nlb);
 		if (ret < 0) {
 			pr_err("failed to write NLB(%u) to SLBA(0x%lx)!(%d)\n",
 				copy->entry[i].nlb, copy->entry[i].slba, ret);
@@ -383,233 +425,278 @@ out:
 }
 
 /**
- * @brief Send a I/O read command to IOSQ
- * 
- * @return 0 on success, otherwise a negative errno.
- */
-static int case_cmd_io_read(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_sq_info *sq = &ndev->iosqs[0];
-	struct nvme_cq_info *cq;
-	struct test_data *test = &g_test;
-	uint64_t slba;
-	uint32_t nlb = rand() % 255 + 1;
-	int ret;
-
-	ret = init_test_data(ndev, test);
-	if (ret < 0)
-		return ret;
-
-	slba = rand() % (test->nsze / 2);
-
-	pr_debug("READ LBA:0x%llx + %u\n", slba, nlb);
-
-	cq = nvme_find_iocq_info(ndev, sq->cqid);
-	if (!cq) {
-		pr_err("failed to find iocq(%u)!\n", sq->cqid);
-		return -ENODEV;
-	}
-
-	ret = create_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	ret = send_io_read_cmd(tool, sq, slba, nlb, 0);
-	if (ret < 0) {
-		pr_err("failed to read data!(%d)\n", ret);
-		goto out;
-	}
-out:
-	ret |= delete_ioq(ndev, sq, cq);
-	return ret;
-}
-NVME_CASE_CMD_SYMBOL(case_cmd_io_read, "Send a I/O read command to IOSQ");
-
-/**
- * @brief Send a I/O read command with FUA flag to IOSQ
- * 
- * @return 0 on success, otherwise a negative errno.
- */
-static int case_cmd_io_read_with_fua(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_sq_info *sq = &ndev->iosqs[0];
-	struct nvme_cq_info *cq;
-	struct test_data *test = &g_test;
-	uint64_t slba;
-	uint32_t nlb = rand() % 255 + 1;
-	int ret;
-
-	ret = init_test_data(ndev, test);
-	if (ret < 0)
-		return ret;
-
-	slba = rand() % (test->nsze / 2);
-
-	pr_debug("READ LBA:0x%llx + %u\n", slba, nlb);
-
-	cq = nvme_find_iocq_info(ndev, sq->cqid);
-	if (!cq) {
-		pr_err("failed to find iocq(%u)!\n", sq->cqid);
-		return -ENODEV;
-	}
-
-	ret = create_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	ret = send_io_read_cmd(tool, sq, slba, nlb, NVME_RW_FUA);
-	if (ret < 0) {
-		pr_err("failed to read data!(%d)\n", ret);
-		goto out;
-	}
-out:
-	ret |= delete_ioq(ndev, sq, cq);
-	return ret;
-}
-NVME_CASE_CMD_SYMBOL(case_cmd_io_read_with_fua, 
-	"Send a I/O read command with FUA flag to IOSQ");
-
-/**
- * @brief Send a I/O write command to IOSQ
- * 
- * @return 0 on success, otherwise a negative errno.
- */
-static int case_cmd_io_write(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_sq_info *sq = &ndev->iosqs[0];
-	struct nvme_cq_info *cq;
-	struct test_data *test = &g_test;
-	uint64_t slba;
-	uint32_t nlb = rand() % 255 + 1;
-	int ret;
-
-	ret = init_test_data(ndev, test);
-	if (ret < 0)
-		return ret;
-
-	slba = rand() % (test->nsze / 2);
-
-	pr_debug("WRITE LBA:0x%llx + %u\n", slba, nlb);
-
-	cq = nvme_find_iocq_info(ndev, sq->cqid);
-	if (!cq) {
-		pr_err("failed to find iocq(%u)!\n", sq->cqid);
-		return -ENODEV;
-	}
-
-	ret = create_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	ret = send_io_write_cmd(tool, sq, slba, nlb, 0);
-	if (ret < 0) {
-		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
-	}
-out:
-	ret |= delete_ioq(ndev, sq, cq);
-	return ret;
-}
-NVME_CASE_CMD_SYMBOL(case_cmd_io_write, "Send a I/O write command to IOSQ");
-
-/**
- * @brief Send a I/O write command with FUA flag to IOSQ
- * 
- * @return 0 on success, otherwise a negative errno.
- */
-static int case_cmd_io_write_with_fua(struct nvme_tool *tool)
-{
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_sq_info *sq = &ndev->iosqs[0];
-	struct nvme_cq_info *cq;
-	struct test_data *test = &g_test;
-	uint64_t slba;
-	uint32_t nlb = rand() % 255 + 1;
-	int ret;
-
-	ret = init_test_data(ndev, test);
-	if (ret < 0)
-		return ret;
-
-	slba = rand() % (test->nsze / 2);
-
-	pr_debug("WRITE LBA:0x%llx + %u\n", slba, nlb);
-
-	cq = nvme_find_iocq_info(ndev, sq->cqid);
-	if (!cq) {
-		pr_err("failed to find iocq(%u)!\n", sq->cqid);
-		return -ENODEV;
-	}
-
-	ret = create_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	ret = send_io_write_cmd(tool, sq, slba, nlb, NVME_RW_FUA);
-	if (ret < 0) {
-		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
-	}
-out:
-	ret |= delete_ioq(ndev, sq, cq);
-	return ret;
-}
-NVME_CASE_CMD_SYMBOL(case_cmd_io_write_with_fua, 
-	"Send a I/O write command with FUA flag to IOSQ");
-
-/**
- * @brief Send a I/O compare command to IOSQ
+ * @brief Read command shall process success
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int case_cmd_io_compare(struct nvme_tool *tool)
+static int subcase_read_success(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
 {
-	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_sq_info *sq = &ndev->iosqs[0];
-	struct nvme_cq_info *cq;
 	struct test_data *test = &g_test;
-	uint64_t slba = 0;
-	uint32_t nlb = 8;
+	/* ensure "slba + nlb <= nsze" */
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
 	int ret;
 
-	ret = init_test_data(ndev, test);
-	if (ret < 0)
-		return ret;
-
-	cq = nvme_find_iocq_info(ndev, sq->cqid);
-	if (!cq) {
-		pr_err("failed to find iocq(%u)!\n", sq->cqid);
-		return -ENODEV;
-	}
-
-	ret = create_ioq(ndev, sq, cq);
-	if (ret < 0)
-		return ret;
-
-	ret = send_io_write_cmd(tool, sq, slba, nlb, 0);
-	ret |= send_io_read_cmd(tool, sq, slba, nlb, 0);
-	ret |= send_io_compare_cmd(tool, sq, slba, nlb);
+	ret = send_io_read_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
-		pr_err("failed to compare data!(%d)\n", ret);
-		goto out;
-	}
-
-	/* check again */
-	ret = memcmp(tool->wbuf, tool->rbuf, test->lbads * nlb);
-	if (ret != 0) {
-		pr_err("failed to compare read/write buffer!\n");
-		ret = -EIO;
+		pr_err("failed to read data! SLBA:0x%llx, NLB:%u(%d)\n", 
+			slba, nlb, ret);
 		goto out;
 	}
 out:
-	ret |= delete_ioq(ndev, sq, cq);
+	nvme_record_subcase_result(__func__, ret);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_io_compare, 
-	"Send a I/O compare command to IOSQ");
+
+/**
+ * @brief Read command with FUA flag shall process success
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int subcase_read_fua_success(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb <= nsze" */
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
+	int ret;
+
+	test->control = NVME_RW_FUA;
+	ret = send_io_read_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to read data! SLBA:0x%llx, NLB:%u(%d)\n", 
+			slba, nlb, ret);
+		goto restore;
+	}
+restore:
+	/* Restore the value after use to avoid impact on the next subcase */
+	test->control = 0;
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
+ * @brief Read command uses SGL bit bucket descriptor
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int subcase_read_use_sgl_bit_bucket(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	struct nvme_sgl_bit_bucket *bit_bucket = NULL;
+	/* ensure "slba + nlb <= nsze" */
+	uint64_t slba = rand() % (test->nsze / 4);
+	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 4)) + 1;
+	uint32_t nr_bit_bucket = rand() % 8 + 1;
+	uint32_t skip = 0;
+	uint32_t i;
+	int ret;
+
+	if (!test->is_sup_sgl || !test->is_sup_sgl_bit_bucket)
+		return -EOPNOTSUPP;
+
+	bit_bucket = calloc(nr_bit_bucket, sizeof(struct nvme_sgl_bit_bucket));
+	if (!bit_bucket) {
+		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	do {
+		if (skip) {
+			pr_warn("slba + nlb + skip > nsze! try again...\n");
+			skip = 0;
+		}
+
+		for (i = 0; i < nr_bit_bucket; i++) {
+			bit_bucket[i].offset = (rand() % nlb) * test->lbads;
+			/* Length = 0h is a valid SGL Bit Bucket descriptor */
+			bit_bucket[i].length = (rand() % 16) * test->lbads;
+			skip += bit_bucket[i].length / test->lbads;
+		}
+	} while ((slba + nlb + skip) > test->nsze);
+
+	test->flags = NVME_CMD_SGL_METABUF;
+	test->is_use_sgl_bit_bucket = 1;
+	test->nr_bit_bucket = nr_bit_bucket;
+	test->bit_bucket = bit_bucket;
+
+	pr_debug("SLBA:0x%llx, NLB:%u, bit_bucket:%u\n",
+		slba, nlb, nr_bit_bucket);
+	for (i = 0; i < nr_bit_bucket; i++) {
+		pr_debug("idx:%u, offset:0x%x, length:0x%x\n",
+			i, bit_bucket[i].offset, bit_bucket[i].length);
+	}
+
+	ret = send_io_read_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to read data!(%d)\n", ret);
+		goto restore;
+	}
+
+restore:
+	/* Restore the value after use to avoid impact on the next subcase */
+	test->flags = 0;
+	test->is_use_sgl_bit_bucket = 0;
+	test->nr_bit_bucket = 0;
+	test->bit_bucket = NULL;
+
+	free(bit_bucket);
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
+ * @brief Write command shall process success
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int subcase_write_success(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb <= nsze" */
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
+	int ret;
+
+	ret = send_io_write_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to write data! SLBA:0x%llx, NLB:%u(%d)\n", 
+			slba, nlb, ret);
+		goto out;
+	}
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
+ * @brief Write command with FUA flag shall process success
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int subcase_write_fua_success(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb <= nsze" */
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
+	int ret;
+
+	test->control = NVME_RW_FUA;
+	ret = send_io_write_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to write data! SLBA:0x%llx, NLB:%u(%d)\n", 
+			slba, nlb, ret);
+		goto restore;
+	}
+restore:
+	/* Restore the value after use to avoid impact on the next subcase */
+	test->control = 0;
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
+ * @brief Write command uses SGL bit bucket descriptor
+ * 
+ * @return 0 on success, otherwise a negative errno
+ * 
+ * @note If the SGL Bit Bucket descriptor describes a source data buffer,
+ * 	then the Bit Bucket descriptor shall be treated as if the Length
+ * 	field were cleared to 0h (the Bit Bucket descriptor has no effect)
+ */
+static int subcase_write_use_sgl_bit_bucket(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	struct nvme_sgl_bit_bucket *bit_bucket = NULL;
+	/* ensure "slba + nlb <= nsze" */
+	uint64_t slba = rand() % (test->nsze / 4);
+	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 4)) + 1;
+	uint32_t nr_bit_bucket = rand() % 8 + 1;
+	uint32_t skip = 0;
+	uint32_t i;
+	int ret;
+
+	if (!test->is_sup_sgl || !test->is_sup_sgl_bit_bucket)
+		return -EOPNOTSUPP;
+
+	bit_bucket = calloc(nr_bit_bucket, sizeof(struct nvme_sgl_bit_bucket));
+	if (!bit_bucket) {
+		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	do {
+		if (skip) {
+			pr_warn("slba + nlb + skip > nsze! try again...\n");
+			skip = 0;
+		}
+
+		for (i = 0; i < nr_bit_bucket; i++) {
+			bit_bucket[i].offset = (rand() % nlb) * test->lbads;
+			/* Length = 0h is a valid SGL Bit Bucket descriptor */
+			bit_bucket[i].length = (rand() % 16) * test->lbads;
+			skip += bit_bucket[i].length / test->lbads;
+		}
+	} while ((slba + nlb + skip) > test->nsze);
+
+	test->flags = NVME_CMD_SGL_METABUF;
+	test->is_use_sgl_bit_bucket = 1;
+	test->nr_bit_bucket = nr_bit_bucket;
+	test->bit_bucket = bit_bucket;
+
+	pr_debug("SLBA:0x%llx, NLB:%u, bit_bucket:%u\n",
+		slba, nlb, nr_bit_bucket);
+	for (i = 0; i < nr_bit_bucket; i++) {
+		pr_debug("idx:%u, offset:0x%x, length:0x%x\n",
+			i, bit_bucket[i].offset, bit_bucket[i].length);
+	}
+
+	ret = send_io_write_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to write data!(%d)\n", ret);
+		goto restore;
+	}
+	restore_test_data(test);
+
+	/* readback to check the bit bucket descriptor has no effect */
+	ret = send_io_read_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to read data! SLBA:0x%llx, NLB:%u(%d)\n", 
+			slba, nlb, ret);
+		goto free_bit_bucket;
+	}
+
+	if (memcmp(tool->rbuf, tool->wbuf, nlb * test->lbads)) {
+		pr_err("rbuf vs wbuf is different!\n");
+		dump_data_to_file(tool->rbuf, nlb * test->lbads, "./rbuf.bin");
+		dump_data_to_file(tool->wbuf, nlb * test->lbads, "./wbuf.bin");
+		ret = -EIO;
+		goto free_bit_bucket;
+	}
+
+restore:
+	/* Restore the value after use to avoid impact on the next subcase */
+	test->flags = 0;
+	test->is_use_sgl_bit_bucket = 0;
+	test->nr_bit_bucket = 0;
+	test->bit_bucket = NULL;
+
+free_bit_bucket:
+	free(bit_bucket);
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
 
 /**
  * @brief Copy command shall process success
@@ -686,7 +773,7 @@ static int subcase_copy_success(struct nvme_tool *tool,
 	if (ret < 0)
 		goto free_rbuf;
 
-	ret = send_io_read_cmd(tool, sq, copy->slba, sum, 0);
+	ret = send_io_read_cmd(tool, sq, copy->slba, sum);
 	if (ret < 0)
 		goto free_rbuf;
 
@@ -1092,6 +1179,125 @@ out:
 	nvme_record_subcase_result(__func__, ret);
 	return ret;
 }
+
+static int case_cmd_io_read(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	struct test_data *test = &g_test;
+	int ret;
+
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
+		return ret;
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		return -ENODEV;
+	}
+
+	ret = create_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	ret |= subcase_read_success(tool, sq);
+	ret |= subcase_read_fua_success(tool, sq);
+	ret |= subcase_read_use_sgl_bit_bucket(tool, sq);
+
+	nvme_display_subcase_report();
+
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
+}
+NVME_CASE_CMD_SYMBOL(case_cmd_io_read, 
+	"Send I/O read command to IOSQ in various scenarios");
+
+static int case_cmd_io_write(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	struct test_data *test = &g_test;
+	int ret;
+
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
+		return ret;
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		return -ENODEV;
+	}
+
+	ret = create_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	ret |= subcase_write_success(tool, sq);
+	ret |= subcase_write_fua_success(tool, sq);
+	ret |= subcase_write_use_sgl_bit_bucket(tool, sq);
+
+	nvme_display_subcase_report();
+
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
+}
+NVME_CASE_CMD_SYMBOL(case_cmd_io_write, 
+	"Send a I/O write command to IOSQ in various scenarios");
+
+/**
+ * @brief Send a I/O compare command to IOSQ
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+static int case_cmd_io_compare(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct nvme_cq_info *cq;
+	struct test_data *test = &g_test;
+	uint64_t slba = 0;
+	uint32_t nlb = 8;
+	int ret;
+
+	ret = init_test_data(ndev, test);
+	if (ret < 0)
+		return ret;
+
+	cq = nvme_find_iocq_info(ndev, sq->cqid);
+	if (!cq) {
+		pr_err("failed to find iocq(%u)!\n", sq->cqid);
+		return -ENODEV;
+	}
+
+	ret = create_ioq(ndev, sq, cq);
+	if (ret < 0)
+		return ret;
+
+	ret = send_io_write_cmd(tool, sq, slba, nlb);
+	ret |= send_io_read_cmd(tool, sq, slba, nlb);
+	ret |= send_io_compare_cmd(tool, sq, slba, nlb);
+	if (ret < 0) {
+		pr_err("failed to compare data!(%d)\n", ret);
+		goto out;
+	}
+
+	/* check again */
+	ret = memcmp(tool->wbuf, tool->rbuf, test->lbads * nlb);
+	if (ret != 0) {
+		pr_err("failed to compare read/write buffer!\n");
+		ret = -EIO;
+		goto out;
+	}
+out:
+	ret |= delete_ioq(ndev, sq, cq);
+	return ret;
+}
+NVME_CASE_CMD_SYMBOL(case_cmd_io_compare, 
+	"Send a I/O compare command to IOSQ");
 
 static int case_cmd_io_copy(struct nvme_tool *tool)
 {

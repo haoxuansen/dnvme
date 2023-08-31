@@ -34,6 +34,11 @@ struct nvme_rwc_wrapper {
 	uint32_t	size;
 
 	uint32_t	meta_id;
+
+	uint32_t	use_bit_bucket:1;
+
+	uint32_t			nr_bit_bucket;
+	struct nvme_sgl_bit_bucket	*bit_bucket;
 };
 
 struct nvme_copy_wrapper {

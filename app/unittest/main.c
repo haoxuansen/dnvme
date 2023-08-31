@@ -44,6 +44,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 	}
 	tool->entry_size = NVME_TOOL_CQ_ENTRY_SIZE;
 
+	/* !TODO: It's better to align pages rather than a constant of 4096. */
 	ret = posix_memalign(&tool->sq_buf, 4096, NVME_TOOL_SQ_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc for SQ!\n");

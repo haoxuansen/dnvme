@@ -198,6 +198,11 @@ struct nvme_prep_cq {
 	uint32_t	use_cmb:1;
 };
 
+struct nvme_sgl_bit_bucket {
+	uint32_t	offset; /* in bytes */
+	uint32_t	length; /* in bytes */
+};
+
 /**
  * This struct is the basic structure which has important parameter for
  * sending 64 Bytes command to both admin and IO SQ's and CQ's
@@ -219,6 +224,11 @@ struct nvme_64b_cmd {
 	enum dma_data_direction	data_dir;
 
 	uint32_t	meta_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
+
+	uint32_t	use_bit_bucket:1;
+
+	uint32_t			nr_bit_bucket;
+	struct nvme_sgl_bit_bucket	*bit_bucket;
 };
 
 /**

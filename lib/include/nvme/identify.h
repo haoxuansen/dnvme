@@ -15,6 +15,11 @@
 int nvme_ctrl_support_copy_cmd(struct nvme_ctrl_instance *ctrl);
 int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl);
 
+int nvme_ctrl_support_sgl(struct nvme_ctrl_instance *ctrl);
+int nvme_ctrl_support_keyed_sgl_data_block(struct nvme_ctrl_instance *ctrl);
+int nvme_ctrl_support_sgl_bit_bucket(struct nvme_ctrl_instance *ctrl);
+int nvme_ctrl_support_sgl_data_block(struct nvme_ctrl_instance *ctrl);
+
 int nvme_ns_support_zns_command_set(struct nvme_ns_instance *ns);
 
 int nvme_id_ctrl_npss(struct nvme_ctrl_instance *ctrl);
