@@ -20,6 +20,7 @@
 #include "test.h"
 
 #define TEST_IO_CMD_ROUND			256
+#define TEST_IO_QUEUE_NUM			2
 
 struct reset_ops {
 	 const char	*name;
@@ -53,6 +54,8 @@ struct test_data {
 	uint32_t	msrc;
 	uint16_t	mssrl;
 
+	struct nvme_sq_info *sq[TEST_IO_QUEUE_NUM];
+	struct nvme_cq_info *cq[TEST_IO_QUEUE_NUM];
 	struct test_cmd_copy *copy[TEST_IO_CMD_ROUND];
 };
 
@@ -217,8 +220,27 @@ out:
  */
 static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct nvme_sq_info *sq;
+	unsigned int i;
 	int ret;
+
+	if (ctrl->nr_sq < TEST_IO_QUEUE_NUM || ctrl->nr_cq < TEST_IO_QUEUE_NUM) {
+		pr_err("nr_sq(%u) or nr_cq(%u) < test queue(%u)!\n",
+			ctrl->nr_sq, ctrl->nr_cq, TEST_IO_QUEUE_NUM);
+		return -ENODEV;
+	}
+
+	for (i = 0; i < TEST_IO_QUEUE_NUM; i++) {
+		sq = &ndev->iosqs[i];
+		data->cq[i] = nvme_find_iocq_info(ndev, sq->cqid);
+		if (!data->cq[i]) {
+			pr_err("failed to find iocq(%u)!\n", sq->cqid);
+			return -ENODEV;
+		}
+		data->sq[i] = sq;
+	}
 
 	/* use first active namespace as default */
 	data->nsid = le32_to_cpu(ns_grp->act_list[0]);
@@ -281,8 +303,47 @@ static int create_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	return 0;
 }
 
+static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq, 
+	struct nvme_cq_info *cq)
+{
+	int ret;
+
+	ret = nvme_delete_iosq(ndev, sq->sqid);
+	if (ret < 0) {
+		pr_err("failed to delete iosq:%u!(%d)\n", sq->sqid, ret);
+		return ret;
+	}
+
+	ret = nvme_delete_iocq(ndev, cq->cqid);
+	if (ret < 0) {
+		pr_err("failed to delete iocq:%u!(%d)\n", cq->cqid, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int create_ioqs(struct nvme_dev_info *ndev, struct test_data *data)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < TEST_IO_QUEUE_NUM; i++) {
+		ret = create_ioq(ndev, data->sq[i], data->cq[i]);
+		if (ret < 0)
+			goto out;
+	}
+
+	return 0;
+out:
+	for (i--; i >= 0; i--)
+		delete_ioq(ndev, data->sq[i], data->cq[i]);
+
+	return ret;
+}
+
 static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control)
+	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
@@ -295,7 +356,6 @@ static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nlb = nlb;
 	wrap.buf = tool->rbuf;
 	wrap.size = wrap.nlb * test->lbads;
-	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->rbuf_size);
 
@@ -303,12 +363,11 @@ static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 }
 
 static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
-	uint64_t slba, uint32_t nlb, uint16_t control)
+	uint64_t slba, uint32_t nlb)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 	struct test_data *test = &g_test;
-	uint32_t i;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
@@ -317,13 +376,9 @@ static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nlb = nlb;
 	wrap.buf = tool->wbuf;
 	wrap.size = wrap.nlb * test->lbads;
-	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
-
-	for (i = 0; i < (wrap.size / 4); i+= 4) {
-		*(uint32_t *)(wrap.buf + i) = (uint32_t)rand();
-	}
+	fill_data_with_random(wrap.buf, wrap.size);
 
 	return nvme_cmd_io_write(ndev->fd, &wrap);
 }
@@ -355,7 +410,18 @@ static int prepare_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
 
-	return submit_io_read_cmd(tool, sq, slba, nlb, 0);
+	return submit_io_read_cmd(tool, sq, slba, nlb);
+}
+
+static int prepare_io_read_cmd_invalid_range(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb > nsze */
+	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
+	uint64_t slba = test->nsze - (nlb / 2);
+
+	return submit_io_read_cmd(tool, sq, slba, nlb);
 }
 
 static int prepare_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
@@ -365,7 +431,18 @@ static int prepare_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 	uint64_t slba = rand() % (test->nsze / 2);
 	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
 
-	return submit_io_write_cmd(tool, sq, slba, nlb, 0);
+	return submit_io_write_cmd(tool, sq, slba, nlb);
+}
+
+static int prepare_io_write_cmd_invalid_range(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb > nsze */
+	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
+	uint64_t slba = test->nsze - (nlb / 2);
+
+	return submit_io_write_cmd(tool, sq, slba, nlb);
 }
 
 static int prepare_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
@@ -379,13 +456,16 @@ static int prepare_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	return submit_io_copy_cmd(tool, sq, test->copy[idx]);
 }
 
-static int do_io_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
+static int do_io_cmd(struct nvme_tool *tool, struct test_data *data)
 {
+	struct nvme_sq_info *sq;
 	struct nvme_dev_info *ndev = tool->ndev;
-	uint32_t cnt = min_t(uint32_t, sq->nr_entry / 6, TEST_IO_CMD_ROUND);
+	uint32_t cnt;
 	uint32_t i;
 	int ret;
 
+	sq = data->sq[0];
+	cnt = min_t(uint32_t, sq->nr_entry / 6, TEST_IO_CMD_ROUND);
 	for (i = 0; i < cnt; i++) {
 		ret = prepare_io_read_cmd(tool, sq);
 		ret |= prepare_io_write_cmd(tool, sq);
@@ -397,7 +477,22 @@ static int do_io_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 		}
 	}
 
-	return nvme_ring_sq_doorbell(ndev->fd, sq->sqid);
+	sq = data->sq[1];
+	cnt = min_t(uint32_t, sq->nr_entry / 6, TEST_IO_CMD_ROUND);
+	for (i = 0; i < cnt; i++) {
+		ret = prepare_io_read_cmd_invalid_range(tool, sq);
+		ret |= prepare_io_write_cmd_invalid_range(tool, sq);
+
+		if (ret < 0) {
+			pr_err("failed to submit io cmd!(%d)\n", ret);
+			return ret;
+		}
+	}
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, data->sq[0]->sqid);
+	ret |= nvme_ring_sq_doorbell(ndev->fd, data->sq[1]->sqid);
+
+	return ret;
 }
 
 static int do_nvme_ctrl_reset(struct nvme_dev_info *ndev)
@@ -712,8 +807,6 @@ static int do_random_reset(struct nvme_dev_info *ndev)
 static int case_reset_all_random(struct nvme_tool *tool)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
-	struct nvme_sq_info *sq = &ndev->iosqs[0];
-	struct nvme_cq_info *cq;
 	struct test_data *test = &g_test;
 	int loop = 50;
 	int ret;
@@ -722,19 +815,12 @@ static int case_reset_all_random(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	cq = nvme_find_iocq_info(ndev, sq->cqid);
-	if (!cq) {
-		pr_err("failed to find iocq(%u)!\n", sq->cqid);
-		ret = -ENODEV;
-		goto out;
-	}
-
 	do {
-		ret = create_ioq(ndev, sq, cq);
+		ret = create_ioqs(ndev, test);
 		if (ret < 0)
 			goto out;
 
-		ret = do_io_cmd(tool, sq);
+		ret = do_io_cmd(tool, test);
 		if (ret < 0)
 			goto out;
 
