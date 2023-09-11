@@ -12,12 +12,15 @@
 #ifndef _UAPI_LIB_NVME_IDENTIFY_H_
 #define _UAPI_LIB_NVME_IDENTIFY_H_
 
+int nvme_ctrl_support_ext_lba_formats(struct nvme_ctrl_instance *ctrl);
+
 int nvme_ctrl_support_copy_cmd(struct nvme_ctrl_instance *ctrl);
 int nvme_ctrl_support_write_protect(struct nvme_ctrl_instance *ctrl);
 
 int nvme_ctrl_support_sgl(struct nvme_ctrl_instance *ctrl);
 int nvme_ctrl_support_keyed_sgl_data_block(struct nvme_ctrl_instance *ctrl);
 int nvme_ctrl_support_sgl_bit_bucket(struct nvme_ctrl_instance *ctrl);
+int nvme_ctrl_support_sgl_mptr_sgl(struct nvme_ctrl_instance *ctrl);
 int nvme_ctrl_support_sgl_data_block(struct nvme_ctrl_instance *ctrl);
 
 int nvme_ns_support_zns_command_set(struct nvme_ns_instance *ns);
@@ -32,6 +35,8 @@ int nvme_id_ctrl_sgls(struct nvme_ctrl_instance *ctrl, uint32_t *sgls);
 int nvme_id_ns_nsze(struct nvme_ns_group *grp, uint32_t nsid, uint64_t *nsze);
 int nvme_id_ns_flbas(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_mc(struct nvme_ns_group *grp, uint32_t nsid);
+int nvme_id_ns_dpc(struct nvme_ns_group *grp, uint32_t nsid);
+int nvme_id_ns_dps(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_mssrl(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_mcl(struct nvme_ns_group *grp, uint32_t nsid, uint32_t *mcl);
 int nvme_id_ns_msrc(struct nvme_ns_group *grp, uint32_t nsid);

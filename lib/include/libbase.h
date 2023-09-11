@@ -26,6 +26,7 @@
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
 
 #define BIT(x)				(1UL << (x))
+#define BIT_ULL(x)			(1ULL << (x))
 
 /**
  * upper_32_bits - return bits 32-63 of a number
@@ -57,6 +58,26 @@ static inline void *zalloc(size_t size)
 }
 
 int call_system(const char *command);
+
+uint8_t reverse_8bits(uint8_t data);
+
+static inline uint16_t reverse_16bits(uint16_t data)
+{
+	return ((uint16_t)reverse_8bits(data & 0xff) << 8) |
+		((uint16_t)reverse_8bits(data >> 8));
+}
+
+static inline uint32_t reverse_32bits(uint32_t data)
+{
+	return ((uint32_t)reverse_16bits(data & 0xffff) << 16) |
+		((uint32_t)reverse_16bits(data >> 16));
+}
+
+static inline uint64_t reverse_64bits(uint64_t data)
+{
+	return ((uint64_t)reverse_32bits(data & 0xffffffff) << 32) | 
+		((uint64_t)reverse_32bits(data >> 32));
+}
 
 int fill_data_with_incseq(void *buf, uint32_t size);
 int fill_data_with_decseq(void *buf, uint32_t size);

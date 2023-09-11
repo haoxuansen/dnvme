@@ -29,6 +29,12 @@ struct nvme_rwc_wrapper {
 	uint64_t	slba;
 	uint32_t	nlb;
 	uint16_t	control;
+	uint16_t	apptag;
+	uint16_t	appmask;
+
+	uint32_t	dw2;
+	uint32_t	dw3;
+	uint32_t	dw14;
 
 	void		*buf;
 	uint32_t	size;
@@ -140,6 +146,16 @@ int nvme_set_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap)
 
 int nvme_cmd_get_feat_hmb(int fd, struct nvme_hmb_wrapper *wrap);
 int nvme_get_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap);
+
+int nvme_cmd_set_feat_host_behavior(int fd, uint32_t sel, 
+	struct nvme_feat_host_behavior *behavior);
+int nvme_set_feat_host_behavior(struct nvme_dev_info *ndev, uint32_t sel, 
+	struct nvme_feat_host_behavior *behavior);
+
+int nvme_cmd_get_feat_host_behavior(int fd, uint32_t sel,
+	struct nvme_feat_host_behavior *behavior);
+int nvme_get_feat_host_behavior(struct nvme_dev_info *ndev, uint32_t sel,
+	struct nvme_feat_host_behavior *behavior);
 
 static inline int nvme_cmd_set_feat_iocs_profile(int fd, uint32_t sel, 
 	uint32_t index)

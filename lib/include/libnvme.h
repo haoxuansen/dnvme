@@ -24,6 +24,7 @@
 #include "nvme/core.h"
 #include "nvme/cmd.h"
 #include "nvme/cmd_zns.h"
+#include "nvme/cmd_vendor.h"
 #include "nvme/directive.h"
 #include "nvme/identify.h"
 #include "nvme/ioctl.h"

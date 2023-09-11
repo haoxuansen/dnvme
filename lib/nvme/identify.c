@@ -16,6 +16,25 @@
 #include "libnvme.h"
 
 /**
+ * @brief Check whether the controller supports extended LBA formats.
+ * 
+ * @retval 1	support extended LBA formats.
+ * @retval 0	don't support extended LBA formats.
+ * @retval -ENODEV	identify controller data not exist. 
+ */
+int nvme_ctrl_support_ext_lba_formats(struct nvme_ctrl_instance *ctrl)
+{
+	uint32_t ctratt;
+
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+	
+	ctratt = le32_to_cpu(ctrl->id_ctrl->ctratt);
+
+	return (ctratt & NVME_CTRL_CTRATT_ELBAS) ? 1 : 0;
+}
+
+/**
  * @brief Check whether the controller supports Copy command.
  * 
  * @return Details are listed below.
@@ -100,6 +119,22 @@ int nvme_ctrl_support_sgl_bit_bucket(struct nvme_ctrl_instance *ctrl)
 	
 	return (le32_to_cpu(ctrl->id_ctrl->sgls) & 
 		NVME_CTRL_SGLS_BIT_BUCKET) ? 1 : 0;
+}
+
+/**
+ * @brief Check whether the controller supports a MPTR containing an SGL descriptor
+ * 
+ * @retval 1	support a MPTR containing an SGL descriptor.
+ * @retval 0	don't support a MPTR containing an SGL descriptor.
+ * @retval -ENODEV	identify controller data not exist.
+ */
+int nvme_ctrl_support_sgl_mptr_sgl(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl)
+		return -ENODEV;
+
+	return (le32_to_cpu(ctrl->id_ctrl->sgls) & 
+		NVME_CTRL_SGLS_MPTR_SGL) ? 1 : 0;
 }
 
 /**
@@ -280,6 +315,38 @@ int nvme_id_ns_mc(struct nvme_ns_group *grp, uint32_t nsid)
 		return ret;
 
 	return grp->ns[nsid - 1].id_ns->mc;
+}
+
+/**
+ * @brief Get end-to-end data protection capabilities
+ * 
+ * @return dpc on success, otherwise a negative errno
+ */
+int nvme_id_ns_dpc(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	return grp->ns[nsid - 1].id_ns->dpc;
+}
+
+/**
+ * @brief Get end-to-end data protection type settings
+ * 
+ * @return dps on success, otherwise a negative errno
+ */
+int nvme_id_ns_dps(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	int ret;
+
+	ret = check_id_ns_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	return grp->ns[nsid - 1].id_ns->dps;
 }
 
 /**

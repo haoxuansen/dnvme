@@ -262,7 +262,7 @@ static int init_id_cs_ctrl(struct nvme_dev_info *ndev,
 	uint64_t vector;
 	int ret;
 
-	if (prop->vs < NVME_VS(2, 0, 0))
+	if (nvme_version(ndev) < NVME_VS(2, 0, 0))
 		return 0;
 
 	ret = nvme_read_ctrl_cc(ndev->fd, &prop->cc);
@@ -578,6 +578,9 @@ static int init_id_cs_ns(struct nvme_dev_info *ndev,
 	void *data;
 	uint8_t csi;
 	int ret;
+
+	if (nvme_version(ndev) < NVME_VS(2, 0, 0))
+		return 0;
 
 	if (!ns->ns_id_desc[NVME_NIDT_CSI]) {
 		pr_warn("CSI descriptor don't exist! skip...\n");

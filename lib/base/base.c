@@ -48,6 +48,19 @@ int call_system(const char *command)
 	return 0;
 }
 
+/**
+ * @brief Reverse each bit of data
+ * 
+ * @note bit0 -> bit7, bit1 -> bit6, ..., bit7 -> bit0
+ */
+uint8_t reverse_8bits(uint8_t data)
+{
+	data = ((data << 4) & 0xf0) | ((data >> 4) & 0x0f);
+	data = ((data << 2) & 0xcc) | ((data >> 2) & 0x33);
+	data = ((data << 1) & 0xaa) | ((data >> 1) & 0x55);
+	return data;
+}
+
 int fill_data_with_incseq(void *buf, uint32_t size)
 {
 	uint32_t i;

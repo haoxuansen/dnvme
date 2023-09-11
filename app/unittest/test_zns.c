@@ -22,16 +22,16 @@
 #define TEST_ZNS_CHECK_MORE		1
 
 /*
- * FLAGS: R - restore after use
+ * FLAGS: R - restore after use, U - update after format
  */
 struct test_data {
 	uint32_t	nsid;
-	uint64_t	nsze;
-	uint32_t	lbads;
+	uint64_t	nsze; /* U */
+	uint32_t	lbads; /* U */
 
 	/* zone descriptor extension size (covert to 1B unit) */
-	uint32_t	zdes;
-	uint64_t	zsze; /* unit: logical block */
+	uint32_t	zdes; /* U */
+	uint64_t	zsze; /* U - unit: logical block */
 
 	void		*buf; /* R */
 	uint32_t	size; /* R */
@@ -289,6 +289,9 @@ static int select_lba_formt_extension(struct nvme_dev_info *ndev,
 	if (ret < 0)
 		return ret;
 
+	/* update test data */
+	nvme_id_ns_lbads(ns_grp, data->nsid, &data->lbads);
+	nvme_id_ns_nsze(ns_grp, data->nsid, &data->nsze);
 	data->zsze = le64_to_cpu(lbafe->zsze);
 	data->zdes = (uint32_t)lbafe->zdes * 64;
 

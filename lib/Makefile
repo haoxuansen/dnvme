@@ -1,7 +1,7 @@
 RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 -include $(RULES_MK)
 
-DIRS := base nvme
+DIRS := base crc nvme
 SRCS := $(foreach dir,$(DIRS),$(wildcard $(CUR_DIR_PATH)/$(dir)/*.c))
 OBJS := $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
@@ -18,6 +18,7 @@ $(TARGETS): $(OBJS)
 
 build: $(TARGETS)
 	$(Q)make -C base $@
+	$(Q)make -C crc $@
 	$(Q)make -C nvme $@
 ifeq ($(RELEASE_DIR_EXIST),yes)
 	$(Q)cp $(TARGETS) $(RELEASE_LIB_DIR)/
@@ -27,11 +28,13 @@ endif
 
 clean:
 	$(Q)make -C base $@
+	$(Q)make -C crc $@
 	$(Q)make -C nvme $@
 	$(Q)rm -f $(OBJS)
 
 distclean:
 	$(Q)make -C base $@
+	$(Q)make -C crc $@
 	$(Q)make -C nvme $@
 	$(Q)rm -f $(OBJS) $(TARGETS)
 

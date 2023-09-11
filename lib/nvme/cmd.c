@@ -225,6 +225,46 @@ int nvme_cmd_get_feat_hmb(int fd, struct nvme_hmb_wrapper *wrap)
 	return nvme_submit_64b_cmd(fd, &cmd);
 }
 
+int nvme_cmd_set_feat_host_behavior(int fd, uint32_t sel, 
+	struct nvme_feat_host_behavior *behavior)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_features feat = {0};
+
+	feat.opcode = nvme_admin_set_features;
+	feat.fid = cpu_to_le32(sel | NVME_FEAT_HOST_BEHAVIOR);
+
+	cmd.sqid = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &feat;
+	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+		NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST;
+	cmd.data_buf_ptr = behavior;
+	cmd.data_buf_size = sizeof(struct nvme_feat_host_behavior);
+	cmd.data_dir = DMA_BIDIRECTIONAL;
+	
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_cmd_get_feat_host_behavior(int fd, uint32_t sel,
+	struct nvme_feat_host_behavior *behavior)
+{
+	struct nvme_64b_cmd cmd = {0};
+	struct nvme_features feat = {0};
+
+	feat.opcode = nvme_admin_get_features;
+	feat.fid = cpu_to_le32(sel | NVME_FEAT_HOST_BEHAVIOR);
+
+	cmd.sqid = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &feat;
+	cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+		NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST;
+	cmd.data_buf_ptr = behavior;
+	cmd.data_buf_size = sizeof(struct nvme_feat_host_behavior);
+	cmd.data_dir = DMA_BIDIRECTIONAL;
+	
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
 int nvme_set_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap)
 {
 	struct nvme_completion entry = {0};
@@ -279,6 +319,64 @@ int nvme_get_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap)
 		return ret;
 
 	return le32_to_cpu(entry.result.u32) & 0x3;
+}
+
+int nvme_set_feat_host_behavior(struct nvme_dev_info *ndev, uint32_t sel, 
+	struct nvme_feat_host_behavior *behavior)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_set_feat_host_behavior(ndev->fd, sel, behavior);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int nvme_get_feat_host_behavior(struct nvme_dev_info *ndev, uint32_t sel,
+	struct nvme_feat_host_behavior *behavior)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_get_feat_host_behavior(ndev->fd, sel, behavior);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 int nvme_set_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel, 
@@ -1046,9 +1144,14 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 	rwc.opcode = opcode;
 	rwc.flags = wrap->flags;
 	rwc.nsid = cpu_to_le32(wrap->nsid);
+	rwc.cdw2 = cpu_to_le32(wrap->dw2);
+	rwc.cdw3 = cpu_to_le32(wrap->dw3);
 	rwc.slba = cpu_to_le64(wrap->slba);
 	rwc.length = cpu_to_le16((uint16_t)(wrap->nlb - 1)); /* 0'base */
 	rwc.control = cpu_to_le16(wrap->control);
+	rwc.reftag = cpu_to_le32(wrap->dw14);
+	rwc.apptag = cpu_to_le16(wrap->apptag);
+	rwc.appmask = cpu_to_le16(wrap->appmask);
 	
 	cmd.sqid = wrap->sqid;
 	cmd.cmd_buf_ptr = &rwc;

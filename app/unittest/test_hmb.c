@@ -224,7 +224,6 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_rwc_wrapper wrap = {0};
 	struct test_data *test = &g_test;
-	uint32_t i;
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
@@ -236,10 +235,7 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.control = control;
 
 	BUG_ON(wrap.size > tool->wbuf_size);
-
-	for (i = 0; i < (wrap.size / 4); i+= 4) {
-		*(uint32_t *)(wrap.buf + i) = (uint32_t)rand();
-	}
+	fill_data_with_random(wrap.buf, wrap.size);
 
 	return nvme_io_write(ndev, &wrap);
 }

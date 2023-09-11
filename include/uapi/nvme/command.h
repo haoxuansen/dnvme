@@ -412,10 +412,27 @@ struct nvme_format_cmd {
 /* ==================== nvme_cmd_read(0x02) ==================== */
 
 /**
+ * @note See "struct nvme_rw_command -> cdw2,cdw3,reftag " for details.
+ */
+enum {
+	NVME_PI_TYPE1_TAG_BIT_SIZE	= 32,
+	NVME_PI_TYPE2_TAG_BIT_SIZE	= 80,
+	NVME_PI_TYPE3_TAG_BIT_SIZE	= 48,
+
+	NVME_PI_TYPE1_ST_MIN_BIT_SIZE	= 0,
+	NVME_PI_TYPE1_ST_MAX_BIT_SIZE	= 32,
+	NVME_PI_TYPE2_ST_MIN_BIT_SIZE	= 16,
+	NVME_PI_TYPE2_ST_MAX_BIT_SIZE	= 64,
+	NVME_PI_TYPE3_ST_MIN_BIT_SIZE	= 0,
+	NVME_PI_TYPE3_ST_MAX_BIT_SIZE	= 48,
+};
+
+/**
  * @note See "struct nvme_rw_command -> control" for details.
  */
 enum {
 	NVME_RW_DTYPE_STREAMS		= 1 << 4,
+	NVME_RW_PRINFO_PRCHK_STC	= 1 << 8,
 	NVME_RW_PRINFO_PRCHK_REF	= 1 << 10,
 	NVME_RW_PRINFO_PRCHK_APP	= 1 << 11,
 	NVME_RW_PRINFO_PRCHK_GUARD	= 1 << 12,
@@ -454,7 +471,8 @@ struct nvme_rw_command {
 	__u8			flags;
 	__u16			command_id;
 	__le32			nsid;
-	__u64			rsvd2;
+	__le32			cdw2;
+	__le32			cdw3;
 	__le64			metadata;
 	union nvme_data_ptr	dptr;
 	__le64			slba;
