@@ -718,3 +718,50 @@ int dnvme_release_hmb(struct nvme_device *ndev)
 	return 0;
 }
 
+int dnvme_access_hmb(struct nvme_device *ndev, struct nvme_hmb_access __user *uhmb)
+{
+	struct nvme_hmb_access access;
+	struct nvme_hmb *hmb = ndev->hmb;
+
+	if (!hmb) {
+		dnvme_err(ndev, "host memory buffer not exist!\n");
+		return -EPERM;
+	}
+
+	if (copy_from_user(&access, uhmb, sizeof(struct nvme_hmb_access))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	if (access.offset > hmb->buf_size || access.length > hmb->buf_size ||
+		(access.offset + access.length) > hmb->buf_size) {
+		dnvme_err(ndev, "access offset:0x%x, len:0x%x, HMB len:0x%lx!\n",
+			access.offset, access.length, hmb->buf_size);
+		return -EINVAL;
+	}
+
+	switch (access.option) {
+	case NVME_HMB_OPT_READ:
+		if (copy_to_user(access.buf, hmb->buf + access.offset, 
+				access.length)) {
+			dnvme_err(ndev, "failed to copy to user space!\n");
+			return -EFAULT;
+		}
+		break;
+
+	case NVME_HMB_OPT_WRITE:
+		if (copy_from_user(hmb->buf + access.offset, access.buf, 
+				access.length)) {
+			dnvme_err(ndev, "failed to copy from user space!\n");
+			return -EFAULT;
+		}
+		break;
+
+	default:
+		dnvme_err(ndev, "access option(%u) is unknown!\n", access.option);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+

@@ -341,6 +341,10 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_release_hmb(ndev);
 		break;
 
+	case NVME_IOCTL_ACCESS_HMB:
+		ret = dnvme_access_hmb(ndev, argp);
+		break;
+
 	default:
 		dnvme_err(ndev, "cmd(%u) is unknown!\n", _IOC_NR(cmd));
 		ret = -EINVAL;

@@ -17,6 +17,10 @@
 #include "nvme.h"
 #include "dnvme/netlink.h"
 
+#ifndef __user
+#define __user
+#endif
+
 /* The number of entries in Admin queue */
 #define NVME_AQ_MAX_SIZE		4096
 /* The number of entries in I/O queue */
@@ -63,6 +67,7 @@ enum {
 
 	NVME_ALLOC_HMB,
 	NVME_RELEASE_HMB,
+	NVME_ACCESS_HMB,
 };
 
 enum nvme_region {
@@ -319,6 +324,16 @@ struct nvme_hmb_alloc {
 	uint32_t	bsize[0];	/* buffer size */
 };
 
+struct nvme_hmb_access {
+	void __user 	*buf;
+	uint32_t	length; /* buf length */
+	uint32_t	offset;	/* HMB offset */
+
+	uint32_t	option;
+#define NVME_HMB_OPT_READ	1
+#define NVME_HMB_OPT_WRITE	2
+};
+
 #define NVME_IOCTL_GET_SQ_INFO \
 	_IOWR('N', NVME_GET_SQ_INFO, struct nvme_sq_public)
 #define NVME_IOCTL_GET_CQ_INFO \
@@ -370,5 +385,7 @@ struct nvme_hmb_alloc {
 	_IOWR('N', NVME_ALLOC_HMB, struct nvme_hmb_alloc)
 #define NVME_IOCTL_RELEASE_HMB \
 	_IO('N', NVME_RELEASE_HMB)
+#define NVME_IOCTL_ACCESS_HMB \
+	_IOWR('N', NVME_ACCESS_HMB, struct nvme_hmb_access)
 
 #endif /* !_UAPI_DNVME_H_ */
