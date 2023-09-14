@@ -1,7 +1,7 @@
 include $(TOP_DIR)/.config
 
 KERNEL_DIR := /lib/modules/$(shell uname -r)/build
-OUTPUT_DIR := $(TOP_DIR)/output
+RELEASE_DIR := $(TOP_DIR)/release
 
 EXTRA_CFLAGS := -I$(TOP_DIR)/include
 EXTRA_CFLAGS += -I$(TOP_DIR)/include/generated

@@ -18,6 +18,8 @@
 #include "compiler.h"
 #include "libnvme.h"
 
+#define NVME_TOOL_RW_BUF_ALIGN		8
+
 #define NVME_TOOL_CQ_ENTRY_SIZE		SZ_1M /* CQES(16) * elements(64K) */
 #define NVME_TOOL_SQ_BUF_SIZE		SZ_4M /* SQES(64) * elements(64K) */
 #define NVME_TOOL_CQ_BUF_SIZE		SZ_1M /* CQES(16) * elements(64K) */

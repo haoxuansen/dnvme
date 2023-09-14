@@ -1,7 +1,7 @@
 -include .config
 
 TOP_DIR := $(shell pwd)
-OUTPUT_DIR := $(TOP_DIR)/output
+RELEASE_DIR := $(TOP_DIR)/release
 SCRIPT_DIR := $(TOP_DIR)/scripts
 
 export TOP_DIR
@@ -36,52 +36,56 @@ menuconfig: $(MCONF)
 PHONY += menuconfig
 
 pre:
-	$(Q)mkdir -p $(OUTPUT_DIR)/libs
-	$(Q)cp $(SCRIPT_DIR)/insmod.sh $(OUTPUT_DIR)/
+	$(Q)mkdir -p $(RELEASE_DIR)/libs
+	$(Q)cp $(SCRIPT_DIR)/insmod.sh $(RELEASE_DIR)/
 
 modules:
 ifneq ($(CONFIG_DNVME),)
 	$(Q)make -C modules/dnvme
 endif
-ifneq ($(CONFIG_U_DMA_BUF),)
-	$(Q)make -C modules/udmabuf
-endif
 PHONY += modules
 
 lib:
-ifneq ($(CONFIG_LIB),)
+ifneq ($(CONFIG_LIBRARY),)
 	$(Q)make -C lib
 endif
 PHONY += lib
 
 build: pre modules lib
-ifneq ($(CONFIG_UNVME),)
+ifneq ($(CONFIG_APPLICATION),)
 	$(Q)make -C app
 endif
 PHONY += build
 
+doc:
+	$(Q)make -C doc
+
 clean:
 	$(Q)make -C modules/dnvme $@
-ifneq ($(CONFIG_U_DMA_BUF),)
-	$(Q)make -C modules/udmabuf $@
-endif
-ifneq ($(CONFIG_LIB),)
+ifneq ($(CONFIG_LIBRARY),)
 	$(Q)make -C lib $@
 endif
-ifneq ($(CONFIG_UNVME),)
+ifneq ($(CONFIG_APPLICATION),)
 	$(Q)make -C app $@
 endif
+	$(Q)make -C doc $@
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
 PHONY += clean
 
 distclean:
+ifneq ($(CONFIG_DNVME),)
 	$(Q)make -C modules/dnvme $@
-	$(Q)make -C modules/udmabuf $@
+endif
+ifneq ($(CONFIG_LIBRARY),)
 	$(Q)make -C lib $@
+endif
+ifneq ($(CONFIG_APPLICATION),)
 	$(Q)make -C app $@
+endif
+	$(Q)make -C doc $@
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
 	$(Q)rm -rf $(TOP_DIR)/include/config
-	$(Q)rm -rf $(OUTPUT_DIR)
+	$(Q)rm -rf $(RELEASE_DIR)
 PHONY += distclean
 
 .PHONY: $(PHONY)

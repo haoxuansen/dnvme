@@ -1,9 +1,0 @@
-menuconfig U_DMA_BUF
-	bool "User space mappable DMA Buffer Support"
-	help
-	  Enable this to allow the udmabuf to be built.
-	  udmabuf is a Linux device driver that allocates contiguous
-	  memory blocks in the kernel space as DMA buffers and
-	  makes them available from the user space.
-
-	  If you don't know what to do here, say N.

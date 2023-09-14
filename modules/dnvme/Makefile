@@ -25,7 +25,7 @@ endif
 
 build:
 	$(Q)make -C $(KERNEL_DIR) M=$(CUR_DIR) EXTRA_CFLAGS="$(EXTRA_CFLAGS)" modules
-	$(Q)cp $(TARGET) $(OUTPUT_DIR)/
+	$(Q)cp $(TARGET) $(RELEASE_DIR)/
 
 clean:
 	$(Q)make -C $(KERNEL_DIR) M=$(CUR_DIR) clean

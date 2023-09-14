@@ -1,11 +1,6 @@
-diff.patch
+*.o
 .config.old
 .vscode
+diff.patch
+release
 include/config
-output
-*.o
-scripts/kconfig/lexer.lex.c
-scripts/kconfig/mconf
-scripts/kconfig/parser.tab.c
-scripts/kconfig/parser.tab.h
-

@@ -61,7 +61,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 	memset(tool->cq_buf, 0, NVME_TOOL_CQ_BUF_SIZE);
 	tool->cq_buf_size = NVME_TOOL_CQ_BUF_SIZE;
 
-	ret = posix_memalign(&tool->rbuf, CONFIG_UNVME_RW_BUF_ALIGN, 
+	ret = posix_memalign(&tool->rbuf, NVME_TOOL_RW_BUF_ALIGN, 
 		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc read buf!\n");
@@ -70,7 +70,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 	memset(tool->rbuf, 0, NVME_TOOL_RW_BUF_SIZE);
 	tool->rbuf_size = NVME_TOOL_RW_BUF_SIZE;
 
-	ret = posix_memalign(&tool->wbuf, CONFIG_UNVME_RW_BUF_ALIGN, 
+	ret = posix_memalign(&tool->wbuf, NVME_TOOL_RW_BUF_ALIGN, 
 		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc write buf!\n");

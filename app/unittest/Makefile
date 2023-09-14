@@ -15,11 +15,10 @@ $(TARGET).asm: $(TARGET)
 	$(Q)$(OBJDUMP) -S $(TARGET) > $(TARGET).asm
 
 build: pre $(TARGET) $(TARGET).asm
-ifeq ($(RELEASE_DIR_EXIST),yes)
-	$(Q)cp $(TARGET) $(OUTPUT_DIR)/
-else
-	$(warning "$(OUTPUT_DIR)" not exist!)
+ifneq ($(DIR_EXIST),yes)
+	$(Q)mkdir -p $(RELEASE_DIR)
 endif
+	$(Q)cp $(TARGET) $(RELEASE_DIR)/
 
 clean:
 	$(Q)rm -f $(OBJS)

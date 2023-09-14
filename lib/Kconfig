@@ -1,4 +1,4 @@
-menuconfig LIB
+menuconfig LIBRARY
 	bool "Library Support"
 	default y
 	help

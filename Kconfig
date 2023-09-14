@@ -3,7 +3,6 @@ mainmenu "Maxio NVMe Tool Configuration"
 menu "Driver Configuration"
 
 source "modules/dnvme/Kconfig"
-source "modules/udmabuf/Kconfig"
 
 endmenu
 

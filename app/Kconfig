@@ -1,16 +1,16 @@
-menuconfig UNVME
+menuconfig APPLICATION
 	bool "NVMe Application"
 	default y
 	help
 	  Say Y here to compile nvme application.
 
-if UNVME
+if APPLICATION
 
-config UNVME_RW_BUF_ALIGN
-	hex "NVMe R&W Buffer Alignment"
-	default 0x8
+config APP_UNIT_TEST
+	bool "NVMe Unit Test"
+	default y
 	help
-	  Config NVMe read and write buffer alignment.
+	  Say Y here to compile nvme unit test program.
 
-endif # UNVME
+endif # APPLICATION
 

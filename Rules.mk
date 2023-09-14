@@ -18,25 +18,26 @@ CUR_DIR_PATH := $(shell dirname $(abspath $(lastword $(RULES_LIST))))
 # The directory name where the current file is located
 CUR_DIR_NAME := $(notdir $(CUR_DIR_PATH))
 
-OUTPUT_DIR := $(CUR_DIR_PATH)/output
-RELEASE_LIB_DIR := $(CUR_DIR_PATH)/output/libs
+TOP_DIR := $(CUR_DIR_PATH)
+RELEASE_DIR := $(TOP_DIR)/release
+RELEASE_LIB_DIR := $(RELEASE_DIR)/libs
 
 # --------------------------------------------------------------------------- #
 # Resource
 # --------------------------------------------------------------------------- #
 
 # Shall add global configuration file
-include $(CUR_DIR_PATH)/.config
+include $(TOP_DIR)/.config
 
 # --------------------------------------------------------------------------- #
 # Compiler Options
 # --------------------------------------------------------------------------- #
 
 RULE_CFLAGS := -g -Wall
-RULE_CFLAGS += -I$(CUR_DIR_PATH)/include/generated
-RULE_CFLAGS += -I$(CUR_DIR_PATH)/include/uapi
-RULE_CFLAGS += -I$(CUR_DIR_PATH)/lib/include
-RULE_CFLAGS += -include $(CUR_DIR_PATH)/include/uapi/kconfig.h
+RULE_CFLAGS += -I$(TOP_DIR)/include/generated
+RULE_CFLAGS += -I$(TOP_DIR)/include/uapi
+RULE_CFLAGS += -I$(TOP_DIR)/lib/include
+RULE_CFLAGS += -include $(TOP_DIR)/include/uapi/kconfig.h
 
 RULE_LDFLAGS := -L$(RELEASE_LIB_DIR)
 

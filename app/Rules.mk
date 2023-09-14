@@ -18,8 +18,6 @@ CUR_DIR_PATH := $(shell dirname $(abspath $(lastword $(RULES_LIST))))
 # The directory name where the current file is located
 CUR_DIR_NAME := $(notdir $(CUR_DIR_PATH))
 
-RELEASE_DIR_EXIST := $(call check_dir_exist,$(OUTPUT_DIR))
-
 # --------------------------------------------------------------------------- #
 # Compiler Options
 # --------------------------------------------------------------------------- #

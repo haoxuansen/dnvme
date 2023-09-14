@@ -311,7 +311,7 @@ static int copy_desc_init(struct test_cmd_copy *copy)
 	switch (copy->desc_fmt) {
 	case NVME_COPY_DESC_FMT_32B:
 	default:
-		ret = posix_memalign(&desc, CONFIG_UNVME_RW_BUF_ALIGN, 
+		ret = posix_memalign(&desc, NVME_TOOL_RW_BUF_ALIGN, 
 			sizeof(struct nvme_copy_desc_fmt0) * copy->ranges);
 		if (ret) {
 			pr_err("failed to alloc copy descriptor!\n");
@@ -322,7 +322,7 @@ static int copy_desc_init(struct test_cmd_copy *copy)
 		break;
 	
 	case NVME_COPY_DESC_FMT_40B:
-		ret = posix_memalign(&desc, CONFIG_UNVME_RW_BUF_ALIGN,
+		ret = posix_memalign(&desc, NVME_TOOL_RW_BUF_ALIGN,
 			sizeof(struct nvme_copy_desc_fmt1) * copy->ranges);
 		if (ret) {
 			pr_err("failed to alloc copy descriptor!\n");
@@ -721,7 +721,7 @@ static int subcase_copy_success(struct nvme_tool *tool,
 		goto out;
 	}
 
-	ret = posix_memalign(&copy->rbuf, CONFIG_UNVME_RW_BUF_ALIGN, 
+	ret = posix_memalign(&copy->rbuf, NVME_TOOL_RW_BUF_ALIGN, 
 		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc memory!\n");

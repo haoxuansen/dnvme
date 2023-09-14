@@ -4,11 +4,10 @@ RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 .DEFAULT_GOAL := build
 
 build: $(TGTS)
-ifeq ($(RELEASE_DIR_EXIST),yes)
-	$(Q)cp $(TGTS) $(OUTPUT_DIR)/
-else
-	$(warning "$(OUTPUT_DIR)" not exist!)
+ifneq ($(DIR_EXIST),yes)
+	$(Q)mkdir -p $(RELEASE_SAMPLE_DIR)
 endif
+	$(Q)cp $(TGTS) $(RELEASE_SAMPLE_DIR)/
 
 clean:
 	$(Q)rm -f $(OBJS)
