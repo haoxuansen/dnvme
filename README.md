@@ -36,3 +36,15 @@
 ### 查看版本信息
 
 &emsp;&emsp;在成功加载 dnvme.ko 模块后，执行 `cat /sys/module/dnvme/version` 命令，即可查看该模块当前的版本信息。
+
+### 扩展软件包
+
+```
+pip install sphinx
+
+pip install sphinx-design
+pip install sphinx-tabs
+pip install sphinx-togglebutton
+
+pip install sphinx-rtd-theme
+```
