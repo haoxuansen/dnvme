@@ -13,5 +13,5 @@ endif
 # Directory
 # --------------------------------------------------------------------------- #
 
-RELEASE_DOC_DIR := $(RELEASE_DIR)/doc
+RELEASE_DOC_DIR := $(RELEASE_DIR)/docs
 DIR_EXIST := $(call check_dir_exist,$(RELEASE_DOC_DIR))

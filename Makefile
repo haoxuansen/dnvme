@@ -57,8 +57,9 @@ ifneq ($(CONFIG_APPLICATION),)
 endif
 PHONY += build
 
-doc:
-	$(Q)make -C doc
+docs:
+	$(Q)make -C docs
+PHONY += docs
 
 clean:
 	$(Q)make -C modules/dnvme $@
@@ -68,7 +69,7 @@ endif
 ifneq ($(CONFIG_APPLICATION),)
 	$(Q)make -C app $@
 endif
-	$(Q)make -C doc $@
+	$(Q)make -C docs $@
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
 PHONY += clean
 
@@ -82,7 +83,7 @@ endif
 ifneq ($(CONFIG_APPLICATION),)
 	$(Q)make -C app $@
 endif
-	$(Q)make -C doc $@
+	$(Q)make -C docs $@
 	$(Q)make CC=gcc HOSTCC=gcc -C scripts/kconfig $@
 	$(Q)rm -rf $(TOP_DIR)/include/config
 	$(Q)rm -rf $(RELEASE_DIR)
