@@ -63,7 +63,7 @@ extensions = [
 	# 'breathe',
 	# 'exhale',
 	'sphinx_design',
-	'sphinx_tabs.tabs',
+	# 'sphinx_tabs.tabs',
 	'sphinx_togglebutton',
 ]
 
