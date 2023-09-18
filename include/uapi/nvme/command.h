@@ -374,8 +374,27 @@ struct nvme_dbbuf {
 #define NVME_FMT_LBAFL(x)	((x) & 0xf)
 #define NVME_FMT_LBAFU(x)	(((x) & 0x30) << 8) /* bit[13:12] */
 
+/**
+ * @brief Metadata Settings
+ * 
+ * @note See "struct nvme_format_cmd -> cdw10" for details.
+ */
 enum {
 	NVME_FMT_MSET_EXT	= 1 << 4,
+};
+
+/**
+ * @brief Protection Information
+ * 
+ * @note See "struct nvme_format_cmd -> cdw10" for details.
+ */
+enum {
+	NVME_FMT_PI_DISABLE	= 0 << 5,
+	NVME_FMT_PI_TYPE1	= 1 << 5,
+	NVME_FMT_PI_TYPE2	= 2 << 5,
+	NVME_FMT_PI_TYPE3	= 3 << 5,
+
+	NVME_FMT_PI_FIRST	= 1 << 8,
 };
 
 /**
@@ -415,16 +434,17 @@ struct nvme_format_cmd {
  * @note See "struct nvme_rw_command -> cdw2,cdw3,reftag " for details.
  */
 enum {
-	NVME_PI_TYPE1_TAG_BIT_SIZE	= 32,
-	NVME_PI_TYPE2_TAG_BIT_SIZE	= 80,
-	NVME_PI_TYPE3_TAG_BIT_SIZE	= 48,
-
-	NVME_PI_TYPE1_ST_MIN_BIT_SIZE	= 0,
-	NVME_PI_TYPE1_ST_MAX_BIT_SIZE	= 32,
-	NVME_PI_TYPE2_ST_MIN_BIT_SIZE	= 16,
-	NVME_PI_TYPE2_ST_MAX_BIT_SIZE	= 64,
-	NVME_PI_TYPE3_ST_MIN_BIT_SIZE	= 0,
-	NVME_PI_TYPE3_ST_MAX_BIT_SIZE	= 48,
+	/* storage and reference space in bits */
+	NVME_PIF_GUARD16_SR_SPACE	= 32,
+	NVME_PIF_GUARD32_SR_SPACE	= 80,
+	NVME_PIF_GUARD64_SR_SPACE	= 48,
+	/* minimum/maximum storage tag size */
+	NVME_PIF_GUARD16_ST_MIN_SIZE	= 0,
+	NVME_PIF_GUARD16_ST_MAX_SIZE	= 32,
+	NVME_PIF_GUARD32_ST_MIN_SIZE	= 16,
+	NVME_PIF_GUARD32_ST_MAX_SIZE	= 64,
+	NVME_PIF_GUARD64_ST_MIN_SIZE	= 0,
+	NVME_PIF_GUARD64_ST_MAX_SIZE	= 48,
 };
 
 /**

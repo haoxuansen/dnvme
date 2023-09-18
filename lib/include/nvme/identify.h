@@ -43,4 +43,6 @@ int nvme_id_ns_msrc(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_ms(struct nvme_ns_group *grp, uint32_t nsid);
 int nvme_id_ns_lbads(struct nvme_ns_group *grp, uint32_t nsid, uint32_t *lbads);
 
+int nvme_id_ns_nvm_lbstm(struct nvme_ns_group *grp, uint32_t nsid, uint64_t *lbstm);
+
 #endif /* _UAPI_LIB_NVME_IDENTIFY_H_ */

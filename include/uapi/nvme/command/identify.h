@@ -125,9 +125,9 @@ enum {
  */
 enum {
 	NVME_NS_DPS_PI_MASK	= 0x7,
-	NVME_NS_DPS_PI_TYPE1	= 1, ///< 16b Guard
-	NVME_NS_DPS_PI_TYPE2	= 2, ///< 32b Guard
-	NVME_NS_DPS_PI_TYPE3	= 3, ///< 64b Guard
+	NVME_NS_DPS_PI_TYPE1	= 1,
+	NVME_NS_DPS_PI_TYPE2	= 2,
+	NVME_NS_DPS_PI_TYPE3	= 3,
 	NVME_NS_DPS_PI_FIRST	= 1 << 3,
 };
 
@@ -511,9 +511,9 @@ struct nvme_ns_id_desc {
 #define NVME_ELBAF_STS(x)		(((x) >> 0) & 0x7f)
 
 #define NVME_ELBAF_PIF(x)		(((x) >> 7) & 0x3)
-#define NVME_ELBAF_PIF_TYPE1		0
-#define NVME_ELBAF_PIF_TYPE2		1
-#define NVME_ELBAF_PIF_TYPE3		2
+#define NVME_ELBAF_PIF_GUARD16		0
+#define NVME_ELBAF_PIF_GUARD32		1
+#define NVME_ELBAF_PIF_GUARD64		2
 
 /**
  * @brief Extended LBA Format Data Structure

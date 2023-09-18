@@ -33,19 +33,20 @@ struct test_data {
 	uint16_t	app_tag;
 	uint16_t	app_tag_mask;
 	uint64_t	storage_tag;
+	uint64_t	storage_tag_mask; /* U */
 	uint64_t	ref_tag;
 
 	/* Namespace Metadata Capabilities */
 	uint32_t	is_sup_meta_extlba:1;
 	uint32_t	is_sup_meta_ptr:1;
 	/* Data Protection Capability */
-	uint32_t	is_sup_16b_guard:1;
-	uint32_t	is_sup_32b_guard:1;
-	uint32_t	is_sup_64b_guard:1;
+	uint32_t	is_sup_pi_type1:1;
+	uint32_t	is_sup_pi_type2:1;
+	uint32_t	is_sup_pi_type3:1;
 	uint32_t	is_sup_last_bytes:1;
 	uint32_t	is_sup_first_bytes:1;
 	/* Namespace Protection Setting */
-	uint32_t	is_pi_first:1;
+	uint32_t	is_pi_first:1; /* U */
 	/* Protection Information Check */
 	uint32_t	is_set_pract:1;
 	uint32_t	is_not_resident:1; ///< metadata not resident in host buffer
@@ -62,10 +63,12 @@ struct test_data {
 	uint8_t		cur_pif; /* U */
 	uint8_t		cur_sts; /* U: storage tag size */
 	uint8_t		cur_rts; /* U: Reference tag size */
+	uint32_t	cur_pit; /* U: DPS PI type */
 
 	uint8_t		cfg_pif; /* C */
 	uint8_t		cfg_sts; /* C */
 	uint16_t	cfg_ms; /* C */
+	uint32_t	cfg_pit; /* C: DPS PI type */
 };
 
 static struct test_data g_test = {0};
@@ -79,6 +82,7 @@ static void test_data_reset_format_fields(struct test_data *data)
 	data->cfg_pif = 0;
 	data->cfg_sts = 0;
 	data->cfg_ms = 0;
+	data->cfg_pit = 0;
 }
 
 static void test_data_reset_rw_fields(struct test_data *data)
@@ -87,34 +91,63 @@ static void test_data_reset_rw_fields(struct test_data *data)
 	data->is_not_resident = 0;
 }
 
+static int check_dps_pi_type(struct test_data *data, uint32_t dps_pi_type)
+{
+	switch (dps_pi_type) {
+	case NVME_NS_DPS_PI_TYPE1:
+		return data->is_sup_pi_type1 ? 0 : -EOPNOTSUPP;
+	case NVME_NS_DPS_PI_TYPE2:
+		return data->is_sup_pi_type2 ? 0 : -EOPNOTSUPP;
+	case NVME_NS_DPS_PI_TYPE3:
+		return data->is_sup_pi_type3 ? 0 : -EOPNOTSUPP;
+	default:
+		pr_err("type:%u is unknown!\n", dps_pi_type);
+		return -EINVAL;
+	}
+}
+
+static uint32_t get_format_pi_type_by_dps(uint32_t dps_pi_type)
+{
+	switch (dps_pi_type) {
+	case NVME_NS_DPS_PI_TYPE1:
+		return NVME_FMT_PI_TYPE1;
+	case NVME_NS_DPS_PI_TYPE2:
+		return NVME_FMT_PI_TYPE2;
+	case NVME_NS_DPS_PI_TYPE3:
+		return NVME_FMT_PI_TYPE3;
+	default:
+		return NVME_FMT_PI_DISABLE;
+	}
+}
+
 static int get_reference_tag_size(uint8_t pif, uint8_t sts)
 {
 	uint8_t ref_tag_size;
 
 	switch (pif) {
-	case NVME_ELBAF_PIF_TYPE1:
-		if(sts > NVME_PI_TYPE1_ST_MAX_BIT_SIZE) {
+	case NVME_ELBAF_PIF_GUARD16:
+		if(sts > NVME_PIF_GUARD16_ST_MAX_SIZE) {
 			pr_err("PIF1 storage tag size(%u) invalid!\n", sts);
 			return -EINVAL;
 		}
-		ref_tag_size = NVME_PI_TYPE1_TAG_BIT_SIZE - sts;
+		ref_tag_size = NVME_PIF_GUARD16_SR_SPACE - sts;
 		break;
 
-	case NVME_ELBAF_PIF_TYPE2:
-		if (sts < NVME_PI_TYPE2_ST_MIN_BIT_SIZE ||
-			sts > NVME_PI_TYPE2_ST_MAX_BIT_SIZE) {
+	case NVME_ELBAF_PIF_GUARD32:
+		if (sts < NVME_PIF_GUARD32_ST_MIN_SIZE ||
+			sts > NVME_PIF_GUARD32_ST_MAX_SIZE) {
 			pr_err("PIF2 storage tag size(%u) invalid!\n", sts);
 			return -EINVAL;
 		}
-		ref_tag_size = NVME_PI_TYPE2_TAG_BIT_SIZE - sts;
+		ref_tag_size = NVME_PIF_GUARD32_SR_SPACE - sts;
 		break;
 
-	case NVME_ELBAF_PIF_TYPE3:
-		if (sts > NVME_PI_TYPE3_ST_MAX_BIT_SIZE) {
+	case NVME_ELBAF_PIF_GUARD64:
+		if (sts > NVME_PIF_GUARD64_ST_MAX_SIZE) {
 			pr_err("PIF3 storage tag size(%u) invalid!\n", sts);
 			return -EINVAL;
 		}
-		ref_tag_size = NVME_PI_TYPE3_TAG_BIT_SIZE - sts;
+		ref_tag_size = NVME_PIF_GUARD64_SR_SPACE - sts;
 		break;
 
 	default:
@@ -126,8 +159,9 @@ static int get_reference_tag_size(uint8_t pif, uint8_t sts)
 
 static void prepare_random_tag(struct test_data *data)
 {
-	data->app_tag = (uint32_t)rand() & 0xffff;
-	data->app_tag_mask = (uint32_t)rand() & 0xffff;
+	/* application tag 0xffff is special */
+	data->app_tag = rand() % 0xffff;
+	data->app_tag_mask = rand() % 0xffff + 1;
 	data->storage_tag = (uint64_t)rand() << 32 | (uint64_t)rand();
 	data->ref_tag = (uint64_t)rand() << 32 | (uint64_t)rand();
 }
@@ -182,18 +216,18 @@ static int prepare_namespace(struct nvme_tool *tool, struct test_data *data)
 	/* Check protection information capability */
 	dpc = nvme_id_ns_dpc(ns_grp, data->nsid);
 	if (dpc & NVME_NS_DPC_PI_TYPE1)
-		data->is_sup_16b_guard = 1;
+		data->is_sup_pi_type1 = 1;
 	if (dpc & NVME_NS_DPC_PI_TYPE2)
-		data->is_sup_32b_guard = 1;
+		data->is_sup_pi_type2 = 1;
 	if (dpc & NVME_NS_DPC_PI_TYPE3)
-		data->is_sup_64b_guard = 1;
+		data->is_sup_pi_type3 = 1;
 	if (dpc & NVME_NS_DPC_PI_FIRST)
 		data->is_sup_first_bytes = 1;
 	if (dpc & NVME_NS_DPC_PI_LAST)
 		data->is_sup_last_bytes = 1;
 	
-	if (!data->is_sup_16b_guard && !data->is_sup_32b_guard &&
-		!data->is_sup_64b_guard) {
+	if (!data->is_sup_pi_type1 && !data->is_sup_pi_type2 &&
+		!data->is_sup_pi_type3) {
 		pr_warn("all PI types are not support! skip...\n");
 		return -EOPNOTSUPP;
 	}
@@ -212,6 +246,7 @@ static int prepare_namespace(struct nvme_tool *tool, struct test_data *data)
 	data->cur_rts = ret;
 
 	dps = nvme_id_ns_dps(ns_grp, data->nsid);
+	data->cur_pit = dps & NVME_NS_DPS_PI_MASK;
 	if (dps & NVME_NS_DPS_PI_FIRST)
 		data->is_pi_first = 1;
 
@@ -226,6 +261,10 @@ static int prepare_namespace(struct nvme_tool *tool, struct test_data *data)
 		pr_warn("all metadata xfer ways are not support! skip...\n");
 		return -EOPNOTSUPP;
 	}
+
+	ret = nvme_id_ns_nvm_lbstm(ns_grp, data->nsid, &data->storage_tag_mask);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -320,8 +359,8 @@ static int select_ext_lba_format(struct nvme_dev_info *ndev,
 	}
 
 	if (i >= ARRAY_SIZE(id_ns_nvm->elbaf)) {
-		pr_err("No matching ELBAF could be found!\n");
-		return -EINVAL;
+		pr_warn("No matching ELBAF could be found!\n");
+		return -EOPNOTSUPP;
 	}
 
 	pr_debug("format NSID:%u with ELBAF:%u\n", data->nsid, i);
@@ -329,6 +368,17 @@ static int select_ext_lba_format(struct nvme_dev_info *ndev,
 	dw10 = NVME_FMT_LBAFL(i) | NVME_FMT_LBAFU(i);
 	dw10 &= ~NVME_FMT_SES_MASK;
 	dw10 |= NVME_FMT_SES_USER;
+	dw10 |= get_format_pi_type_by_dps(data->cfg_pit);
+
+	if (data->is_sup_first_bytes)
+		dw10 |= NVME_FMT_PI_FIRST;
+
+	if (data->is_sup_meta_extlba && !data->is_use_meta_ptr) {
+		dw10 |= NVME_FMT_MSET_EXT;
+	} else {
+		pr_err("Not support to use metaptr yet!\n");
+		return -EPERM;
+	}
 
 	ret = nvme_format_nvm(ndev, data->nsid, 0, dw10);
 	if (ret < 0) {
@@ -348,16 +398,17 @@ static int select_ext_lba_format(struct nvme_dev_info *ndev,
 		return ret;
 
 	dps = nvme_id_ns_dps(ns_grp, data->nsid);
-	if ((dps & NVME_NS_DPS_PI_MASK) != (data->cfg_pif + 1)) {
-		pr_err("PIT:%u mismatch PIF:%u after format!\n",
-			dps & NVME_NS_DPS_PI_MASK, data->cfg_pif);
-		return -EPERM;
-	}
+	data->cur_pit = dps & NVME_NS_DPS_PI_MASK;
+	if (dps & NVME_NS_DPS_PI_FIRST)
+		data->is_pi_first = 1;
 
-	/* update test data */
 	nvme_id_ns_nsze(ns_grp, data->nsid, &data->nsze);
 	nvme_id_ns_lbads(ns_grp, data->nsid, &data->lbads);
 	data->meta_size = (uint16_t)nvme_id_ns_ms(ns_grp, data->nsid);
+
+	ret = nvme_id_ns_nvm_lbstm(ns_grp, data->nsid, &data->storage_tag_mask);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -416,74 +467,83 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	return 0;
 }
 
-static void fill_cmd_tags(struct nvme_rwc_wrapper *wrap, struct test_data *data)
+static void fill_cmd_tags(struct nvme_rwc_wrapper *wrap, struct test_data *data,
+	uint64_t slba)
 {
+	/* bit = 1 is unmask */
+	uint64_t storage_tag = data->storage_tag & data->storage_tag_mask;
 	uint64_t ref_tag_mask;
 
+	if (data->cur_pit == NVME_NS_DPS_PI_TYPE1)
+		data->ref_tag = slba;
+
 	switch (data->cur_pif) {
-	case NVME_ELBAF_PIF_TYPE1:
+	case NVME_ELBAF_PIF_GUARD16:
 		ref_tag_mask = (data->cur_rts == 32) ? U32_MAX :
-			(U32_MAX << (32 - data->cur_rts)) >> (32 - data->cur_rts);
+			((data->cur_rts == 0) ? 0 : 
+			(U32_MAX << (32 - data->cur_rts)) >> (32 - data->cur_rts));
 		if (data->cur_sts == 32)
 			wrap->dw14 = lower_32_bits(data->ref_tag);
 		else
 			wrap->dw14 = (lower_32_bits(data->ref_tag) & ref_tag_mask) |
-				(lower_32_bits(data->storage_tag) << data->cur_rts);
+				(lower_32_bits(storage_tag) << data->cur_rts);
 		break;
 
-	case NVME_ELBAF_PIF_TYPE2:
+	case NVME_ELBAF_PIF_GUARD32:
 		ref_tag_mask = (data->cur_rts == 64) ? U64_MAX :
-			(U64_MAX << (64 - data->cur_rts)) >> (64 - data->cur_rts);
+			((data->cur_rts == 0) ? 0 : 
+			(U64_MAX << (64 - data->cur_rts)) >> (64 - data->cur_rts));
 
 		if (data->cur_rts == 32) {
 			wrap->dw14 = lower_32_bits(data->ref_tag);
-			wrap->dw3 = lower_32_bits(data->storage_tag);
-			wrap->dw2 = upper_32_bits(data->storage_tag) & 0xffff;
+			wrap->dw3 = lower_32_bits(storage_tag);
+			wrap->dw2 = upper_32_bits(storage_tag) & 0xffff;
 		} else if (data->cur_rts == 64) {
 			wrap->dw14 = lower_32_bits(data->ref_tag);
 			wrap->dw3 = upper_32_bits(data->ref_tag);
-			wrap->dw2 = data->storage_tag & 0xffff;
+			wrap->dw2 = storage_tag & 0xffff;
 		} else if (data->cur_rts < 32) {
 			wrap->dw14 = (lower_32_bits(data->ref_tag) & ref_tag_mask) |
-				(lower_32_bits(data->storage_tag) << data->cur_rts);
-			wrap->dw3 = lower_32_bits(data->storage_tag >> 
+				(lower_32_bits(storage_tag) << data->cur_rts);
+			wrap->dw3 = lower_32_bits(storage_tag >> 
 				(32 - data->cur_rts));
-			wrap->dw2 = upper_32_bits(data->storage_tag >> 
+			wrap->dw2 = upper_32_bits(storage_tag >> 
 				(32 - data->cur_rts)) & 0xffff;
 		} else { /* cur_rts > 32 && cur_rts < 64 */
 			wrap->dw14 = lower_32_bits(data->ref_tag);
 			wrap->dw3 = (upper_32_bits(data->ref_tag) & 
 				upper_32_bits(ref_tag_mask)) | 
-				(lower_32_bits(data->storage_tag) << 
+				(lower_32_bits(storage_tag) << 
 				(data->cur_rts - 32));
-			wrap->dw2 = lower_32_bits(data->storage_tag >> 
+			wrap->dw2 = lower_32_bits(storage_tag >> 
 				(64 - data->cur_rts)) & 0xffff;
 		}
 		break;
 	
-	case NVME_ELBAF_PIF_TYPE3:
-		ref_tag_mask = (U64_MAX << (64 - data->cur_rts)) >> 
-			(64 - data->cur_rts);
+	case NVME_ELBAF_PIF_GUARD64:
+		ref_tag_mask = (data->cur_rts == 64) ? U64_MAX :
+			((data->cur_rts == 0) ? 0 : 
+			(U64_MAX << (64 - data->cur_rts)) >> (64 - data->cur_rts));
 		
 		if (data->cur_rts == 32) {
 			wrap->dw14 = lower_32_bits(data->ref_tag);
-			wrap->dw3 = lower_32_bits(data->storage_tag) & 0xffff;
+			wrap->dw3 = lower_32_bits(storage_tag) & 0xffff;
 		} else if (data->cur_rts < 32) {
 			wrap->dw14 = (lower_32_bits(data->ref_tag) & ref_tag_mask) |
-				(lower_32_bits(data->storage_tag) << data->cur_rts);
-			wrap->dw3 = lower_32_bits(data->storage_tag >> 
+				(lower_32_bits(storage_tag) << data->cur_rts);
+			wrap->dw3 = lower_32_bits(storage_tag >> 
 				(32 - data->cur_rts)) & 0xffff;
 		} else { /* cur_rts > 32 && cur_rts <= 48 */
 			wrap->dw14 = lower_32_bits(data->ref_tag);
 			wrap->dw3 = ((upper_32_bits(data->ref_tag) & 
 				upper_32_bits(ref_tag_mask)) | 
-				(lower_32_bits(data->storage_tag) << 
+				(lower_32_bits(storage_tag) << 
 				(data->cur_rts - 32))) & 0xffff;
 		}
 		break;
 	}
 	pr_debug("orgin storage tag:0x%016llx, reference tag:0x%016llx\n",
-		data->storage_tag, data->ref_tag);
+		storage_tag, data->ref_tag);
 	pr_debug("storage tag size:%u, reference tag size:%u\n",
 		data->cur_sts, data->cur_rts);
 	pr_debug("cdw2:0x%08x, cdw3:0x%08x, cdw14:0x%08x\n", 
@@ -494,12 +554,19 @@ static void fill_16b_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 	struct test_data *data, uint32_t meta_oft)
 {
 	uint16_t app_tag;
+	uint32_t ref_tag;
+	uint32_t ref_tag_mask;
 	uint16_t crc;
 	uint32_t buf_oft;
 	uint32_t i;
 	uint8_t *pi;
+	uint32_t tag1 = wrap->dw14;
 
-	app_tag = wrap->apptag & (~wrap->appmask); /* clear mask bit */
+	app_tag = wrap->apptag & wrap->appmask; /* bit = 1 is unmask */
+	ref_tag_mask = (data->cur_rts == 32) ? U32_MAX :
+		((data->cur_rts == 0) ? 0 : 
+		(U32_MAX << (32 - data->cur_rts)) >> (32 - data->cur_rts));
+	ref_tag = data->ref_tag & ref_tag_mask;
 
 	for (i = 0; i < wrap->nlb; i++) {
 		buf_oft = i * (data->lbads + data->meta_size);
@@ -513,10 +580,17 @@ static void fill_16b_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 		pi[2] = app_tag >> 8;
 		pi[3] = app_tag & 0xff;
 		/* Storage and Reference Space */
-		pi[4] = (wrap->dw14 >> 24) & 0xff;
-		pi[5] = (wrap->dw14 >> 16) & 0xff;
-		pi[6] = (wrap->dw14 >> 8) & 0xff;
-		pi[7] = wrap->dw14 & 0xff;
+		pi[4] = (tag1 >> 24) & 0xff;
+		pi[5] = (tag1 >> 16) & 0xff;
+		pi[6] = (tag1 >> 8) & 0xff;
+		pi[7] = tag1 & 0xff;
+
+		/* calculate next LBA reference tag */
+		if (ref_tag_mask)
+			ref_tag = (ref_tag == ref_tag_mask) ? 0 : (ref_tag + 1);
+
+		tag1 &= ~ref_tag_mask;
+		tag1 |= (ref_tag & ref_tag_mask);
 	}
 }
 
@@ -524,12 +598,21 @@ static void fill_32b_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 	struct test_data *data, uint32_t meta_oft)
 {
 	uint16_t app_tag;
+	uint64_t ref_tag;
+	uint64_t ref_tag_mask;
 	uint32_t crc;
 	uint32_t buf_oft;
 	uint32_t i;
 	uint8_t *pi;
+	uint32_t tag1 = wrap->dw14;
+	uint32_t tag2 = wrap->dw3;
+	uint32_t tag3 = wrap->dw2;
 
-	app_tag = wrap->apptag & (~wrap->appmask); /* clear mask bit */
+	app_tag = wrap->apptag & wrap->appmask; /* bit = 1 is unmask */
+	ref_tag_mask = (data->cur_rts == 64) ? U64_MAX :
+		((data->cur_rts == 0) ? 0 : 
+		(U64_MAX << (64 - data->cur_rts)) >> (64 - data->cur_rts));
+	ref_tag = data->ref_tag & ref_tag_mask;
 
 	for (i = 0; i < wrap->nlb; i++) {
 		buf_oft = i * (data->lbads + data->meta_size);
@@ -545,16 +628,25 @@ static void fill_32b_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 		pi[4] = app_tag >> 8;
 		pi[5] = app_tag & 0xff;
 		/* Storage and Reference Space */
-		pi[6] = (wrap->dw2 >> 8) & 0xff;
-		pi[7] = wrap->dw2 & 0xff;
-		pi[8] = (wrap->dw3 >> 24) & 0xff;
-		pi[9] = (wrap->dw3 >> 16) & 0xff;
-		pi[10] = (wrap->dw3 >> 8) & 0xff;
-		pi[11] = wrap->dw3 & 0xff;
-		pi[12] = (wrap->dw14 >> 24) & 0xff;
-		pi[13] = (wrap->dw14 >> 16) & 0xff;
-		pi[14] = (wrap->dw14 >> 8) & 0xff;
-		pi[15] = wrap->dw14 & 0xff;
+		pi[6] = (tag3 >> 8) & 0xff;
+		pi[7] = tag3 & 0xff;
+		pi[8] = (tag2 >> 24) & 0xff;
+		pi[9] = (tag2 >> 16) & 0xff;
+		pi[10] = (tag2 >> 8) & 0xff;
+		pi[11] = tag2 & 0xff;
+		pi[12] = (tag1 >> 24) & 0xff;
+		pi[13] = (tag1 >> 16) & 0xff;
+		pi[14] = (tag1 >> 8) & 0xff;
+		pi[15] = tag1 & 0xff;
+
+		/* calculate next LBA reference tag */
+		if (ref_tag_mask)
+			ref_tag = (ref_tag == ref_tag_mask) ? 0 : (ref_tag + 1);
+
+		tag1 &= ~(lower_32_bits(ref_tag_mask));
+		tag1 |= (lower_32_bits(ref_tag) & lower_32_bits(ref_tag_mask));
+		tag2 &= ~(upper_32_bits(ref_tag_mask));
+		tag2 |= (upper_32_bits(ref_tag) & upper_32_bits(ref_tag_mask));
 	}
 }
 
@@ -562,12 +654,20 @@ static void fill_64b_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 	struct test_data *data, uint32_t meta_oft)
 {
 	uint16_t app_tag;
+	uint64_t ref_tag;
+	uint64_t ref_tag_mask;
 	uint64_t crc;
 	uint32_t buf_oft;
 	uint32_t i;
 	uint8_t *pi;
+	uint32_t tag1 = wrap->dw14;
+	uint32_t tag2 = wrap->dw3;
 
-	app_tag = wrap->apptag & (~wrap->appmask); /* clear mask bit */
+	app_tag = wrap->apptag & wrap->appmask; /* bit = 1 is unmask */
+	ref_tag_mask = (data->cur_rts == 64) ? U64_MAX :
+		((data->cur_rts == 0) ? 0 : 
+		(U64_MAX << (64 - data->cur_rts)) >> (64 - data->cur_rts));
+	ref_tag = data->ref_tag & ref_tag_mask;
 
 	for (i = 0; i < wrap->nlb; i++) {
 		buf_oft = i * (data->lbads + data->meta_size);
@@ -587,12 +687,21 @@ static void fill_64b_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 		pi[8] = app_tag >> 8;
 		pi[9] = app_tag & 0xff;
 		/* Storage and Reference Space */
-		pi[10] = (wrap->dw3 >> 8) & 0xff;
-		pi[11] = wrap->dw3 & 0xff;
-		pi[12] = (wrap->dw14 >> 24) & 0xff;
-		pi[13] = (wrap->dw14 >> 16) & 0xff;
-		pi[14] = (wrap->dw14 >> 8) & 0xff;
-		pi[15] = wrap->dw14 & 0xff;
+		pi[10] = (tag2 >> 8) & 0xff;
+		pi[11] = tag2 & 0xff;
+		pi[12] = (tag1 >> 24) & 0xff;
+		pi[13] = (tag1 >> 16) & 0xff;
+		pi[14] = (tag1 >> 8) & 0xff;
+		pi[15] = tag1 & 0xff;
+
+		/* calculate next LBA reference tag */
+		if (ref_tag_mask)
+			ref_tag = (ref_tag == ref_tag_mask) ? 0 : (ref_tag + 1);
+
+		tag1 &= ~(lower_32_bits(ref_tag_mask));
+		tag1 |= (lower_32_bits(ref_tag) & lower_32_bits(ref_tag_mask));
+		tag2 &= ~(upper_32_bits(ref_tag_mask));
+		tag2 |= (upper_32_bits(ref_tag) & upper_32_bits(ref_tag_mask));
 	}
 }
 
@@ -600,7 +709,7 @@ static void fill_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 	struct test_data *data)
 {
 	switch (data->cur_pif) {
-	case NVME_ELBAF_PIF_TYPE1:
+	case NVME_ELBAF_PIF_GUARD16:
 		BUG_ON(data->meta_size < 8);
 
 		if (data->meta_size == 8 || data->is_pi_first)
@@ -610,7 +719,7 @@ static void fill_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 				data->meta_size - 8);
 		break;
 	
-	case NVME_ELBAF_PIF_TYPE2:
+	case NVME_ELBAF_PIF_GUARD32:
 		BUG_ON(data->meta_size < 16);
 
 		if (data->meta_size == 16 || data->is_pi_first)
@@ -620,7 +729,7 @@ static void fill_guard_protect_info(struct nvme_rwc_wrapper *wrap,
 				data->meta_size - 16);
 		break;
 	
-	case NVME_ELBAF_PIF_TYPE3:
+	case NVME_ELBAF_PIF_GUARD64:
 		BUG_ON(data->meta_size < 16);
 
 		if (data->meta_size == 16 || data->is_pi_first)
@@ -644,14 +753,19 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.nsid = test->nsid;
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.control = NVME_RW_PRINFO_PRCHK_STC | NVME_RW_PRINFO_PRCHK_APP |
-		NVME_RW_PRINFO_PRCHK_GUARD;
+	/* Protection Information Check */
+	wrap.control |= NVME_RW_PRINFO_PRCHK_APP | NVME_RW_PRINFO_PRCHK_GUARD;
+	if (test->cur_sts)
+		wrap.control |= NVME_RW_PRINFO_PRCHK_STC;
+	if (test->cur_rts)
+		wrap.control |= NVME_RW_PRINFO_PRCHK_REF;
+
 	if (test->is_set_pract)
 		wrap.control |= NVME_RW_PRINFO_PRACT;
 
 	wrap.apptag = test->app_tag;
 	wrap.appmask = test->app_tag_mask;
-	fill_cmd_tags(&wrap, test);
+	fill_cmd_tags(&wrap, test, slba);
 
 	wrap.buf = tool->wbuf;
 	if (test->is_not_resident)
@@ -673,8 +787,8 @@ static int send_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_16b_guard_action0(struct nvme_tool *tool,
-	struct nvme_sq_info *sq)
+static int pi_16b_guard_action0(struct nvme_tool *tool,
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -682,20 +796,19 @@ static int subcase_pi_16b_guard_action0(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_16b_guard) {
-		pr_warn("Not support 16b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE1) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD16) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE1;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD16;
 		test->is_match_pif = 1;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/* ensure "slba + nlb < nsze" */
@@ -707,11 +820,10 @@ static int subcase_pi_16b_guard_action0(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -719,8 +831,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_16b_guard_action1_size_equal(struct nvme_tool *tool,
-	struct nvme_sq_info *sq)
+static int pi_16b_guard_action1_size_equal(struct nvme_tool *tool,
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -728,22 +840,21 @@ static int subcase_pi_16b_guard_action1_size_equal(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_16b_guard) {
-		pr_warn("Not support 16b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE1 || test->meta_size != 8) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD16 || test->meta_size != 8) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE1;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD16;
 		test->is_match_pif = 1;
 		test->cfg_ms = 8;
 		test->is_match_ms = TEST_MATCH_MS_EQUAL;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/* ensure "slba + nlb < nsze" */
@@ -757,11 +868,10 @@ static int subcase_pi_16b_guard_action1_size_equal(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -769,8 +879,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_16b_guard_action1_size_larger(struct nvme_tool *tool,
-	struct nvme_sq_info *sq)
+static int pi_16b_guard_action1_size_larger(struct nvme_tool *tool,
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -778,22 +888,21 @@ static int subcase_pi_16b_guard_action1_size_larger(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_16b_guard) {
-		pr_warn("Not support 16b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE1 || test->meta_size <= 8) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD16 || test->meta_size <= 8) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE1;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD16;
 		test->is_match_pif = 1;
 		test->cfg_ms = 8;
 		test->is_match_ms = TEST_MATCH_MS_LARGER;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/* ensure "slba + nlb < nsze" */
@@ -806,11 +915,10 @@ static int subcase_pi_16b_guard_action1_size_larger(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -818,8 +926,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_32b_guard_action0(struct nvme_tool *tool, 
-	struct nvme_sq_info *sq)
+static int pi_32b_guard_action0(struct nvme_tool *tool, 
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -827,20 +935,19 @@ static int subcase_pi_32b_guard_action0(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_32b_guard) {
-		pr_warn("Not support 32b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE2) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD32) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE2;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD32;
 		test->is_match_pif = 1;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -861,11 +968,10 @@ static int subcase_pi_32b_guard_action0(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -873,8 +979,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_32b_guard_action1_size_equal(struct nvme_tool *tool,
-	struct nvme_sq_info *sq)
+static int pi_32b_guard_action1_size_equal(struct nvme_tool *tool,
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -882,22 +988,21 @@ static int subcase_pi_32b_guard_action1_size_equal(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_32b_guard) {
-		pr_warn("Not support 32b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE2 || test->meta_size != 16) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD32 || test->meta_size != 16) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE2;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD32;
 		test->is_match_pif = 1;
 		test->cfg_ms = 16;
 		test->is_match_ms = TEST_MATCH_MS_EQUAL;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -920,11 +1025,10 @@ static int subcase_pi_32b_guard_action1_size_equal(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -932,8 +1036,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_32b_guard_action1_size_larger(struct nvme_tool *tool, 
-	struct nvme_sq_info *sq)
+static int pi_32b_guard_action1_size_larger(struct nvme_tool *tool, 
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -941,22 +1045,21 @@ static int subcase_pi_32b_guard_action1_size_larger(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_32b_guard) {
-		pr_warn("Not support 32b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE2 || test->meta_size <= 16) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD32 || test->meta_size <= 16) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE2;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD32;
 		test->is_match_pif = 1;
 		test->cfg_ms = 16;
 		test->is_match_ms = TEST_MATCH_MS_LARGER;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -978,11 +1081,10 @@ static int subcase_pi_32b_guard_action1_size_larger(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;	
+
+	return 0;	
 }
 
 /**
@@ -990,8 +1092,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_64b_guard_action0(struct nvme_tool *tool,
-	struct nvme_sq_info *sq)
+static int pi_64b_guard_action0(struct nvme_tool *tool,
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -999,20 +1101,19 @@ static int subcase_pi_64b_guard_action0(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_64b_guard) {
-		pr_warn("Not support 64b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE3) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD64) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE3;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD64;
 		test->is_match_pif = 1;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -1033,11 +1134,10 @@ static int subcase_pi_64b_guard_action0(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -1045,8 +1145,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_64b_guard_action1_size_equal(struct nvme_tool *tool,
-	struct nvme_sq_info *sq)
+static int pi_64b_guard_action1_size_equal(struct nvme_tool *tool,
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -1054,22 +1154,21 @@ static int subcase_pi_64b_guard_action1_size_equal(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_64b_guard) {
-		pr_warn("Not support 64b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE3 || test->meta_size != 16) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD64 || test->meta_size != 16) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE3;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD64;
 		test->is_match_pif = 1;
 		test->cfg_ms = 16;
 		test->is_match_ms = TEST_MATCH_MS_EQUAL;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -1092,11 +1191,10 @@ static int subcase_pi_64b_guard_action1_size_equal(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
 	}
-out:
-	nvme_record_subcase_result(__func__, ret);
-	return ret;
+
+	return 0;
 }
 
 /**
@@ -1104,8 +1202,8 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int subcase_pi_64b_guard_action1_size_larger(struct nvme_tool *tool, 
-	struct nvme_sq_info *sq)
+static int pi_64b_guard_action1_size_larger(struct nvme_tool *tool, 
+	struct nvme_sq_info *sq, uint32_t type)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -1113,22 +1211,21 @@ static int subcase_pi_64b_guard_action1_size_larger(struct nvme_tool *tool,
 	uint32_t nlb;
 	int ret;
 
-	if (!test->is_sup_64b_guard) {
-		pr_warn("Not support 64b guard PI type!\n");
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
+	ret = check_dps_pi_type(test, type);
+	if (ret < 0)
+		return ret;
 
-	if (test->cur_pif != NVME_ELBAF_PIF_TYPE3 || test->meta_size <= 16) {
+	if (test->cur_pif != NVME_ELBAF_PIF_GUARD64 || test->meta_size <= 16) {
 		test_data_reset_format_fields(test);
-		test->cfg_pif = NVME_ELBAF_PIF_TYPE3;
+		test->cfg_pif = NVME_ELBAF_PIF_GUARD64;
 		test->is_match_pif = 1;
 		test->cfg_ms = 16;
 		test->is_match_ms = TEST_MATCH_MS_LARGER;
+		test->cfg_pit = type;
 
 		ret = select_ext_lba_format(ndev, test);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -1150,7 +1247,78 @@ static int subcase_pi_64b_guard_action1_size_larger(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto out;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int subcase_pi_16b_guard(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	uint32_t types[3] = {NVME_NS_DPS_PI_TYPE1, NVME_NS_DPS_PI_TYPE2,
+		NVME_NS_DPS_PI_TYPE3};
+	uint32_t i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		ret = pi_16b_guard_action0(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+		ret = pi_16b_guard_action1_size_equal(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+		ret = pi_16b_guard_action1_size_larger(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+	}
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+static int subcase_pi_32b_guard(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	uint32_t types[3] = {NVME_NS_DPS_PI_TYPE1, NVME_NS_DPS_PI_TYPE2,
+		NVME_NS_DPS_PI_TYPE3};
+	uint32_t i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		ret = pi_32b_guard_action0(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+		ret = pi_32b_guard_action1_size_equal(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+		ret = pi_32b_guard_action1_size_larger(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+	}
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+static int subcase_pi_64b_guard(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	uint32_t types[3] = {NVME_NS_DPS_PI_TYPE1, NVME_NS_DPS_PI_TYPE2,
+		NVME_NS_DPS_PI_TYPE3};
+	uint32_t i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(types); i++) {
+		ret = pi_64b_guard_action0(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+		ret = pi_64b_guard_action1_size_equal(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
+		ret = pi_64b_guard_action1_size_larger(tool, sq, types[i]);
+		if (ret < 0)
+			goto out;
 	}
 out:
 	nvme_record_subcase_result(__func__, ret);
@@ -1179,15 +1347,9 @@ static int case_e2e_data_protect(struct nvme_tool *tool)
 	if (ret < 0)
 		return ret;
 
-	ret |= subcase_pi_16b_guard_action0(tool, sq);
-	ret |= subcase_pi_16b_guard_action1_size_equal(tool, sq);
-	ret |= subcase_pi_16b_guard_action1_size_larger(tool, sq);
-	ret |= subcase_pi_32b_guard_action0(tool, sq);
-	ret |= subcase_pi_32b_guard_action1_size_equal(tool, sq);
-	ret |= subcase_pi_32b_guard_action1_size_larger(tool, sq);
-	ret |= subcase_pi_64b_guard_action0(tool, sq);
-	ret |= subcase_pi_64b_guard_action1_size_equal(tool, sq);
-	ret |= subcase_pi_64b_guard_action1_size_larger(tool, sq);
+	ret |= subcase_pi_16b_guard(tool, sq);
+	ret |= subcase_pi_32b_guard(tool, sq);
+	ret |= subcase_pi_64b_guard(tool, sq);
 
 	nvme_display_subcase_report();
 

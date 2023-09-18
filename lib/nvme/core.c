@@ -124,6 +124,21 @@ int nvme_update_ns_instance(struct nvme_dev_info *ndev,
 	ns->fmt_idx = NVME_NS_FLBAS_LBA(id_ns->flbas);
 	ns->blk_size = 1 << id_ns->lbaf[ns->fmt_idx].ds;
 	ns->meta_size = le16_to_cpu(id_ns->lbaf[ns->fmt_idx].ms);
+
+	if (ns->id_ns_nvm)
+		ret = nvme_identify_cs_ns(ndev, ns->id_ns_nvm, 
+			NVME_IDENTIFY_DATA_SIZE, ns->nsid, NVME_CSI_NVM);
+	else if (ns->id_ns_zns)
+		ret = nvme_identify_cs_ns(ndev, ns->id_ns_zns,
+			NVME_IDENTIFY_DATA_SIZE, ns->nsid, NVME_CSI_ZNS);
+	else
+		return 0;
+
+	if (ret < 0) {
+		pr_err("failed to get identify ns(%u) data for csi!(%d)\n",
+			ns->nsid, ret);
+		return ret;
+	}
 	return 0;
 }
 

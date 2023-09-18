@@ -268,6 +268,20 @@ static int check_id_ns_sanity(struct nvme_ns_group *grp, uint32_t nsid)
 	return 0;
 }
 
+static int check_id_ns_nvm_sanity(struct nvme_ns_group *grp, uint32_t nsid)
+{
+	if (grp->nr_ns < nsid)
+		return -EINVAL;
+
+	if (grp->ns[nsid - 1].nsid != nsid)
+		return -ENODEV;
+
+	if (!grp->ns[nsid - 1].id_ns_nvm)
+		return -EFAULT;
+	
+	return 0;
+}
+
 /**
  * @brief Get the total size of the namespace in logical blocks
  * 
@@ -442,3 +456,21 @@ int nvme_id_ns_lbads(struct nvme_ns_group *grp, uint32_t nsid, uint32_t *lbads)
 	*lbads = grp->ns[nsid - 1].blk_size;
 	return 0;
 }
+
+/**
+ * @brief Get logical block storage tag mask
+ * 
+ * @return 0 on success, otherwise a negative errno 
+ */
+int nvme_id_ns_nvm_lbstm(struct nvme_ns_group *grp, uint32_t nsid, uint64_t *lbstm)
+{
+	int ret;
+
+	ret = check_id_ns_nvm_sanity(grp, nsid);
+	if (ret < 0)
+		return ret;
+
+	*lbstm = le64_to_cpu(grp->ns[nsid - 1].id_ns_nvm->lbstm);
+	return 0;
+}
+
