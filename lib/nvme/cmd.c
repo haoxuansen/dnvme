@@ -1171,6 +1171,10 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 		cmd.bit_bucket = wrap->bit_bucket;
 		BUG_ON(!cmd.nr_bit_bucket || !cmd.bit_bucket);
 	}
+	if (wrap->use_user_cid) {
+		cmd.use_user_cid = 1;
+		cmd.cid = wrap->cid;
+	}
 
 	return nvme_submit_64b_cmd(fd, &cmd);
 }

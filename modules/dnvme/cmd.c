@@ -1212,8 +1212,12 @@ int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *u
 
 	ccmd = (struct nvme_common_command *)cmd_buf;
 
-	cmd.cid = sq->next_cid++;
-	ccmd->command_id = cmd.cid;
+	if (cmd.use_user_cid) {
+		ccmd->command_id = cmd.cid;
+	} else {
+		cmd.cid = sq->next_cid++;
+		ccmd->command_id = cmd.cid;
+	}
 
 	if (copy_to_user(ucmd, &cmd, sizeof(cmd))) {
 		dnvme_err(ndev, "failed to copy to user space!\n");

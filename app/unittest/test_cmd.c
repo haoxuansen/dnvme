@@ -49,9 +49,6 @@ struct test_cmd_copy {
 	struct source_range	entry[0];	/* I */
 };
 
-/*
- * FLAGS: R - restore after use
- */
 struct test_data {
 	uint32_t	nsid;
 	uint64_t	nsze;
@@ -61,27 +58,32 @@ struct test_data {
 	uint32_t	msrc;
 	uint16_t	mssrl;
 
-	uint8_t		flags; /* R */
-	uint16_t	control; /* R */
+	uint8_t		flags;
+	uint16_t	control;
+	uint16_t	cid;
 
+	/* capability */
 	uint32_t	is_sup_sgl:1;
 	uint32_t	is_sup_sgl_bit_bucket:1;
-	uint32_t	is_use_sgl_bit_bucket:1; /* R */
+	/* configuration */
+	uint32_t	is_use_sgl_bit_bucket:1;
+	uint32_t	is_use_custom_cid:1;
 
-	uint32_t	nr_bit_bucket; /* R */
-	struct nvme_sgl_bit_bucket	*bit_bucket; /* R */
+	uint32_t	nr_bit_bucket;
+	struct nvme_sgl_bit_bucket	*bit_bucket;
 };
 
 static struct test_data g_test = {0};
 
-/* Restore the value after use to avoid impact on the next subcase */
-static void restore_test_data(struct test_data *data)
+static void test_data_reset_cmd_fields(struct test_data *data)
 {
 	data->flags = 0;
 	data->control = 0;
 	data->is_use_sgl_bit_bucket = 0;
 	data->nr_bit_bucket = 0;
 	data->bit_bucket = NULL;
+	data->is_use_custom_cid = 0;
+	data->cid = 0;
 }
 
 /**
@@ -169,6 +171,80 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
 	}
 
 	return 0;
+}
+
+static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
+
+	wrap.sqid = sq->sqid;
+	wrap.cqid = sq->cqid;
+	wrap.flags = test->flags;
+	wrap.nsid = test->nsid;
+	wrap.slba = slba;
+	wrap.nlb = nlb;
+	wrap.buf = tool->rbuf;
+	wrap.size = wrap.nlb * test->lbads;
+	wrap.control = test->control;
+
+	if (test->is_use_custom_cid) {
+		wrap.use_user_cid = 1;
+		wrap.cid = test->cid;
+	}
+	BUG_ON(wrap.size > tool->rbuf_size);
+	memset(wrap.buf, 0, wrap.size);
+
+	return nvme_cmd_io_read(ndev->fd, &wrap);
+}
+
+static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_rwc_wrapper wrap = {0};
+	struct test_data *test = &g_test;
+
+	wrap.sqid = sq->sqid;
+	wrap.cqid = sq->cqid;
+	wrap.flags = test->flags;
+	wrap.nsid = test->nsid;
+	wrap.slba = slba;
+	wrap.nlb = nlb;
+	wrap.buf = tool->wbuf;
+	wrap.size = wrap.nlb * test->lbads;
+	wrap.control = test->control;
+
+	if (test->is_use_custom_cid) {
+		wrap.use_user_cid = 1;
+		wrap.cid = test->cid;
+	}
+	BUG_ON(wrap.size > tool->wbuf_size);
+	fill_data_with_random(wrap.buf, wrap.size);
+
+	return nvme_cmd_io_write(ndev->fd, &wrap);
+}
+
+static int prepare_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb <= nsze */
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
+
+	return submit_io_read_cmd(tool, sq, slba, nlb);
+}
+
+static int prepare_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
+{
+	struct test_data *test = &g_test;
+	/* ensure "slba + nlb <= nsze */
+	uint64_t slba = rand() % (test->nsze / 2);
+	uint32_t nlb = rand() % min_t(uint64_t, test->nsze / 2, 256) + 1;
+
+	return submit_io_write_cmd(tool, sq, slba, nlb);
 }
 
 static int __send_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
@@ -434,6 +510,7 @@ static int subcase_read_success(struct nvme_tool *tool,
 	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
 	int ret;
 
+	test_data_reset_cmd_fields(test);
 	ret = send_io_read_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to read data! SLBA:0x%llx, NLB:%u(%d)\n", 
@@ -459,18 +536,97 @@ static int subcase_read_fua_success(struct nvme_tool *tool,
 	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
 	int ret;
 
+	test_data_reset_cmd_fields(test);
 	test->control = NVME_RW_FUA;
 	ret = send_io_read_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to read data! SLBA:0x%llx, NLB:%u(%d)\n", 
 			slba, nlb, ret);
-		goto restore;
+		goto out;
 	}
-restore:
-	/* Restore the value after use to avoid impact on the next subcase */
-	test->control = 0;
+out:
 	nvme_record_subcase_result(__func__, ret);
 	return ret;
+}
+
+static int subcase_read_invlid_cid(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_data *test = &g_test;
+	struct nvme_completion *entry = NULL;
+	uint32_t nr_cmd = rand() % min_t(uint32_t, sq->nr_entry / 2, 256) + 1;
+	uint32_t inject = rand() % (nr_cmd - 1) + 1;
+	uint16_t cid;
+	uint32_t i;
+	uint32_t match = 0;
+	int ret;
+
+	test_data_reset_cmd_fields(test);
+
+	ret = prepare_io_read_cmd(tool, sq);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	for (i = 1; i < nr_cmd; i++) {
+		if (i == inject) {
+			test->is_use_custom_cid = 1;
+			test->cid = cid;
+		}
+		ret = prepare_io_read_cmd(tool, sq);
+		if (ret < 0)
+			return ret;
+
+		if (i == inject)
+			test->is_use_custom_cid = 0;
+	}
+	pr_debug("nr_cmd: %u, inject idx: %u, cid: %u\n", nr_cmd, inject, cid);
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, sq->sqid);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_gnl_cmd_reap_cqe(ndev, sq->cqid, nr_cmd, &tool->entry,
+		tool->entry_size);
+	if (ret != nr_cmd) {
+		pr_err("expect reap %u, actual reaped %d!\n", nr_cmd, ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	for (i = 0; i < nr_cmd; i++) {
+		entry = &tool->entry[i];
+
+		if (entry->command_id != cid)
+			continue;
+		
+		if (match == 0) {
+			if (NVME_CQE_STATUS_TO_STATE(entry->status) == 
+				NVME_SC_SUCCESS) {
+				match += 1;
+			} else {
+				pr_err("first cmd expect success, but failed!\n");
+				return -EIO;
+			}
+		} else if (match == 1) {
+			if (NVME_CQE_STATUS_TO_STATE(entry->status) ==
+				NVME_SC_CMDID_CONFLICT) {
+				match += 1;
+				break;
+			} else {
+				pr_err("second cmd expect failed, but status "
+					"is %u!\n",
+					NVME_CQE_STATUS_TO_STATE(entry->status));
+				return -EIO;
+			}
+		}
+	}
+
+	if (match != 2) {
+		pr_err("failed to match(%u) cid!\n", match);
+		return -ENOENT;
+	}
+	return 0;
 }
 
 /**
@@ -515,6 +671,7 @@ static int subcase_read_use_sgl_bit_bucket(struct nvme_tool *tool,
 		}
 	} while ((slba + nlb + skip) > test->nsze);
 
+	test_data_reset_cmd_fields(test);
 	test->flags = NVME_CMD_SGL_METABUF;
 	test->is_use_sgl_bit_bucket = 1;
 	test->nr_bit_bucket = nr_bit_bucket;
@@ -530,16 +687,10 @@ static int subcase_read_use_sgl_bit_bucket(struct nvme_tool *tool,
 	ret = send_io_read_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to read data!(%d)\n", ret);
-		goto restore;
+		goto free_bit_bucket;
 	}
 
-restore:
-	/* Restore the value after use to avoid impact on the next subcase */
-	test->flags = 0;
-	test->is_use_sgl_bit_bucket = 0;
-	test->nr_bit_bucket = 0;
-	test->bit_bucket = NULL;
-
+free_bit_bucket:
 	free(bit_bucket);
 out:
 	nvme_record_subcase_result(__func__, ret);
@@ -560,6 +711,7 @@ static int subcase_write_success(struct nvme_tool *tool,
 	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
 	int ret;
 
+	test_data_reset_cmd_fields(test);
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data! SLBA:0x%llx, NLB:%u(%d)\n", 
@@ -585,18 +737,97 @@ static int subcase_write_fua_success(struct nvme_tool *tool,
 	uint32_t nlb = rand() % min_t(uint64_t, 256, (test->nsze / 2)) + 1;
 	int ret;
 
+	test_data_reset_cmd_fields(test);
 	test->control = NVME_RW_FUA;
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data! SLBA:0x%llx, NLB:%u(%d)\n", 
 			slba, nlb, ret);
-		goto restore;
+		goto out;
 	}
-restore:
-	/* Restore the value after use to avoid impact on the next subcase */
-	test->control = 0;
+out:
 	nvme_record_subcase_result(__func__, ret);
 	return ret;
+}
+
+static int subcase_write_invlid_cid(struct nvme_tool *tool,
+	struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_data *test = &g_test;
+	struct nvme_completion *entry = NULL;
+	uint32_t nr_cmd = rand() % min_t(uint32_t, sq->nr_entry / 2, 256) + 1;
+	uint32_t inject = rand() % (nr_cmd - 1) + 1;
+	uint16_t cid;
+	uint32_t i;
+	uint32_t match = 0;
+	int ret;
+
+	test_data_reset_cmd_fields(test);
+
+	ret = prepare_io_write_cmd(tool, sq);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	for (i = 1; i < nr_cmd; i++) {
+		if (i == inject) {
+			test->is_use_custom_cid = 1;
+			test->cid = cid;
+		}
+		ret = prepare_io_write_cmd(tool, sq);
+		if (ret < 0)
+			return ret;
+
+		if (i == inject)
+			test->is_use_custom_cid = 0;
+	}
+	pr_debug("nr_cmd: %u, inject idx: %u, cid: %u\n", nr_cmd, inject, cid);
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, sq->sqid);
+	if (ret < 0)
+		return ret;
+	
+	ret = nvme_gnl_cmd_reap_cqe(ndev, sq->cqid, nr_cmd, &tool->entry,
+		tool->entry_size);
+	if (ret != nr_cmd) {
+		pr_err("expect reap %u, actual reaped %d!\n", nr_cmd, ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	for (i = 0; i < nr_cmd; i++) {
+		entry = &tool->entry[i];
+
+		if (entry->command_id != cid)
+			continue;
+		
+		if (match == 0) {
+			if (NVME_CQE_STATUS_TO_STATE(entry->status) == 
+				NVME_SC_SUCCESS) {
+				match += 1;
+			} else {
+				pr_err("first cmd expect success, but failed!\n");
+				return -EIO;
+			}
+		} else if (match == 1) {
+			if (NVME_CQE_STATUS_TO_STATE(entry->status) ==
+				NVME_SC_CMDID_CONFLICT) {
+				match += 1;
+				break;
+			} else {
+				pr_err("second cmd expect failed, but status "
+					"is %u!\n",
+					NVME_CQE_STATUS_TO_STATE(entry->status));
+				return -EIO;
+			}
+		}
+	}
+
+	if (match != 2) {
+		pr_err("failed to match(%u) cid!\n", match);
+		return -ENOENT;
+	}
+	return 0;
 }
 
 /**
@@ -645,6 +876,7 @@ static int subcase_write_use_sgl_bit_bucket(struct nvme_tool *tool,
 		}
 	} while ((slba + nlb + skip) > test->nsze);
 
+	test_data_reset_cmd_fields(test);
 	test->flags = NVME_CMD_SGL_METABUF;
 	test->is_use_sgl_bit_bucket = 1;
 	test->nr_bit_bucket = nr_bit_bucket;
@@ -660,9 +892,9 @@ static int subcase_write_use_sgl_bit_bucket(struct nvme_tool *tool,
 	ret = send_io_write_cmd(tool, sq, slba, nlb);
 	if (ret < 0) {
 		pr_err("failed to write data!(%d)\n", ret);
-		goto restore;
+		goto free_bit_bucket;
 	}
-	restore_test_data(test);
+	test_data_reset_cmd_fields(test);
 
 	/* readback to check the bit bucket descriptor has no effect */
 	ret = send_io_read_cmd(tool, sq, slba, nlb);
@@ -679,13 +911,6 @@ static int subcase_write_use_sgl_bit_bucket(struct nvme_tool *tool,
 		ret = -EIO;
 		goto free_bit_bucket;
 	}
-
-restore:
-	/* Restore the value after use to avoid impact on the next subcase */
-	test->flags = 0;
-	test->is_use_sgl_bit_bucket = 0;
-	test->nr_bit_bucket = 0;
-	test->bit_bucket = NULL;
 
 free_bit_bucket:
 	free(bit_bucket);
@@ -754,6 +979,8 @@ static int subcase_copy_success(struct nvme_tool *tool,
 		copy->slba = rand() % (test->nsze / 4) + start;
 
 	} while ((copy->slba + sum) > test->nsze);
+
+	test_data_reset_cmd_fields(test);
 
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
@@ -847,6 +1074,8 @@ static int subcase_copy_to_read_only(struct nvme_tool *tool,
 		rand() % (test->nsze / 4);
 	copy->skip_write = 1;
 
+	test_data_reset_cmd_fields(test);
+
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto free_copy;
@@ -908,6 +1137,8 @@ static int subcase_copy_invalid_desc_format(struct nvme_tool *tool,
 
 	copy->entry[0].slba = rand() % (test->nsze / 4);
 	copy->entry[0].nlb = 1;
+
+	test_data_reset_cmd_fields(test);
 
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
@@ -1001,6 +1232,8 @@ static int subcase_copy_invalid_range_num(struct nvme_tool *tool,
 		}
 	} while (test->mcl < sum);
 
+	test_data_reset_cmd_fields(test);
+
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
@@ -1081,6 +1314,8 @@ static int subcase_copy_invalid_nlb_single(struct nvme_tool *tool,
 	/* set invalid NLB in random source range */
 	copy->entry[inject].nlb = test->mssrl + 1;
 
+	test_data_reset_cmd_fields(test);
+
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
@@ -1158,6 +1393,8 @@ static int subcase_copy_invalid_nlb_sum(struct nvme_tool *tool,
 		copy->entry[i].nlb = test->mssrl;
 	}
 
+	test_data_reset_cmd_fields(test);
+
 	ret = send_io_copy_cmd(tool, sq, copy);
 	if (ret < 0)
 		goto out2;
@@ -1200,6 +1437,7 @@ static int case_cmd_io_read(struct nvme_tool *tool)
 
 	ret |= subcase_read_success(tool, sq);
 	ret |= subcase_read_fua_success(tool, sq);
+	ret |= subcase_read_invlid_cid(tool, sq);
 	ret |= subcase_read_use_sgl_bit_bucket(tool, sq);
 
 	nvme_display_subcase_report();
@@ -1234,6 +1472,7 @@ static int case_cmd_io_write(struct nvme_tool *tool)
 
 	ret |= subcase_write_success(tool, sq);
 	ret |= subcase_write_fua_success(tool, sq);
+	ret |= subcase_write_invlid_cid(tool, sq);
 	ret |= subcase_write_use_sgl_bit_bucket(tool, sq);
 
 	nvme_display_subcase_report();
