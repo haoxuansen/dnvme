@@ -9,18 +9,21 @@ RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = rst
-BUILDDIR      = $(RELEASE_DOC_DIR)
 
-build:
-ifneq ($(DIR_EXIST),yes)
-	$(Q)mkdir -p $(RELEASE_DOC_DIR)
-endif
-	$(Q)$(SPHINXBUILD) -b html $(SOURCEDIR) $(BUILDDIR)
+doxygen:
+	$(Q)mkdir -p $(RELEASE_DOC_DOXYGEN_DIR)
+	$(Q)doxygen
+
+sphinx:
+	$(Q)mkdir -p $(RELEASE_DOC_SPHINX_DIR)
+	$(Q)$(SPHINXBUILD) -b html $(SOURCEDIR) $(RELEASE_DOC_SPHINX_DIR)
+
+build: doxygen sphinx
 
 clean:
-	$(Q)rm -rf $(BUILDDIR)/*
+	$(Q)rm -rf $(RELEASE_DOC_SPHINX_DIR)
+	$(Q)rm -rf $(RELEASE_DOC_DOXYGEN_DIR)
 
-distclean:
-	$(Q)rm -rf $(BUILDDIR)
+distclean: clean
 
-.PHONY: build clean distclean
+.PHONY: doxygen sphinx build clean distclean

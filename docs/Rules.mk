@@ -13,5 +13,6 @@ endif
 # Directory
 # --------------------------------------------------------------------------- #
 
-RELEASE_DOC_DIR := $(RELEASE_DIR)/docs
-DIR_EXIST := $(call check_dir_exist,$(RELEASE_DOC_DIR))
+RELEASE_DOC_SPHINX_DIR := $(RELEASE_DIR)/docs/sphinx
+RELEASE_DOC_DOXYGEN_DIR := $(RELEASE_DIR)/docs/doxygen
+

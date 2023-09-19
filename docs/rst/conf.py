@@ -4,6 +4,7 @@
 import sys
 import os
 import sphinx
+import subprocess
 
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
@@ -60,7 +61,7 @@ extensions = [
 	# Inline extension
 	'sphinx.ext.todo',
 	# Third extension
-	# 'breathe',
+	'breathe',
 	# 'exhale',
 	'sphinx_design',
 	# 'sphinx_tabs.tabs',
@@ -70,12 +71,19 @@ extensions = [
 # --------------------------------------------------------------------------- #
 # breathe configuration
 # --------------------------------------------------------------------------- #
+
+# Determine whether or not we are building on the Read the Docs servers.
+read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+if read_the_docs_build:
+	subprocess.call('mkdir -p ../../release/docs/doxygen', shell=True)
+	subprocess.call('cd ..; doxygen', shell=True)
+
 if 'breathe' in extensions:
 	breathe_projects = {
-		"demo": "../../output/xml"
+		"nvmetool": "../../release/docs/doxygen/xml"
 	}
 
-	breathe_default_project = 'demo'
+	breathe_default_project = 'nvmetool'
 
 	breathe_domain_by_extension = {
 		"c" : "c",
