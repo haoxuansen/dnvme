@@ -147,6 +147,18 @@ except ImportError:
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
+if html_theme == 'sphinx_rtd_theme':
+	html_theme_options = {
+		# 'collapse_navigation': True,
+		# 'includehidden': True,
+		# "logo_only": True,
+		# 'navigation_depth': 4,
+		# 'prev_next_buttons_location': 'bottom',
+		# 'sticky_navigation': True,
+		# 'style_external_links': True,
+		# 'titles_only': True
+	}
+
 if html_theme == 'sphinx_book_theme':
 	html_theme_options = {
 		"home_page_in_toc": True,
@@ -163,12 +175,12 @@ html_title = project + ' v' + version
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+# html_logo = "./image/aircraft.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-#html_favicon = None
+# html_favicon = "./image/aircraft.svg"
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 #html_file_suffix = '.html'
