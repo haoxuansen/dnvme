@@ -1212,6 +1212,9 @@ int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *u
 
 	ccmd = (struct nvme_common_command *)cmd_buf;
 
+	if (cmd.use_user_meta)
+		ccmd->metadata = cpu_to_le64(cmd.meta_addr);
+
 	if (cmd.use_user_cid) {
 		ccmd->command_id = cmd.cid;
 	} else {
