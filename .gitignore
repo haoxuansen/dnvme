@@ -2,5 +2,6 @@
 .config.old
 .vscode
 diff.patch
-release
 include/config
+release
+tmp

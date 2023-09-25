@@ -1,7 +1,7 @@
 RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 -include $(RULES_MK)
 
-DIRS := base crc nvme
+DIRS := base crc json nvme
 SRCS := $(foreach dir,$(DIRS),$(wildcard $(CUR_DIR_PATH)/$(dir)/*.c))
 OBJS := $(patsubst %.c,%.o,$(notdir $(SRCS)))
 
@@ -17,25 +17,18 @@ $(TARGETS): $(OBJS)
 	$(Q)$(AR) rcs $@ $^
 
 build: $(TARGETS)
-	$(Q)make -C base $@
-	$(Q)make -C crc $@
-	$(Q)make -C nvme $@
-ifeq ($(RELEASE_DIR_EXIST),yes)
-	$(Q)cp $(TARGETS) $(RELEASE_LIB_DIR)/
-else
-	$(warning "$(RELEASE_LIB_DIR)" not exist!)
+	$(foreach dir,$(DIRS),-$(Q)$(shell make -C $(dir) $@))
+ifneq ($(RELEASE_DIR_EXIST),yes)
+	$(Q)mkdir -p $(RELEASE_LIB_DIR)
 endif
+	$(Q)cp $(TARGETS) $(RELEASE_LIB_DIR)/
 
 clean:
-	$(Q)make -C base $@
-	$(Q)make -C crc $@
-	$(Q)make -C nvme $@
+	$(foreach dir,$(DIRS),-$(Q)$(shell make -C $(dir) $@))
 	$(Q)rm -f $(OBJS)
 
 distclean:
-	$(Q)make -C base $@
-	$(Q)make -C crc $@
-	$(Q)make -C nvme $@
+	$(foreach dir,$(DIRS),-$(Q)$(shell make -C $(dir) $@))
 	$(Q)rm -f $(OBJS) $(TARGETS)
 
 .PHONY: build clean distclean
