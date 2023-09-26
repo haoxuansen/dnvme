@@ -41,10 +41,13 @@ struct nvme_rwc_wrapper {
 
 	uint32_t	meta_id;
 	uint64_t	meta_addr;
+	uint64_t	prp1;
+	uint64_t	prp2;
 
 	uint32_t	use_bit_bucket:1;
 	uint32_t	use_user_cid:1;
 	uint32_t	use_user_meta:1;
+	uint32_t	use_user_prp:1;
 
 	uint32_t			nr_bit_bucket;
 	struct nvme_sgl_bit_bucket	*bit_bucket;

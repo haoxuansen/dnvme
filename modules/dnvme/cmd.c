@@ -937,6 +937,9 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev,
 			need_prp = true;
 	}
 
+	if (cmd->use_user_prp)
+		need_prp = false;
+
 	if (!need_prp)
 		return dnvme_add_cmd_node(ndev, cmd, ccmd, NULL);
 
@@ -1212,12 +1215,7 @@ int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *u
 
 	ccmd = (struct nvme_common_command *)cmd_buf;
 
-	if (cmd.use_user_meta)
-		ccmd->metadata = cpu_to_le64(cmd.meta_addr);
-
-	if (cmd.use_user_cid) {
-		ccmd->command_id = cmd.cid;
-	} else {
+	if (!cmd.use_user_cid) {
 		cmd.cid = sq->next_cid++;
 		ccmd->command_id = cmd.cid;
 	}
