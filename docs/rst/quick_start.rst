@@ -45,8 +45,8 @@ Configuration
 
 .. tip:: 更多配置信息请参考 :doc:`../configuration`
 
-Compile
-=======
+Building
+========
 
 | 在顶层目录下执行 :command:`make` 命令，编译整个工程。编译生成的成果物会自动拷贝到顶层目录的 :file:`release` 文件夹中。
 
@@ -63,3 +63,8 @@ Running
 	1. 上述编译&运行过程也可以通过一键完成，只需要运行 :command:`./zoo` 脚本即可；
 	#. 为了避免在编译&运行过程中因权限问题而导致失败，建议先执行 :command:`su root` 切换成 root 用户。
 
+Cleaning
+========
+
+* 如果需要清理 build 过程中的中间产物，可以执行 :command:`make clean` 命令；
+* 如果需要清理 build 生成的所有文件，可以执行 :command:`make distclean` 命令；
