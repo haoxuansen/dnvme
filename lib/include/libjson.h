@@ -13,5 +13,6 @@
 #define _UAPI_LIBJSON_H_
 
 #include "json/cJSON.h"
+#include "json/report.h"
 
 #endif /* !_UAPI_LIBJSON_H_ */

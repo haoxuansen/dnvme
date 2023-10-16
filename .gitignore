@@ -4,4 +4,5 @@
 diff.patch
 include/config
 release
+scripts/python/packages/__pycache__
 tmp
