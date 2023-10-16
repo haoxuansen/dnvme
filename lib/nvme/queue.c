@@ -610,7 +610,9 @@ static int nvme_alloc_iocq_info(struct nvme_dev_info *ndev)
 
 	for (qid = 1; qid <= nr_cq; qid++) {
 		cq[qid - 1].cqid = qid;
-		cq[qid - 1].irq_no = qid;
+		/* irq0 has been assigned to ACQ */
+		cq[qid - 1].irq_no = (qid <= ndev->nr_irq - 1) ? qid : ndev->nr_irq - 1;
+
 		if (mqes > 256)
 			cq[qid - 1].nr_entry = rand() % (mqes - 255) + 256;
 		else

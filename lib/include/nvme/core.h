@@ -23,6 +23,9 @@ struct pci_dev_instance {
 	uint32_t		link_speed;
 	uint32_t		link_width;
 
+	uint32_t		msi_cap_vectors;
+	uint32_t		msix_cap_vectors;
+
 	struct pci_cap_pm	pm;
 	struct pci_cap_express	express;
 	struct pci_cap_msi	msi;

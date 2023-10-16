@@ -128,4 +128,12 @@ static inline int pci_exp_read_link_status(int fd, uint8_t oft, uint16_t *val)
 	return pci_read_config_word(fd, oft + PCI_EXP_LNKSTA, val);
 }
 
+/* ==================== Cap: MSI-X ==================== */
+
+static inline int pci_msix_read_control(int fd, uint8_t oft, uint16_t *val)
+{
+	return pci_read_config_word(fd, oft + PCI_MSIX_FLAGS, val);
+}
+
+
 #endif /* !_UAPI_LIB_NVME_PCI_H_ */

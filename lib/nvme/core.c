@@ -821,6 +821,12 @@ static int init_pci_dev_instance(struct nvme_dev_info *ndev)
 	pr_info("Current Link Speed: Gen%u, Width: x%u\n", 
 		pdev->link_speed, pdev->link_width);
 
+	pdev->msi_cap_vectors = 1 << ((pdev->msi.mc & PCI_MSI_FLAGS_QMASK) >> 1);
+	pdev->msix_cap_vectors = (pdev->msix.mc & PCI_MSIX_FLAGS_QSIZE) + 1;
+
+	pr_info("MSI support %u vectors, MSI-X support %u vectors\n", 
+		pdev->msi_cap_vectors, pdev->msix_cap_vectors);
+
 	ndev->pdev = pdev;
 	return 0;
 
@@ -899,6 +905,7 @@ static void nvme_release_stage1(struct nvme_dev_info *ndev)
 static int nvme_init_stage2(struct nvme_dev_info *ndev)
 {
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
+	struct pci_dev_instance *pdev;
 	int ret;
 
 	ret = nvme_disable_controller_complete(ndev->fd);
@@ -909,20 +916,28 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	/* the number of irq equals to (ACQ + IOCQ) */
-	ret = nvme_set_irq(ndev->fd, NVME_INT_MSIX, ctrl->nr_cq + 1);
+	ret = init_pci_dev_instance(ndev);
 	if (ret < 0)
 		return ret;
+	pdev = ndev->pdev;
+
 	ndev->irq_type = NVME_INT_MSIX;
-	ndev->nr_irq = ctrl->nr_cq + 1;
+	if (ctrl->nr_cq + 1 > pdev->msix_cap_vectors)
+		ndev->nr_irq = pdev->msix_cap_vectors;
+	else
+		ndev->nr_irq = ctrl->nr_cq + 1;
+
+	ret = nvme_set_irq(ndev->fd, ndev->irq_type, ndev->nr_irq);
+	if (ret < 0)
+		goto exit_pci_dev_instance;
 
 	ret = nvme_enable_controller(ndev->fd);
 	if (ret < 0)
-		return ret;
+		goto exit_pci_dev_instance;
 
 	ret = init_ctrl_instance(ndev, NVME_INIT_STAGE2);
 	if (ret < 0)
-		return ret;
+		goto exit_pci_dev_instance;
 
 	ret = nvme_init_ioq_info(ndev);
 	if (ret < 0)
@@ -932,26 +947,22 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		goto exit_ioq;
 
-	ret = init_pci_dev_instance(ndev);
-	if (ret < 0)
-		goto exit_ns_group;
-
 	return 0;
-exit_ns_group:
-	deinit_ns_group(ndev);
 exit_ioq:
 	nvme_deinit_ioq_info(ndev);
 exit_ctrl_instance:
 	deinit_ctrl_instance(ndev, NVME_INIT_STAGE2);
+exit_pci_dev_instance:
+	deinit_pci_dev_instance(ndev);
 	return ret;
 }
 
 static void nvme_release_stage2(struct nvme_dev_info *ndev)
 {
-	deinit_pci_dev_instance(ndev);
 	deinit_ns_group(ndev);
 	nvme_deinit_ioq_info(ndev);
 	deinit_ctrl_instance(ndev, NVME_INIT_STAGE2);
+	deinit_pci_dev_instance(ndev);
 }
 
 struct nvme_dev_info *nvme_init(const char *devpath)
