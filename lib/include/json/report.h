@@ -15,60 +15,60 @@
 #include <stdbool.h>
 #include "libjson.h"
 
-cJSON *json_create_root_node(const char *version);
+struct json_node *json_create_root_node(const char *version);
 
-static inline void json_destroy_root_node(cJSON *root)
+static inline void json_destroy_root_node(struct json_node *root)
 {
 	cJSON_Delete(root);
 }
 
-cJSON *json_add_case_node(cJSON *parent, const char *name, bool subcase);
+struct json_node *json_add_case_node(struct json_node *parent, const char *name, bool subcase);
 
-static inline cJSON *json_add_result_node(cJSON *parent, int result)
+static inline struct json_node *json_add_result_node(struct json_node *parent, int result)
 {
 	return cJSON_AddNumberToObject(parent, "result", (double)result);
 }
 
-static inline cJSON *json_add_speed_node(cJSON *parent, double speed)
+static inline struct json_node *json_add_speed_node(struct json_node *parent, double speed)
 {
 	return cJSON_AddNumberToObject(parent, "speed", speed);
 }
 
-static inline cJSON *json_add_step_node(cJSON *parent)
+static inline struct json_node *json_add_step_node(struct json_node *parent)
 {
 	return cJSON_AddArrayToObject(parent, "step");
 }
 
-static inline cJSON *json_add_subcase_node(cJSON *parent, const char *name)
+static inline struct json_node *json_add_subcase_node(struct json_node *parent, const char *name)
 {
 	return cJSON_AddObjectToObject(parent, name);
 }
 
-static inline cJSON *json_add_time_node(cJSON *parent, int ms)
+static inline struct json_node *json_add_time_node(struct json_node *parent, int ms)
 {
 	return cJSON_AddNumberToObject(parent, "time", ms);
 }
 
-static inline cJSON *json_add_width_node(cJSON *parent, int lane)
+static inline struct json_node *json_add_width_node(struct json_node *parent, int lane)
 {
 	return cJSON_AddNumberToObject(parent, "width", lane);
 }
 
-static inline cJSON *json_get_case_set(cJSON *parent)
+static inline struct json_node *json_get_case_set(struct json_node *parent)
 {
-	return cJSON_GetObjectItemCaseSensitive(parent, "case");
+	return cJSON_GetObjectItem(parent, "case");
 }
 
-static inline cJSON *json_get_subcase_set(cJSON *parent)
+static inline struct json_node *json_get_subcase_set(struct json_node *parent)
 {
-	return cJSON_GetObjectItemCaseSensitive(parent, "subcase");
+	return cJSON_GetObjectItem(parent, "subcase");
 }
 
-static inline cJSON *json_get_case_node(cJSON *parent, const char *name)
+static inline struct json_node *json_get_case_node(struct json_node *parent, const char *name)
 {
-	return cJSON_GetObjectItemCaseSensitive(parent, name);
+	return cJSON_GetObjectItem(parent, name);
 }
 
-int json_add_content_to_step_node(cJSON *parent, const char *step);
+int json_add_content_to_step_node(struct json_node *parent, const char *step);
 
 #endif /* !_UAPI_LIB_JSON_REPORT_H_ */

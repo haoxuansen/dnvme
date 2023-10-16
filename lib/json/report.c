@@ -15,10 +15,10 @@
 #include "libjson.h"
 
 
-cJSON *json_create_root_node(const char *version)
+struct json_node *json_create_root_node(const char *version)
 {
-	cJSON *root;
-	cJSON *item;
+	struct json_node *root;
+	struct json_node *item;
 	char buf[64];
 	time_t now;
 	struct tm *tmnow;
@@ -60,10 +60,10 @@ out:
 	return NULL;
 }
 
-cJSON *json_add_case_node(cJSON *parent, const char *name, bool subcase)
+struct json_node *json_add_case_node(struct json_node *parent, const char *name, bool subcase)
 {
-	cJSON *item;
-	cJSON *subitem;
+	struct json_node *item;
+	struct json_node *subitem;
 
 	item = cJSON_AddObjectToObject(parent, name);
 	if (!item)
@@ -81,9 +81,9 @@ out:
 	return NULL;
 }
 
-int json_add_content_to_step_node(cJSON *parent, const char *step)
+int json_add_content_to_step_node(struct json_node *parent, const char *step)
 {
-	cJSON *item;
+	struct json_node *item;
 
 	item = cJSON_CreateString(step);
 	if (!item)

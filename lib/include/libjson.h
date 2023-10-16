@@ -12,7 +12,7 @@
 #ifndef _UAPI_LIBJSON_H_
 #define _UAPI_LIBJSON_H_
 
-#include "json/cJSON.h"
+#include "json/core.h"
 #include "json/report.h"
 
 #endif /* !_UAPI_LIBJSON_H_ */

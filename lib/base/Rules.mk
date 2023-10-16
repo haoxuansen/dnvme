@@ -32,9 +32,11 @@ TARGETS := $(LIB_DYNAMIC)
 # Recipes in rules
 # --------------------------------------------------------------------------- #
 %.o: %.c
+	@echo "  CC \t $@"
 	$(Q)$(CC) $(CFLAGS) -fPIC -c $^
 
 %.so: $(OBJS)
+	@echo "  CC \t $@"
 	$(Q)$(CC) -shared $^ -o $@
 
 %.a: $(OBJS)

@@ -71,8 +71,8 @@ static void put_file_context(char *ctx)
 
 static int __unused test_create_object(void)
 {
-	cJSON *root;
-	cJSON *ut_case;
+	struct json_node *root;
+	struct json_node *ut_case;
 	char *txt;
 	int ret = -ENOMEM;
 
@@ -108,7 +108,7 @@ del_root:
 
 static int __unused test_read_file(int argc, char *argv[])
 {
-	cJSON *parsed = NULL;
+	struct json_node *parsed = NULL;
 	char *ctx = NULL;
 	char *txt = NULL;
 	int ret = 0;
@@ -142,10 +142,10 @@ out:
 
 static int __unused test_generate_report(void)
 {
-	cJSON *root;
-	cJSON *case_set, *subcase_set;
-	cJSON *item_case, *item_subcase;
-	cJSON *step;
+	struct json_node *root;
+	struct json_node *case_set, *subcase_set;
+	struct json_node *item_case, *item_subcase;
+	struct json_node *step;
 	char *str;
 	FILE *fp;
 	int ret = -EPERM;
@@ -222,9 +222,9 @@ int main(int argc, char *argv[])
 {
 	int ret = 0;
 
-	// ret |= test_create_object();
+	ret |= test_create_object();
 	// ret |= test_read_file(argc, argv);
-	ret |= test_generate_report();
+	// ret |= test_generate_report();
 
 	return ret;
 }
