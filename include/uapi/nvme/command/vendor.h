@@ -14,6 +14,8 @@ enum nvme_admin_vendor_opcode {
 	nvme_admin_maxio_nvme_func	= 0xe1,
 	nvme_admin_maxio_nvme_sqm	= 0xe2, /**< SQ management */
 	nvme_admin_maxio_nvme_cqm	= 0xe3, /**< CQ management */
+	nvme_admin_maxio_nvme_hwrdma	= 0xe4, /**< Hardware Read DMA */
+	nvme_admin_maxio_nvme_hwwdma	= 0xe5, /**< Hardware Write DMA */
 };
 
 enum {

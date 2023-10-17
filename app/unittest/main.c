@@ -48,7 +48,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 	ret = posix_memalign(&tool->sq_buf, 4096, NVME_TOOL_SQ_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc for SQ!\n");
-		goto out;
+		goto free_entry;
 	}
 	memset(tool->sq_buf, 0, NVME_TOOL_SQ_BUF_SIZE);
 	tool->sq_buf_size = NVME_TOOL_SQ_BUF_SIZE;
@@ -56,7 +56,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 	ret = posix_memalign(&tool->cq_buf, 4096, NVME_TOOL_CQ_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc for CQ!\n");
-		goto out2;
+		goto free_sq_buf;
 	}
 	memset(tool->cq_buf, 0, NVME_TOOL_CQ_BUF_SIZE);
 	tool->cq_buf_size = NVME_TOOL_CQ_BUF_SIZE;
@@ -65,7 +65,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc read buf!\n");
-		goto out3;
+		goto free_cq_buf;
 	}
 	memset(tool->rbuf, 0, NVME_TOOL_RW_BUF_SIZE);
 	tool->rbuf_size = NVME_TOOL_RW_BUF_SIZE;
@@ -74,7 +74,7 @@ static int alloc_buffer(struct nvme_tool *tool)
 		NVME_TOOL_RW_BUF_SIZE);
 	if (ret) {
 		pr_err("failed to alloc write buf!\n");
-		goto out4;
+		goto free_rbuf;
 	}
 	memset(tool->wbuf, 0, NVME_TOOL_RW_BUF_SIZE);
 	tool->wbuf_size = NVME_TOOL_RW_BUF_SIZE;
@@ -82,34 +82,35 @@ static int alloc_buffer(struct nvme_tool *tool)
 	tool->meta_rbuf = zalloc(NVME_TOOL_RW_META_SIZE);
 	if (!tool->meta_rbuf) {
 		pr_err("failed to alloc meta rbuf!\n");
-		goto out5;
+		goto free_wbuf;
 	}
 	tool->meta_rbuf_size = NVME_TOOL_RW_META_SIZE;
 
 	tool->meta_wbuf = zalloc(NVME_TOOL_RW_META_SIZE);
 	if (!tool->meta_wbuf) {
 		pr_err("failed to alloc meta wbuf!\n");
-		goto out6;
+		goto free_meta_rbuf;
 	}
 	tool->meta_wbuf_size = NVME_TOOL_RW_META_SIZE;
 
 	return 0;
-out6:
+
+free_meta_rbuf:
 	free(tool->meta_rbuf);
 	tool->meta_rbuf = NULL;
-out5:
+free_wbuf:
 	free(tool->wbuf);
 	tool->wbuf = NULL;
-out4:
+free_rbuf:
 	free(tool->rbuf);
 	tool->rbuf = NULL;
-out3:
+free_cq_buf:
 	free(tool->cq_buf);
 	tool->cq_buf = NULL;
-out2:
+free_sq_buf:
 	free(tool->sq_buf);
 	tool->sq_buf = NULL;
-out:
+free_entry:
 	free(tool->entry);
 	tool->entry = NULL;
 	return -ENOMEM;
@@ -254,10 +255,20 @@ int main(int argc, char *argv[])
 		pr_info("argv[%d]: %s\n", i, argv[i]);
 	}
 
+	tool->report = json_create_root_node("1.0.0");
+	if (!tool->report) {
+		pr_err("failed to create root node!\n");
+		return -EPERM;
+	}
+
 	case_display_case_list(tool);
 	select_case_to_execute(tool);
 
 	pr_notice("********** END OF TEST **********\n\n");
+	nvme_generate_report(tool->report, "./test_report.json");
+
+	json_destroy_root_node(tool->report);
+	tool->report = NULL;
 	return 0;
 }
 
@@ -275,34 +286,44 @@ int main(int argc, char *argv[])
 {
 	struct nvme_tool *tool = g_nvme_tool;
 	struct nvme_dev_info *ndev;
-	int ret;
+	int ret = -EPERM;
 
 	if (argc < 2) {
 		pr_err("Please specify a nvme device!\n");
 		return -EINVAL;
 	}
 
+	tool->report = json_create_root_node("1.0.0");
+	if (!tool->report) {
+		pr_err("failed to create root node!\n");
+		return -EPERM;
+	}
+
 	ndev = nvme_init(argv[1]);
 	if (!ndev)
-		return -EPERM;
+		goto out;
 
 	tool->ndev = ndev;
 
 	ret = alloc_buffer(tool);
 	if (ret < 0)
-		goto out;
+		goto out2;
 
 	case_display_case_list(tool);
 	select_case_to_execute(tool);
 
-	nvme_disable_controller_complete(ndev->fd);
-	nvme_deinit(ndev);
-	release_buffer(tool);
-
 	pr_notice("********** END OF TEST **********\n\n");
-	return 0;
-out:
+	nvme_generate_report(tool->report, "./test_report.json");
+
+	nvme_disable_controller_complete(ndev->fd);
+
+	release_buffer(tool);
+	ret = 0;
+out2:
 	nvme_deinit(ndev);
+out:
+	json_destroy_root_node(tool->report);
+	tool->report = NULL;
 	return ret;
 }
 #endif /* !IS_ENABLED(CONFIG_DEBUG_NO_DEVICE) */

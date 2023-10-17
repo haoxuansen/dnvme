@@ -22,14 +22,17 @@ static inline void json_destroy_root_node(struct json_node *root)
 	cJSON_Delete(root);
 }
 
-struct json_node *json_add_case_node(struct json_node *parent, const char *name, bool subcase);
+struct json_node *json_add_case_node(struct json_node *parent, 
+	const char *name, bool subcase);
 
-static inline struct json_node *json_add_result_node(struct json_node *parent, int result)
+static inline struct json_node *json_add_result_node(struct json_node *parent, 
+	int result)
 {
 	return cJSON_AddNumberToObject(parent, "result", (double)result);
 }
 
-static inline struct json_node *json_add_speed_node(struct json_node *parent, double speed)
+static inline struct json_node *json_add_speed_node(struct json_node *parent, 
+	double speed)
 {
 	return cJSON_AddNumberToObject(parent, "speed", speed);
 }
@@ -39,7 +42,8 @@ static inline struct json_node *json_add_step_node(struct json_node *parent)
 	return cJSON_AddArrayToObject(parent, "step");
 }
 
-static inline struct json_node *json_add_subcase_node(struct json_node *parent, const char *name)
+static inline struct json_node *json_add_subcase_node(struct json_node *parent, 
+	const char *name)
 {
 	return cJSON_AddObjectToObject(parent, name);
 }
@@ -64,7 +68,8 @@ static inline struct json_node *json_get_subcase_set(struct json_node *parent)
 	return cJSON_GetObjectItem(parent, "subcase");
 }
 
-static inline struct json_node *json_get_case_node(struct json_node *parent, const char *name)
+static inline struct json_node *json_get_case_node(struct json_node *parent, 
+	const char *name)
 {
 	return cJSON_GetObjectItem(parent, name);
 }

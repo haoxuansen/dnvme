@@ -1970,7 +1970,7 @@ static bool add_item_to_object(struct json_node * const object, const char * con
 	}
 
 	if (get_object_item(object, string)) {
-		pr_err("key |%s| already exist!\n", string);
+		pr_warn("key |%s| already exist! skip...\n", string);
 		return false;
 	}
 

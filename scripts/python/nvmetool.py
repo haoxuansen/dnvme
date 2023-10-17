@@ -220,6 +220,16 @@ class JsonParser(QtCore.QObject):
 			self.parsingFinished.emit(self)
 
 	@check
+	def topDate(self) -> [str, None]:
+		if 'date' in self._data_parsed.keys():
+			return self._data_parsed['date']
+
+	@check
+	def topVersion(self) -> [str, None]:
+		if 'version' in self._data_parsed.keys():
+			return self._data_parsed['version']
+
+	@check
 	def caseCount(self) -> int:
 		return self._data_parsed['case']['num']
 	
@@ -490,9 +500,9 @@ class AppReportDetail(object):
 	def recvCaseStepData(self, data: List[str]) -> None:
 		_num = 0
 		for _item in data:
+			_num += 1
 			_txt = str(_num) + '. ' + _item
 			self._browser.append(_txt)
-			_num += 1
 
 	def show(self) -> None:
 		self._widget.show()
@@ -604,6 +614,7 @@ class AppCaseTable(QtCore.QObject):
 		_column = len(self._horizontal_label)
 
 		self._parser = parser
+		self._title.setText(parser.topDate() + ' - NVMe Test Report')
 		self._table.setSize(TableSize(_row, _column))
 
 		for _i in range(0, _row):

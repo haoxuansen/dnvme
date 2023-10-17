@@ -17,6 +17,7 @@
 #include "sizes.h"
 #include "compiler.h"
 #include "libnvme.h"
+#include "libjson.h"
 
 #define NVME_TOOL_RW_BUF_ALIGN		8
 
@@ -87,6 +88,8 @@ struct nvme_tool {
 	uint32_t	meta_rbuf_size;
 	void		*meta_wbuf;
 	uint32_t	meta_wbuf_size;
+
+	struct json_node	*report; /**< For auto generate test report */
 };
 
 typedef int (*case_func_t)(struct nvme_tool *tool);
@@ -104,8 +107,42 @@ extern struct nvme_case __stop_nvme_case[];
 extern unsigned long __start_nvme_autocase[];
 extern unsigned long __stop_nvme_autocase[];
 
+static inline void nvme_record_create_sq(struct nvme_sq_info *sq, 
+	void *buf, uint32_t size)
+{
+	snprintf(buf, size, "Create %s SQ => id %u, entry %u, bind CQ(%u)",
+		sq->sqid == NVME_AQ_ID ? "Admin" : "IO", sq->sqid, 
+		sq->nr_entry, sq->cqid);
+}
+
+static inline void nvme_record_create_cq(struct nvme_cq_info *cq, 
+	void *buf, uint32_t size)
+{
+	snprintf(buf, size, "Create %s CQ => id %u, entry %u, irq %s, num %u",
+		cq->cqid == NVME_AQ_ID ? "Admin" : "IO", cq->cqid, 
+		cq->nr_entry, cq->irq_en ? "enable" : "disable", cq->irq_no);
+}
+
+static inline void nvme_record_delete_sq(struct nvme_sq_info *sq, 
+	void *buf, uint32_t size)
+{
+	snprintf(buf, size, "Delete %s SQ => id %u, entry %u, bind CQ(%u)",
+		sq->sqid == NVME_AQ_ID ? "Admin" : "IO", sq->sqid, 
+		sq->nr_entry, sq->cqid);
+}
+
+static inline void nvme_record_delete_cq(struct nvme_cq_info *cq, 
+	void *buf, uint32_t size)
+{
+	snprintf(buf, size, "Delete %s CQ => id %u, entry %u, irq %s, num %u",
+		cq->cqid == NVME_AQ_ID ? "Admin" : "IO", cq->cqid, 
+		cq->nr_entry, cq->irq_en ? "enable" : "disable", cq->irq_no);
+}
+
 void nvme_record_case_result(const char *name, int result);
 void nvme_record_subcase_result(const char *name, int result);
+
+int nvme_generate_report(struct json_node *node, const char *path);
 
 int nvme_display_case_report(void);
 int nvme_display_subcase_report(void);

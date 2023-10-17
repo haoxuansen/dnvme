@@ -60,7 +60,8 @@ out:
 	return NULL;
 }
 
-struct json_node *json_add_case_node(struct json_node *parent, const char *name, bool subcase)
+struct json_node *json_add_case_node(struct json_node *parent, 
+	const char *name, bool subcase)
 {
 	struct json_node *item;
 	struct json_node *subitem;

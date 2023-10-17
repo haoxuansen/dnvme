@@ -10,6 +10,8 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include "libbase.h"
@@ -83,6 +85,30 @@ void nvme_record_case_result(const char *name, int result)
 void nvme_record_subcase_result(const char *name, int result)
 {
 	record_test_result(&rpt_subcase, name, result);
+}
+
+int nvme_generate_report(struct json_node *node, const char *path)
+{
+	FILE *fp;
+	char *str;
+
+	fp = fopen(path, "w+");
+	if (!fp) {
+		pr_err("failed to open %s!\n", path);
+		return -EPERM;
+	}
+
+	str = cJSON_Print(node);
+	if (!str) {
+		pr_err("failed to convert JSON data to string!\n");
+		return -EPERM;
+	}
+
+	fwrite(str, strlen(str), 1, fp);
+	fclose(fp);
+
+	free(str);
+	return 0;
 }
 
 static int display_test_report(struct test_report *report)
