@@ -43,6 +43,16 @@ _ERR_OPNOTSUPP = -95
 
 logger = log.UserLogger(os.getlogin())
 
+class PushButton(object):
+	def __init__(self, icon: QtGui.QIcon, name: str):
+		self._widget = QtWidgets.QPushButton(icon, name)
+
+	def setClickedHandler(self, handler):
+		self._widget.clicked.connect(lambda: handler(self._widget.objectName()))
+
+	def widget(self) -> QtWidgets.QPushButton:
+		return self._widget
+
 class TableSize(object):
 	@check
 	def __init__(self, row: int = 0, column: int = 0):
@@ -711,6 +721,25 @@ class AppInputFile(object):
 		self._input['widget'].setText(_file[0])
 		self._input['widget'].editingFinished.emit()
 
+class AppHomePage(object):
+	def __init__(self):
+		self._widget = QtWidgets.QWidget()
+		self._layout = QtWidgets.QGridLayout()
+		self._widget.setLayout(self._layout)
+
+		self._image = QtWidgets.QLabel()
+		self._image.setPixmap(QtGui.QPixmap('./assets/universe.jpg').scaled(768, 432))
+		self._layout.addWidget(self._image, 0, 0, 1, 1, _AlignCenter)
+
+	def hide(self) -> None:
+		self._widget.hide()
+
+	def show(self) -> None:
+		self._widget.show()
+
+	def widget(self) -> QtWidgets.QWidget:
+		return self._widget
+
 class AppReportPage(object):
 	def __init__(self):
 		self._parser = JsonParser()
@@ -734,6 +763,12 @@ class AppReportPage(object):
 		self._show_subcase = None
 
 		self.__initSignalHandler()
+
+	def hide(self) -> None:
+		self._widget.hide()
+	
+	def show(self) -> None:
+		self._widget.show()
 
 	def widget(self) -> QtWidgets.QWidget:
 		return self._widget
@@ -766,24 +801,47 @@ class AppReportPage(object):
 		self._layout.update()
 		self._show_subcase = None
 
-class AppHomeButton(object):
-	def __init__(self):
-		self._widget = QtWidgets.QPushButton(qta.icon('fa.home'), '主页')
-
-	def widget(self) -> QtWidgets.QWidget:
-		return self._widget
-
 class AppSidebar(object):
-	def __init__(self):
+	@check
+	def __init__(self, btn: Dict[str, list]):
 		self._widget = QtWidgets.QWidget()
 		self._layout = QtWidgets.QGridLayout()
 		self._widget.setLayout(self._layout)
 
-		self._btn_home = AppHomeButton()
-		self._layout.addWidget(self._btn_home.widget(), 0, 0, 1, 1)
+		_row = 0
+		self._btn = dict()
+		self._page = dict()
+		for _name in btn.keys():
+			self._btn[_name] = PushButton(btn[_name][1], btn[_name][0])
+			self._btn[_name].widget().setObjectName(_name)
+			self._btn[_name].setClickedHandler(self.__switchPage)
+			self._layout.addWidget(self._btn[_name].widget(), _row, 0, 1, 1)
+			_row += 1
+
+		# default to display first page
+		self._show = list(btn.keys())[0]
+
+	@check
+	def bindPageData(self, name: str, data) -> bool:
+		if name not in self._btn.keys():
+			logger.err('button |%s| is not exist!' %name)
+			return False
+		self._page[name] = data
+		return True
 
 	def widget(self) -> QtWidgets.QWidget:
 		return self._widget
+
+	def __switchPage(self, name: str) -> None:
+		if name == self._show:
+			return None
+		if name not in self._page.keys():
+			logger.warn('Page |%s| is empty! skip...' %name)
+			return None
+		logger.dbg('Switch page to |%s| ...' %name)
+		self._page[self._show].hide()
+		self._page[name].show()
+		self._show = name
 
 class AppCentralWidget():
 	def __init__(self):
@@ -791,13 +849,28 @@ class AppCentralWidget():
 		self._layout = QtWidgets.QGridLayout()
 		self._widget.setLayout(self._layout)
 
-		self._sidebar = AppSidebar()
+		self.__init_sidebar()
 		self._layout.addWidget(self._sidebar.widget(), 0, 0, 1, 2)
-		self._page1 = AppReportPage()
-		self._layout.addWidget(self._page1.widget(), 0, 2, 1, 10)
+
+		self._page_home = AppHomePage()
+		# self._page_home.hide()
+		self._sidebar.bindPageData('home', self._page_home)
+		self._layout.addWidget(self._page_home.widget(), 0, 2, 1, 10)
+
+		self._page_report = AppReportPage()
+		self._page_report.hide()
+		self._sidebar.bindPageData('report', self._page_report)
+		self._layout.addWidget(self._page_report.widget(), 0, 2, 1, 10)
+
 	
 	def widget(self) -> QtWidgets.QWidget:
 		return self._widget
+
+	def __init_sidebar(self):
+		_btn = { 'home': ['主页', qta.icon('fa.home')],
+			'config': ['配置选项', qta.icon('mdi.cog')],
+			'report': ['测试报告', qta.icon('fa.wpforms')] }
+		self._sidebar = AppSidebar(_btn)
 
 class AppWindow(object):
 	@check
@@ -824,16 +897,5 @@ def main():
 	_ui = AppWindow('NVMe Tool', QtCore.QSize(960, 540))
 	sys.exit(_app.exec_())
 
-def test():
-	# logger.info('test message')
-	# logger.logger.info('xxx')
-	logger.notice('xxxs')
-
 if __name__ == '__main__':
-	# test()
 	main()
-
-
-# 1. class: 负责生成主界面和各插件的配置，以及APP交互时信息更新所需要的数据
-# 2. class: 负责解析JSON数据内容，并与 APP 交互，将其呈现给用户
-# 3. class: 统一管理其它 class 
