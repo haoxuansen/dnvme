@@ -681,7 +681,7 @@ out:
 	return ret;
 }
 
-static int case_host_mem_buffer(struct nvme_tool *tool)
+static int case_host_mem_buffer(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -697,5 +697,5 @@ static int case_host_mem_buffer(struct nvme_tool *tool)
 	nvme_display_subcase_report();
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_host_mem_buffer, 
+NVME_CASE_SYMBOL(case_host_mem_buffer, 
 	"Test host memory buffer in various scenarios");

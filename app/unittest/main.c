@@ -134,7 +134,7 @@ static void release_buffer(struct nvme_tool *tool)
 	tool->entry = NULL;
 }
 
-static int case_display_case_list(struct nvme_tool *tool)
+static int case_display_case_list(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_case *start = __start_nvme_case;
 	struct nvme_case *end = __stop_nvme_case;
@@ -153,7 +153,7 @@ static int case_display_case_list(struct nvme_tool *tool)
 }
 NVME_CASE_HEAD_SYMBOL(case_display_case_list, "Display all supported cases");
 
-static int case_collection(struct nvme_tool *tool)
+static int case_collection(struct nvme_tool *tool, struct case_data *priv)
 {
 	unsigned long *start = __start_nvme_autocase;
 	unsigned long *end = __stop_nvme_autocase;
@@ -192,7 +192,7 @@ static int case_collection(struct nvme_tool *tool)
 
 		for (i = 0; i < total; i++) {
 			cur = (struct nvme_case *)start[array[i]];
-			ret = cur->func(tool);
+			ret = cur->func(tool, cur->data);
 			nvme_record_case_result(cur->name, ret);
 		}
 		ret = nvme_display_case_report();
@@ -213,6 +213,7 @@ static int select_case_to_execute(struct nvme_tool *tool)
 {
 	struct nvme_case *start = __start_nvme_case;
 	struct nvme_case *end = __stop_nvme_case;
+	struct case_data *priv = NULL;
 	unsigned int total;
 	unsigned int select;
 	int ret;
@@ -236,8 +237,14 @@ static int select_case_to_execute(struct nvme_tool *tool)
 			pr_warn("Case %d is empty! please try again\n", select);
 			continue;
 		}
+		priv = start[select].data;
+		priv->tool = tool;
 
-		ret = start[select].func(tool);
+		ut_rpt_create_case(tool, &priv->rpt, start[select].name);
+
+		ret = start[select].func(tool, start[select].data);
+
+		ut_rpt_record_case_result(&priv->rpt, ret);
 		nvme_display_test_result(ret, start[select].name);
 	} 
 
@@ -255,20 +262,16 @@ int main(int argc, char *argv[])
 		pr_info("argv[%d]: %s\n", i, argv[i]);
 	}
 
-	tool->report = json_create_root_node("1.0.0");
-	if (!tool->report) {
-		pr_err("failed to create root node!\n");
+	if (!ut_rpt_create_root(tool) || ut_rpt_init_root(tool, "1.0.0"))
 		return -EPERM;
-	}
 
-	case_display_case_list(tool);
+	case_display_case_list(tool, NULL);
 	select_case_to_execute(tool);
 
 	pr_notice("********** END OF TEST **********\n\n");
-	nvme_generate_report(tool->report, "./test_report.json");
+	ut_rpt_save_to_file(tool, "./test_report.json");
 
-	json_destroy_root_node(tool->report);
-	tool->report = NULL;
+	ut_rpt_destroy_root(tool);
 	return 0;
 }
 
@@ -293,11 +296,8 @@ int main(int argc, char *argv[])
 		return -EINVAL;
 	}
 
-	tool->report = json_create_root_node("1.0.0");
-	if (!tool->report) {
-		pr_err("failed to create root node!\n");
+	if (!ut_rpt_create_root(tool) || ut_rpt_init_root(tool, "1.0.0"))
 		return -EPERM;
-	}
 
 	ndev = nvme_init(argv[1]);
 	if (!ndev)
@@ -309,11 +309,11 @@ int main(int argc, char *argv[])
 	if (ret < 0)
 		goto out2;
 
-	case_display_case_list(tool);
+	case_display_case_list(tool, NULL);
 	select_case_to_execute(tool);
 
 	pr_notice("********** END OF TEST **********\n\n");
-	nvme_generate_report(tool->report, "./test_report.json");
+	ut_rpt_save_to_file(tool, "./test_report.json");
 
 	nvme_disable_controller_complete(ndev->fd);
 
@@ -322,8 +322,7 @@ int main(int argc, char *argv[])
 out2:
 	nvme_deinit(ndev);
 out:
-	json_destroy_root_node(tool->report);
-	tool->report = NULL;
+	ut_rpt_destroy_root(tool);
 	return ret;
 }
 #endif /* !IS_ENABLED(CONFIG_DEBUG_NO_DEVICE) */

@@ -133,7 +133,7 @@ static void test_sub(void)
     scanf("%d", &cmds);
 }
 
-static int case_pcie_MPS(struct nvme_tool *tool)
+static int case_pcie_MPS(struct nvme_tool *tool, struct case_data *priv)
 {
 	int test_round = 0;
 	uint32_t u32_tmp_data = 0;

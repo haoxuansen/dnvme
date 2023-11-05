@@ -97,8 +97,14 @@ struct nvme_sq_info {
 	uint16_t	sqid;
 	uint16_t	cqid;
 	uint32_t	nr_entry; /* 1's based */
+	uint16_t	prio;
 
 	uint16_t	cmd_cnt;
+
+	uint32_t	contig:1;
+
+	void		*buf; /**< for discontiguous */
+	uint32_t	buf_size;
 };
 
 struct nvme_cq_info {
@@ -106,6 +112,11 @@ struct nvme_cq_info {
 	uint16_t	irq_no;
 	uint8_t		irq_en;
 	uint32_t	nr_entry; /* 1's based */
+
+	uint32_t	contig:1;
+
+	void		*buf; /**< for discontiguous */
+	uint32_t	buf_size;
 };
 
 /**

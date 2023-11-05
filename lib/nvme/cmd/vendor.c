@@ -15,7 +15,7 @@
 #include "libbase.h"
 #include "libnvme.h"
 
-int nvme_cmd_maxio_set_param_fmt1(int fd, uint32_t bitmap, 
+int nvme_cmd_maxio_set_param_fmt1(int fd, uint32_t subcmd, 
 	uint32_t param, uint8_t opcode)
 {
 	struct nvme_maxio_common_cmd common = {0};
@@ -24,7 +24,7 @@ int nvme_cmd_maxio_set_param_fmt1(int fd, uint32_t bitmap,
 	common.opcode = opcode;
 	common.option = cpu_to_le32(NVME_MAXIO_OPT_SET_PARAM);
 	common.param = cpu_to_le32(param);
-	common.bitmap = cpu_to_le32(bitmap);
+	common.subcmd = cpu_to_le32(subcmd);
 
 	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &common;
@@ -33,13 +33,13 @@ int nvme_cmd_maxio_set_param_fmt1(int fd, uint32_t bitmap,
 }
 
 int nvme_maxio_set_param_fmt1(struct nvme_dev_info *ndev,
-	uint32_t bitmap, uint32_t param, uint8_t opcode)
+	uint32_t subcmd, uint32_t param, uint8_t opcode)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_maxio_set_param_fmt1(ndev->fd, bitmap, param, opcode);
+	ret = nvme_cmd_maxio_set_param_fmt1(ndev->fd, subcmd, param, opcode);
 	if (ret < 0)
 		return ret;
 	cid = ret;
@@ -61,7 +61,7 @@ int nvme_maxio_set_param_fmt1(struct nvme_dev_info *ndev,
 	return 0;
 }
 
-int nvme_cmd_maxio_check_result_fmt1(int fd, uint32_t bitmap, 
+int nvme_cmd_maxio_check_result_fmt1(int fd, uint32_t subcmd, 
 	uint8_t opcode)
 {
 	struct nvme_maxio_common_cmd common = {0};
@@ -69,7 +69,7 @@ int nvme_cmd_maxio_check_result_fmt1(int fd, uint32_t bitmap,
 
 	common.opcode = opcode;
 	common.option = cpu_to_le32(NVME_MAXIO_OPT_CHECK_RESULT);
-	common.bitmap = cpu_to_le32(bitmap);
+	common.subcmd = cpu_to_le32(subcmd);
 
 	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &common;
@@ -78,13 +78,13 @@ int nvme_cmd_maxio_check_result_fmt1(int fd, uint32_t bitmap,
 }
 
 int nvme_maxio_check_result_fmt1(struct nvme_dev_info *ndev, 
-	uint32_t bitmap, uint8_t opcode)
+	uint32_t subcmd, uint8_t opcode)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_cmd_maxio_check_result_fmt1(ndev->fd, bitmap, opcode);
+	ret = nvme_cmd_maxio_check_result_fmt1(ndev->fd, subcmd, opcode);
 	if (ret < 0)
 		return ret;
 	cid = ret;

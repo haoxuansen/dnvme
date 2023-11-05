@@ -52,7 +52,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_abort_4_wrd_cmd, "send random cnt io cmd, then abort 4 cmd"),
 };
 
-static int case_queue_abort(struct nvme_tool *tool)
+static int case_queue_abort(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;

@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_LIB_NVME_DIRECTIVE_H_
-#define _UAPI_LIB_NVME_DIRECTIVE_H_
-
 int nvme_cmd_dir_rcv_id_param(struct nvme_dev_info *ndev, 
 	struct nvme_dir_identify_params *param, uint32_t nsid);
 
@@ -54,5 +51,3 @@ int nvme_dir_snd_st_rel_id(struct nvme_dev_info *ndev,
 
 int nvme_dir_snd_st_rel_rsc(struct nvme_dev_info *ndev,
 	uint32_t nsid);
-
-#endif /* !_UAPI_LIB_NVME_DIRECTIVE_H_ */

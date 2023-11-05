@@ -716,7 +716,7 @@ static SubCase_t sub_case_list[] = {
 	SUB_CASE(delete_runing_iocmd_queue, "delete a queue when iocmd is runing"),
 };
 
-static int case_queue_delete_q(struct nvme_tool *tool)
+static int case_queue_delete_q(struct nvme_tool *tool, struct case_data *priv)
 {
 	uint32_t ret;
 	uint32_t loop;

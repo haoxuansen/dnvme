@@ -36,7 +36,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(rd_wr_boot_part_ccen_1, "ccen=1: Reading/Writing to a Boot Partition"),
 };
 
-static int case_nvme_boot_partition(struct nvme_tool *tool)
+static int case_nvme_boot_partition(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;

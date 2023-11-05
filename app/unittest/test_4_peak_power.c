@@ -41,7 +41,7 @@ static uint64_t perf_ms = 0;
 static uint64_t perf_speed = 0;
 
 static uint8_t test_sub(void);
-static int test_4_peak_power(struct nvme_tool *tool)
+static int test_4_peak_power(struct nvme_tool *tool, struct case_data *priv)
 {
     uint32_t round_idx = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);

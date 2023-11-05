@@ -47,7 +47,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_trim_cmd, "test trim cmd"),
 };
 
-static int case_iocmd_fw_io_cmd(struct nvme_tool *tool)
+static int case_iocmd_fw_io_cmd(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;

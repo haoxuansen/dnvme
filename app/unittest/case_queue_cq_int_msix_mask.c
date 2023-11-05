@@ -268,7 +268,7 @@ static void test_sub(void)
     int_msix_multi_mask();
 }
 
-static int case_queue_cq_int_msix_mask(struct nvme_tool *tool)
+static int case_queue_cq_int_msix_mask(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 

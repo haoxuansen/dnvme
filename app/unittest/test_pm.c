@@ -112,7 +112,7 @@ static int select_next_power_state(struct nvme_ctrl_instance *ctrl, uint8_t *sel
 	}
 }
 
-static int case_pm_switch_power_state(struct nvme_tool *tool)
+static int case_pm_switch_power_state(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint8_t ps, ps_new;
@@ -144,10 +144,10 @@ static int case_pm_switch_power_state(struct nvme_tool *tool)
 
 	return 0;
 }
-NVME_CASE_PM_SYMBOL(case_pm_switch_power_state, 
+NVME_CASE_SYMBOL(case_pm_switch_power_state, 
 	"Randomly switch NVMe power state and repeat N times");
 
-static int case_pm_set_d0_state(struct nvme_tool *tool)
+static int case_pm_set_d0_state(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct pci_dev_instance *pdev = ndev->pdev;
@@ -161,9 +161,9 @@ static int case_pm_set_d0_state(struct nvme_tool *tool)
 	}
 	return 0;
 }
-NVME_CASE_PM_SYMBOL(case_pm_set_d0_state, "Set PCIe power state to D0");
+NVME_CASE_SYMBOL(case_pm_set_d0_state, "Set PCIe power state to D0");
 
-static int case_pm_set_d3hot_state(struct nvme_tool *tool)
+static int case_pm_set_d3hot_state(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct pci_dev_instance *pdev = ndev->pdev;
@@ -177,4 +177,4 @@ static int case_pm_set_d3hot_state(struct nvme_tool *tool)
 	}
 	return 0;
 }
-NVME_CASE_PM_SYMBOL(case_pm_set_d3hot_state, "Set PCIe power state to D3 hot");
+NVME_CASE_SYMBOL(case_pm_set_d3hot_state, "Set PCIe power state to D3 hot");

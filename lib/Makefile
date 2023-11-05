@@ -3,6 +3,9 @@ RULES_MK := $(addsuffix Rules.mk,$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 
 DIRS := base crc json nvme
 SRCS := $(foreach dir,$(DIRS),$(wildcard $(CUR_DIR_PATH)/$(dir)/*.c))
+
+SUB_DIRS := cmd
+SRCS += $(foreach dir,$(SUB_DIRS),$(wildcard $(CUR_DIR_PATH)/nvme/$(dir)/*.c))
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 
 TARGETS := liball.a

@@ -54,7 +54,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_enable_volatile_wc, "send set feature cmd enable VOLATILE_WC, then send write cmd"),
 };
 
-static int test_3_adm_wr_cache_fua(struct nvme_tool *tool)
+static int test_3_adm_wr_cache_fua(struct nvme_tool *tool, struct case_data *priv)
 {
 	uint32_t round_idx = 0;
 	struct nvme_dev_info *ndev = tool->ndev;

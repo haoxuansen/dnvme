@@ -424,6 +424,9 @@ class JsonParser(QtCore.QObject):
 
 	@check
 	def __parseCaseSubcase(self, parsed: dict, raw: dict) -> bool:
+		if not raw:
+			return True
+
 		parsed['score'] = {'pass': 0, 'fail': 0, 'skip': 0}
 		parsed['subcase'] = dict()
 		parsed['subcase']['num'] = len(raw.keys())

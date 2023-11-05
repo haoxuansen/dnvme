@@ -112,7 +112,7 @@ static void test_sub(void)
     }
 }
 
-static int case_pcie_reset_single(struct nvme_tool *tool)
+static int case_pcie_reset_single(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct pci_dev_instance *pdev = ndev->pdev;

@@ -212,7 +212,7 @@ static void test_sub(void)
     /*******************************************************************************************************************************/
 }
 
-static int case_queue_create_q_size(struct nvme_tool *tool)
+static int case_queue_create_q_size(struct nvme_tool *tool, struct case_data *priv)
 {
     int test_round = 0;
     pr_info("\n********************\t %s \t********************\n", __FUNCTION__);

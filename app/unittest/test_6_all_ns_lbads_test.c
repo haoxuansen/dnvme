@@ -52,7 +52,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_all_ns_wr_rd_cmp, "this case will tests all namespece write->read then check data"),
 };
 
-static int test_6_all_ns_lbads_test(struct nvme_tool *tool)
+static int test_6_all_ns_lbads_test(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;

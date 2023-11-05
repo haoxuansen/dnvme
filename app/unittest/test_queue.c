@@ -273,7 +273,7 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-static int case_queue_iocmd_to_asq(struct nvme_tool *tool)
+static int case_queue_iocmd_to_asq(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	int ret;
@@ -300,7 +300,7 @@ static int case_queue_iocmd_to_asq(struct nvme_tool *tool)
 
 	return 0;
 }
-NVME_CASE_QUEUE_SYMBOL(case_queue_iocmd_to_asq,
+NVME_CASE_SYMBOL(case_queue_iocmd_to_asq,
 	"Send I/O read and write command to ASQ");
 
 /**
@@ -309,7 +309,7 @@ NVME_CASE_QUEUE_SYMBOL(case_queue_iocmd_to_asq,
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-static int case_queue_contiguous(struct nvme_tool *tool)
+static int case_queue_contiguous(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -338,7 +338,7 @@ static int case_queue_contiguous(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_QUEUE_SYMBOL(case_queue_contiguous, "Test contiguous I/O queue");
+NVME_CASE_SYMBOL(case_queue_contiguous, "Test contiguous I/O queue");
 
 /**
  * @brief Create I/O CQ & SQ which is discontiguous, check whether the queue
@@ -348,7 +348,7 @@ NVME_CASE_QUEUE_SYMBOL(case_queue_contiguous, "Test contiguous I/O queue");
  * 
  * @warning Queues may not work properly after repeated creation and deletion
  */
-static int case_queue_discontiguous(struct nvme_tool *tool)
+static int case_queue_discontiguous(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -380,4 +380,4 @@ static int case_queue_discontiguous(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_QUEUE_SYMBOL(case_queue_discontiguous, "Test discontiguous I/O queue");
+NVME_CASE_SYMBOL(case_queue_discontiguous, "Test discontiguous I/O queue");

@@ -49,7 +49,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_write_read_2, "tests write read with reap 1 cq, but ring 10 doorbell"),
 };
 
-static int case_iocmd_write_read(struct nvme_tool *tool)
+static int case_iocmd_write_read(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;

@@ -523,7 +523,7 @@ static void test_sub(void)
      * ***************************************************/
 }
 
-static int case_command_arbitration(struct nvme_tool *tool)
+static int case_command_arbitration(struct nvme_tool *tool, struct case_data *priv)
 {
     struct nvme_dev_info *ndev = tool->ndev;
     int test_round = 0;

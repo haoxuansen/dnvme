@@ -52,7 +52,7 @@ static int init_test_data(struct nvme_dev_info *ndev, struct test_data *data)
 	return 0;
 }
 
-static int case_disable_ctrl_complete(struct nvme_tool *tool)
+static int case_disable_ctrl_complete(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 
@@ -60,7 +60,7 @@ static int case_disable_ctrl_complete(struct nvme_tool *tool)
 }
 NVME_CASE_SYMBOL(case_disable_ctrl_complete, "Disable the controller completely");
 
-static int case_reinit_device(struct nvme_tool *tool)
+static int case_reinit_device(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 
@@ -70,7 +70,7 @@ static int case_reinit_device(struct nvme_tool *tool)
 NVME_CASE_SYMBOL(case_reinit_device, 
 	"Reinitialize the device for running others later");
 
-static int case_write_fwdma(struct nvme_tool *tool)
+static int case_write_fwdma(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t i = 0;
@@ -103,7 +103,7 @@ static int case_write_fwdma(struct nvme_tool *tool)
 }
 NVME_CASE_SYMBOL(case_write_fwdma, "maxio_cmd_fwdma_write");
 
-static int case_read_fwdma(struct nvme_tool *tool)
+static int case_read_fwdma(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	uint32_t data_len = 0;
@@ -128,7 +128,7 @@ static int case_read_fwdma(struct nvme_tool *tool)
 }
 NVME_CASE_SYMBOL(case_read_fwdma, "maxio_cmd_fwdma_read");
 
-static int case_disable_ltr(struct nvme_tool *tool)
+static int case_disable_ltr(struct nvme_tool *tool, struct case_data *priv)
 {
 	/* !FIXME: The BDF of NVMe device cannot be fixed. It's better to use
 	 * device ID and vendor ID instead! 
@@ -245,7 +245,7 @@ static int nvme_maxio_fwdma_rwdata(struct nvme_tool *tool, uint64_t slba,
 	return 0;
 }
 
-static int case_cmd_vendor_test(struct nvme_tool *tool)
+static int case_cmd_vendor_test(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;
@@ -274,4 +274,4 @@ static int case_cmd_vendor_test(struct nvme_tool *tool)
 
 	return 0;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_vendor_test, "Test vendor command");
+NVME_CASE_SYMBOL(case_cmd_vendor_test, "Test vendor command");

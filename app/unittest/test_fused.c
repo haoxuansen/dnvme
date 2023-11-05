@@ -575,7 +575,7 @@ out:
 	return ret;
 }
 
-static int case_fused_operation(struct nvme_tool *tool)
+static int case_fused_operation(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_id_ctrl *id_ctrl = ndev->ctrl->id_ctrl;

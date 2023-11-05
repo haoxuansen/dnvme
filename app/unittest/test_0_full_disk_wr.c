@@ -57,7 +57,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_sgl_write_read_verify, "use sgl mode send write/read cmd, then compare data"),
 };
 
-static int test_0_full_disk_wr(struct nvme_tool *tool)
+static int test_0_full_disk_wr(struct nvme_tool *tool, struct case_data *priv)
 {
 	int test_flag = 0;
 	uint32_t round_idx = 0;

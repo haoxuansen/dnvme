@@ -1325,7 +1325,7 @@ out:
 	return ret;
 }
 
-static int case_e2e_data_protect(struct nvme_tool *tool)
+static int case_e2e_data_protect(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];

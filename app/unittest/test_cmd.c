@@ -1413,7 +1413,7 @@ out:
 	return ret;
 }
 
-static int case_cmd_io_read(struct nvme_tool *tool)
+static int case_cmd_io_read(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1445,10 +1445,10 @@ static int case_cmd_io_read(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_io_read, 
+NVME_CASE_SYMBOL(case_cmd_io_read, 
 	"Send I/O read command to IOSQ in various scenarios");
 
-static int case_cmd_io_write(struct nvme_tool *tool)
+static int case_cmd_io_write(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1480,7 +1480,7 @@ static int case_cmd_io_write(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_io_write, 
+NVME_CASE_SYMBOL(case_cmd_io_write, 
 	"Send a I/O write command to IOSQ in various scenarios");
 
 /**
@@ -1488,7 +1488,7 @@ NVME_CASE_CMD_SYMBOL(case_cmd_io_write,
  * 
  * @return 0 on success, otherwise a negative errno
  */
-static int case_cmd_io_compare(struct nvme_tool *tool)
+static int case_cmd_io_compare(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1531,10 +1531,10 @@ out:
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_io_compare, 
+NVME_CASE_SYMBOL(case_cmd_io_compare, 
 	"Send a I/O compare command to IOSQ");
 
-static int case_cmd_io_copy(struct nvme_tool *tool)
+static int case_cmd_io_copy(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1583,5 +1583,5 @@ static int case_cmd_io_copy(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_io_copy, 
+NVME_CASE_SYMBOL(case_cmd_io_copy, 
 	"Send I/O copy command to IOSQ in various scenarios");

@@ -41,7 +41,7 @@ static SubCase_t sub_case_list[] = {
     SUB_CASE(sub_case_pending_bit, "tests all pending bit"),
 };
 
-static int case_queue_cq_int_all_mask(struct nvme_tool *tool)
+static int case_queue_cq_int_all_mask(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
     uint32_t round_idx = 0;

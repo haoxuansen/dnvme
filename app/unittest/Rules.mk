@@ -24,6 +24,7 @@ DIR_EXIST := $(call check_dir_exist,$(RELEASE_DIR))
 # Compiler Options
 # --------------------------------------------------------------------------- #
 
+CFLAGS += -I$(CUR_DIR_PATH)
 CFLAGS += -include $(CUR_DIR_PATH)/auto_header.h
 # CFLAGS += -DCONFIG_DEBUG_NO_DEVICE=1
 
@@ -31,6 +32,7 @@ CFLAGS += -include $(CUR_DIR_PATH)/auto_header.h
 # Targets
 # --------------------------------------------------------------------------- #
 
-SRCS := $(wildcard *.c)
+DIRS := . ./common
+SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.c))
 OBJS := $(SRCS:.c=.o)
 TARGET := nvmetool

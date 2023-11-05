@@ -13,6 +13,7 @@
 #define _APP_TEST_H_
 
 #include <stdint.h>
+#include <stdarg.h>
 
 #include "sizes.h"
 #include "compiler.h"
@@ -27,30 +28,26 @@
 #define NVME_TOOL_RW_BUF_SIZE		SZ_4M
 #define NVME_TOOL_RW_META_SIZE		SZ_1M
 
+/* Support case group from 0~9 */
 #define NVME_SEC_CASE(group)		__section(".nvme.case."#group)
 #define NVME_SEC_AUTOCASE(group)	__section(".nvme.autocase."#group)
 
 #define __NVME_CASE_SYMBOL(_fname, _desc, _group)	\
+static struct case_data __used				\
+	_nvme_case_data_##_fname = {0};			\
 static struct nvme_case __used				\
 	NVME_SEC_CASE(_group)				\
 	_nvme_case_##_fname = {				\
 		.name	= #_fname,			\
 		.desc	= _desc,			\
-		.func	= _fname			\
+		.func	= _fname,			\
+		.data	= &_nvme_case_data_##_fname,	\
 	}
 
 /* Group: case will placed at the head of the list  */
 #define NVME_CASE_HEAD_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 0)
 /* Group: default */
 #define NVME_CASE_SYMBOL(fname, desc)		__NVME_CASE_SYMBOL(fname, desc, 1)
-/* Group: command */
-#define NVME_CASE_CMD_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 2)
-/* Group: queue */
-#define NVME_CASE_QUEUE_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 3)
-/* Group: power managment */
-#define NVME_CASE_PM_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 4)
-/* Group: meta data */
-#define NVME_CASE_META_SYMBOL(fname, desc)	__NVME_CASE_SYMBOL(fname, desc, 5)
 
 #define __NVME_AUTOCASE_SYMBOL(_fname, _group)		\
 static unsigned long __used				\
@@ -92,13 +89,63 @@ struct nvme_tool {
 	struct json_node	*report; /**< For auto generate test report */
 };
 
-typedef int (*case_func_t)(struct nvme_tool *tool);
+struct case_config_effect {
+	uint32_t	nsid;
+
+	union {
+		struct {
+			uint8_t		flags;
+			uint16_t	control;
+			void		*buf;
+			uint32_t	size;
+			uint32_t	nlb;
+
+			uint32_t	use_nlb:1;
+		} read;
+		struct {
+			uint8_t		flags;
+			uint16_t	control;
+			void		*buf;
+			uint32_t	size;
+			uint32_t	nlb;
+
+			uint32_t	use_nlb:1;
+		} write;
+		struct {
+			void		*buf;
+			uint32_t	size;
+		} compare;
+	} cmd;
+};
+
+struct case_config {
+	struct json_node		*origin;
+	struct case_config_effect	*effect; /**< Init and access in case context */
+};
+
+struct case_report {
+	struct json_node	*root;
+	struct json_node	*child; /**< Current selected subcase */
+
+	unsigned int		ctx:2;
+#define UT_RPT_CTX_CASE		0
+#define UT_RPT_CTX_SUBCASE	1
+	unsigned int		rcd_pause:1; /**< Pause record data */
+};
+
+struct case_data {
+	struct case_config	cfg;
+	struct case_report	rpt;
+	struct nvme_tool	*tool;
+};
+
+typedef int (*case_func_t)(struct nvme_tool *tool, struct case_data *data);
 
 struct nvme_case {
-	const char	*name;
-	const char	*desc;
-	case_func_t	func;
-	void		*data; /* Rsvd, for section align */
+	const char		*name;
+	const char		*desc;
+	case_func_t		func;
+	struct case_data	*data; /* Rsvd, for section align */
 };
 
 extern struct nvme_tool *g_nvme_tool;
@@ -107,47 +154,17 @@ extern struct nvme_case __stop_nvme_case[];
 extern unsigned long __start_nvme_autocase[];
 extern unsigned long __stop_nvme_autocase[];
 
-static inline void nvme_record_create_sq(struct nvme_sq_info *sq, 
-	void *buf, uint32_t size)
-{
-	snprintf(buf, size, "Create %s SQ => id %u, entry %u, bind CQ(%u)",
-		sq->sqid == NVME_AQ_ID ? "Admin" : "IO", sq->sqid, 
-		sq->nr_entry, sq->cqid);
-}
-
-static inline void nvme_record_create_cq(struct nvme_cq_info *cq, 
-	void *buf, uint32_t size)
-{
-	snprintf(buf, size, "Create %s CQ => id %u, entry %u, irq %s, num %u",
-		cq->cqid == NVME_AQ_ID ? "Admin" : "IO", cq->cqid, 
-		cq->nr_entry, cq->irq_en ? "enable" : "disable", cq->irq_no);
-}
-
-static inline void nvme_record_delete_sq(struct nvme_sq_info *sq, 
-	void *buf, uint32_t size)
-{
-	snprintf(buf, size, "Delete %s SQ => id %u, entry %u, bind CQ(%u)",
-		sq->sqid == NVME_AQ_ID ? "Admin" : "IO", sq->sqid, 
-		sq->nr_entry, sq->cqid);
-}
-
-static inline void nvme_record_delete_cq(struct nvme_cq_info *cq, 
-	void *buf, uint32_t size)
-{
-	snprintf(buf, size, "Delete %s CQ => id %u, entry %u, irq %s, num %u",
-		cq->cqid == NVME_AQ_ID ? "Admin" : "IO", cq->cqid, 
-		cq->nr_entry, cq->irq_en ? "enable" : "disable", cq->irq_no);
-}
-
 void nvme_record_case_result(const char *name, int result);
 void nvme_record_subcase_result(const char *name, int result);
-
-int nvme_generate_report(struct json_node *node, const char *path);
 
 int nvme_display_case_report(void);
 int nvme_display_subcase_report(void);
 
 void nvme_display_test_result(int result, const char *desc);
+
+#include "common/cmd.h"
+#include "common/queue.h"
+#include "common/record.h"
 
 #endif /* !_APP_TEST_H_ */
 

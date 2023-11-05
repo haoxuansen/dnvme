@@ -804,7 +804,7 @@ static int do_random_reset(struct nvme_dev_info *ndev)
 	return 0;
 }
 
-static int case_reset_all_random(struct nvme_tool *tool)
+static int case_reset_all_random(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct test_data *test = &g_test;

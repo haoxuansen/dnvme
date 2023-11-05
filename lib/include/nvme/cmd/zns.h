@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_LIB_NVME_CMD_ZNS_H_
-#define _UAPI_LIB_NVME_CMD_ZNS_H_
-
 struct nvme_zone_mgnt_send_wrapper {
 	uint16_t	sqid;
 	uint16_t	cqid;
@@ -74,5 +71,3 @@ int nvme_io_zone_manage_receive(struct nvme_dev_info *ndev,
 int nvme_io_cmd_zone_append(int fd, struct nvme_zone_append_wrapper *wrap);
 int nvme_io_zone_append(struct nvme_dev_info *ndev, 
 				struct nvme_zone_append_wrapper *wrap);
-
-#endif /* !_UAPI_LIB_NVME_CMD_ZNS_H_ */

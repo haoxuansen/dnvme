@@ -157,7 +157,7 @@ void scan_control_reister(void)
     }
 }
 
-static int case_register_test(struct nvme_tool *tool)
+static int case_register_test(struct nvme_tool *tool, struct case_data *priv)
 {
     uint32_t round_idx = 0;
 

@@ -7,7 +7,7 @@
 /* Test case definition macro */
 #define SKIPED (0x1<<2)
 
-typedef int (*CaseFunc_t)(struct nvme_tool *tool);
+typedef int (*CaseFunc_t)(struct nvme_tool *tool, struct case_data *priv);
 typedef void (*VoidFunc_t)(void);
 
 #define SUB_CASE(cf, cn) {cf, #cf, cn, -1}

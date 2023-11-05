@@ -20,6 +20,26 @@
 #include "libbase.h"
 #include "libnvme.h"
 
+static void nvme_set_sq_prio_random(uint16_t *prio)
+{
+	switch (rand() % 4) {
+	case 0:
+		*prio = NVME_SQ_PRIO_URGENT;
+		break;
+	case 1:
+		*prio = NVME_SQ_PRIO_HIGH;
+		break;
+	case 2:
+		*prio = NVME_SQ_PRIO_MEDIUM;
+		break;
+	case 3:
+		*prio = NVME_SQ_PRIO_LOW;
+		break;
+	default:
+		*prio = NVME_SQ_PRIO_MEDIUM;
+	}
+}
+
 int nvme_get_sq_info(int fd, struct nvme_sq_public *sq)
 {
 	int ret;
@@ -583,10 +603,13 @@ static int nvme_alloc_iosq_info(struct nvme_dev_info *ndev)
 	for (qid = 1; qid <= nr_sq; qid++) {
 		sq[qid - 1].sqid = qid;
 		sq[qid - 1].cqid = qid;
+		sq[qid - 1].contig = 1;
 		if (mqes > 256)
 			sq[qid - 1].nr_entry = rand() % (mqes - 255) + 256;
 		else
 			sq[qid - 1].nr_entry = mqes;
+
+		nvme_set_sq_prio_random(&sq[qid - 1].prio);
 	}
 
 	ndev->iosqs = sq;
@@ -612,6 +635,7 @@ static int nvme_alloc_iocq_info(struct nvme_dev_info *ndev)
 		cq[qid - 1].cqid = qid;
 		/* irq0 has been assigned to ACQ */
 		cq[qid - 1].irq_no = (qid <= ndev->nr_irq - 1) ? qid : ndev->nr_irq - 1;
+		cq[qid - 1].contig = 1;
 
 		if (mqes > 256)
 			cq[qid - 1].nr_entry = rand() % (mqes - 255) + 256;

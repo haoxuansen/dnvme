@@ -196,7 +196,7 @@ static int delete_ioq(struct nvme_dev_info *ndev, struct nvme_sq_info *sq,
  * 
  * @return 0 on success, otherwise a negative errno. 
  */
-static int case_disable_bus_master(struct nvme_tool *tool)
+static int case_disable_bus_master(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];

@@ -1497,7 +1497,7 @@ out:
 	return ret;
 }
 
-static int case_cmd_zns_manage_send(struct nvme_tool *tool)
+static int case_cmd_zns_manage_send(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1541,10 +1541,10 @@ static int case_cmd_zns_manage_send(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_zns_manage_send, 
+NVME_CASE_SYMBOL(case_cmd_zns_manage_send, 
 	"Send I/O zone managment send command to IOSQ in various scenarios");
 
-static int case_cmd_zns_manage_receive(struct nvme_tool *tool)
+static int case_cmd_zns_manage_receive(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1575,10 +1575,10 @@ static int case_cmd_zns_manage_receive(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_zns_manage_receive, 
+NVME_CASE_SYMBOL(case_cmd_zns_manage_receive, 
 	"Send I/O zone managment receive command to IOSQ in various scenarios");
 
-static int case_cmd_zns_append(struct nvme_tool *tool)
+static int case_cmd_zns_append(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_sq_info *sq = &ndev->iosqs[0];
@@ -1609,5 +1609,5 @@ static int case_cmd_zns_append(struct nvme_tool *tool)
 	ret |= delete_ioq(ndev, sq, cq);
 	return ret;
 }
-NVME_CASE_CMD_SYMBOL(case_cmd_zns_append, 
+NVME_CASE_SYMBOL(case_cmd_zns_append, 
 	"Send I/O zone append command to IOSQ in various scenarios");
