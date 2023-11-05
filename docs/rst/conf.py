@@ -75,15 +75,17 @@ extensions = [
 # Determine whether or not we are building on the Read the Docs servers.
 read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
 if read_the_docs_build:
-	subprocess.call('mkdir -p ../../release/docs/doxygen', shell=True)
-	subprocess.call('cd ..; doxygen', shell=True)
+	subprocess.call('cd ..; ./zoo doxygen', shell=True)
 
 if 'breathe' in extensions:
 	breathe_projects = {
-		"nvmetool": "../../release/docs/doxygen/xml"
+		'module': '../../release/docs/doxygen/module/xml',
+		'lib': '../../release/docs/doxygen/lib/xml',
+		'unittest': '../../release/docs/doxygen/app/unittest/xml',
 	}
 
-	breathe_default_project = 'nvmetool'
+	breathe_default_project = 'module'
+	breathe_implementation_filename_extensions = ['.c', '.cpp']
 
 	breathe_domain_by_extension = {
 		"c" : "c",

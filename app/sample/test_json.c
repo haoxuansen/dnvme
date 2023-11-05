@@ -140,91 +140,12 @@ out:
 	return ret;
 }
 
-static int __unused test_generate_report(void)
-{
-	struct json_node *root;
-	struct json_node *case_set, *subcase_set;
-	struct json_node *item_case, *item_subcase;
-	struct json_node *step;
-	char *str;
-	FILE *fp;
-	int ret = -EPERM;
-
-	root = json_create_root_node("1.0.0");
-	if (!root) {
-		pr_err("failed to create root node!\n");
-		return -EPERM;
-	}
-	case_set = json_get_case_set(root);
-
-	item_case = json_add_case_node(case_set, "case_cmd_io_read", false);
-	json_add_result_node(item_case, -95);
-	json_add_speed_node(item_case, 2.5);
-	json_add_time_node(item_case, 100);
-
-	item_case = json_add_case_node(case_set, "case_cmd_io_write", true);
-	json_add_result_node(item_case, 0);
-	json_add_speed_node(item_case, 8);
-	json_add_width_node(item_case, 4);
-
-	subcase_set = json_get_subcase_set(item_case);
-	item_subcase = json_add_subcase_node(subcase_set, "subcase_write_success");
-	json_add_result_node(item_subcase, 0);
-	step = json_add_step_node(item_subcase);
-	json_add_content_to_step_node(step, 
-		"Send io write cmd with slba(0x100) and nlb(0x10)");
-	json_add_content_to_step_node(step, "Record return value");
-	item_subcase = json_add_subcase_node(subcase_set, "subcase_write_fua_success");
-	json_add_result_node(item_subcase, 0);
-	item_subcase = json_add_subcase_node(subcase_set, "subcase_write_invlid_cid");
-	json_add_result_node(item_subcase, 0);
-	item_subcase = json_add_subcase_node(subcase_set, 
-		"subcase_write_use_sgl_bit_bucket");
-	json_add_result_node(item_subcase, 0);
-
-	item_case = json_add_case_node(case_set, "case_cmd_io_copy", true);
-	json_add_result_node(item_case, -1);
-	json_add_speed_node(item_case, 5);
-	json_add_width_node(item_case, 4);
-	step = json_add_step_node(item_case);
-	json_add_content_to_step_node(step, "subcase_copy_success");
-	json_add_content_to_step_node(step, "subcase_copy_to_read_only");
-	json_add_content_to_step_node(step, "subcase_copy_invalid_desc_format");
-	subcase_set = json_get_subcase_set(item_case);
-	item_subcase = json_add_subcase_node(subcase_set, "subcase_copy_success");
-	json_add_result_node(item_subcase, 0);
-	item_subcase = json_add_subcase_node(subcase_set, "subcase_copy_to_read_only");
-	json_add_result_node(item_subcase, -1);
-	item_subcase = json_add_subcase_node(subcase_set, 
-		"subcase_copy_invalid_desc_format");
-	json_add_result_node(item_subcase, -95);
-
-	str = cJSON_Print(root);
-
-	fp = fopen("./sample.json", "w+");
-	if (!fp) {
-		pr_err("failed to open file!\n");
-		goto out;
-	}
-
-	fwrite(str, strlen(str), 1, fp);
-
-	ret = 0;
-
-	fclose(fp);
-	free(str);
-out:
-	json_destroy_root_node(root);
-	return ret;
-}
-
 int main(int argc, char *argv[])
 {
 	int ret = 0;
 
 	ret |= test_create_object();
 	// ret |= test_read_file(argc, argv);
-	// ret |= test_generate_report();
 
 	return ret;
 }

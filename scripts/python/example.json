@@ -1,0 +1,55 @@
+{
+	"version": "1.0.0",
+	"date": "2023/10/17 11:40:58",
+	"case": {
+		"case_cmd_io_read": {
+			"result": -95,
+			"speed": 2.5,
+			"time": 100
+		},
+		"case_cmd_io_write": {
+			"result": 0,
+			"speed": 8,
+			"width": 4,
+			"subcase": {
+				"subcase_write_success": {
+					"result": 0,
+					"step": [
+						"Send io write cmd with slba(0x100) and nlb(0x10)",
+						"Record return value"
+					]
+				},
+				"subcase_write_fua_success": {
+					"result": 0
+				},
+				"subcase_write_invlid_cid": {
+					"result": 0
+				},
+				"subcase_write_use_sgl_bit_bucket": {
+					"result": 0
+				}
+			}
+		},
+		"case_cmd_io_copy": {
+			"result": -1,
+			"speed": 5,
+			"width": 4,
+			"step": [
+					"subcase_copy_success",
+					"subcase_copy_to_read_only",
+					"subcase_copy_invalid_desc_format"
+			],
+			"subcase": {
+				"subcase_copy_success": {
+					"result": 0
+				},
+				"subcase_copy_to_read_only": {
+					"result": -1
+				},
+				"subcase_copy_invalid_desc_format": {
+					"result": -95
+				}
+			}
+		}
+	}
+}

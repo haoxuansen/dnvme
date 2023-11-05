@@ -3,11 +3,14 @@
 .. toctree::
 	:caption: Contents
 	:hidden:
-	:maxdepth: 2
+	:maxdepth: 3
 
 	quick_start
 	configuration
-	example
+	application
+	library
+	module
+	appendix
 
 ========
 Overview
