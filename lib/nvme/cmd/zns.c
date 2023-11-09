@@ -15,7 +15,7 @@
 #include "libbase.h"
 #include "libnvme.h"
 
-int nvme_io_cmd_zone_manage_send(int fd, struct nvme_zone_mgnt_send_wrapper *wrap)
+int nvme_cmd_io_zone_manage_send(int fd, struct nvme_zone_mgnt_send_wrapper *wrap)
 {
 	struct nvme_zone_mgmt_send_cmd send = {0};
 	struct nvme_64b_cmd cmd = {0};
@@ -44,7 +44,7 @@ int nvme_io_zone_manage_send(struct nvme_dev_info *ndev,
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_io_cmd_zone_manage_send(ndev->fd, wrap);
+	ret = nvme_cmd_io_zone_manage_send(ndev->fd, wrap);
 	if (ret < 0)
 		return ret;
 	cid = ret;
@@ -66,7 +66,7 @@ int nvme_io_zone_manage_send(struct nvme_dev_info *ndev,
 	return 0;
 }
 
-int nvme_io_cmd_zone_manage_receive(int fd, struct nvme_zone_mgnt_recv_wrapper *wrap)
+int nvme_cmd_io_zone_manage_receive(int fd, struct nvme_zone_mgnt_recv_wrapper *wrap)
 {
 	struct nvme_zone_mgmt_recv_cmd recv = {0};
 	struct nvme_64b_cmd cmd = {0};
@@ -100,7 +100,7 @@ int nvme_io_zone_manage_receive(struct nvme_dev_info *ndev,
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_io_cmd_zone_manage_receive(ndev->fd, wrap);
+	ret = nvme_cmd_io_zone_manage_receive(ndev->fd, wrap);
 	if (ret < 0)
 		return ret;
 	cid = ret;
@@ -122,7 +122,7 @@ int nvme_io_zone_manage_receive(struct nvme_dev_info *ndev,
 	return 0;
 }
 
-int nvme_io_cmd_zone_append(int fd, struct nvme_zone_append_wrapper *wrap)
+int nvme_cmd_io_zone_append(int fd, struct nvme_zone_append_wrapper *wrap)
 {
 	struct nvme_zone_append_cmd append = {0};
 	struct nvme_64b_cmd cmd = {0};
@@ -132,7 +132,7 @@ int nvme_io_cmd_zone_append(int fd, struct nvme_zone_append_wrapper *wrap)
 	append.nsid = cpu_to_le32(wrap->nsid);
 	append.zslba = cpu_to_le64(wrap->zslba);
 	append.length = cpu_to_le16((uint16_t)(wrap->nlb - 1));
-	append.control = cpu_to_le16(wrap->control);
+	append.control = cpu_to_le16(wrap->piremap << 9);
 
 	cmd.sqid = wrap->sqid;
 	cmd.cmd_buf_ptr = &append;
@@ -155,7 +155,7 @@ int nvme_io_zone_append(struct nvme_dev_info *ndev,
 	uint16_t cid;
 	int ret;
 
-	ret = nvme_io_cmd_zone_append(ndev->fd, wrap);
+	ret = nvme_cmd_io_zone_append(ndev->fd, wrap);
 	if (ret < 0)
 		return ret;
 	cid = ret;
@@ -169,6 +169,9 @@ int nvme_io_zone_append(struct nvme_dev_info *ndev,
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
 	}
+
+	if (wrap->check_none)
+		return 0;
 
 	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status);
 	if (ret < 0)

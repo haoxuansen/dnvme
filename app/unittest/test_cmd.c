@@ -906,8 +906,10 @@ static int subcase_write_use_sgl_bit_bucket(struct nvme_tool *tool,
 
 	if (memcmp(tool->rbuf, tool->wbuf, nlb * test->lbads)) {
 		pr_err("rbuf vs wbuf is different!\n");
-		dump_data_to_file(tool->rbuf, nlb * test->lbads, "./rbuf.bin");
-		dump_data_to_file(tool->wbuf, nlb * test->lbads, "./wbuf.bin");
+		dump_data_to_fmt_file(tool->rbuf, nlb * test->lbads, 
+			"%s/%s-rbuf.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
+		dump_data_to_fmt_file(tool->wbuf, nlb * test->lbads, 
+			"%s/%s-wbuf.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
 		ret = -EIO;
 		goto free_bit_bucket;
 	}
@@ -1002,8 +1004,10 @@ static int subcase_copy_success(struct nvme_tool *tool,
 
 	if (memcmp(copy->rbuf, tool->rbuf, sum * test->lbads)) {
 		pr_err("source data differs from target data! try dump...\n");
-		dump_data_to_file(copy->rbuf, sum * test->lbads, "./source.bin");
-		dump_data_to_file(tool->rbuf, sum * test->lbads, "./target.bin");
+		dump_data_to_fmt_file(copy->rbuf, sum * test->lbads, 
+			"%s/%s-source.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
+		dump_data_to_fmt_file(tool->rbuf, sum * test->lbads, 
+			"%s/%s-target.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
 		ret = -EIO;
 		goto free_rbuf;
 	}

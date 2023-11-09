@@ -151,17 +151,27 @@ static int ut_deal_io_read_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = effect->cmd.read.flags;
-	wrap.nsid = effect->nsid;
+	if (effect->inject_nsid)
+		wrap.nsid = effect->inject.nsid;
+	else
+		wrap.nsid = effect->nsid;
+
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = buf;
 	wrap.size = nlb * blk_size;
-	wrap.control = effect->cmd.read.control;
+	wrap.check_none = effect->check_none;
+
+	if (effect->inject_prp) {
+		wrap.use_user_prp = 1;
+		wrap.prp1 = effect->inject.prp1;
+		wrap.prp2 = effect->inject.prp2;
+	}
 
 	BUG_ON(wrap.size > buf_size);
 	memset(wrap.buf, 0, wrap.size);
 
-	switch (flag) {
+	switch (flag & UT_CMD_F_OPTION_MASK) {
 	case UT_CMD_F_OPTION_SUBMIT:
 		ret = nvme_cmd_io_read(ndev->fd, &wrap);
 		break;
@@ -209,12 +219,24 @@ static int ut_deal_io_write_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
 	wrap.flags = effect->cmd.write.flags;
-	wrap.nsid = effect->nsid;
+	if (effect->inject_nsid)
+		wrap.nsid = effect->inject.nsid;
+	else
+		wrap.nsid = effect->nsid;
+
 	wrap.slba = slba;
 	wrap.nlb = nlb;
 	wrap.buf = buf;
 	wrap.size = nlb * blk_size;
-	wrap.control = effect->cmd.write.control;
+	wrap.control = effect->cmd.write.dtype << 4;
+	wrap.dspec = effect->cmd.write.dspec;
+	wrap.check_none = effect->check_none;
+
+	if (effect->inject_prp) {
+		wrap.use_user_prp = 1;
+		wrap.prp1 = effect->inject.prp1;
+		wrap.prp2 = effect->inject.prp2;
+	}
 
 	BUG_ON(wrap.size > buf_size);
 	if (flag & UT_CMD_F_DATA_RANDOM)
@@ -238,10 +260,13 @@ static int ut_deal_io_write_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 static int ut_deal_io_compare_cmd(struct case_data *priv, 
 	struct nvme_sq_info *sq, uint64_t slba, uint32_t nlb, uint32_t flag)
 {
+	struct nvme_tool *tool = priv->tool;
 	struct nvme_dev_info *ndev = priv->tool->ndev;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect *effect = priv->cfg.effect;
 	struct nvme_rwc_wrapper wrap = {0};
+	void *buf;
+	uint32_t buf_size;
 	uint32_t blk_size;
 	int ret;
 
@@ -254,17 +279,35 @@ static int ut_deal_io_compare_cmd(struct case_data *priv,
 	if (ret < 0)
 		return ret;
 
-	BUG_ON(!effect->cmd.compare.buf);
+	if (effect->cmd.compare.buf) {
+		buf = effect->cmd.compare.buf;
+		buf_size = effect->cmd.compare.size;
+	} else {
+		buf = tool->rbuf;
+		buf_size = tool->rbuf_size;
+	}
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = effect->nsid;
+	wrap.flags = effect->cmd.compare.flags;
+	if (effect->inject_nsid)
+		wrap.nsid = effect->inject.nsid;
+	else
+		wrap.nsid = effect->nsid;
+
 	wrap.slba = slba;
 	wrap.nlb = nlb;
-	wrap.buf = effect->cmd.compare.buf;
+	wrap.buf = buf;
 	wrap.size = nlb * blk_size;
+	wrap.check_none = effect->check_none;
 
-	BUG_ON(wrap.size > effect->cmd.compare.size);
+	if (effect->inject_prp) {
+		wrap.use_user_prp = 1;
+		wrap.prp1 = effect->inject.prp1;
+		wrap.prp2 = effect->inject.prp2;
+	}
+
+	BUG_ON(wrap.size > buf_size);
 
 	switch (flag & UT_CMD_F_OPTION_MASK) {
 	case UT_CMD_F_OPTION_SUBMIT:
@@ -278,6 +321,48 @@ static int ut_deal_io_compare_cmd(struct case_data *priv,
 		ret = -EINVAL;
 	}
 	
+	return ret;
+}
+
+static int ut_deal_io_verify_cmd(struct case_data *priv, 
+	struct nvme_sq_info *sq, uint64_t slba, uint32_t nlb, uint32_t flag)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct case_config_effect *effect = priv->cfg.effect;
+	struct nvme_verify_wrapper wrap = {0};
+	int ret;
+
+	ut_rpt_record_case_step(rpt, 
+		"%s a I/O verify cmd(SLBA:0x%lx, NLB:%u) => NSID: 0x%x, SQ: %u",
+		ut_cmd_flag_option_name(flag), 
+		slba, nlb, effect->nsid, sq->sqid);
+
+	wrap.sqid = sq->sqid;
+	wrap.cqid = sq->cqid;
+	wrap.flags = effect->cmd.verify.flags;
+	if (effect->inject_nsid)
+		wrap.nsid = effect->inject.nsid;
+	else
+		wrap.nsid = effect->nsid;
+
+	wrap.slba = slba;
+	wrap.nlb = nlb;
+	wrap.prinfo = effect->cmd.verify.prinfo;
+	wrap.check_none = effect->check_none;
+
+	switch (flag & UT_CMD_F_OPTION_MASK) {
+	case UT_CMD_F_OPTION_SUBMIT:
+		ret = nvme_cmd_io_verify(ndev->fd, &wrap);
+		break;
+	case UT_CMD_F_OPTION_SEND:
+		ret = nvme_io_verify(ndev, &wrap);
+		break;
+	default:
+		pr_err("invalid flag: 0x%x\n", flag);
+		ret = -EINVAL;
+	}
+
 	return ret;
 }
 
@@ -301,12 +386,27 @@ static int ut_deal_io_copy_cmd(struct case_data *priv,
 
 	wrap.sqid = sq->sqid;
 	wrap.cqid = sq->cqid;
-	wrap.nsid = effect->nsid;
+	wrap.flags = effect->cmd.copy.flags;
+	if (effect->inject_nsid)
+		wrap.nsid = effect->inject.nsid;
+	else
+		wrap.nsid = effect->nsid;
+
 	wrap.slba = copy->slba;
 	wrap.ranges = copy->nr_entry - 1;
 	wrap.desc_fmt = copy->format;
 	wrap.desc = copy->desc;
 	wrap.size = copy->size;
+	wrap.prinfor = effect->cmd.copy.prinfor;
+	wrap.dtype = effect->cmd.copy.dtype;
+	wrap.prinfow = effect->cmd.copy.prinfow;
+	wrap.dspec = effect->cmd.copy.dspec;
+	wrap.check_none = effect->check_none;
+	if (effect->inject_prp) {
+		wrap.use_user_prp = 1;
+		wrap.prp1 = effect->inject.prp1;
+		wrap.prp2 = effect->inject.prp2;
+	}
 
 	switch (flag & UT_CMD_F_OPTION_MASK) {
 	case UT_CMD_F_OPTION_SUBMIT:
@@ -314,6 +414,68 @@ static int ut_deal_io_copy_cmd(struct case_data *priv,
 		break;
 	case UT_CMD_F_OPTION_SEND:
 		ret = nvme_io_copy(ndev, &wrap);
+		break;
+	default:
+		pr_err("invalid flag: 0x%x\n", flag);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int ut_deal_io_zone_append_cmd(struct case_data *priv, 
+	struct nvme_sq_info *sq, uint64_t zslba, uint32_t nlb, uint32_t flag)
+{
+	struct nvme_tool *tool = priv->tool;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct case_config_effect *effect = priv->cfg.effect;
+	struct nvme_zone_append_wrapper wrap = {0};
+	void *buf;
+	uint32_t buf_size;
+	uint32_t blk_size;
+	int ret;
+
+	ut_rpt_record_case_step(rpt, 
+		"%s a I/O zone append cmd(ZSLBA:0x%lx, NLB:%u) "
+		"=> NSID: 0x%x, SQ: %u",
+		ut_cmd_flag_option_name(flag), 
+		zslba, nlb, effect->nsid, sq->sqid);
+
+	ret = nvme_id_ns_lbads(ndev->ns_grp, effect->nsid, &blk_size);
+	if (ret < 0)
+		return ret;
+
+	if (effect->cmd.zone_append.buf) {
+		buf = effect->cmd.zone_append.buf;
+		buf_size = effect->cmd.zone_append.size;
+	} else {
+		buf = tool->wbuf;
+		buf_size = tool->wbuf_size;
+	}
+
+	wrap.sqid = sq->sqid;
+	wrap.cqid = sq->cqid;
+	if (effect->inject_nsid)
+		wrap.nsid = effect->inject.nsid;
+	else
+		wrap.nsid = effect->nsid;
+
+	wrap.zslba = zslba;
+	wrap.nlb = nlb;
+	wrap.piremap = effect->cmd.zone_append.piremap;
+	wrap.buf = buf;
+	wrap.size = nlb * blk_size;
+	wrap.check_none = effect->check_none;
+
+	BUG_ON(wrap.size > buf_size);
+
+	switch (flag & UT_CMD_F_OPTION_MASK) {
+	case UT_CMD_F_OPTION_SUBMIT:
+		ret = nvme_cmd_io_zone_append(ndev->fd, &wrap);
+		break;
+	case UT_CMD_F_OPTION_SEND:
+		ret = nvme_io_zone_append(ndev, &wrap);
 		break;
 	default:
 		pr_err("invalid flag: 0x%x\n", flag);
@@ -334,6 +496,20 @@ int ut_submit_io_read_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
 	return ut_deal_io_read_cmd(priv, sq, slba, nlb, UT_CMD_F_OPTION_SUBMIT);
+}
+
+int ut_submit_io_read_cmds(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, int nr_cmd)
+{
+	int ret;
+
+	for (; nr_cmd > 0; nr_cmd--) {
+		ret = ut_submit_io_read_cmd(priv, sq, slba, nlb);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -412,6 +588,20 @@ int ut_submit_io_write_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	return ut_deal_io_write_cmd(priv, sq, slba, nlb, UT_CMD_F_OPTION_SUBMIT);
 }
 
+int ut_submit_io_write_cmds(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, int nr_cmd)
+{
+	int ret;
+
+	for (; nr_cmd > 0; nr_cmd--) {
+		ret = ut_submit_io_write_cmd(priv, sq, slba, nlb);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 int ut_submit_io_write_cmd_random_data(struct case_data *priv, 
 	struct nvme_sq_info *sq, uint64_t slba, uint32_t nlb)
 {
@@ -484,6 +674,20 @@ int ut_submit_io_compare_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	return ut_deal_io_compare_cmd(priv, sq, slba, nlb, UT_CMD_F_OPTION_SUBMIT);
 }
 
+int ut_submit_io_compare_cmds(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, int nr_cmd)
+{
+	int ret;
+
+	for (; nr_cmd > 0; nr_cmd--) {
+		ret = ut_submit_io_compare_cmd(priv, sq, slba, nlb);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 int ut_submit_io_compare_cmd_random_region(struct case_data *priv, 
 	struct nvme_sq_info *sq)
 {
@@ -500,7 +704,10 @@ int ut_submit_io_compare_cmd_random_region(struct case_data *priv,
 
 	/* ensure "slba + nlb <= nsze */
 	slba = rand() % (nsze / 2);
-	nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+	if (effect->cmd.compare.use_nlb && effect->cmd.compare.nlb)
+		nlb = effect->cmd.compare.nlb;
+	else
+		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
 
 	return ut_submit_io_compare_cmd(priv, sq, slba, nlb);
 }
@@ -536,12 +743,169 @@ out:
 	return ret;
 }
 
+int ut_submit_io_verify_cmd(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb)
+{
+	return ut_deal_io_verify_cmd(priv, sq, slba, nlb, UT_CMD_F_OPTION_SUBMIT);
+}
+
+int ut_submit_io_verify_cmds(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, int nr_cmd)
+{
+	int ret;
+
+	for (; nr_cmd > 0; nr_cmd--) {
+		ret = ut_submit_io_verify_cmd(priv, sq, slba, nlb);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+int ut_submit_io_verify_cmd_random_region(struct case_data *priv, 
+	struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t nsze;
+	uint64_t slba;
+	uint32_t nlb;
+	uint32_t blk_size;
+	uint32_t pg_size;
+	uint32_t limit;
+	uint8_t vsl;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, effect->nsid, &nsze);
+	if (ret < 0)
+		return ret;
+
+	/* ensure "slba + nlb <= nsze */
+	slba = rand() % (nsze / 2);
+	if (effect->cmd.verify.use_nlb && effect->cmd.verify.nlb) {
+		nlb = effect->cmd.verify.nlb;
+	} else {
+		ret = nvme_id_ctrl_nvm_vsl(ndev->ctrl);
+		if (ret < 0)
+			return ret;
+		vsl = ret;
+
+		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+		if (vsl) {
+			pg_size = nvme_cap_mem_page_size_min(ndev->ctrl);
+			nvme_id_ns_lbads(ns_grp, effect->nsid, &blk_size);
+			limit = pg_size * (1 << vsl) / blk_size;
+			nlb = min_t(uint32_t, nlb, limit);
+		}
+	}
+	
+	return ut_submit_io_verify_cmd(priv, sq, slba, nlb);
+}
+
 int ut_submit_io_copy_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	struct copy_resource *copy)
 {
 	return ut_deal_io_copy_cmd(priv, sq, copy, UT_CMD_F_OPTION_SUBMIT);
 }
 
+int ut_submit_io_copy_cmds(struct case_data *priv, struct nvme_sq_info *sq,
+	struct copy_resource *copy, int nr_cmd)
+{
+	int ret;
+
+	for (; nr_cmd > 0; nr_cmd--) {
+		ret = ut_submit_io_copy_cmd(priv, sq, copy);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+int ut_submit_io_fused_cw_cmd(struct case_data *priv, struct nvme_sq_info *sq, 
+	uint64_t slba, uint32_t nlb)
+{
+	struct config_fused_cmd bkup;
+	struct case_config_effect *effect = priv->cfg.effect;
+	int ret;
+
+	memcpy(&bkup, &effect->cmd.fused, sizeof(bkup));
+
+	memset(&effect->cmd, 0, sizeof(effect->cmd));
+	effect->cmd.compare.flags = NVME_CMD_FUSE_FIRST | bkup.flags;
+	if (bkup.buf1) {
+		effect->cmd.compare.buf = bkup.buf1;
+		effect->cmd.compare.size = bkup.buf1_size;
+	}
+
+	ret = ut_submit_io_compare_cmd(priv, sq, slba, nlb);
+	if (ret < 0)
+		return ret;
+
+	memset(&effect->cmd, 0, sizeof(effect->cmd));
+	effect->cmd.write.flags = NVME_CMD_FUSE_SECOND | bkup.flags;
+	if (bkup.buf2) {
+		effect->cmd.compare.buf = bkup.buf2;
+		effect->cmd.compare.size = bkup.buf2_size;
+	}
+
+	ret = ut_submit_io_write_cmd(priv, sq, slba, nlb);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int ut_submit_io_fused_cw_cmds(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb, int nr_cmd)
+{
+	int ret;
+
+	for (; nr_cmd > 0; nr_cmd--) {
+		ret = ut_submit_io_fused_cw_cmd(priv, sq, slba, nlb);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+int ut_submit_io_fused_cw_cmd_random_region(
+	struct case_data *priv, struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t slba;
+	uint32_t nlb;
+	uint64_t nsze;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ndev->ns_grp, effect->nsid, &nsze);
+	if (ret < 0)
+		return ret;
+
+	slba = rand() % (nsze / 2);
+	if (effect->cmd.fused.use_nlb && effect->cmd.fused.nlb)
+		nlb = effect->cmd.fused.nlb;
+	else
+		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+
+	return ut_submit_io_fused_cw_cmd(priv, sq, slba, nlb);
+}
+
+int ut_submit_io_zone_append_cmd(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t zslba, uint32_t nlb)
+{
+	return ut_deal_io_zone_append_cmd(priv, sq, zslba, nlb, 
+		UT_CMD_F_OPTION_SUBMIT);
+}
+
+/**
+ * @return the number of commands submitted on success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_random_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	uint32_t select)
 {
@@ -549,6 +913,11 @@ int ut_submit_io_random_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	int ret;
 
 	select &= ~UT_CMD_SEL_IO_COPY;
+	if (!select) {
+		pr_warn("nothing selected!\n");
+		return 0;
+	}
+
 	do {
 		num = rand() % UT_CMD_SEL_NUM;
 	} while (!(select & BIT(num)));
@@ -563,18 +932,30 @@ int ut_submit_io_random_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	case UT_CMD_SEL_IO_COMPARE:
 		ret = ut_submit_io_compare_cmd_random_region(priv, sq);
 		break;
+	case UT_CMD_SEL_IO_VERIFY:
+		ret = ut_submit_io_verify_cmd_random_region(priv, sq);
+		break;
+	case UT_CMD_SEL_IO_FUSED_CW:
+		ret = ut_submit_io_fused_cw_cmd_random_region(priv, sq);
+		break;
 	default:
 		pr_err("select bit %u is invalid!\n", num);
 		ret = -EINVAL;
 	}
-	return ret;
+
+	return ret < 0 ? ret : ((BIT(num) == UT_CMD_SEL_IO_FUSED_CW) ? 2 : 1);
 }
 
+/**
+ * @return the number of commands submitted on success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_random_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 	uint32_t select, int nr_cmd)
 {
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect *effect = priv->cfg.effect;
+	int submitted = 0;
 	int ret;
 
 	ut_rpt_record_case_step(rpt, 
@@ -585,9 +966,10 @@ int ut_submit_io_random_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 		ret = ut_submit_io_random_cmd(priv, sq, select);
 		if (ret < 0)
 			return ret;
+		submitted += ret;
 	}
 
-	return 0;
+	return submitted;
 }
 
 int ut_submit_io_random_cmds_to_sqs(struct case_data *priv, 
@@ -745,6 +1127,77 @@ int ut_send_io_compare_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	return ut_deal_io_compare_cmd(priv, sq, slba, nlb, UT_CMD_F_OPTION_SEND);
 }
 
+int ut_send_io_compare_cmd_random_region(struct case_data *priv, 
+	struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t slba;
+	uint32_t nlb;
+	uint64_t nsze;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ndev->ns_grp, effect->nsid, &nsze);
+	if (ret < 0)
+		return ret;
+
+	/* ensure "slba + nlb <= nsze */
+	slba = rand() % (nsze / 2);
+	if (effect->cmd.compare.use_nlb && effect->cmd.compare.nlb)
+		nlb = effect->cmd.compare.nlb;
+	else
+		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+
+	return ut_send_io_compare_cmd(priv, sq, slba, nlb);
+}
+
+int ut_send_io_verify_cmd(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t slba, uint32_t nlb)
+{
+	return ut_deal_io_verify_cmd(priv, sq, slba, nlb, UT_CMD_F_OPTION_SEND);
+}
+
+int ut_send_io_verify_cmd_random_region(struct case_data *priv, 
+	struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t nsze;
+	uint64_t slba;
+	uint32_t nlb;
+	uint32_t blk_size;
+	uint32_t pg_size;
+	uint32_t limit;
+	uint8_t vsl;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, effect->nsid, &nsze);
+	if (ret < 0)
+		return ret;
+
+	/* ensure "slba + nlb <= nsze */
+	slba = rand() % (nsze / 2);
+	if (effect->cmd.verify.use_nlb && effect->cmd.verify.nlb) {
+		nlb = effect->cmd.verify.nlb;
+	} else {
+		ret = nvme_id_ctrl_nvm_vsl(ndev->ctrl);
+		if (ret < 0)
+			return ret;
+		vsl = ret;
+
+		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+		if (vsl) {
+			pg_size = nvme_cap_mem_page_size_min(ndev->ctrl);
+			nvme_id_ns_lbads(ns_grp, effect->nsid, &blk_size);
+			limit = pg_size * (1 << vsl) / blk_size;
+			nlb = min_t(uint32_t, nlb, limit);
+		}
+	}
+	
+	return ut_send_io_verify_cmd(priv, sq, slba, nlb);
+}
+
 int ut_send_io_copy_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	struct copy_resource *copy)
 {
@@ -781,8 +1234,15 @@ int ut_send_io_copy_cmd_random_region(struct case_data *priv,
 	mssrl = nvme_id_ns_mssrl(ns_grp, effect->nsid);
 
 	limit = min3(nsze / 4, (uint64_t)mssrl, (uint64_t)256);
-	nr_desc = rand() % min_t(uint32_t, msrc, 16) + 1;
-	format = (rand() % 2) ? NVME_COPY_DESC_FMT_40B : NVME_COPY_DESC_FMT_32B;
+	if (effect->cmd.copy.use_desc && effect->cmd.copy.nr_desc)
+		nr_desc = effect->cmd.copy.nr_desc;
+	else
+		nr_desc = rand() % min_t(uint32_t, msrc, 16) + 1;
+
+	if (effect->cmd.copy.use_fmt)
+		format = effect->cmd.copy.fmt;
+	else
+		format = (rand() % 2) ? NVME_COPY_DESC_FMT_40B : NVME_COPY_DESC_FMT_32B;
 
 	copy = ut_alloc_copy_resource(nr_desc, format);
 	if (!copy)
@@ -825,13 +1285,90 @@ out:
 	return ret;
 }
 
+int ut_send_io_fused_cw_cmd(struct case_data *priv, 
+	struct nvme_sq_info *sq, uint64_t slba, uint32_t nlb)
+{
+	struct config_fused_cmd bkup;
+	struct case_config_effect *effect = priv->cfg.effect;
+	int ret;
+
+	memcpy(&bkup, &effect->cmd.fused, sizeof(bkup));
+
+	memset(&effect->cmd, 0, sizeof(effect->cmd));
+	effect->cmd.compare.flags = NVME_CMD_FUSE_FIRST | bkup.flags;
+	if (bkup.buf1) {
+		effect->cmd.compare.buf = bkup.buf1;
+		effect->cmd.compare.size = bkup.buf1_size;
+	}
+
+	ret = ut_submit_io_compare_cmd(priv, sq, slba, nlb);
+	if (ret < 0)
+		return ret;
+
+	memset(&effect->cmd, 0, sizeof(effect->cmd));
+	effect->cmd.write.flags = NVME_CMD_FUSE_SECOND | bkup.flags;
+	if (bkup.buf2) {
+		effect->cmd.compare.buf = bkup.buf2;
+		effect->cmd.compare.size = bkup.buf2_size;
+	}
+
+	ret = ut_submit_io_write_cmd(priv, sq, slba, nlb);
+	if (ret < 0)
+		return ret;
+
+	ret = ut_ring_sq_doorbell(priv, sq);
+	if (ret < 0)
+		return ret;
+
+	if (effect->check_none)
+		ret = ut_reap_cq_entry_no_check_by_id(priv, sq->cqid, 2);
+	else
+		ret = ut_reap_cq_entry_check_status_by_id(priv, sq->cqid, 2);
+
+	return ret;
+}
+
+int ut_send_io_fused_cw_cmd_random_region(
+	struct case_data *priv, struct nvme_sq_info *sq)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t slba;
+	uint32_t nlb;
+	uint64_t nsze;
+	int ret;
+
+	ret = nvme_id_ns_nsze(ndev->ns_grp, effect->nsid, &nsze);
+	if (ret < 0)
+		return ret;
+
+	slba = rand() % (nsze / 2);
+	if (effect->cmd.fused.use_nlb && effect->cmd.fused.nlb)
+		nlb = effect->cmd.fused.nlb;
+	else
+		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+
+	return ut_send_io_fused_cw_cmd(priv, sq, slba, nlb);
+}
+
+int ut_send_io_zone_append_cmd(struct case_data *priv, struct nvme_sq_info *sq,
+	uint64_t zslba, uint32_t nlb)
+{
+	return ut_deal_io_zone_append_cmd(priv, sq, zslba, nlb, 
+		UT_CMD_F_OPTION_SEND);
+}
+
 int ut_send_io_random_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	uint32_t select)
 {
 	uint32_t num;
 	int ret;
 
-	select &= ~UT_CMD_SEL_IO_COMPARE;
+	if (!select) {
+		pr_warn("nothing selected!\n");
+		return 0;
+	}
+
 	do {
 		num = rand() % UT_CMD_SEL_NUM;
 	} while (!(select & BIT(num)));
@@ -843,8 +1380,17 @@ int ut_send_io_random_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	case UT_CMD_SEL_IO_WRITE:
 		ret = ut_send_io_write_cmd_random_d_r(priv, sq);
 		break;
+	case UT_CMD_SEL_IO_COMPARE:
+		ret = ut_send_io_compare_cmd_random_region(priv, sq);
+		break;
+	case UT_CMD_SEL_IO_VERIFY:
+		ret = ut_send_io_verify_cmd_random_region(priv, sq);
+		break;
 	case UT_CMD_SEL_IO_COPY:
 		ret = ut_send_io_copy_cmd_random_region(priv, sq);
+		break;
+	case UT_CMD_SEL_IO_FUSED_CW:
+		ret = ut_send_io_fused_cw_cmd_random_region(priv, sq);
 		break;
 	default:
 		pr_err("select bit %u is invalid!\n", num);

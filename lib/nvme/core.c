@@ -52,6 +52,7 @@ static inline void _nvme_check_size(void)
 	BUILD_BUG_ON(sizeof(struct nvme_rw_command) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_write_zeroes_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_dsm_cmd) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_verify_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_copy_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_zone_mgmt_send_cmd) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_zone_mgmt_recv_cmd) != 64);
@@ -277,7 +278,7 @@ static int init_id_cs_ctrl(struct nvme_dev_info *ndev,
 	uint64_t vector;
 	int ret;
 
-	if (nvme_version(ndev) < NVME_VS(2, 0, 0))
+	if (nvme_version(ctrl) < NVME_VS(2, 0, 0))
 		return 0;
 
 	ret = nvme_read_ctrl_cc(ndev->fd, &prop->cc);
@@ -590,11 +591,12 @@ static void deinit_ns_id_desc(struct nvme_ns_instance *ns)
 static int init_id_cs_ns(struct nvme_dev_info *ndev, 
 	struct nvme_ns_instance *ns)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	void *data;
 	uint8_t csi;
 	int ret;
 
-	if (nvme_version(ndev) < NVME_VS(2, 0, 0))
+	if (nvme_version(ctrl) < NVME_VS(2, 0, 0))
 		return 0;
 
 	if (!ns->ns_id_desc[NVME_NIDT_CSI]) {

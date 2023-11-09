@@ -225,6 +225,7 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 	rwc.slba = cpu_to_le64(wrap->slba);
 	rwc.length = cpu_to_le16((uint16_t)(wrap->nlb - 1)); /* 0'base */
 	rwc.control = cpu_to_le16(wrap->control);
+	rwc.dspec = cpu_to_le16(wrap->dspec);
 	rwc.reftag = cpu_to_le32(wrap->dw14);
 	rwc.apptag = cpu_to_le16(wrap->apptag);
 	rwc.appmask = cpu_to_le16(wrap->appmask);
@@ -269,6 +270,58 @@ int nvme_io_rw_common(struct nvme_dev_info *ndev, struct nvme_rwc_wrapper *wrap,
 		return ret < 0 ? ret : -ETIME;
 	}
 
+	if (wrap->check_none)
+		return 0;
+
+	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+int nvme_cmd_io_verify(int fd, struct nvme_verify_wrapper *wrap)
+{
+	struct nvme_verify_cmd verify = {0};
+	struct nvme_64b_cmd cmd = {0};
+
+	verify.opcode = nvme_cmd_verify;
+	verify.flags = wrap->flags;
+	verify.nsid = cpu_to_le32(wrap->nsid);
+	verify.slba = cpu_to_le64(wrap->slba);
+	verify.nlb = cpu_to_le16((uint16_t)(wrap->nlb - 1)); /* 0'base */
+	verify.control = cpu_to_le16(wrap->prinfo << 2);
+
+	cmd.sqid = wrap->sqid;
+	cmd.cmd_buf_ptr = &verify;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_io_verify(struct nvme_dev_info *ndev, struct nvme_verify_wrapper *wrap)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_io_verify(ndev->fd, wrap);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, wrap->sqid);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	if (wrap->check_none)
+		return 0;
+
 	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, NVME_SC_SUCCESS);
 	if (ret < 0)
 		return ret;
@@ -284,9 +337,19 @@ int nvme_cmd_io_copy(int fd, struct nvme_copy_wrapper *wrap)
 	copy.opcode = nvme_cmd_copy;
 	copy.flags = wrap->flags;
 	copy.nsid = cpu_to_le32(wrap->nsid);
+
+	if (wrap->use_user_prp) {
+		cmd.use_user_prp = 1;
+		copy.dptr.prp1 = cpu_to_le64(wrap->prp1);
+		copy.dptr.prp2 = cpu_to_le64(wrap->prp2);
+	}
+
 	copy.slba = cpu_to_le64(wrap->slba);
 	copy.ranges = wrap->ranges;
-	copy.desc_fmt = wrap->desc_fmt;
+	copy.desc_fmt = wrap->desc_fmt | (wrap->prinfor << 4);
+	copy.dtype = wrap->dtype << 4;
+	copy.control = wrap->stcw | (wrap->prinfow << 2) | (wrap->fua << 6);
+	copy.dspec = cpu_to_le16(wrap->dspec);
 
 	cmd.sqid = wrap->sqid;
 	cmd.cmd_buf_ptr = &copy;
@@ -319,6 +382,9 @@ int nvme_io_copy(struct nvme_dev_info *ndev, struct nvme_copy_wrapper *wrap)
 		pr_err("expect reap 1, actual reaped %d!\n", ret);
 		return ret < 0 ? ret : -ETIME;
 	}
+
+	if (wrap->check_none)
+		return 0;
 
 	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, NVME_SC_SUCCESS);
 	if (ret < 0)

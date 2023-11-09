@@ -43,6 +43,21 @@ templates_path = ['_templates']
 primary_domain = 'c'
 highlight_language = 'none'
 
+# If true, figures, tables and code-blocks are automatically numbered if they
+# have a caption. The :numref: role is enabled. Obeyed so for only for HTML
+# and LaTex builders. Default is False.
+numfig = True
+
+# A dictionary mapping 'figure', 'table', 'code-block' and 'section' to
+# strings that are used for format of figure numbers. As a specifal 
+# character, %s will be replaced to figure number.
+# numfig_format = {
+# 	'figure': 'Fig. %s',
+# 	'table': 'Table %s',
+# 	'code-block': 'Listing %s',
+# 	'section': 'Section %s',
+# }
+
 # If true, '()' will be appended to :func: etc. cross-reference text.
 #add_function_parentheses = True
 
@@ -59,11 +74,13 @@ highlight_language = 'none'
 # ones.
 extensions = [
 	# Inline extension
+	'sphinx.ext.mathjax',
 	'sphinx.ext.todo',
 	# Third extension
 	'breathe',
 	# 'exhale',
 	'sphinx_design',
+	'sphinx-mathjax-offline',
 	# 'sphinx_tabs.tabs',
 	'sphinx_togglebutton',
 ]
@@ -132,19 +149,19 @@ if 'sphinx_togglebutton' in extensions:
 # - https://github.com/snide/sphinx_rtd_theme
 # - https://pypi.python.org/pypi/sphinx_rtd_theme
 # - python-sphinx-rtd-theme package (on Debian)
-try:
-	import sphinx_rtd_theme
-	html_theme = 'sphinx_rtd_theme'
-	html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-except ImportError:
-	sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML \
-		theme was not found. Make sure you have the theme installed \
-		to produce pretty HTML output. Falling back to the default \
-		theme.\n')
+# try:
+# 	import sphinx_rtd_theme
+# 	html_theme = 'sphinx_rtd_theme'
+# 	html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+# except ImportError:
+# 	sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML \
+# 		theme was not found. Make sure you have the theme installed \
+# 		to produce pretty HTML output. Falling back to the default \
+# 		theme.\n')
 
 # html_theme = 'classic'
 # html_theme = 'press'
-# html_theme = 'sphinx_book_theme'
+html_theme = 'sphinx_book_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

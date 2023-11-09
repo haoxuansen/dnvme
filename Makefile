@@ -37,6 +37,7 @@ PHONY += menuconfig
 
 pre:
 	$(Q)mkdir -p $(RELEASE_DIR)/libs
+	$(Q)mkdir -p $(RELEASE_DIR)/log
 	$(Q)cp $(SCRIPT_DIR)/insmod.sh $(RELEASE_DIR)/
 
 modules:

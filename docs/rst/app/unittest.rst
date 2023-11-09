@@ -9,23 +9,59 @@ Vendor Case
 
 .. doxygenstruct:: nvme_maxio_common_cmd
 
+.. note::
+	1. 除特殊说明外，默认“发送命令”会包括取回 CQE，并对 Entry 内容进行检查。
+	#. 默认“提交命令”只是将准备好的命令放到 SQ 队列中，不包括敲 SQ doorbell。
+
 case_hw_io_cmd_timeout_check
 """"""""""""""""""""""""""""
+
+| 在配置 Hardware I/O command timeout 定时器后，确认该 feature 是否生效。
 
 .. doxygenfunction:: case_hw_io_cmd_timeout_check
 	:project: unittest
 
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_top` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 上述命令处理结束后，主机等待 1s
+#. 主机随机发送 1 条 I/O Read 或 Write 命令；
+#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_top` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
 case_cq_full_threshold_limit_sq_fetch_cmd
 """""""""""""""""""""""""""""""""""""""""
+
+| 在配置 CQ Full 阈值后，测试是否有效限制 EP 单次从 SQ 取 Command 的数量。
 
 .. doxygenfunction:: case_cq_full_threshold_limit_sq_fetch_cmd
 	:project: unittest
 
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_cqm` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. param 表示 CQ Size，取值范围是 [1, 10]
+#. 主机创建 I/O CQ 和 SQ，其中 CQ Size 必须和前面 param 值相同。
+#. 主机随机提交 50 条 I/O Read 或 Write 命令。
+#. 主机敲 SQ doorbell 触发 EP 处理 command，并等待接收所有的 CQE。
+	a. 主机无需检查 CQ Entry 的内容。
+#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_cqm` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
 case_hw_rdma_ftl_size_limit
 """""""""""""""""""""""""""
+| 限制 Hardware RDMA 中可以 pending 的 FTL 数量上限。
 
 .. doxygenfunction:: case_hw_rdma_ftl_size_limit
 	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwrdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. param 表示 FTL 可以 pending 的数量，取值范围是 [1, 10]
+#. 上述命令处理结束后，主机等待 1s
+#. 主机提交超过 param 值 2 倍的 I/O read command，并指定 NLB = 1
+#. 主机敲 SQ doorbell 触发 EP 处理 command，并等待接收所有的 CQE。
+	a. 主机无需检查 CQ Entry 的内容。
+#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwrdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
 
 case_hw_rdma_ftl_rreq_if_en
 """""""""""""""""""""""""""
@@ -33,11 +69,30 @@ case_hw_rdma_ftl_rreq_if_en
 .. doxygenfunction:: case_hw_rdma_ftl_rreq_if_en
 	:project: unittest
 
+| 操作步骤如下：
+
+1. 主机创建 I/O CQ 和 SQ
+#. param 选择依次打开 1,2,…6 个 FTL IF, 每次循环执行以下操作
+	a. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwrdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	#. 上述命令处理结束后，主机等待 1s
+	#. 主机发送 12 条 I/O read command，并指定 NLB = 1
+	#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwrdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+.. note::
+	param bit[5:0] 中每个 bit 表示 FTL IF 的状态: 1 - enable, 0 - disable
+
 case_hw_rdma_ftl_if_namespace_bind
 """"""""""""""""""""""""""""""""""
 
 .. doxygenfunction:: case_hw_rdma_ftl_if_namespace_bind
 	:project: unittest
+
+| 操作步骤如下：
+
+1. 随机选择 1 个 namespace 和 1 个 FTL 接口
+#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwrdma` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，绑定 namespace 和 FTL 接口
+#. 主机发送 12 条 I/O read command，并指定 NLB = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwrdma` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
 
 case_hw_wdma_ftl_size_limit
 """""""""""""""""""""""""""
@@ -45,8 +100,173 @@ case_hw_wdma_ftl_size_limit
 .. doxygenfunction:: case_hw_wdma_ftl_size_limit
 	:project: unittest
 
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwwdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. param 表示 FTL 可以 pending 的数量，取值范围是 [1, 0x10]
+#. 上述命令处理结束后，主机等待 1s
+#. 主机发送超过 param 值两倍的 I/O write command，并指定 NLB = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwwdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
 case_hw_wdma_ftl_wreq_if_en
 """""""""""""""""""""""""""
 
 .. doxygenfunction:: case_hw_wdma_ftl_wreq_if_en
 	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机创建 I/O CQ 和 SQ
+#. param 选择依次打开 1,2,…6 个 FTL IF, 每次循环执行以下操作
+	a. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	#. 上述命令处理结束后，主机等待 1s
+	#. 主机发送 12 条 I/O write command，并指定 NLB = 1
+	#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_hwwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+.. note::
+	param bit[5:0] 中每个 bit 表示 FTL IF 的状态: 1 - enable, 0 - disable
+
+case_wrr_with_urgent_priority_class_arbitration
+"""""""""""""""""""""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_wrr_with_urgent_priority_class_arbitration
+	:project: unittest
+
+| 操作步骤如下：
+
++ 循环执行以下步骤 10 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
+		a. param 为 I/O Queue 对的数量，取值范围是 [1, 64]
+		#. cdw11 选择“仲裁行为分析子程序”，取值 0 或 1
+	#. 主机发送 Set Feature - Arbitration 命令，参数如下：
+		a. HPW 取值范围是 [0, 100]
+		#. MPW 取值范围是 [0, 100]
+		#. LPW 取值范围是 [0, 100]
+		#. Burst 取值范围是 2 ^ [0, 6] 对应 1 ~ 64
+	#. 主机创建 param 指定数量的 I/O queue，随机指定 SQ 的优先级
+	#. 主机向所有 I/O SQ 中随机提交 [1, 100] 条命令，命令类型随机
+		a. 当前支持 read/write/compare 命令
+	#. 主机敲所有 SQ 的 doorbell，并等待接收所有的 CQE。
+		a. 主机无需检查 CQ Entry 的内容。
+	#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`，接收 16KB 数据
+		a. param 为接收的数据长度
+	#. 主机将 16KB 数据以二进制的方式保存到以“case 名称 + 序号”方式命名的文件中
+
+case_cmd_sanity_check_according_by_protocol
+"""""""""""""""""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_cmd_sanity_check_according_by_protocol
+	:project: unittest
+
+| 操作步骤如下：
+
++ 循环执行以下步骤 10 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
+		a. param 表示 subcase 的序号，当前固定值为 1，后续可能会进行扩展。
+		#. cdw11 表示 I/O command 的序号
+		#. cdw12 由选中的 I/O command 序号决定其含义
+	#. 主机发送 param 对应的 I/O command
+	#. 重复步骤 1~2，直到发送完所有的 :ref:`label_case_cmd_sanity_check_according_by_protocol`
+	#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`，接收 16KB 数据
+		a. param 为接收的数据长度
+	#. 主机将 16KB 数据以二进制的方式保存到以“case 名称 + 序号”方式命名的文件中
+
+.. _label_case_cmd_sanity_check_according_by_protocol:
+
+.. csv-table:: I/O command
+	:header: "SeqNum", "Command", "Requirement"
+	:widths: 10, 45, 45
+
+	"1", "Fused<1st:Compare, 2nd:Write>"
+	"2", "Fused<1st:Write, 2nd:Compare>"
+	"3", "Fused<1st:Compare, Read>"
+	"4", "Fused<Read, 2nd:Write>"
+	"5", "Fused<1st:Compare, 2nd:Write>", "Compare 和 Write 需指定不同的 LBA Range"
+	"6", "Fused<1st:Compare, 2nd:Write>", "NLB>10"
+	"7", "Fused<1st:Compare, 2nd:Write>", "SLBA=0, NLB=10"
+	"8", "Fused<2nd:Write, 1st:Compare>"
+	"9", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` "
+	"10", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_40B` "
+	"11", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` , Number of Ranges>10 "
+	"12", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_40B` "
+	"13", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` "
+	"14", "Copy", "dw12 PRINFOR.PRACT=0, PRINFOW.PRACT=1"
+	"15", "Copy", "dw12 PRINFOR.PRACT=1, PRINFOW.PRACT=0"
+	"16", "Copy", "dw12 PRINFOR.PRACT=0, PRINFOW.PRACT=0"
+	"17", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` "
+	"18", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` ，Source Range 指定的 NLB> :term:`MSSRL` (50)"
+	"19", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` ，所有Source Range 指定的 NLB 总和> :term:`MCL` (50)"
+	"20", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` "
+	"21", "Copy", "desc format= :enumerator:`NVME_COPY_DESC_FMT_32B` , desc 的 LBA Range 超过 NSZE"
+	"22", "Verify"
+	"23", "Verify", "NLB>16"
+	"24", "Verify", "dw12 PRINFO.PRACT=1"
+	"25", "Compare"
+	"26", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", ":term:`PSDT` =1"
+	"27", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "PSDT=2"
+	"28", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>, Verify]"
+	"29", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>, Verify]"
+	"30", "[Write, Copy, ZNS Append]"
+	"31", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>, Verify]", "SLBA+NLB>NSZE"
+	"32", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>, Verify]", "NSID>16"
+	"33", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", ":term:`PSDT` ≠0"
+	"34", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "PRP 非 dword 对齐!"
+	"35", "ZNS Append"
+	"36", "ZNS Append", "遍历以下场景：1) PI Type1, dw12 PIREMAP=0; 2) PI Type3, dw12 PIREMAP=1 :strong:`注意：` 配置 vendor cmd dw12 来选择当前生效的场景，dw12=1 对应场景1，dw12=2 对应场景2"
+	"37", "[Write, Copy]", "DTYPE= :enumerator:`NVME_DIR_STREAMS` "
+	"38", "[Write, Copy]", "DTYPE= :enumerator:`NVME_DIR_STREAMS` , DSPEC>200"
+	"39", "[Write, Copy]", "DTYPE= :enumerator:`NVME_DIR_STREAMS` , DSPEC=100"
+	"40", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]"
+	"41", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]"
+	"42", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]"
+
+.. note::
+	1. Fused<1st:Compare, 2nd:Write> 表示 Fused 由 Compare 和 Write 两条命令组成。
+		a. 1st 表示此命令配置为 Fused operation, first command
+		#. 2nd 表示此命令配置为 Fused operation, second command
+		#. 无标注的话，此命令配置为 Normal operation
+	#. [Read, Write] 表示从 Read 和 Write 中随机选择 1 条命令发送
+	#. 上述 I/O command 默认不检查 CQ Entry 中的内容。
+
+case_ftl_interface_selectable_by_multi_mode
+"""""""""""""""""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_ftl_interface_selectable_by_multi_mode
+	:project: unittest
+
+| 操作步骤如下：
+
++ 循环执行以下步骤 50 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
+		a. param 表示 subcase 的序号
+	#. 主机发送 param 对应的 I/O command
+	#. 重复步骤 1~2，直到发送完所有的 :ref:`label_case_ftl_interface_selectable_by_multi_mode`
+	#. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`，接收 16KB 数据
+		a. param 为接收的数据长度
+	#. 主机将 16KB 数据以二进制的方式保存到以“case 名称 + 序号”方式命名的文件中
+
+.. _label_case_ftl_interface_selectable_by_multi_mode:
+
+.. csv-table:: I/O command
+	:header: "Subcase", "Command", "Requirement", "Note"
+	:widths: 5, 40, 40, 15
+
+	"1", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]"
+	"2", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "发送 16 条命令，依次配置 NSID=1,2,...16"
+	"3", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "提交 11 条命令后一起敲 doorbell", "不支持 copy 命令 [#1]_ "
+	"4", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "SLBA[0, 50], 确保 SLBA + NLB ≤ NSZE"
+	"5", "[Write, Copy]", "dtype= :enumerator:`NVME_DIR_STREAMS` , dspec=100"
+	"6", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "提交 101 条命令后一起敲 doorbell", "不支持 copy 命令 [#1]_ "
+	"7", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "提交 11 条相同的命令后一起敲 doorbell"
+	"8", "[Read, Write, Compare, Copy, Fused<1st:Compare, 2nd:Write>]", "SLBA[0, 50], NLB[1, 50], 确保 SLBA + NLB ≤ NSZE"
+
+.. note::
+	1. Fused<1st:Compare, 2nd:Write> 表示 Fused 由 Compare 和 Write 两条命令组成。
+		a. 1st 表示此命令配置为 Fused operation, first command
+		#. 2nd 表示此命令配置为 Fused operation, second command
+		#. 无标注的话，此命令配置为 Normal operation
+	#. [Read, Write] 表示从 Read 和 Write 中随机选择 1 条命令发送
+	#. 上述 I/O command 默认不检查 CQ Entry 中的内容。
+
+
+.. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。

@@ -254,6 +254,19 @@ int nvme_id_ctrl_sgls(struct nvme_ctrl_instance *ctrl, uint32_t *sgls)
 	return 0;
 }
 
+/**
+ * @brief Get verify size limit and is reported as a power of two (2^n).
+ * 
+ * @return 0 on success, otherwise a negative errno
+ */
+int nvme_id_ctrl_nvm_vsl(struct nvme_ctrl_instance *ctrl)
+{
+	if (!ctrl->id_ctrl_nvm)
+		return -ENODEV;
+
+	return ctrl->id_ctrl_nvm->vsl;
+}
+
 static int check_id_ns_sanity(struct nvme_ns_group *grp, uint32_t nsid)
 {
 	if (grp->nr_ns < nsid)

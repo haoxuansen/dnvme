@@ -14,7 +14,6 @@
 #include <errno.h>
 #include <time.h>
 
-#include "sizes.h"
 #include "libbase.h"
 #include "libjson.h"
 #include "test.h"

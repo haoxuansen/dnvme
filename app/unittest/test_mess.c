@@ -268,8 +268,10 @@ static int case_cmd_vendor_test(struct nvme_tool *tool, struct case_data *priv)
 
 	if (memcmp(tool->rbuf, tool->wbuf, nlb * test->lbads)) {
 		pr_err("rbuf vs wbuf is different!\n");
-		dump_data_to_file(tool->rbuf, nlb * test->lbads, "./rbuf.bin");
-		dump_data_to_file(tool->wbuf, nlb * test->lbads, "./wbuf.bin");
+		dump_data_to_fmt_file(tool->rbuf, nlb * test->lbads,
+			"%s/%s-rbuf.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
+		dump_data_to_fmt_file(tool->wbuf, nlb * test->lbads,
+			"%s/%s-wbuf.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
 	}
 
 	return 0;

@@ -193,15 +193,39 @@ static int ut_reap_cq_entry(struct case_data *priv, struct nvme_cq_info *cq,
 	return 0;
 }
 
+static int ut_reap_cq_entry_by_id(struct case_data *priv, uint16_t cqid, 
+	int nr_entry, uint32_t flag)
+{
+	struct nvme_cq_info *cq;
+
+	cq = nvme_find_iocq_info(priv->tool->ndev, cqid);
+	if (!cq)
+		return -ENODEV;
+
+	return ut_reap_cq_entry(priv, cq, nr_entry, flag);
+}
+
 int ut_reap_cq_entry_check_status(struct case_data *priv, 
 	struct nvme_cq_info *cq, int nr_entry)
 {
 	return ut_reap_cq_entry(priv, cq, nr_entry, UT_CQ_F_CHECK_STATUS);
 }
 
+int ut_reap_cq_entry_check_status_by_id(struct case_data *priv, 
+	uint16_t cqid, int nr_entry)
+{
+	return ut_reap_cq_entry_by_id(priv, cqid, nr_entry, UT_CQ_F_CHECK_STATUS);
+}
+
 int ut_reap_cq_entry_no_check(struct case_data *priv, 
 	struct nvme_cq_info *cq, int nr_entry)
 {
 	return ut_reap_cq_entry(priv, cq, nr_entry, 0);
+}
+
+int ut_reap_cq_entry_no_check_by_id(struct case_data *priv, uint16_t cqid,
+	int nr_entry)
+{
+	return ut_reap_cq_entry_by_id(priv, cqid, nr_entry, 0);
 }
 

@@ -173,9 +173,9 @@ static int prepare_ctroller(struct nvme_tool *tool)
 	struct nvme_feat_host_behavior *behavior = tool->wbuf;
 	int ret;
 
-	if (nvme_version(ndev) < NVME_VS(1, 4, 0)) {
+	if (nvme_version(ctrl) < NVME_VS(1, 4, 0)) {
 		pr_warn("version:0x%x not support E2E protect! skip...\n", 
-			nvme_version(ndev));
+			nvme_version(ctrl));
 		return -EOPNOTSUPP;
 	}
 

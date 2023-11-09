@@ -482,8 +482,10 @@ static int do_io_copy_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq)
 
 	if (memcmp(copy->rbuf, tool->rbuf, sum * test->lbads)) {
 		pr_err("source data differs from target data! try dump...\n");
-		dump_data_to_file(copy->rbuf, sum * test->lbads, "./source.bin");
-		dump_data_to_file(tool->rbuf, sum * test->lbads, "./target.bin");
+		dump_data_to_fmt_file(copy->rbuf, sum * test->lbads, 
+			"%s/%s-source.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
+		dump_data_to_fmt_file(tool->rbuf, sum * test->lbads, 
+			"%s/%s-target.bin", NVME_TOOL_LOG_FILE_PATH, __func__);
 		ret = -EIO;
 		goto free_rbuf;
 	}

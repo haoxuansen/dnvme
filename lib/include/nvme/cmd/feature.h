@@ -9,8 +9,26 @@
  * 
  */
 
+struct nvme_feat_arb_wrapper {
+	uint8_t		hpw; /**< High Priority Weight */
+	uint8_t		mpw;
+	uint8_t		lpw;
+	uint8_t		burst;
+};
+
 int nvme_cmd_set_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);
 int nvme_cmd_get_feature(int fd, uint32_t nsid, uint32_t fid, uint32_t dw11);;
+
+static inline int nvme_cmd_set_feat_arbitration(int fd, 
+	struct nvme_feat_arb_wrapper *wrap)
+{
+	return nvme_cmd_set_feature(fd, 0, NVME_FEAT_ARBITRATION,
+		((uint32_t)wrap->hpw << 24) | ((uint32_t)wrap->mpw << 16) | 
+		((uint32_t)wrap->lpw << 8) | ((uint32_t)wrap->burst & 0x7));
+}
+
+int nvme_set_feat_arbitration(struct nvme_dev_info *ndev, 
+	struct nvme_feat_arb_wrapper *wrap);
 
 /**
  * @brief Set feature named power management
@@ -83,3 +101,4 @@ static inline int nvme_cmd_get_feat_write_protect(int fd, uint32_t nsid,
 }
 int nvme_get_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid, 
 	uint32_t sel);
+

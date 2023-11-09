@@ -14,7 +14,7 @@
  * 
  * @note See "struct nvme_directive_cmd -> dtype" for details.
  */
-enum {
+enum nvme_directive_type {
 	NVME_DIR_IDENTIFY		= 0x00,
 	NVME_DIR_STREAMS		= 0x01,
 };

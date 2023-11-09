@@ -34,6 +34,7 @@
 #include "nvme/netlink.h"
 #include "nvme/pcie.h"
 #include "nvme/pci.h"
+#include "nvme/property.h"
 #include "nvme/queue.h"
 
 #endif /* !_UAPI_LIBNVME_H_ */

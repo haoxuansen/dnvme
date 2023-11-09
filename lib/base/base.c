@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -194,6 +195,28 @@ int dump_data_to_file(void *buf, uint32_t size, const char *file)
 out:
         close(fd);
         return 0;
+}
+
+int dump_data_to_fmt_file(void *buf, uint32_t size, const char *fmt, ...)
+{
+	va_list args;
+	char *file;
+	int ret;
+
+	file = zalloc(SZ_256);
+	if (!file)
+		return -ENOMEM;
+
+	va_start(args, fmt);
+	vsnprintf(file, SZ_256, fmt, args);
+	va_end(args);
+
+	ret = dump_data_to_file(buf, size, file);
+	if (ret < 0)
+		goto out;
+out:
+	free(file);
+	return ret;
 }
 
 static void __init libbase_init(void)

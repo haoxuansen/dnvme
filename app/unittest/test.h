@@ -15,8 +15,8 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-#include "sizes.h"
 #include "compiler.h"
+#include "libbase.h"
 #include "libnvme.h"
 #include "libjson.h"
 
@@ -27,6 +27,8 @@
 #define NVME_TOOL_CQ_BUF_SIZE		SZ_1M /* CQES(16) * elements(64K) */
 #define NVME_TOOL_RW_BUF_SIZE		SZ_4M
 #define NVME_TOOL_RW_META_SIZE		SZ_1M
+
+#define NVME_TOOL_LOG_FILE_PATH		"./log"
 
 /* Support case group from 0~9 */
 #define NVME_SEC_CASE(group)		__section(".nvme.case."#group)
@@ -89,33 +91,75 @@ struct nvme_tool {
 	struct json_node	*report; /**< For auto generate test report */
 };
 
+struct config_rwc_cmd {
+	void		*buf;
+	uint32_t	size;
+	uint32_t	nlb;
+	uint16_t	dspec;
+	uint8_t 	flags;
+	uint32_t	dtype:4;
+
+	uint32_t	use_nlb:1;
+};
+
+struct config_verify_cmd {
+	uint8_t 	flags;
+	uint32_t	nlb;
+	uint32_t 	prinfo:4;
+	
+	uint32_t	use_nlb:1;
+};
+
+struct config_fused_cmd {
+	uint8_t		flags;
+	void		*buf1; /**< for first command */
+	void		*buf2; /**< for second command */
+	uint32_t	buf1_size;
+	uint32_t	buf2_size;
+	uint32_t	nlb;
+
+	uint32_t	use_nlb:1;
+};
+
+struct config_copy_cmd {
+	uint32_t	nr_desc;
+	uint16_t	dspec;
+	uint8_t 	flags;
+	uint8_t 	fmt;
+	uint32_t 	prinfor:4;
+	uint32_t 	prinfow:4;
+	uint32_t	dtype:4;
+	
+	uint32_t	use_desc:1;
+	uint32_t	use_fmt:1;
+};
+
+struct config_zone_append_cmd {
+	void		*buf;
+	uint32_t	size;
+	uint16_t	piremap:1;
+};
+
 struct case_config_effect {
 	uint32_t	nsid;
 
+	uint32_t	check_none:1;
+	uint32_t	inject_nsid:1;
+	uint32_t	inject_prp:1;
 	union {
-		struct {
-			uint8_t		flags;
-			uint16_t	control;
-			void		*buf;
-			uint32_t	size;
-			uint32_t	nlb;
-
-			uint32_t	use_nlb:1;
-		} read;
-		struct {
-			uint8_t		flags;
-			uint16_t	control;
-			void		*buf;
-			uint32_t	size;
-			uint32_t	nlb;
-
-			uint32_t	use_nlb:1;
-		} write;
-		struct {
-			void		*buf;
-			uint32_t	size;
-		} compare;
+		struct config_rwc_cmd	read;
+		struct config_rwc_cmd	write;
+		struct config_rwc_cmd	compare;
+		struct config_verify_cmd	verify;
+		struct config_copy_cmd	copy;
+		struct config_fused_cmd	fused;
+		struct config_zone_append_cmd	zone_append;
 	} cmd;
+	struct {
+		uint32_t	nsid;
+		uint64_t	prp1;
+		uint64_t	prp2;
+	} inject;
 };
 
 struct case_config {

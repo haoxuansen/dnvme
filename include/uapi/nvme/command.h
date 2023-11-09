@@ -498,7 +498,8 @@ struct nvme_rw_command {
 	__le64			slba;
 	__le16			length;
 	__le16			control;
-	__le32			dsmgmt;
+	__le16			rsvd13;
+	__le16			dspec;
 	__le32			reftag;
 	__le16			apptag;
 	__le16			appmask;
@@ -555,6 +556,27 @@ struct nvme_dsm_range {
 	__le32			cattr;
 	__le32			nlb;
 	__le64			slba;
+};
+
+
+/* ==================== nvme_cmd_verify(0x0c) ==================== */
+
+struct nvme_verify_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__le32			cdw2;
+	__le32			cdw3;
+	__le64			metadata;
+	union nvme_data_ptr	dptr;
+	__le64			slba;
+	__le16			nlb;
+	__le16			control;
+	__le32			cdw13;
+	__le32			reftag;
+	__le16			apptag;
+	__le16			appmask;
 };
 
 /* ==================== nvme_cmd_resv_report(0x0e) ==================== */
@@ -626,7 +648,7 @@ struct nvme_resv_status_extend {
  * 
  * @note See "struct nvme_copy_cmd -> desc_fmt" for details.
  */
-enum {
+enum nvme_copy_desc_format {
 	NVME_COPY_DESC_FMT_32B	= 0,
 	NVME_COPY_DESC_FMT_40B	= 1,
 };

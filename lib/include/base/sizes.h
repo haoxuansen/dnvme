@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_SIZES_H_
-#define _UAPI_SIZES_H_
-
 #define SZ_1				0x00000001
 #define SZ_2				0x00000002
 #define SZ_4				0x00000004
@@ -48,4 +45,3 @@
 #define SZ_1G				0x40000000
 #define SZ_2G				0x80000000
 
-#endif /* !_UAPI_SIZES_H_ */

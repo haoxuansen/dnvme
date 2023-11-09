@@ -26,6 +26,7 @@ struct nvme_rwc_wrapper {
 	uint64_t	slba;
 	uint32_t	nlb;
 	uint16_t	control;
+	uint16_t	dspec;
 	uint16_t	apptag;
 	uint16_t	appmask;
 
@@ -42,14 +43,29 @@ struct nvme_rwc_wrapper {
 	uint64_t	prp2;
 
 	uint32_t	use_bit_bucket:1;
-	uint32_t	use_user_cid:1;
-	uint32_t	use_user_meta:1;
-	uint32_t	use_user_prp:1;
+	uint32_t	use_user_cid:1; /*< inject error */
+	uint32_t	use_user_meta:1; /*< inject error */
+	uint32_t	use_user_prp:1; /*< inject error */
+	uint32_t	check_none:1; /*< don't check CQ entry data */
 
 	uint32_t			nr_bit_bucket;
 	struct nvme_sgl_bit_bucket	*bit_bucket;
 
 	uint16_t	cid;
+};
+
+struct nvme_verify_wrapper {
+	uint16_t	sqid;
+	uint16_t	cqid;
+
+	uint8_t		flags;
+	uint32_t	nsid;
+	uint64_t	slba;
+	uint32_t	nlb;
+
+	uint16_t	prinfo:4;
+
+	uint32_t	check_none:1;
 };
 
 struct nvme_copy_wrapper {
@@ -59,11 +75,28 @@ struct nvme_copy_wrapper {
 	uint8_t		flags;
 	uint32_t	nsid;
 	uint64_t	slba;
+
+	/* dw12 byte1 */
 	uint8_t		ranges; /* 0'based */
-	uint8_t		desc_fmt;
+	/* dw12 byte2 */
+	uint8_t		desc_fmt:4;
+	uint8_t		prinfor:4;
+	/* dw12 byte3 */
+	uint16_t	dtype:4;
+	/* dw12 byte4 */
+	uint16_t	stcw:1;
+	uint16_t	prinfow:4;
+	uint16_t	fua:1;
+	/* dw13 byte3-4 */
+	uint16_t	dspec;
 
 	void		*desc;
 	uint32_t	size;
+	uint64_t	prp1;
+	uint64_t	prp2;
+
+	uint32_t	use_user_prp:1; /*< inject error */
+	uint32_t	check_none:1;
 };
 
 struct nvme_hmb_wrapper {
@@ -157,6 +190,9 @@ static inline int nvme_io_compare(struct nvme_dev_info *ndev,
 {
 	return nvme_io_rw_common(ndev, wrap, nvme_cmd_compare);
 }
+
+int nvme_cmd_io_verify(int fd, struct nvme_verify_wrapper *wrap);
+int nvme_io_verify(struct nvme_dev_info *ndev, struct nvme_verify_wrapper *wrap);
 
 int nvme_cmd_io_copy(int fd, struct nvme_copy_wrapper *wrap);
 int nvme_io_copy(struct nvme_dev_info *ndev, struct nvme_copy_wrapper *wrap);

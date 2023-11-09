@@ -153,11 +153,6 @@ struct nvme_dev_info {
 	struct nvme_dev_public	dev_pub;
 };
 
-static inline uint32_t nvme_version(struct nvme_dev_info *ndev)
-{
-	return ndev->ctrl->prop->vs;
-}
-
 static inline int nvme_is_maxio_falcon_lite(struct pci_dev_instance *pdev)
 {
 	return (pdev->vendor_id == PCI_VENDOR_ID_MAXIO && 

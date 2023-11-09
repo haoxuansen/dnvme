@@ -49,6 +49,7 @@ static int get_power_state(struct nvme_dev_info *ndev, uint8_t *ps)
 
 static int set_power_state(struct nvme_dev_info *ndev, uint8_t ps)
 {
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	uint8_t ps_new;
@@ -73,7 +74,7 @@ static int set_power_state(struct nvme_dev_info *ndev, uint8_t ps)
 	if (ret < 0)
 		return ret;
 
-	if (nvme_version(ndev) >= NVME_VS(1, 4, 0)) {
+	if (nvme_version(ctrl) >= NVME_VS(1, 4, 0)) {
 		ps_new = NVME_POWER_MGMT_TO_PS(le32_to_cpu(entry.result.u32));
 		if (ps_new != ps) {
 			pr_err("expect ps:%u, actual ps:%u\n", ps, ps_new);
@@ -115,6 +116,7 @@ static int select_next_power_state(struct nvme_ctrl_instance *ctrl, uint8_t *sel
 static int case_pm_switch_power_state(struct nvme_tool *tool, struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	uint8_t ps, ps_new;
 	uint32_t loop = 100;
 	int ret;
@@ -128,7 +130,7 @@ static int case_pm_switch_power_state(struct nvme_tool *tool, struct case_data *
 		if (ret < 0)
 			return ret;
 
-		if (nvme_version(ndev) < NVME_VS(1, 4, 0)) {
+		if (nvme_version(ctrl) < NVME_VS(1, 4, 0)) {
 			ret = get_power_state(ndev, &ps_new);
 			if (ret < 0)
 				return ret;

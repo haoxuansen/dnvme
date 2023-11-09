@@ -15,7 +15,6 @@
 #include <errno.h>
 
 #include "compiler.h"
-#include "sizes.h"
 #include "libbase.h"
 #include "libcrc.h"
 

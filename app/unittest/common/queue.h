@@ -25,5 +25,10 @@ int ut_ring_sqs_doorbell(struct case_data *priv, struct nvme_sq_info **sq,
 
 int ut_reap_cq_entry_check_status(struct case_data *priv, 
 	struct nvme_cq_info *cq, int nr_entry);
+int ut_reap_cq_entry_check_status_by_id(struct case_data *priv, 
+	uint16_t cqid, int nr_entry);
 int ut_reap_cq_entry_no_check(struct case_data *priv, 
 	struct nvme_cq_info *cq, int nr_entry);
+int ut_reap_cq_entry_no_check_by_id(struct case_data *priv, uint16_t cqid,
+	int nr_entry);
+
