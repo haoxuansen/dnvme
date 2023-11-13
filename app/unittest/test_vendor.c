@@ -436,7 +436,7 @@ static int __case_wrr_with_urgent_priority_class_arbitration(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct nvme_feat_arb_wrapper arb = {0};
 	void *buf;
 	uint32_t max_pair = min_t(uint32_t, ctrl->nr_sq, ctrl->nr_cq);
@@ -538,7 +538,7 @@ static int cmd_sanity_check_according_by_protocol_sn1(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -583,7 +583,7 @@ static int cmd_sanity_check_according_by_protocol_sn2(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -628,7 +628,7 @@ static int cmd_sanity_check_according_by_protocol_sn3(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -672,7 +672,7 @@ static int cmd_sanity_check_according_by_protocol_sn4(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -715,7 +715,7 @@ static int cmd_sanity_check_according_by_protocol_sn5(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -760,7 +760,7 @@ static int cmd_sanity_check_according_by_protocol_sn6(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -809,7 +809,7 @@ static int cmd_sanity_check_according_by_protocol_sn7(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -854,7 +854,7 @@ static int cmd_sanity_check_according_by_protocol_sn8(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -899,7 +899,7 @@ static int cmd_sanity_check_according_by_protocol_sn9(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -932,7 +932,7 @@ static int cmd_sanity_check_according_by_protocol_sn10(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -965,7 +965,7 @@ static int cmd_sanity_check_according_by_protocol_sn11(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1000,7 +1000,7 @@ static int cmd_sanity_check_according_by_protocol_sn12(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1033,7 +1033,7 @@ static int cmd_sanity_check_according_by_protocol_sn13(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1066,7 +1066,7 @@ static int cmd_sanity_check_according_by_protocol_sn14(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1098,7 +1098,7 @@ static int cmd_sanity_check_according_by_protocol_sn15(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1130,7 +1130,7 @@ static int cmd_sanity_check_according_by_protocol_sn16(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1161,7 +1161,7 @@ static int cmd_sanity_check_according_by_protocol_sn17(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1194,7 +1194,7 @@ static int cmd_sanity_check_according_by_protocol_sn18(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	int ret;
 
@@ -1235,7 +1235,7 @@ static int cmd_sanity_check_according_by_protocol_sn19(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	int ret;
 
@@ -1278,7 +1278,7 @@ static int cmd_sanity_check_according_by_protocol_sn20(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1311,7 +1311,7 @@ static int cmd_sanity_check_according_by_protocol_sn21(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	uint64_t nsze;
 	int ret;
@@ -1357,7 +1357,7 @@ static int cmd_sanity_check_according_by_protocol_sn22(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1388,7 +1388,7 @@ static int cmd_sanity_check_according_by_protocol_sn23(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1421,7 +1421,7 @@ static int cmd_sanity_check_according_by_protocol_sn24(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1453,7 +1453,7 @@ static int cmd_sanity_check_according_by_protocol_sn25(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1484,7 +1484,7 @@ static int cmd_sanity_check_according_by_protocol_sn26(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1534,7 +1534,7 @@ static int cmd_sanity_check_according_by_protocol_sn27(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1584,7 +1584,7 @@ static int cmd_sanity_check_according_by_protocol_sn28(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1615,7 +1615,7 @@ static int cmd_sanity_check_according_by_protocol_sn29(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1646,7 +1646,7 @@ static int cmd_sanity_check_according_by_protocol_sn30(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1685,7 +1685,7 @@ static int cmd_sanity_check_according_by_protocol_sn31(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	uint64_t nsze;
 	int ret;
@@ -1747,7 +1747,7 @@ static int cmd_sanity_check_according_by_protocol_sn32(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1780,7 +1780,7 @@ static int cmd_sanity_check_according_by_protocol_sn33(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1830,7 +1830,7 @@ static int cmd_sanity_check_according_by_protocol_sn34(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1863,7 +1863,7 @@ static int cmd_sanity_check_according_by_protocol_sn35(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1891,7 +1891,7 @@ static int cmd_sanity_check_according_by_protocol_sn36(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1938,7 +1938,7 @@ static int cmd_sanity_check_according_by_protocol_sn37(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1975,7 +1975,7 @@ static int cmd_sanity_check_according_by_protocol_sn38(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2015,7 +2015,7 @@ static int cmd_sanity_check_according_by_protocol_sn39(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2055,7 +2055,7 @@ static int cmd_sanity_check_according_by_protocol_sn40(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2085,7 +2085,7 @@ static int cmd_sanity_check_according_by_protocol_sn41(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2115,7 +2115,7 @@ static int cmd_sanity_check_according_by_protocol_sn42(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2250,7 +2250,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase1(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2278,7 +2278,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase2(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	uint32_t i;
 	int ret;
 
@@ -2315,7 +2315,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase3(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int nr_cmd;
 	int ret;
 
@@ -2356,7 +2356,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase4(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	uint64_t nsze;
 	uint64_t slba;
@@ -2419,7 +2419,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase5(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -2458,7 +2458,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase6(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	int nr_cmd;
 	int ret;
 
@@ -2499,7 +2499,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase7(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	uint64_t nsze;
 	uint64_t slba;
@@ -2576,7 +2576,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase8(
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
-	struct nvme_maxio_cmd_param param = {0};
+	struct nvme_maxio_set_param param = {0};
 	struct copy_resource *copy = NULL;
 	uint64_t nsze;
 	uint64_t slba;
@@ -2696,3 +2696,200 @@ static int case_ftl_interface_selectable_by_multi_mode(
 	return 0;
 }
 NVME_CASE_SYMBOL(case_ftl_interface_selectable_by_multi_mode, "?");
+
+static int __case_fwdma_buf2buf_test(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct case_report *rpt = &priv->rpt;
+	struct case_config_effect effect = {0};
+	struct nvme_maxio_set_param param = {0};
+	uint64_t nsze;
+	uint64_t slba;
+	uint32_t blk_size;
+	uint32_t len;
+	int ret;
+
+	priv->cfg.effect = &effect;
+	effect.nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = nvme_id_ns_nsze(ns_grp, effect.nsid, &nsze);
+	if (ret < 0)
+		return ret;
+	nvme_id_ns_lbads(ns_grp, effect.nsid, &blk_size);
+
+	/* ensure "SLBA + len < NSZE */
+	slba = rand() % (nsze / 2);
+	len = rand() % min_t(uint64_t, (nsze - slba) * blk_size, SZ_128K);
+	len = (len == 0) ? 4 : ALIGN(len, 4);
+
+	param.dw3 = rand() % 2; /* bit0 = 0 or 1 */
+	param.dw13 = lower_32_bits(slba);
+	param.dw14 = upper_32_bits(slba);
+	param.dw15 = len;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x, dw13 0x%x"
+		" dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, param.dw3, param.dw13, 
+		param.dw14, param.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, BIT(0), &param);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int case_fwdma_buf2buf_test(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	int loop = 1;
+	int ret;
+
+	for (; loop <= 1000; loop++) {
+		ret = __case_fwdma_buf2buf_test(tool, priv);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+NVME_CASE_SYMBOL(case_fwdma_buf2buf_test, "?");
+
+static int __case_fwdma_buf2buf_bufpoint(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct case_report *rpt = &priv->rpt;
+	struct case_config_effect effect = {0};
+	struct nvme_maxio_get_param gparam = {0};
+	struct nvme_maxio_set_param sparam = {0};
+	uint64_t nsze;
+	uint64_t slba;
+	uint32_t blk_size;
+	uint32_t buf_size;
+	uint32_t buf_oft;
+	uint32_t data_len;
+	int ret;
+
+	priv->cfg.effect = &effect;
+	effect.nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = nvme_id_ns_nsze(ns_grp, effect.nsid, &nsze);
+	if (ret < 0)
+		return ret;
+	nvme_id_ns_lbads(ns_grp, effect.nsid, &blk_size);
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Get Param",
+		nvme_admin_maxio_fwdma_fwdma);
+	ret = nvme_maxio_fwdma_fwdma_get_param(ndev, BIT(1), &gparam);
+	if (ret < 0)
+		return ret;
+	
+	/* ensure "SLBA + buf_size < NSZE" */
+	buf_size = (gparam.dw0 & 0x1) ? SZ_4K : SZ_8K;
+	slba = rand() % min_t(uint64_t, nsze / 2, nsze - (buf_size / blk_size));
+	/* ensure "buf_oft + data_len < buf_size" */
+	data_len = ALIGN(rand() % buf_size + 1, 4);
+	buf_oft = (buf_size == data_len) ? 0 : (rand() % (buf_size - data_len));
+
+	sparam.dw3 = rand() % 8; /* random bit[0, 2] */
+	if (!(gparam.dw0 & 0x1))
+		sparam.dw3 |= (1 << 3);
+	sparam.dw3 |= (buf_oft << 16);
+	sparam.dw13 = lower_32_bits(slba);
+	sparam.dw14 = upper_32_bits(slba);
+	sparam.dw15 = data_len;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x, dw13 0x%x"
+		" dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw13, 
+		sparam.dw14, sparam.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, BIT(1), &sparam);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int case_fwdma_buf2buf_bufpoint(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	int loop = 1;
+	int ret;
+
+	for (; loop <= 1000; loop++) {
+		ret = __case_fwdma_buf2buf_bufpoint(tool, priv);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+NVME_CASE_SYMBOL(case_fwdma_buf2buf_bufpoint, "?");
+
+static int case_fwdma_buf2buf_mpi(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_buf2buf_mpi, "?");
+
+static int case_fwdma_buf2buf_sram_tcm_addr_bypass(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_buf2buf_sram_tcm_addr_bypass, "?");
+
+static int case_fwdma_ut_max_sq_size_bypass(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_max_sq_size_bypass, "?");
+
+static int case_fwdma_ut_buf2host_host2buf(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_buf2host_host2buf, "?");
+
+static int case_fwdma_ut_reg2host_host2reg(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_reg2host_host2reg, "?");
+
+static int case_fwdma_ut_hmb_engine_test(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_hmb_engine_test, "?");
+
+static int case_fwdma_ut_fwdma_mix_case_check(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_fwdma_mix_case_check, "?");
+
+static int case_fwdma_ut_buf2buf_vendor_e2e(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_buf2buf_vendor_e2e, "?");
+
+static int case_fwdma_ut_buf2buf_pad_data(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_fwdma_ut_buf2buf_pad_data, "?");
+

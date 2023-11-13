@@ -268,5 +268,62 @@ case_ftl_interface_selectable_by_multi_mode
 	#. [Read, Write] 表示从 Read 和 Write 中随机选择 1 条命令发送
 	#. 上述 I/O command 默认不检查 CQ Entry 中的内容。
 
+case_fwdma_buf2buf_test
+"""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_buf2buf_test
+	:project: unittest
+
+| 操作步骤如下：
+
++ 循环执行以下步骤 1000 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
+		a. param: 随机选择 opcode
+			- bit[0]: 0 表示 opcode 2, 1 表示 opcode 10
+		#. cdw13: SLBA bits[31:00], :math:`SLBA + data\_len < NSZE`
+		#. cdw14: SLBA bits[63:32]
+		#. cdw15: data_len(unit: Byte), 要求按 4B 对齐，且小于 128KB
+
+.. note::
+
+	主机不需要准备 Host Buffer.
+
+
+case_fwdma_buf2buf_bufpoint
+"""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_buf2buf_bufpoint
+	:project: unittest
+
+| 操作步骤如下：
+
++ 循环执行以下步骤 1000 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_GET_PARAM`
+	#. 主机解析前一条 vendor command 对应的 CQ entry 数据
+		a. dw0: bit0=0 表示 buf_size 为 4KB，bit0=1 表示 buf_size 为 8 KB
+	#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
+		a. :ref:`param <label_case_fwdma_buf2buf_bufpoint>`: bit[0], bit[1], bit[2] 随机选择，bit[3] 由前面解析到的 buf_size 决定，若前面为 4KB, 则实际配置 8KB，反之亦然 
+		#. cdw13: SLBA bits[31:00], :math:`SLBA + buf\_size < NSZE`
+		#. cdw14: SLBA bits[63:32]
+		#. cdw15: cdw15: data_len(unit: Byte), 要求按 4B 对齐, :math:`buf\_oft + data\_len < buf\_size`
+
+.. _label_case_fwdma_buf2buf_bufpoint:
+
+.. csv-table:: Fields for Parameter
+	:header: "Field", "Name", "Description"
+	:widths: 10, 30, 60
+
+	"bit[0]", "Opcode", "0 表示 opcode2，1 表示 opcode10"
+	"bit[1]", "Target Address Type", "0 表示 bufpoint 模式，1 表示物理地址模式"
+	"bit[2]", "Source Buffer Release Mode", "0 表示 FW 释放 source buffer，1 表示  :abbr:`DPU (Data Path Unit)` 释放 source buffer"
+	"bit[3]", "buf_size: Buffer Size", "0 表示 4KB，1 表示 8KB"
+	"bit[15:4]", "Reserved"
+	"bit[31:16]", "buf_oft: Buffer Offset", "偏移地址，单位：Byte"
+
+.. note::
+
+	主机不需要准备 Host Buffer.
+
+
 
 .. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。

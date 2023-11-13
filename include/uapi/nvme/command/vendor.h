@@ -17,11 +17,15 @@ enum nvme_admin_vendor_opcode {
 	nvme_admin_maxio_nvme_hwrdma	= 0xe4, /**< Hardware Read DMA */
 	nvme_admin_maxio_nvme_hwwdma	= 0xe5, /**< Hardware Write DMA */
 	nvme_admin_maxio_nvme_case	= 0xef,
+	nvme_admin_maxio_fwdma_fwdma	= 0xf0,
+	nvme_admin_maxio_fwdma_opal	= 0xf1, /**< OPPO mobile */
+	nvme_admin_maxio_fwdma_dpu	= 0xf2, /**< Data Path Unit */
 };
 
 enum nvme_admin_vendor_option {
 	NVME_MAXIO_OPT_CHECK_RESULT	= 0,
 	NVME_MAXIO_OPT_SET_PARAM	= 1, /**< Set parameter */
+	NVME_MAXIO_OPT_GET_PARAM	= 2, /**< Get parameter */
 };
 
 /**

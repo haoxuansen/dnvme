@@ -33,7 +33,7 @@ int nvme_cmd_maxio_set_param_fmt1(int fd, uint32_t subcmd,
 }
 
 int nvme_cmd_maxio_set_param_fmt2(int fd, uint32_t subcmd, 
-	struct nvme_maxio_cmd_param *param, uint8_t opcode)
+	struct nvme_maxio_set_param *param, uint8_t opcode)
 {
 	struct nvme_maxio_common_cmd common = {0};
 	struct nvme_64b_cmd cmd = {0};
@@ -84,7 +84,7 @@ int nvme_maxio_set_param_fmt1(struct nvme_dev_info *ndev,
 }
 
 int nvme_maxio_set_param_fmt2(struct nvme_dev_info *ndev,
-	uint32_t subcmd, struct nvme_maxio_cmd_param *param, uint8_t opcode)
+	uint32_t subcmd, struct nvme_maxio_set_param *param, uint8_t opcode)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
@@ -154,6 +154,52 @@ int nvme_maxio_check_result_fmt1(struct nvme_dev_info *ndev,
 	if (ret < 0)
 		return ret;
 	
+	return 0;
+}
+
+static int nvme_cmd_maxio_get_param_fmt1(int fd, uint32_t subcmd, 
+	uint8_t opcode)
+{
+	struct nvme_maxio_common_cmd common = {0};
+	struct nvme_64b_cmd cmd = {0};
+
+	common.opcode = opcode;
+	common.option = cpu_to_le32(NVME_MAXIO_OPT_GET_PARAM);
+	common.subcmd = cpu_to_le32(subcmd);
+
+	cmd.sqid = NVME_AQ_ID;
+	cmd.cmd_buf_ptr = &common;
+
+	return nvme_submit_64b_cmd(fd, &cmd);
+}
+
+int nvme_maxio_get_param_fmt1(struct nvme_dev_info *ndev, uint32_t subcmd, 
+	struct nvme_maxio_get_param *param, uint8_t opcode)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+	int ret;
+
+	ret = nvme_cmd_maxio_get_param_fmt1(ndev->fd, subcmd, opcode);
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
+	if (ret != 1) {
+		pr_err("expect reap 1, actual reaped %d!\n", ret);
+		return ret < 0 ? ret : -ETIME;
+	}
+
+	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
+	if (ret < 0)
+		return ret;
+
+	param->dw0 = le32_to_cpu(entry.result.u32);
 	return 0;
 }
 
