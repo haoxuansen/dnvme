@@ -542,7 +542,7 @@ static int do_nvme_subsystem_reset(struct nvme_dev_info *ndev)
 	if (ret < 0)
 		return ret;
 
-	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
+	ret = pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 	if (ret < 0)
 		return ret;
 
@@ -682,12 +682,12 @@ static int pcie_do_hot_reset_legacy(int fd)
 	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 
 	/* do hot reset */
-	ret = call_system("setpci -s " RC_BRIDGE_CONTROL ".b=40:40");
+	ret = call_system("setpci -s " RC_PCI_HDR_REG_BRIDGE_CONTROL ".b=40:40");
 	if (ret < 0)
 		return ret;
 	msleep(100);
 	
-	ret = call_system("setpci -s " RC_BRIDGE_CONTROL ".b=00:40");
+	ret = call_system("setpci -s " RC_PCI_HDR_REG_BRIDGE_CONTROL ".b=00:40");
 	if (ret < 0)
 		return ret;
 	msleep(100);
@@ -707,7 +707,7 @@ static int pcie_do_hot_reset_legacy(int fd)
 	if (ret < 0)
 		return ret;
 
-	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
+	ret = pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 	if (ret < 0)
 		return ret;
 
@@ -740,12 +740,12 @@ static int pcie_do_link_down_legacy(int fd)
 	bkup = cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER);
 
 	/* do hot reset */
-	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=10:10");
+	ret = call_system("setpci -s " RC_PCI_EXP_REG_LINK_CONTROL ".b=10:10");
 	if (ret < 0)
 		return ret;
 	msleep(100);
 	
-	ret = call_system("setpci -s " RC_CAP_LINK_CONTROL ".b=00:10");
+	ret = call_system("setpci -s " RC_PCI_EXP_REG_LINK_CONTROL ".b=00:10");
 	if (ret < 0)
 		return ret;
 	msleep(100);
@@ -765,7 +765,7 @@ static int pcie_do_link_down_legacy(int fd)
 	if (ret < 0)
 		return ret;
 
-	ret = pcie_retrain_link(RC_CAP_LINK_CONTROL);
+	ret = pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 	if (ret < 0)
 		return ret;
 

@@ -2893,3 +2893,473 @@ static int case_fwdma_ut_buf2buf_pad_data(struct nvme_tool *tool,
 }
 NVME_CASE_SYMBOL(case_fwdma_ut_buf2buf_pad_data, "?");
 
+static int cfgwr_interrupt_single_dword(struct nvme_tool *tool, 
+	struct case_data *priv, uint32_t oft)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint32_t val;
+	int ret;
+
+	sparam.dw3 = oft;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: 0x%x",
+		nvme_admin_maxio_pcie_interrupt, sparam.dw3);
+	ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(0), &sparam);
+	if (ret < 0)
+		return ret;
+
+	msleep(100);
+
+	ret = pci_read_config_dword(ndev->fd, oft, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_write_config_dword(ndev->fd, oft, val);
+	if (ret < 0)
+		return ret;
+
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_interrupt);
+	ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(0));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int cfgwr_interrupt_travel_config_header(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	uint32_t i;
+	int ret;
+
+	for (i = 0; i < PCI_STD_HEADER_SIZEOF; i += 4) {
+		ret = cfgwr_interrupt_single_dword(tool, priv, i);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+static int cfgwr_interrupt_travel_pci_capability(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	uint8_t pos = PCI_CAPABILITY_LIST;
+	uint8_t id;
+	uint16_t entry;
+	uint32_t len;
+	uint32_t i;
+	int ttl = PCI_CAP_ID_MAX + 1;
+	int ret;
+
+	ret = pci_read_config_byte(ndev->fd, pos, &pos);
+	if (ret < 0)
+		return ret;
+
+	while (ttl--) {
+		if (pos < 0x40)
+			break;
+		pos &= ~3;
+		ret = pci_read_config_word(ndev->fd, pos, &entry);
+		if (ret < 0)
+			return ret;
+
+		id = entry & 0xff;
+		if (!id)
+			break;
+
+		switch (id) {
+		case PCI_CAP_ID_PM:
+			len = PCI_PM_SIZEOF;
+			break;
+		case PCI_CAP_ID_AGP:
+			len = PCI_AGP_SIZEOF;
+			break;
+		case PCI_CAP_ID_VPD:
+			len = PCI_CAP_VPD_SIZEOF;
+			break;
+		case PCI_CAP_ID_SLOTID:
+			len = 0;
+			break;
+		case PCI_CAP_ID_MSI:
+		{
+			uint16_t mc;
+
+			ret = pci_read_config_word(ndev->fd, pos + 2, &mc);
+			if (ret < 0)
+				return ret;
+			
+			if (mc & PCI_MSI_FLAGS_64BIT) {
+				if (mc & PCI_MSI_FLAGS_MASKBIT)
+					len = 0x18;
+				else
+					len = 0x10;
+			} else {
+				if (mc & PCI_MSI_FLAGS_MASKBIT)
+					len = 0x14;
+				else
+					len = 0xc;
+			}
+			break;
+		}
+		case PCI_CAP_ID_CHSWP:
+		case PCI_CAP_ID_PCIX:
+		case PCI_CAP_ID_HT:
+		case PCI_CAP_ID_VNDR:
+		case PCI_CAP_ID_DBG:
+		case PCI_CAP_ID_CCRC:
+		case PCI_CAP_ID_SHPC:
+		case PCI_CAP_ID_SSVID:
+		case PCI_CAP_ID_AGP3:
+		case PCI_CAP_ID_SECDEV:
+			len = 0;
+			break;
+		case PCI_CAP_ID_EXP:
+			len = 0x3c;
+			break;
+		case PCI_CAP_ID_MSIX:
+			len = PCI_CAP_MSIX_SIZEOF;
+			break;
+		case PCI_CAP_ID_SATA:
+			len = 0;
+			break;
+		case PCI_CAP_ID_AF:
+			len = PCI_CAP_AF_SIZEOF;
+			break;
+		case PCI_CAP_ID_EA:
+			len = 0;
+			break;
+		default:
+			pr_err("ID:0x%x is unknown!\n", id);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < len; i += 4) {
+			ret = cfgwr_interrupt_single_dword(tool, priv, 
+				(uint32_t)pos + i);
+			if (ret < 0)
+				return ret;
+		}
+
+		pos = entry >> 8; /* next capability offset */
+	}
+	return 0;
+}
+
+static int cfgwr_interrupt_travel_pcie_capability(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	uint16_t pos = 0x100;
+	uint16_t id;
+	uint32_t entry;
+	uint32_t len;
+	uint32_t i;
+	int ttl = PCI_EXT_CAP_ID_MAX + 1;
+	int ret;
+
+	while (ttl--) {
+		ret = pci_read_config_dword(ndev->fd, pos, &entry);
+		if (ret < 0)
+			return ret;
+
+		id = entry & 0xffff;
+		if (!id)
+			break;
+		
+		switch (id) {
+		case PCI_EXT_CAP_ID_ERR:
+		case PCI_EXT_CAP_ID_VC:
+		case PCI_EXT_CAP_ID_DSN:
+		case PCI_EXT_CAP_ID_PWR:
+		case PCI_EXT_CAP_ID_RCLD:
+		case PCI_EXT_CAP_ID_RCILC:
+		case PCI_EXT_CAP_ID_RCEC:
+		case PCI_EXT_CAP_ID_MFVC:
+		case PCI_EXT_CAP_ID_VC9:
+		case PCI_EXT_CAP_ID_RCRB:
+		case PCI_EXT_CAP_ID_VNDR:
+		case PCI_EXT_CAP_ID_CAC:
+		case PCI_EXT_CAP_ID_ACS:
+		case PCI_EXT_CAP_ID_ARI:
+		case PCI_EXT_CAP_ID_ATS:
+		case PCI_EXT_CAP_ID_SRIOV:
+		case PCI_EXT_CAP_ID_MRIOV:
+		case PCI_EXT_CAP_ID_MCAST:
+		case PCI_EXT_CAP_ID_PRI:
+		case PCI_EXT_CAP_ID_AMD_XXX:
+		case PCI_EXT_CAP_ID_REBAR:
+		case PCI_EXT_CAP_ID_DPA:
+		case PCI_EXT_CAP_ID_TPH:
+		case PCI_EXT_CAP_ID_LTR:
+		case PCI_EXT_CAP_ID_SECPCI:
+		case PCI_EXT_CAP_ID_PMUX:
+		case PCI_EXT_CAP_ID_PASID:
+		case PCI_EXT_CAP_ID_DPC:
+		case PCI_EXT_CAP_ID_L1SS:
+		case PCI_EXT_CAP_ID_PTM:
+		case PCI_EXT_CAP_ID_DLF:
+		case PCI_EXT_CAP_ID_PL_16GT:
+			len = 0;
+			break;
+		default:
+			pr_err("ID:0x%x is unknown!\n", id);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < len; i += 4) {
+			ret = cfgwr_interrupt_single_dword(tool, priv, 
+				(uint32_t)pos + i);
+			if (ret < 0)
+				return ret;
+		}
+
+		pos = entry >> 20; /* next capability offset */
+		if (pos < 0x100 || pos > 0xfff)
+			break;
+	}
+	return 0;
+}
+
+static int case_cfgwr_interrupt(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	int ret;
+
+	/*
+	 * !NOTE: Get register region by vendor cmd is more convenient than
+	 * parsing capability.
+	 */
+	ret = cfgwr_interrupt_travel_config_header(tool, priv);
+	ret |= cfgwr_interrupt_travel_pci_capability(tool, priv);
+	ret |= cfgwr_interrupt_travel_pcie_capability(tool, priv);
+
+	return ret;
+}
+NVME_CASE_SYMBOL(case_cfgwr_interrupt, "?");
+
+static int case_ltssm_state_change_interrupt(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	char cmd[128];
+	uint32_t arr[20] = {
+		0x1, 0x102, 0x204, 0x407, 0x708,
+		0x809, 0x90a, 0xa0b, 0xb0c, 0xc11,
+		0x110d, 0xd0e, 0xe0d, 0xd0f, 0xf10,
+		0xf07, 0x1011, 0x1113, 0x1314, 0x140d,
+	};
+	uint8_t exp_oft = ndev->pdev->express.offset;
+	uint16_t link_ctrl2;
+	int i;
+	int ret;
+
+	for (i = 0; i < ARRAY_SIZE(arr); i++) {
+		sparam.dw3 = arr[i];
+
+		ut_rpt_record_case_step(rpt, 
+			"Send vendor command:0x%x - Set Param: 0x%x",
+			nvme_admin_maxio_pcie_interrupt, sparam.dw3);
+		ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(1), &sparam);
+		if (ret < 0)
+			return ret;
+
+		msleep(100);
+
+		/* down link speed */
+		ret = pci_exp_read_link_control2(ndev->fd, exp_oft, &link_ctrl2);
+		if (ret < 0)
+			return ret;
+
+		link_ctrl2 &= ~PCI_EXP_LNKCTL2_TLS;
+		link_ctrl2 |= PCI_EXP_LNKCTL2_TLS_2_5GT;
+		ret = pci_exp_write_link_control2(ndev->fd, exp_oft, link_ctrl2);
+		if (ret < 0)
+			return ret;
+
+		/* retrain link */
+		snprintf(cmd, sizeof(cmd), "setpci -s %s.w=20:20", 
+			RC_PCI_EXP_REG_LINK_CONTROL);
+		ret = call_system(cmd);
+		if (ret < 0)
+			return ret;
+		msleep(10);
+
+		/* down link width */
+		ret = pci_write_config_dword(ndev->fd, 0x8c0, 1);
+		if (ret < 0)
+			return ret;
+
+		/* retrain link */
+		snprintf(cmd, sizeof(cmd), "setpci -s %s.w=20:20", 
+			RC_PCI_EXP_REG_LINK_CONTROL);
+		ret = call_system(cmd);
+		if (ret < 0)
+			return ret;
+		msleep(10);
+
+		/* hot reset */
+		snprintf(cmd, sizeof(cmd), "setpci -s %s.b=40:40",
+			RC_PCI_HDR_REG_BRIDGE_CONTROL);
+		ret = call_system(cmd);
+		if (ret < 0)
+			return ret;
+		msleep(100);
+		snprintf(cmd, sizeof(cmd), "setpci -s %s.b=0:40",
+			RC_PCI_HDR_REG_BRIDGE_CONTROL);
+		ret = call_system(cmd);
+		if (ret < 0)
+			return ret;
+		msleep(100);
+
+		ut_rpt_record_case_step(rpt, 
+			"Send vendor command:0x%x - Check Result",
+			nvme_admin_maxio_pcie_interrupt);
+		ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(1));
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_ltssm_state_change_interrupt, "?");
+
+static int case_pcie_rdlh_interrupt(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint32_t link_cap;
+	char buf[16] = { "0x" };
+	char cmd[128];
+	FILE *fp;
+	int ret;
+
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.l", 
+		RC_PCI_EXP_REG_LINK_CAPABILITY);
+	fp = popen(cmd, "r");
+	if (!fp) {
+		pr_err("failed to read link capability register!\n");
+		return -EPERM;
+	}
+	fread(buf + strlen(buf), sizeof(char), sizeof(buf) - strlen(buf), fp);
+	pclose(fp);
+
+	link_cap = strtoul(buf, NULL, 0);
+	sparam.dw3 = link_cap & PCI_EXP_LNKCAP_SLS;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: 0x%x",
+		nvme_admin_maxio_pcie_interrupt, sparam.dw3);
+	ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(2), &sparam);
+	if (ret < 0)
+		return ret;
+
+	msleep(100);
+
+	/* hot reset */
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.b=40:40",
+		RC_PCI_HDR_REG_BRIDGE_CONTROL);
+	ret = call_system(cmd);
+	if (ret < 0)
+		return ret;
+	msleep(10);
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.b=0:40",
+		RC_PCI_HDR_REG_BRIDGE_CONTROL);
+	ret = call_system(cmd);
+	if (ret < 0)
+		return ret;
+	msleep(100);
+
+	ret = nvme_reinit(ndev, ndev->asq.nr_entry, ndev->acq.nr_entry,
+		ndev->irq_type);
+	if (ret < 0)
+		return ret;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_interrupt);
+	ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(2));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_pcie_rdlh_interrupt, "?");
+
+static int case_pcie_speed_down_interrupt(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t exp_oft = ndev->pdev->express.offset;
+	uint16_t link_ctrl2;
+	char cmd[128];
+	int ret;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_interrupt);
+	ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(3), &sparam);
+	if (ret < 0)
+		return ret;
+
+	msleep(100);
+
+	/* down link speed */
+	ret = pci_exp_read_link_control2(ndev->fd, exp_oft, &link_ctrl2);
+	if (ret < 0)
+		return ret;
+
+	link_ctrl2 &= ~PCI_EXP_LNKCTL2_TLS;
+	link_ctrl2 |= PCI_EXP_LNKCTL2_TLS_2_5GT;
+	ret = pci_exp_write_link_control2(ndev->fd, exp_oft, link_ctrl2);
+	if (ret < 0)
+		return ret;
+
+	/* retrain link */
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w=20:20", 
+		RC_PCI_EXP_REG_LINK_CONTROL);
+	ret = call_system(cmd);
+	if (ret < 0)
+		return ret;
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_interrupt);
+	ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(3));
+	if (ret < 0)
+		return ret;
+
+	/* set link speed to Gen5 */
+	ret = pci_exp_read_link_control2(ndev->fd, exp_oft, &link_ctrl2);
+	if (ret < 0)
+		return ret;
+
+	link_ctrl2 &= ~PCI_EXP_LNKCTL2_TLS;
+	link_ctrl2 |= PCI_EXP_LNKCTL2_TLS_32_0GT;
+	ret = pci_exp_write_link_control2(ndev->fd, exp_oft, link_ctrl2);
+	if (ret < 0)
+		return ret;
+
+	/* retrain link */
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w=20:20", 
+		RC_PCI_EXP_REG_LINK_CONTROL);
+	ret = call_system(cmd);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_pcie_speed_down_interrupt, "?");

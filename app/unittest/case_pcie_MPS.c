@@ -53,7 +53,7 @@ static void set_pcie_mps_128(void)
 
     u32_tmp_data &= 0xFFFFFF1F;
     pci_write_config_data(ndev->fd, exp_oft + 0x8, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)
@@ -86,7 +86,7 @@ static void set_pcie_mps_256(void)
     u32_tmp_data &= 0xFFFFFF1F;
     u32_tmp_data |= 0x20;
     pci_write_config_data(ndev->fd, exp_oft + 0x8, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     ret = pci_read_config_dword(ndev->fd, exp_oft + 0x8, &u32_tmp_data);
     if (ret < 0)

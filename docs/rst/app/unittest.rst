@@ -134,7 +134,7 @@ case_wrr_with_urgent_priority_class_arbitration
 
 | 操作步骤如下：
 
-+ 循环执行以下步骤 10 次
+- 循环执行以下步骤 10 次
 	1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
 		a. param 为 I/O Queue 对的数量，取值范围是 [1, 64]
 		#. cdw11 选择“仲裁行为分析子程序”，取值 0 或 1
@@ -160,7 +160,7 @@ case_cmd_sanity_check_according_by_protocol
 
 | 操作步骤如下：
 
-+ 循环执行以下步骤 10 次
+- 循环执行以下步骤 10 次
 	1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
 		a. param 表示 subcase 的序号，当前固定值为 1，后续可能会进行扩展。
 		#. cdw11 表示 I/O command 的序号
@@ -236,7 +236,7 @@ case_ftl_interface_selectable_by_multi_mode
 
 | 操作步骤如下：
 
-+ 循环执行以下步骤 50 次
+- 循环执行以下步骤 50 次
 	1. 主机发送 :enumerator:`nvme_admin_maxio_nvme_case` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
 		a. param 表示 subcase 的序号
 	#. 主机发送 param 对应的 I/O command
@@ -276,7 +276,7 @@ case_fwdma_buf2buf_test
 
 | 操作步骤如下：
 
-+ 循环执行以下步骤 1000 次
+- 循环执行以下步骤 1000 次
 	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
 		a. param: 随机选择 opcode
 			- bit[0]: 0 表示 opcode 2, 1 表示 opcode 10
@@ -297,7 +297,7 @@ case_fwdma_buf2buf_bufpoint
 
 | 操作步骤如下：
 
-+ 循环执行以下步骤 1000 次
+- 循环执行以下步骤 1000 次
 	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_GET_PARAM`
 	#. 主机解析前一条 vendor command 对应的 CQ entry 数据
 		a. dw0: bit0=0 表示 buf_size 为 4KB，bit0=1 表示 buf_size 为 8 KB
@@ -324,6 +324,96 @@ case_fwdma_buf2buf_bufpoint
 
 	主机不需要准备 Host Buffer.
 
+
+case_cfgwr_interrupt
+""""""""""""""""""""
+
+验证主机配置 device core 寄存器时会上报中断给 FW。
+
+.. doxygenfunction:: case_cfgwr_interrupt
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机解析 device 支持的 PCI&PCIe Capability 的偏移地址。按 dword 访问的方式遍历 Configuration Space Header 和 Capability 区域，循环执行步骤
+	a. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
+		- param: 寄存器地址（相对于配置空间起始地址的偏移量）
+	#. 主机等待 100ms
+	#. 主机读 param 指定的寄存器，接着将读取到的值写回寄存器
+	#. 主机等待 100ms
+	#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+case_ltssm_state_change_interrupt
+"""""""""""""""""""""""""""""""""
+
+验证 device LTSSM 状态变化时会上报中断给 FW。
+
+.. doxygenfunction:: case_ltssm_state_change_interrupt
+	:project: unittest
+
+| 操作步骤如下：
+
+- 循环执行以下步骤，遍历所有 param
+	1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
+		- param: 0x1, 0x102, 0x204, 0x407, 0x708, 0x809, 0x90a, 0xa0b, 0xb0c, 0xc11, 0x110d, 0xd0e, 0xe0d, 0xd0f, 0xf10, 0xf07, 0x1011, 0x1113, 0x1314, 0x140d
+	#. 主机等待 100ms
+	#. 主机发起降速，配置 device 的 Target Link Speed 字段的值为 1
+		- PCI Experess Capability Structure → EP Link Control 2 Register bit[3:0]
+	#. 主机重新link，配置 device link partner 的 Retrain Link 字段的值为 1
+		- PCI Experess Capability Structure → Link Control Register bit[5]
+	#. 主机等待 10ms
+	#. 主机发起降 lane，配置 device 寄存器 0x8c0 的值为 1
+		- 0x8c0 是相对于配置空间起始地址的偏移量，该寄存器为 device 私有，PCIe spec 中无此寄存器，按 dword 方式访问该寄存器。
+	#. 主机重新link，配置 device link partner 的 Retrain Link 字段的值为 1
+	#. 主机等待 10ms
+	#. 主机发起 hot reset，配置 device link partner 的 Secondary Bus Reset 字段的值为 1，等待 100ms 后将此字段清 0
+		- PCI Configuration Space Header → Bridge Control Register bit[6]
+	#. 主机等待 100ms
+	#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+.. note::
+
+	若 device 直接与 RC 连接，其 link partner 是 RC；若 device 直接与 switch 连接，其 link partner 是 switch。
+
+case_pcie_rdlh_interrupt
+""""""""""""""""""""""""
+
+验证 PCIe link 到最高速率 L0 时会上报中断给 FW。
+
+.. doxygenfunction:: case_pcie_rdlh_interrupt
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机解析 device link partner 支持的最高速率
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
+	- param: host 支持的最高速率，Gen1 对应的值为 1，Gen2 对应的值为 2，以此类推
+#. 主机等待 100ms
+#. 主机发起 hot reset，配置 Secondary Bus Reset 字段的值为 1，等待 10ms 后将此字段清 0
+	- PCI Configuration Space Header → Bridge Control Register bit[6]
+#. 主机等待 100ms 后重新初始化 device
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+case_pcie_speed_down_interrupt
+""""""""""""""""""""""""""""""
+
+验证 PCIe 降速时会上报中断给 FW。
+
+.. doxygenfunction:: case_pcie_speed_down_interrupt
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(3)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机发起降速，配置 device 的 Target Link Speed 字段的值为 1
+	- PCI Experess Capability Structure → EP Link Control 2 Register bit[3:0]
+#. 主机重新link，配置 device link partner 的 Retrain Link 字段的值为 1
+	- PCI Experess Capability Structure → Link Control Register bit[5]
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(3)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机设置链路速率为 Gen5，配置 Target Link Speed 字段的值为 5
+#. 主机重新link，配置 device link partner 的 Retrain Link 字段的值为 1
 
 
 .. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。

@@ -1217,7 +1217,7 @@ void pcie_RC_cfg_speed(int speed)
         assert(0);
     }
     char spd[3][8] = {"1:0F", "2:0F", "3:0F"};
-    char cmd[64] = "setpci -s " RC_CAP_LINK_CONTROL2 ".b=";
+    char cmd[64] = "setpci -s " RC_PCI_EXP_REG_LINK_CONTROL2 ".b=";
     strcat(cmd, spd[speed - 1]);
     system(cmd);
 }
@@ -1279,7 +1279,7 @@ void pcie_random_speed_width(void)
     // cfg width (device)
     pcie_set_width(set_width);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
     // check Link status register
     ret = pci_read_config_word(ndev->fd, pdev->express.offset + 0x12, (uint16_t *)&u32_tmp_data);
     if (ret < 0)

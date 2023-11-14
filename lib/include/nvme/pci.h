@@ -128,6 +128,16 @@ static inline int pci_exp_read_link_status(int fd, uint8_t oft, uint16_t *val)
 	return pci_read_config_word(fd, oft + PCI_EXP_LNKSTA, val);
 }
 
+static inline int pci_exp_read_link_control2(int fd, uint8_t oft, uint16_t *val)
+{
+	return pci_read_config_word(fd, oft + PCI_EXP_LNKCTL2, val);
+}
+
+static inline int pci_exp_write_link_control2(int fd, uint8_t oft, uint16_t val)
+{
+	return pci_write_config_word(fd, oft + PCI_EXP_LNKCTL2, val);
+}
+
 /* ==================== Cap: MSI-X ==================== */
 
 static inline int pci_msix_read_control(int fd, uint8_t oft, uint16_t *val)

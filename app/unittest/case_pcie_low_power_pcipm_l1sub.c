@@ -167,7 +167,7 @@ static void test_sub(void)
     // cfg width (device)
     pcie_set_width(set_width);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);

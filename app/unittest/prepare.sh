@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 CUR_DIR=`pwd`
 if [[ "$TOP_DIR" = "" ]]; then
@@ -11,9 +11,26 @@ AUTO_HEADER="${CUR_DIR}/auto_header.h"
 
 RC_BDF_PATCH=
 DEV_BDF_PATCH=
-RC_PCIE_CAP_OFST=
-RC_CAP_LINK_CONTROL=
-RC_CAP_LINK_CONTROL2=
+
+#
+# Device Link Partner: May be a Switch or Root Complex
+#
+
+# PCI Configuration Space Header
+RC_PCI_HDR_REG_BRIDGE_CONTROL="3E"
+
+# PCI express capability offset
+RC_PCI_CAP_OFFSET_EXP=
+# Link Capabilities Register
+RC_PCI_EXP_REG_LINK_CAPABILITY=
+# Link Control Register
+RC_PCI_EXP_REG_LINK_CONTROL=
+# Link Control 2 Register
+RC_PCI_EXP_REG_LINK_CONTROL2=
+
+# --------------------------------------------------------------------------- #
+# Function
+# --------------------------------------------------------------------------- #
 
 app_acquire_devinfo()
 {
@@ -33,9 +50,13 @@ app_acquire_devinfo()
 
 	pci_cap=`sudo lspci -s "${RC_BDF_PATCH}" -vvv | grep " Express (v2)"`
 	pci_cap=${pci_cap#*[}
-	RC_PCIE_CAP_OFST=${pci_cap%%]*}
-	RC_CAP_LINK_CONTROL=`printf "%x" $((16#${RC_PCIE_CAP_OFST}+0x10))`
-	RC_CAP_LINK_CONTROL2=`printf "%x" $((16#${RC_PCIE_CAP_OFST}+0x30))`
+	RC_PCI_CAP_OFFSET_EXP=${pci_cap%%]*}
+	RC_PCI_EXP_REG_LINK_CAPABILITY=
+		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0xc))`
+	RC_PCI_EXP_REG_LINK_CONTROL=
+		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x10))`
+	RC_PCI_EXP_REG_LINK_CONTROL2=
+		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x30))`
 
 	INFO "\tParse devinfo ok!"
 }
@@ -54,15 +75,19 @@ app_generate_autoheader()
 	fi
 	echo "#define RC_BDF_PATCH \"${RC_BDF_PATCH}\"">>${AUTO_HEADER}
 	echo "#define DEV_BDF_PATCH \"${DEV_BDF_PATCH}\"">>${AUTO_HEADER}
-	echo "#define RC_PCIE_CAP_OFST 0x${RC_PCIE_CAP_OFST}">>${AUTO_HEADER}
-	echo "#define RC_CAP_LINK_CONTROL \"${RC_BDF_PATCH} ${RC_CAP_LINK_CONTROL}\"">>${AUTO_HEADER}
-	echo "#define RC_CAP_LINK_CONTROL2 \"${RC_BDF_PATCH} ${RC_CAP_LINK_CONTROL2}\"">>${AUTO_HEADER}
-	echo "#define RC_BRIDGE_CONTROL \"${RC_BDF_PATCH} 3E\"">>${AUTO_HEADER}
+	echo "#define RC_PCI_CAP_OFFSET_EXP 0x${RC_PCI_CAP_OFFSET_EXP}">>${AUTO_HEADER}
+	echo "#define RC_PCI_EXP_REG_LINK_CAPABILITY \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CAPABILITY}\"">>${AUTO_HEADER}
+	echo "#define RC_PCI_EXP_REG_LINK_CONTROL \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CONTROL}\"">>${AUTO_HEADER}
+	echo "#define RC_PCI_EXP_REG_LINK_CONTROL2 \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CONTROL2}\"">>${AUTO_HEADER}
+	echo "#define RC_PCI_HDR_REG_BRIDGE_CONTROL \"${RC_BDF_PATCH} {RC_PCI_HDR_REG_BRIDGE_CONTROL}\"">>${AUTO_HEADER}
 	echo "">>${AUTO_HEADER}
 	echo "#endif /* __AUTO_HEADER_H_ */">>${AUTO_HEADER}
 
 	INFO "\tGenerate header file ok!"
 }
 
+# --------------------------------------------------------------------------- #
+# Execute
+# --------------------------------------------------------------------------- #
 app_acquire_devinfo
 app_generate_autoheader

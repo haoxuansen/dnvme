@@ -49,7 +49,7 @@ static void set_pcie_mrrs_128(void)
 
     u32_tmp_data &= 0xFFFF8FFF;
     pci_write_config_data(ndev->fd, pdev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 }
 
 static void set_pcie_mrrs_256(void)
@@ -67,7 +67,7 @@ static void set_pcie_mrrs_256(void)
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x1000;
     pci_write_config_data(ndev->fd, pdev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 }
 
 static void set_pcie_mrrs_512(void)
@@ -85,7 +85,7 @@ static void set_pcie_mrrs_512(void)
     u32_tmp_data &= 0xFFFF8FFF;
     u32_tmp_data |= 0x2000;
     pci_write_config_data(ndev->fd, pdev->express.offset + 0x8, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 }
 
 static void pcie_packet(void)
@@ -128,7 +128,7 @@ static void set_pcie_rcb_64(void)
 
     u32_tmp_data &= 0xFFFFFFF7;
     pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)
@@ -157,7 +157,7 @@ static void set_pcie_rcb_128(void)
     u32_tmp_data &= 0xFFFFFFF7;
     u32_tmp_data |= 0x08;
     pci_write_config_data(ndev->fd, pdev->express.offset + 0x10, 4, (uint8_t *)&u32_tmp_data);
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
     
     ret = pci_read_config_dword(ndev->fd, pdev->express.offset + 0x10, &u32_tmp_data);
     if (ret < 0)

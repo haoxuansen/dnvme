@@ -149,19 +149,22 @@ if 'sphinx_togglebutton' in extensions:
 # - https://github.com/snide/sphinx_rtd_theme
 # - https://pypi.python.org/pypi/sphinx_rtd_theme
 # - python-sphinx-rtd-theme package (on Debian)
-# try:
-# 	import sphinx_rtd_theme
-# 	html_theme = 'sphinx_rtd_theme'
-# 	html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
-# except ImportError:
-# 	sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML \
-# 		theme was not found. Make sure you have the theme installed \
-# 		to produce pretty HTML output. Falling back to the default \
-# 		theme.\n')
+try:
+	import sphinx_rtd_theme
+	html_theme = 'sphinx_rtd_theme'
+	html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+except ImportError:
+	sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML \
+		theme was not found. Make sure you have the theme installed \
+		to produce pretty HTML output. Falling back to the default \
+		theme.\n')
 
 # html_theme = 'classic'
+# html_theme = 'furo'
+# html_theme = 'piccolo_theme'
 # html_theme = 'press'
-html_theme = 'sphinx_book_theme'
+# html_theme = 'sphinxawesome_theme'
+# html_theme = 'sphinx_book_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

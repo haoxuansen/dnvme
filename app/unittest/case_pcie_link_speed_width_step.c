@@ -42,7 +42,7 @@ static void test_sub(void)
     u32_tmp_data |= 0x000000041;
     pci_write_config_data(ndev->fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -71,7 +71,7 @@ static void test_sub(void)
     u32_tmp_data |= 0x000000042;
     pci_write_config_data(ndev->fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -100,7 +100,7 @@ static void test_sub(void)
     u32_tmp_data |= 0x000000044;
     pci_write_config_data(ndev->fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -129,7 +129,7 @@ static void test_sub(void)
     u32_tmp_data |= 0x000000042;
     pci_write_config_data(ndev->fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -157,7 +157,7 @@ static void test_sub(void)
     u32_tmp_data |= 0x000000041;
     pci_write_config_data(ndev->fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -186,7 +186,7 @@ static void test_sub(void)
     u32_tmp_data |= 0x000000044;
     pci_write_config_data(ndev->fd, 0x8C0, 4, (uint8_t *)&u32_tmp_data);
 
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -212,7 +212,7 @@ static void test_sub(void)
     // pci_write_config_data(g_fd, ndev->express.offset+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(1); // RC cfg gen1
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -238,7 +238,7 @@ static void test_sub(void)
     // pci_write_config_data(g_fd, ndev->express.offset+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(2); // RC cfg gen2
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -264,7 +264,7 @@ static void test_sub(void)
     // pci_write_config_data(g_fd, ndev->express.offset+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(3); // RC cfg gen3
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -290,7 +290,7 @@ static void test_sub(void)
     // pci_write_config_data(g_fd, ndev->express.offset+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(2); // RC cfg gen2
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -316,7 +316,7 @@ static void test_sub(void)
     // pci_write_config_data(g_fd, ndev->express.offset+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(1); // RC cfg gen1
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
@@ -342,7 +342,7 @@ static void test_sub(void)
     // pci_write_config_data(g_fd, ndev->express.offset+0x30, 4, (uint8_t *)&u32_tmp_data);
 
     pcie_RC_cfg_speed(3); // RC cfg gen3
-    pcie_retrain_link(RC_CAP_LINK_CONTROL);
+    pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 
     // check Link status register
     ret = pci_read_config_word(ndev->fd, exp_oft + 0x12, (uint16_t *)&u32_tmp_data);
