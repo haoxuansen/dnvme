@@ -528,10 +528,19 @@ static int dnvme_get_pci_capability(struct nvme_device *ndev,
 static int dnvme_get_pcie_capability(struct nvme_device *ndev, 
 	struct nvme_get_cap *gcap)
 {
+	struct nvme_capability *cap = &ndev->cap;
 	struct pci_dev *pdev = ndev->pdev;
 	u16 offset;
 
 	switch (gcap->id) {
+	case PCI_EXT_CAP_ID_L1SS:
+		if (!cap->l1ss)
+			return -ENOENT;
+		if (gcap->size < sizeof(*cap->l1ss))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, cap->l1ss, sizeof(*cap->l1ss)))
+			return -EFAULT;
+		break;
 	default:
 		offset = pci_find_ext_capability(pdev, gcap->id);
 		if (!offset) {
@@ -567,6 +576,21 @@ int dnvme_get_capability(struct nvme_device *ndev, struct nvme_get_cap __user *u
 	return ret;
 }
 
+int dnvme_get_pci_bdf(struct nvme_device *ndev, u16 __user *ubdf)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	u16 bdf;
+
+	bdf = ((u16)(pdev->bus->number) << 8) | (pdev->devfn & 0xff);
+
+	if (copy_to_user(ubdf, &bdf, sizeof(bdf))) {
+		dnvme_err(ndev, "failed to copy to user space!\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *udevp)
 {
 	struct nvme_dev_public pub;
@@ -575,7 +599,7 @@ int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *
 	pub.family = nvme_gnl_id;
 
 	if (copy_to_user(udevp, &pub, sizeof(pub))) {
-		dnvme_err(ndev, "failed to copy from user space!\n");
+		dnvme_err(ndev, "failed to copy to user space!\n");
 		return -EFAULT;
 	}
 

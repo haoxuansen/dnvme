@@ -72,6 +72,18 @@ void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type)
 	return addr;
 }
 
+int nvme_get_pci_bdf(int fd, uint16_t *bdf)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_GET_PCI_BDF, bdf);
+	if (ret < 0) {
+		pr_err("failed to get pci bdf!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
 int nvme_get_dev_info(int fd, struct nvme_dev_public *pub)
 {
 	int ret;

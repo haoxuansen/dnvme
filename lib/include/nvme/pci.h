@@ -9,9 +9,6 @@
  * 
  */
 
-#ifndef _UAPI_LIB_NVME_PCI_H_
-#define _UAPI_LIB_NVME_PCI_H_
-
 static inline int pci_read_config_data(int fd, uint32_t oft, uint32_t len, void *buf)
 {
 	return nvme_read_generic(fd, NVME_PCI_CONFIG, oft, len, buf);
@@ -123,6 +120,11 @@ static inline int pci_exp_read_link_control(int fd, uint8_t oft, uint16_t *val)
 	return pci_read_config_word(fd, oft + PCI_EXP_LNKCTL, val);
 }
 
+static inline int pci_exp_write_link_control(int fd, uint8_t oft, uint16_t val)
+{
+	return pci_write_config_word(fd, oft + PCI_EXP_LNKCTL, val);
+}
+
 static inline int pci_exp_read_link_status(int fd, uint8_t oft, uint16_t *val)
 {
 	return pci_read_config_word(fd, oft + PCI_EXP_LNKSTA, val);
@@ -145,5 +147,3 @@ static inline int pci_msix_read_control(int fd, uint8_t oft, uint16_t *val)
 	return pci_read_config_word(fd, oft + PCI_MSIX_FLAGS, val);
 }
 
-
-#endif /* !_UAPI_LIB_NVME_PCI_H_ */

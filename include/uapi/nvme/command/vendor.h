@@ -19,6 +19,7 @@ enum nvme_admin_vendor_opcode {
 	nvme_admin_maxio_nvme_case	= 0xef,
 	nvme_admin_maxio_pcie_msg	= 0xd0,
 	nvme_admin_maxio_pcie_interrupt	= 0xd1,
+	nvme_admin_maxio_pcie_special	= 0xd2,
 	nvme_admin_maxio_fwdma_fwdma	= 0xf0,
 	nvme_admin_maxio_fwdma_opal	= 0xf1, /**< OPPO mobile */
 	nvme_admin_maxio_fwdma_dpu	= 0xf2, /**< Data Path Unit */

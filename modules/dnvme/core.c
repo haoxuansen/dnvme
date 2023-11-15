@@ -261,6 +261,10 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_generic_write(ndev, argp);
 		break;
 
+	case NVME_IOCTL_GET_PCI_BDF:
+		ret = dnvme_get_pci_bdf(ndev, argp);
+		break;
+
 	case NVME_IOCTL_GET_DEV_INFO:
 		ret = dnvme_get_dev_info(ndev, argp);
 		break;
@@ -713,6 +717,8 @@ static int dnvme_init_capability(struct nvme_device *ndev)
 		pci_find_capability(pdev, PCI_CAP_ID_PM));
 	cap->express = pci_get_express_cap(pdev,
 		pci_find_capability(pdev, PCI_CAP_ID_EXP));
+	cap->l1ss = pci_ext_get_l1ss_cap(pdev, 
+		pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_L1SS));
 
 	return 0;
 }
@@ -736,6 +742,10 @@ static void dnvme_deinit_capability(struct nvme_device *ndev)
 	if (cap->express) {
 		kfree(cap->express);
 		cap->express = NULL;
+	}
+	if (cap->l1ss) {
+		kfree(cap->l1ss);
+		cap->l1ss = NULL;
 	}
 }
 

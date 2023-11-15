@@ -797,6 +797,10 @@ static int init_pci_dev_instance(struct nvme_dev_info *ndev)
 		return -ENOMEM;
 	}
 
+	ret = nvme_get_pci_bdf(fd, &pdev->bdf);
+	if (ret < 0)
+		goto free_pdev;
+
 	ret = pci_hd_read_vendor_id(fd, &pdev->vendor_id);
 	ret |= pci_hd_read_device_id(fd, &pdev->device_id);
 
@@ -808,6 +812,9 @@ static int init_pci_dev_instance(struct nvme_dev_info *ndev)
 					&pdev->pm, sizeof(pdev->pm));
 	ret |= nvme_get_pci_capability(fd, PCI_CAP_ID_EXP,
 					&pdev->express, sizeof(pdev->express));
+	nvme_get_pcie_capability(fd, PCI_EXT_CAP_ID_L1SS, &pdev->l1ss, 
+		sizeof(pdev->l1ss)); /* optional */
+
 	if (ret < 0)
 		goto free_pdev;
 

@@ -15,6 +15,19 @@
 #include <stdint.h>
 #include "ioctl.h"
 
+/* ==================== Ext Cap: L1 PM Substates ==================== */
+
+static inline int pcie_l1ss_read_control(int fd, uint16_t oft, uint32_t *val)
+{
+	return pci_read_config_dword(fd, oft + PCI_L1SS_CTL1, val);
+}
+
+static inline int pcie_l1ss_write_control(int fd, uint16_t oft, uint32_t val)
+{
+	return pci_write_config_dword(fd, oft + PCI_L1SS_CTL1, val);
+}
+
+
 static inline int pcie_do_flr(int fd)
 {
 	return nvme_set_device_state(fd, NVME_ST_PCIE_FLR_RESET);

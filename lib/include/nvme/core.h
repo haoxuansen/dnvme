@@ -17,6 +17,7 @@ enum nvme_event {
 };
 
 struct pci_dev_instance {
+	uint16_t		bdf; /**< bus num, device num, function num */
 	uint16_t		vendor_id;
 	uint16_t		device_id;
 
@@ -30,6 +31,7 @@ struct pci_dev_instance {
 	struct pci_cap_express	express;
 	struct pci_cap_msi	msi;
 	struct pci_cap_msix	msix;
+	struct pci_ext_cap_l1ss	l1ss;
 };
 
 /*

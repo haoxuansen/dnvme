@@ -148,6 +148,7 @@ struct pci_cap_msi *pci_get_msi_cap(struct pci_dev *pdev, u8 offset);
 struct pci_cap_msix *pci_get_msix_cap(struct pci_dev *pdev, u16 offset);
 struct pci_cap_pm *pci_get_pm_cap(struct pci_dev *pdev, u8 offset);
 struct pci_cap_express *pci_get_express_cap(struct pci_dev *pdev, u8 offset);
+struct pci_ext_cap_l1ss *pci_ext_get_l1ss_cap(struct pci_dev *pdev, u16 offset);
 
 int pcie_do_flr_reset(struct pci_dev *pdev);
 int pcie_do_hot_reset(struct pci_dev *pdev);

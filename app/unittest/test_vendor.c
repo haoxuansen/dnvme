@@ -18,6 +18,7 @@
 #include "libnvme.h"
 #include "test.h"
 
+#define SUBCMD(x)			BIT((x))
 
 /**
  * @brief Check whether hardware I/O command timeout feature takes effect
@@ -41,7 +42,7 @@ static int case_hw_io_cmd_timeout_check(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
 		nvme_admin_maxio_nvme_top);
 
-	ret = nvme_maxio_nvme_top_set_param(ndev, BIT(0), 0);
+	ret = nvme_maxio_nvme_top_set_param(ndev, SUBCMD(0), 0);
 	if (ret < 0)
 		return ret;
 
@@ -59,7 +60,7 @@ static int case_hw_io_cmd_timeout_check(struct nvme_tool *tool,
 
 	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_top);
-	ret = nvme_maxio_nvme_top_check_result(ndev, BIT(0));
+	ret = nvme_maxio_nvme_top_check_result(ndev, SUBCMD(0));
 	if (ret < 0)
 		goto out;
 out:
@@ -110,7 +111,7 @@ static int case_cq_full_threshold_limit_sq_fetch_cmd(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param(CQ size:%u)",
 		nvme_admin_maxio_nvme_cqm, nr_entry);
-	ret = nvme_maxio_nvme_cqm_set_param(ndev, BIT(0), nr_entry);
+	ret = nvme_maxio_nvme_cqm_set_param(ndev, SUBCMD(0), nr_entry);
 	if (ret < 0)
 		return ret;
 
@@ -143,7 +144,7 @@ static int case_cq_full_threshold_limit_sq_fetch_cmd(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_cqm);
-	ret = nvme_maxio_nvme_cqm_check_result(ndev, BIT(0));
+	ret = nvme_maxio_nvme_cqm_check_result(ndev, SUBCMD(0));
 	if (ret < 0)
 		goto del_ioq;
 
@@ -180,7 +181,7 @@ static int case_hw_rdma_ftl_size_limit(struct nvme_tool *tool,
 		"Send vendor command:0x%x - Set Param: %u",
 		nvme_admin_maxio_nvme_hwrdma, pending);
 	
-	ret = nvme_maxio_nvme_hwrdma_set_param(ndev, BIT(0), pending);
+	ret = nvme_maxio_nvme_hwrdma_set_param(ndev, SUBCMD(0), pending);
 	if (ret < 0)
 		return ret;
 
@@ -207,7 +208,7 @@ static int case_hw_rdma_ftl_size_limit(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_hwrdma);
-	ret = nvme_maxio_nvme_hwrdma_check_result(ndev, BIT(0));
+	ret = nvme_maxio_nvme_hwrdma_check_result(ndev, SUBCMD(0));
 	if (ret < 0)
 		goto del_ioq;
 
@@ -243,7 +244,7 @@ static int case_hw_rdma_ftl_rreq_if_en(struct nvme_tool *tool,
 		ut_rpt_record_case_step(rpt, 
 			"Send vendor command:0x%x - Set Param: 0x%x",
 			nvme_admin_maxio_nvme_hwrdma, interface[i]);
-		ret = nvme_maxio_nvme_hwrdma_set_param(ndev, BIT(1), interface[i]);
+		ret = nvme_maxio_nvme_hwrdma_set_param(ndev, SUBCMD(1), interface[i]);
 		if (ret < 0)
 			goto del_ioq;
 
@@ -257,7 +258,7 @@ static int case_hw_rdma_ftl_rreq_if_en(struct nvme_tool *tool,
 		ut_rpt_record_case_step(rpt, 
 			"Send vendor command:0x%x - Check Result",
 			nvme_admin_maxio_nvme_hwrdma);
-		ret = nvme_maxio_nvme_hwrdma_check_result(ndev, BIT(1));
+		ret = nvme_maxio_nvme_hwrdma_check_result(ndev, SUBCMD(1));
 		if (ret < 0)
 			goto del_ioq;
 	}
@@ -292,7 +293,7 @@ static int case_hw_rdma_ftl_if_namespace_bind(struct nvme_tool *tool,
 		"Send vendor command:0x%x - Set Param: NSID 0x%x,"
 		" FTL interface 0x%x",
 		nvme_admin_maxio_nvme_hwrdma, effect.nsid, ftl_if);
-	ret = nvme_maxio_nvme_hwrdma_set_param(ndev, BIT(2), 
+	ret = nvme_maxio_nvme_hwrdma_set_param(ndev, SUBCMD(2), 
 		((effect.nsid & 0xffff) << 16) | (ftl_if & 0xffff));
 	if (ret < 0)
 		return ret;
@@ -308,7 +309,7 @@ static int case_hw_rdma_ftl_if_namespace_bind(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_hwrdma);
-	ret = nvme_maxio_nvme_hwrdma_check_result(ndev, BIT(2));
+	ret = nvme_maxio_nvme_hwrdma_check_result(ndev, SUBCMD(2));
 	if (ret < 0)
 		goto del_ioq;
 
@@ -340,7 +341,7 @@ static int case_hw_wdma_ftl_size_limit(struct nvme_tool *tool,
 		"Send vendor command:0x%x - Set Param: %u,"
 		" FTL interface 0x%x",
 		nvme_admin_maxio_nvme_hwwdma, pending);
-	ret = nvme_maxio_nvme_hwwdma_set_param(ndev, BIT(0), pending);
+	ret = nvme_maxio_nvme_hwwdma_set_param(ndev, SUBCMD(0), pending);
 	if (ret < 0)
 		return ret;
 
@@ -367,7 +368,7 @@ static int case_hw_wdma_ftl_size_limit(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_hwwdma);
-	ret = nvme_maxio_nvme_hwwdma_check_result(ndev, BIT(0));
+	ret = nvme_maxio_nvme_hwwdma_check_result(ndev, SUBCMD(0));
 	if (ret < 0)
 		goto del_ioq;
 
@@ -403,7 +404,7 @@ static int case_hw_wdma_ftl_wreq_if_en(struct nvme_tool *tool,
 		ut_rpt_record_case_step(rpt, 
 			"Send vendor command:0x%x - Set Param: 0x%x",
 			nvme_admin_maxio_nvme_hwwdma, interface[i]);
-		ret = nvme_maxio_nvme_hwwdma_set_param(ndev, BIT(1), interface[i]);
+		ret = nvme_maxio_nvme_hwwdma_set_param(ndev, SUBCMD(1), interface[i]);
 		if (ret < 0)
 			goto del_ioq;
 
@@ -417,7 +418,7 @@ static int case_hw_wdma_ftl_wreq_if_en(struct nvme_tool *tool,
 		ut_rpt_record_case_step(rpt, 
 			"Send vendor command:0x%x - Check Result",
 			nvme_admin_maxio_nvme_hwwdma);
-		ret = nvme_maxio_nvme_hwwdma_check_result(ndev, BIT(1));
+		ret = nvme_maxio_nvme_hwwdma_check_result(ndev, SUBCMD(1));
 		if (ret < 0)
 			goto del_ioq;
 	}
@@ -455,7 +456,7 @@ static int __case_wrr_with_urgent_priority_class_arbitration(
 		"Send vendor command:0x%x - Set Param: nr_pair_queue %u,"
 		" analyse progress %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(0), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(0), &param);
 	if (ret < 0) 
 		return ret;
 
@@ -497,7 +498,7 @@ static int __case_wrr_with_urgent_priority_class_arbitration(
 
 	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_case);
-	ret = nvme_maxio_nvme_case_check_result(ndev, BIT(0), buf, SZ_16K);
+	ret = nvme_maxio_nvme_case_check_result(ndev, SUBCMD(0), buf, SZ_16K);
 	if (ret < 0)
 		goto rel_mem;
 
@@ -550,7 +551,7 @@ static int cmd_sanity_check_according_by_protocol_sn1(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -595,7 +596,7 @@ static int cmd_sanity_check_according_by_protocol_sn2(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 	
@@ -640,7 +641,7 @@ static int cmd_sanity_check_according_by_protocol_sn3(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -684,7 +685,7 @@ static int cmd_sanity_check_according_by_protocol_sn4(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -727,7 +728,7 @@ static int cmd_sanity_check_according_by_protocol_sn5(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -772,7 +773,7 @@ static int cmd_sanity_check_according_by_protocol_sn6(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -821,7 +822,7 @@ static int cmd_sanity_check_according_by_protocol_sn7(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -866,7 +867,7 @@ static int cmd_sanity_check_according_by_protocol_sn8(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -911,7 +912,7 @@ static int cmd_sanity_check_according_by_protocol_sn9(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -944,7 +945,7 @@ static int cmd_sanity_check_according_by_protocol_sn10(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -977,7 +978,7 @@ static int cmd_sanity_check_according_by_protocol_sn11(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1012,7 +1013,7 @@ static int cmd_sanity_check_according_by_protocol_sn12(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1045,7 +1046,7 @@ static int cmd_sanity_check_according_by_protocol_sn13(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1078,7 +1079,7 @@ static int cmd_sanity_check_according_by_protocol_sn14(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1110,7 +1111,7 @@ static int cmd_sanity_check_according_by_protocol_sn15(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1142,7 +1143,7 @@ static int cmd_sanity_check_according_by_protocol_sn16(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1173,7 +1174,7 @@ static int cmd_sanity_check_according_by_protocol_sn17(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1207,7 +1208,7 @@ static int cmd_sanity_check_according_by_protocol_sn18(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1248,7 +1249,7 @@ static int cmd_sanity_check_according_by_protocol_sn19(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1290,7 +1291,7 @@ static int cmd_sanity_check_according_by_protocol_sn20(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1329,7 +1330,7 @@ static int cmd_sanity_check_according_by_protocol_sn21(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1369,7 +1370,7 @@ static int cmd_sanity_check_according_by_protocol_sn22(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1400,7 +1401,7 @@ static int cmd_sanity_check_according_by_protocol_sn23(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1433,7 +1434,7 @@ static int cmd_sanity_check_according_by_protocol_sn24(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1465,7 +1466,7 @@ static int cmd_sanity_check_according_by_protocol_sn25(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1496,7 +1497,7 @@ static int cmd_sanity_check_according_by_protocol_sn26(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1546,7 +1547,7 @@ static int cmd_sanity_check_according_by_protocol_sn27(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1596,7 +1597,7 @@ static int cmd_sanity_check_according_by_protocol_sn28(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1627,7 +1628,7 @@ static int cmd_sanity_check_according_by_protocol_sn29(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1658,7 +1659,7 @@ static int cmd_sanity_check_according_by_protocol_sn30(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1703,7 +1704,7 @@ static int cmd_sanity_check_according_by_protocol_sn31(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1759,7 +1760,7 @@ static int cmd_sanity_check_according_by_protocol_sn32(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1792,7 +1793,7 @@ static int cmd_sanity_check_according_by_protocol_sn33(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1842,7 +1843,7 @@ static int cmd_sanity_check_according_by_protocol_sn34(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1875,7 +1876,7 @@ static int cmd_sanity_check_according_by_protocol_sn35(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1904,7 +1905,7 @@ static int cmd_sanity_check_according_by_protocol_sn36(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u, dw12 %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11, param.dw12);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1919,7 +1920,7 @@ static int cmd_sanity_check_according_by_protocol_sn36(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u, dw12 %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11, param.dw12);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 	
@@ -1950,7 +1951,7 @@ static int cmd_sanity_check_according_by_protocol_sn37(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -1987,7 +1988,7 @@ static int cmd_sanity_check_according_by_protocol_sn38(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2027,7 +2028,7 @@ static int cmd_sanity_check_according_by_protocol_sn39(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2067,7 +2068,7 @@ static int cmd_sanity_check_according_by_protocol_sn40(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2097,7 +2098,7 @@ static int cmd_sanity_check_according_by_protocol_sn41(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2127,7 +2128,7 @@ static int cmd_sanity_check_according_by_protocol_sn42(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u, sn %u",
 		nvme_admin_maxio_nvme_case, param.dw3, param.dw11);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(1), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(1), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2205,7 +2206,7 @@ static int __case_cmd_sanity_check_according_by_protocol(
 
 	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_case);
-	ret = nvme_maxio_nvme_case_check_result(ndev, BIT(1), buf, SZ_16K);
+	ret = nvme_maxio_nvme_case_check_result(ndev, SUBCMD(1), buf, SZ_16K);
 	if (ret < 0)
 		goto rel_mem;
 
@@ -2261,7 +2262,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase1(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 	
@@ -2290,7 +2291,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase2(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2327,7 +2328,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase3(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2378,7 +2379,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase4(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2430,7 +2431,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase5(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2470,7 +2471,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase6(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2522,7 +2523,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase7(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2598,7 +2599,7 @@ static int ftl_interface_selectable_by_multi_mode_subcase8(
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: subcase %u",
 		nvme_admin_maxio_nvme_case, param.dw3);
-	ret = nvme_maxio_nvme_case_set_param(ndev, BIT(2), &param);
+	ret = nvme_maxio_nvme_case_set_param(ndev, SUBCMD(2), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2665,7 +2666,7 @@ static int __case_ftl_interface_selectable_by_multi_mode(
 
 	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_nvme_case);
-	ret = nvme_maxio_nvme_case_check_result(ndev, BIT(2), buf, SZ_16K);
+	ret = nvme_maxio_nvme_case_check_result(ndev, SUBCMD(2), buf, SZ_16K);
 	if (ret < 0)
 		goto rel_mem;
 
@@ -2734,7 +2735,7 @@ static int __case_fwdma_buf2buf_test(struct nvme_tool *tool,
 		" dw14 0x%x, dw15 0x%x",
 		nvme_admin_maxio_fwdma_fwdma, param.dw3, param.dw13, 
 		param.dw14, param.dw15);
-	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, BIT(0), &param);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(0), &param);
 	if (ret < 0)
 		return ret;
 
@@ -2784,7 +2785,7 @@ static int __case_fwdma_buf2buf_bufpoint(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Get Param",
 		nvme_admin_maxio_fwdma_fwdma);
-	ret = nvme_maxio_fwdma_fwdma_get_param(ndev, BIT(1), &gparam);
+	ret = nvme_maxio_fwdma_fwdma_get_param(ndev, SUBCMD(1), &gparam);
 	if (ret < 0)
 		return ret;
 	
@@ -2808,7 +2809,7 @@ static int __case_fwdma_buf2buf_bufpoint(struct nvme_tool *tool,
 		" dw14 0x%x, dw15 0x%x",
 		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw13, 
 		sparam.dw14, sparam.dw15);
-	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, BIT(1), &sparam);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(1), &sparam);
 	if (ret < 0)
 		return ret;
 
@@ -2907,7 +2908,7 @@ static int cfgwr_interrupt_single_dword(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: 0x%x",
 		nvme_admin_maxio_pcie_interrupt, sparam.dw3);
-	ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(0), &sparam);
+	ret = nvme_maxio_pcie_interrupt_set_param(ndev, SUBCMD(0), &sparam);
 	if (ret < 0)
 		return ret;
 
@@ -2925,7 +2926,7 @@ static int cfgwr_interrupt_single_dword(struct nvme_tool *tool,
 
 	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_pcie_interrupt);
-	ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(0));
+	ret = nvme_maxio_pcie_interrupt_check_result(ndev, SUBCMD(0));
 	if (ret < 0)
 		return ret;
 
@@ -3168,7 +3169,7 @@ static int case_ltssm_state_change_interrupt(struct nvme_tool *tool,
 		ut_rpt_record_case_step(rpt, 
 			"Send vendor command:0x%x - Set Param: 0x%x",
 			nvme_admin_maxio_pcie_interrupt, sparam.dw3);
-		ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(1), &sparam);
+		ret = nvme_maxio_pcie_interrupt_set_param(ndev, SUBCMD(1), &sparam);
 		if (ret < 0)
 			return ret;
 
@@ -3223,7 +3224,7 @@ static int case_ltssm_state_change_interrupt(struct nvme_tool *tool,
 		ut_rpt_record_case_step(rpt, 
 			"Send vendor command:0x%x - Check Result",
 			nvme_admin_maxio_pcie_interrupt);
-		ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(1));
+		ret = nvme_maxio_pcie_interrupt_check_result(ndev, SUBCMD(1));
 		if (ret < 0)
 			return ret;
 	}
@@ -3260,7 +3261,7 @@ static int case_pcie_rdlh_interrupt(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param: 0x%x",
 		nvme_admin_maxio_pcie_interrupt, sparam.dw3);
-	ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(2), &sparam);
+	ret = nvme_maxio_pcie_interrupt_set_param(ndev, SUBCMD(2), &sparam);
 	if (ret < 0)
 		return ret;
 
@@ -3288,7 +3289,7 @@ static int case_pcie_rdlh_interrupt(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_pcie_interrupt);
-	ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(2));
+	ret = nvme_maxio_pcie_interrupt_check_result(ndev, SUBCMD(2));
 	if (ret < 0)
 		return ret;
 
@@ -3310,7 +3311,7 @@ static int case_pcie_speed_down_interrupt(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Set Param",
 		nvme_admin_maxio_pcie_interrupt);
-	ret = nvme_maxio_pcie_interrupt_set_param(ndev, BIT(3), &sparam);
+	ret = nvme_maxio_pcie_interrupt_set_param(ndev, SUBCMD(3), &sparam);
 	if (ret < 0)
 		return ret;
 
@@ -3338,7 +3339,7 @@ static int case_pcie_speed_down_interrupt(struct nvme_tool *tool,
 	ut_rpt_record_case_step(rpt, 
 		"Send vendor command:0x%x - Check Result",
 		nvme_admin_maxio_pcie_interrupt);
-	ret = nvme_maxio_pcie_interrupt_check_result(ndev, BIT(3));
+	ret = nvme_maxio_pcie_interrupt_check_result(ndev, SUBCMD(3));
 	if (ret < 0)
 		return ret;
 
@@ -3363,3 +3364,263 @@ static int case_pcie_speed_down_interrupt(struct nvme_tool *tool,
 	return 0;
 }
 NVME_CASE_SYMBOL(case_pcie_speed_down_interrupt, "?");
+
+static int case_aspm_l1sub_disable_by_fw(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t exp_oft = ndev->pdev->express.offset;
+	uint16_t l1ss_oft = ndev->pdev->l1ss.offset;
+	uint16_t link_ctrl;
+	uint32_t l1ss_ctrl;
+	int ret;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_special);
+	ret = nvme_maxio_pcie_special_set_param(ndev, SUBCMD(0), &sparam);
+	if (ret < 0)
+		return ret;
+
+	msleep(100);
+
+	ret = pci_exp_read_link_control(ndev->fd, exp_oft, &link_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	link_ctrl |= PCI_EXP_LNKCTL_CLKREQ_EN;
+	ret = pci_exp_write_link_control(ndev->fd, exp_oft, link_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	ret = pcie_l1ss_read_control(ndev->fd, l1ss_oft, &l1ss_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	l1ss_ctrl |= PCI_L1SS_CTL1_ASPM_L1_2;
+	l1ss_ctrl |= PCI_L1SS_CTL1_ASPM_L1_1;
+	ret = pcie_l1ss_write_control(ndev->fd, l1ss_oft, l1ss_ctrl);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_exp_read_link_control(ndev->fd, exp_oft, &link_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	link_ctrl &= ~PCI_EXP_LNKCTL_ASPMC;
+	link_ctrl |= PCI_EXP_LNKCTL_ASPM_L1;
+	ret = pci_exp_write_link_control(ndev->fd, exp_oft, link_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_special);
+	ret = nvme_maxio_pcie_special_check_result(ndev, SUBCMD(0));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_aspm_l1sub_disable_by_fw, "?");
+
+static int case_data_rate_register_in_l12(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t exp_oft = ndev->pdev->express.offset;
+	uint16_t l1ss_oft = ndev->pdev->l1ss.offset;
+	uint16_t link_ctrl;
+	uint32_t l1ss_ctrl;
+	int ret;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_special);
+	ret = nvme_maxio_pcie_special_set_param(ndev, SUBCMD(1), &sparam);
+	if (ret < 0)
+		return ret;
+	
+	msleep(100);
+
+	ret = pcie_l1ss_read_control(ndev->fd, l1ss_oft, &l1ss_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	l1ss_ctrl |= PCI_L1SS_CTL1_ASPM_L1_2;
+	ret = pcie_l1ss_write_control(ndev->fd, l1ss_oft, l1ss_ctrl);
+	if (ret < 0)
+		return ret;
+
+	ret = pci_exp_read_link_control(ndev->fd, exp_oft, &link_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	link_ctrl &= ~PCI_EXP_LNKCTL_ASPMC;
+	link_ctrl |= PCI_EXP_LNKCTL_ASPM_L1;
+	ret = pci_exp_write_link_control(ndev->fd, exp_oft, link_ctrl);
+	if (ret < 0)
+		return ret;
+	
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_special);
+	ret = nvme_maxio_pcie_special_check_result(ndev, SUBCMD(1));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_data_rate_register_in_l12, "?");
+
+static int case_internal_cpld_mps_check(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct nvme_sq_info *sq = &ndev->iosqs[0];
+	struct case_report *rpt = &priv->rpt;
+	struct case_config_effect effect = {0};
+	struct nvme_maxio_set_param sparam = {0};
+	uint64_t slba;
+	uint64_t nsze;
+	uint32_t nlb;
+	uint32_t blk_size;
+	uint8_t exp_oft = ndev->pdev->express.offset;
+	uint16_t ep_dev_ctrl;
+	uint16_t rc_dev_ctrl;
+	uint16_t dev_ctrl;
+	uint16_t mps = (rand() % 2) ? PCI_EXP_DEVCTL_PAYLOAD_128B :
+		PCI_EXP_DEVCTL_READRQ_256B;
+	char buf[16] = { "0x" };
+	char cmd[128];
+	FILE *fp;
+	int ret;
+
+	priv->cfg.effect = &effect;
+	effect.nsid = le32_to_cpu(ns_grp->act_list[0]);
+
+	ret = pci_exp_read_device_control(ndev->fd, exp_oft, &ep_dev_ctrl);
+	if (ret < 0)
+		return ret;
+
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w", 
+		RC_PCI_EXP_REG_DEVICE_CONTROL);
+	fp = popen(cmd, "r");
+	if (!fp) {
+		pr_err("failed to read device control register!\n");
+		return -EPERM;
+	}
+	fread(buf + strlen(buf), sizeof(char), sizeof(buf) - strlen(buf), fp);
+	pclose(fp);
+
+	rc_dev_ctrl = strtoul(buf, NULL, 0);
+
+	/* set device MPS & MRRS */
+	dev_ctrl = ep_dev_ctrl & ~(PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ);
+	dev_ctrl |= mps;
+	dev_ctrl |= PCI_EXP_DEVCTL_READRQ_1024B;
+	ret = pci_exp_write_device_control(ndev->fd, exp_oft, dev_ctrl);
+	if (ret < 0)
+		return ret;
+
+	/* set partner MPS */
+	mps = (mps == PCI_EXP_DEVCTL_PAYLOAD_128B) ? 
+		PCI_EXP_DEVCTL_READRQ_256B : PCI_EXP_DEVCTL_PAYLOAD_512B;
+	dev_ctrl = rc_dev_ctrl & ~PCI_EXP_DEVCTL_PAYLOAD;
+	dev_ctrl |= mps;
+	
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w=%x:ffff",
+		RC_PCI_EXP_REG_DEVICE_CONTROL, dev_ctrl);
+	ret = call_system(cmd);
+	if (ret < 0)
+		return ret;
+
+	/* send vendor cmd */
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_special);
+	ret = nvme_maxio_pcie_special_set_param(ndev, SUBCMD(5), &sparam);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_id_ns_nsze(ns_grp, effect.nsid, &nsze);
+	if (ret < 0)
+		return ret;
+	nvme_id_ns_lbads(ns_grp, effect.nsid, &blk_size);
+
+	slba = rand() % (nsze / 2);
+	nlb = ALIGN(SZ_4K / blk_size, blk_size);
+
+	ret = ut_create_pair_io_queue(priv, sq, NULL);
+	if (ret < 0)
+		return ret;
+
+	effect.check_none = 1;
+	ret = ut_send_io_write_cmd(priv, sq, slba, nlb);
+	if (ret < 0)
+		goto del_ioq;
+
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_special);
+	ret = nvme_maxio_pcie_special_check_result(ndev, SUBCMD(5));
+	if (ret < 0)
+		goto del_ioq;
+
+	/* recovery device MPS & MRRS */
+	ret = pci_exp_read_device_control(ndev->fd, exp_oft, &dev_ctrl);
+	if (ret < 0)
+		goto del_ioq;
+	
+	dev_ctrl &= ~(PCI_EXP_DEVCTL_PAYLOAD | PCI_EXP_DEVCTL_READRQ);
+	dev_ctrl |= (ep_dev_ctrl & PCI_EXP_DEVCTL_PAYLOAD);
+	dev_ctrl |= (ep_dev_ctrl & PCI_EXP_DEVCTL_READRQ);
+	ret = pci_exp_write_device_control(ndev->fd, exp_oft, dev_ctrl);
+	if (ret < 0)
+		goto del_ioq;
+
+	/* recovery partner MPS */
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w=%x:ffff",
+		RC_PCI_EXP_REG_DEVICE_CONTROL, rc_dev_ctrl);
+	ret = call_system(cmd);
+	if (ret < 0)
+		goto del_ioq;
+
+del_ioq:
+	ret |= ut_delete_pair_io_queue(priv, sq, NULL);
+	return ret;
+}
+NVME_CASE_SYMBOL(case_internal_cpld_mps_check, "?");
+
+static int case_bdf_check(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	int ret;
+
+	sparam.dw3 = pdev->bdf;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: 0x%x",
+		nvme_admin_maxio_pcie_special, sparam.dw3);
+	ret = nvme_maxio_pcie_special_set_param(ndev, SUBCMD(6), &sparam);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_bdf_check, "?");

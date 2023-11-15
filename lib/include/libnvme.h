@@ -32,8 +32,8 @@
 #include "nvme/irq.h"
 #include "nvme/meta.h"
 #include "nvme/netlink.h"
-#include "nvme/pcie.h"
 #include "nvme/pci.h"
+#include "nvme/pcie.h"
 #include "nvme/property.h"
 #include "nvme/queue.h"
 

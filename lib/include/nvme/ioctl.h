@@ -14,6 +14,7 @@
 
 void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type);
 
+int nvme_get_pci_bdf(int fd, uint16_t *bdf);
 int nvme_get_dev_info(int fd, struct nvme_dev_public *pub);
 
 int nvme_get_capability(int fd, uint32_t id, void *buf, uint32_t size, 

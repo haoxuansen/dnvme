@@ -389,7 +389,7 @@ case_pcie_rdlh_interrupt
 #. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`, 参数如下：
 	- param: host 支持的最高速率，Gen1 对应的值为 1，Gen2 对应的值为 2，以此类推
 #. 主机等待 100ms
-#. 主机发起 hot reset，配置 Secondary Bus Reset 字段的值为 1，等待 10ms 后将此字段清 0
+#. 主机发起 hot reset，配置 device link partner 的 Secondary Bus Reset 字段的值为 1，等待 10ms 后将此字段清 0
 	- PCI Configuration Space Header → Bridge Control Register bit[6]
 #. 主机等待 100ms 后重新初始化 device
 #. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
@@ -414,6 +414,83 @@ case_pcie_speed_down_interrupt
 #. 主机发送 :enumerator:`nvme_admin_maxio_pcie_interrupt` 命令，设置 subcmd 为 BIT(3)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
 #. 主机设置链路速率为 Gen5，配置 Target Link Speed 字段的值为 5
 #. 主机重新link，配置 device link partner 的 Retrain Link 字段的值为 1
+
+case_aspm_l1sub_disable_by_fw
+"""""""""""""""""""""""""""""
+
+FW 控制是否进入 ASPM L1sub。
+
+.. doxygenfunction:: case_aspm_l1sub_disable_by_fw
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机使能电源管理时钟，配置 device 的 Enable Clock Power Management 字段的值为 1
+	- PCI Experess Capability Structure → Link Control Register bit[8]
+#. 主机使能 ASPM L1.1，配置 device 的 ASPM L1.1 Enable 字段的值为 1
+	- L1 PM Substates Extended Capability → L1 PM Substates Control 1 Register bit[3]
+#. 主机使能 ASPM L1.2，配置 device 的 ASPM L1.2 Enable 字段的值为 1
+	- L1 PM Substates Extended Capability → L1 PM Substates Control 1 Register bit[2]
+#. 主机使能 ASPM L1，配置 device 的 ASPM Control 字段的值为 2
+	- PCI Experess Capability Structure → Link Control Register bit[1:0]
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+case_data_rate_register_in_l12
+""""""""""""""""""""""""""""""
+
+检查在 L1.2 状态下可以读取的真实速率。
+
+.. doxygenfunction:: case_data_rate_register_in_l12
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机使能 ASPM L1.2，配置 device 的 ASPM L1.2 Enable 字段的值为 1
+	- L1 PM Substates Extended Capability → L1 PM Substates Control 1 Register bit[2]
+#. 主机使能 ASPM L1，配置 device 的 ASPM Control 字段的值为 2
+	- PCI Experess Capability Structure → Link Control Register bit[1:0]
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+case_internal_cpld_mps_check
+""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_internal_cpld_mps_check
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 的 MPS 和 MRRS 字段
+	- PCI Experess Capability Structure → Device Control Register
+		- bit[7:5]: Max_Payload_Size, 000b - 128 bytes, 001b - 256 bytes, 010b - 512 bytes
+		- bit[14:12]: Max_Read_Request_Size, 001b - 256 bytes, 010b - 512 bytes, 011b - 1024 bytes
+#. 主机备份 device link partner 的 MPS 和 MRRS 字段
+#. 主机将 device 的 MPS 随机配置为 128/256 bytes，MRRS 配置为 1024 bytes
+#. 主机将 device link partner 的 MPS 配置为 256/512 bytes(需要大于 device MPS 配置)
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(5)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机发送 1 条 I/O Write command，写入的 size 为 4KB
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(5)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 的 MPS 和 MRRS 字段配置
+#. 主机还原 device link partner 的 MPS 字段配置
+
+case_bdf_check
+""""""""""""""
+
+.. doxygenfunction:: case_bdf_check
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机解析 device 的 BDF 信息
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(6)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如下：
+	- param: bit[15:8] Bus Number, bit[7:3] Device Number, bit[2:0] Function Number 
+
 
 
 .. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。

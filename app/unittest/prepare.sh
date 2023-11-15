@@ -9,18 +9,20 @@ source $TOP_DIR/scripts/log.sh
 
 AUTO_HEADER="${CUR_DIR}/auto_header.h"
 
-RC_BDF_PATCH=
 DEV_BDF_PATCH=
 
 #
 # Device Link Partner: May be a Switch or Root Complex
 #
 
+RC_BDF_PATCH=
 # PCI Configuration Space Header
 RC_PCI_HDR_REG_BRIDGE_CONTROL="3E"
 
 # PCI express capability offset
 RC_PCI_CAP_OFFSET_EXP=
+# Device Control Register
+RC_PCI_EXP_REG_DEVICE_CONTROL=
 # Link Capabilities Register
 RC_PCI_EXP_REG_LINK_CAPABILITY=
 # Link Control Register
@@ -51,6 +53,8 @@ app_acquire_devinfo()
 	pci_cap=`sudo lspci -s "${RC_BDF_PATCH}" -vvv | grep " Express (v2)"`
 	pci_cap=${pci_cap#*[}
 	RC_PCI_CAP_OFFSET_EXP=${pci_cap%%]*}
+	RC_PCI_EXP_REG_DEVICE_CONTROL=
+		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x8))`
 	RC_PCI_EXP_REG_LINK_CAPABILITY=
 		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0xc))`
 	RC_PCI_EXP_REG_LINK_CONTROL=
@@ -76,6 +80,7 @@ app_generate_autoheader()
 	echo "#define RC_BDF_PATCH \"${RC_BDF_PATCH}\"">>${AUTO_HEADER}
 	echo "#define DEV_BDF_PATCH \"${DEV_BDF_PATCH}\"">>${AUTO_HEADER}
 	echo "#define RC_PCI_CAP_OFFSET_EXP 0x${RC_PCI_CAP_OFFSET_EXP}">>${AUTO_HEADER}
+	echo "#define RC_PCI_EXP_REG_DEVICE_CONTROL \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_DEVICE_CONTROL}\"">>${AUTO_HEADER}
 	echo "#define RC_PCI_EXP_REG_LINK_CAPABILITY \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CAPABILITY}\"">>${AUTO_HEADER}
 	echo "#define RC_PCI_EXP_REG_LINK_CONTROL \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CONTROL}\"">>${AUTO_HEADER}
 	echo "#define RC_PCI_EXP_REG_LINK_CONTROL2 \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CONTROL2}\"">>${AUTO_HEADER}

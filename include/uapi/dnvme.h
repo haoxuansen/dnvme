@@ -44,6 +44,7 @@ enum {
 	NVME_GET_SQ_INFO,
 	NVME_GET_CQ_INFO,
 
+	NVME_GET_PCI_BDF,
 	NVME_GET_DEV_INFO,
 	NVME_GET_CAPABILITY,
 	NVME_SET_DEV_STATE,
@@ -341,6 +342,9 @@ struct nvme_hmb_access {
 	_IOWR('N', NVME_GET_SQ_INFO, struct nvme_sq_public)
 #define NVME_IOCTL_GET_CQ_INFO \
 	_IOWR('N', NVME_GET_CQ_INFO, struct nvme_cq_public)
+
+#define NVME_IOCTL_GET_PCI_BDF \
+	_IOR('N', NVME_GET_PCI_BDF, uint16_t)
 
 #define NVME_IOCTL_GET_DEV_INFO \
 	_IOR('N', NVME_GET_DEV_INFO, struct nvme_dev_public)
