@@ -16,8 +16,8 @@ project = 'NVMe Tool'
 copyright = 'none'
 author = 'yeqiang_xu'
 
-version = '0.1'
-release = '0.1'
+version = '0.1.0'
+release = '0.1.0'
 
 # A list of ignored prefixes for module index sorting.
 #modindex_common_prefix = []
@@ -79,6 +79,8 @@ extensions = [
 	# Third extension
 	'breathe',
 	# 'exhale',
+	'hoverxref.extension',
+	'sphinx_copybutton',
 	'sphinx_design',
 	'sphinx-mathjax-offline',
 	# 'sphinx_tabs.tabs',
@@ -125,12 +127,31 @@ if 'exhale' in extensions:
 	}
 
 # --------------------------------------------------------------------------- #
+# hoverxref.extension configuration
+# --------------------------------------------------------------------------- #
+if 'hoverxref.extension' in extensions:
+	# If true, make all `:ref:` role to show a preview window
+	hoverxref_auto_ref = True
+	# hoverxref_default_type = 'tooltip'
+	hoverxref_role_types = {
+		'doc': 'modal',
+		'hoverxref': 'modal',
+		'ref': 'tooltip',
+		'term': 'tooltip',
+	}
+	hoverxref_roles = [
+		'doc',
+		'enum',
+		'enumerator',
+		'term',
+	]
+
+# --------------------------------------------------------------------------- #
 # sphinx.ext.todo configuration
 # --------------------------------------------------------------------------- #
 if 'sphinx.ext.todo' in extensions:
 	# If true, `todo` and `todoList` produce output, else they produce nothing.
 	todo_include_todos = True
-
 	# If true, 'todo' emits a warning for each TODO entries.
 	todo_emit_warnings = False
 
@@ -172,13 +193,14 @@ except ImportError:
 if html_theme == 'sphinx_rtd_theme':
 	html_theme_options = {
 		# 'collapse_navigation': True,
+		# 'display_version': True
 		# 'includehidden': True,
-		# "logo_only": True,
-		# 'navigation_depth': 4,
-		# 'prev_next_buttons_location': 'bottom',
+		"logo_only": False,
+		'navigation_depth': 5,
+		'prev_next_buttons_location': 'bottom',
 		# 'sticky_navigation': True,
 		# 'style_external_links': True,
-		# 'titles_only': True
+		# 'titles_only': False
 	}
 
 if html_theme == 'sphinx_book_theme':
@@ -197,12 +219,12 @@ html_title = project + ' v' + version
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = "./image/aircraft.svg"
+html_logo = "./image/aircraft.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-# html_favicon = "./image/aircraft.svg"
+html_favicon = "./image/aircraft.svg"
 
 # This is the file name suffix for HTML files (e.g. ".xhtml").
 #html_file_suffix = '.html'
