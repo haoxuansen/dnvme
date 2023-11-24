@@ -2,26 +2,10 @@
 #-*- coding: utf-8 -*-
 
 import copy, json, os, sys
-try:
-	import qtawesome as qta
-except ModuleNotFoundError:
-	os.system('pip install qtawesome')
-	import qtawesome as qta
-try:
-	from PyQt5 import QtCore, QtGui, QtWidgets
-except ModuleNotFoundError:
-	os.system('pip install pyqt5')
-	from PyQt5 import QtCore, QtGui, QtWidgets
-try:
-	from tqdm import tqdm
-except ModuleNotFoundError:
-	os.system('pip install tqdm')
-	from tqdm import tqdm
-try:
-	from typing import List, Dict, Tuple, Set, Union, Any
-except ModuleNotFoundError:
-	os.system('pip install typing')
-	from typing import List, Dict, Tuple, Set, Union, Any
+import qtawesome as qta
+from PyQt5 import QtCore, QtGui, QtWidgets
+from tqdm import tqdm
+from typing import List, Dict, Tuple, Set, Union, Any
 
 sys.path.append('./packages')
 import log

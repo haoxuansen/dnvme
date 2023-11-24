@@ -8,11 +8,7 @@ import os
 import sys
 import datetime
 import logging
-try:
-	import colorlog
-except ModuleNotFoundError:
-	os.system('pip install colorlog')
-	import colorlog
+import colorlog
 
 VERBOSE_DEBUG = 5
 DEBUG = logging.DEBUG
