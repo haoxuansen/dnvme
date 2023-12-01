@@ -469,7 +469,7 @@ static int __case_wrr_with_urgent_priority_class_arbitration(
 	if (ret < 0)
 		return ret;
 
-	ret = ut_create_pair_io_queues(priv, &ndev->iosqs, NULL, nr_pair);
+	ret = ut_create_pair_io_queues(priv, ndev->iosqs, NULL, nr_pair);
 	if (ret < 0)
 		return ret;
 
@@ -508,7 +508,7 @@ static int __case_wrr_with_urgent_priority_class_arbitration(
 rel_mem:
 	free(buf);
 del_ioq:
-	ret |= ut_delete_pair_io_queues(priv, &ndev->iosqs, NULL, param.dw3);
+	ret |= ut_delete_pair_io_queues(priv, ndev->iosqs, NULL, param.dw3);
 	return ret;
 }
 

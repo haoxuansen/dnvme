@@ -80,17 +80,17 @@ int ut_create_pair_io_queue(struct case_data *priv, struct nvme_sq_info *sq,
 	return 0;
 }
 
-int ut_create_pair_io_queues(struct case_data *priv, struct nvme_sq_info **sq,
-	struct nvme_cq_info **cq, int nr_pair)
+int ut_create_pair_io_queues(struct case_data *priv, struct nvme_sq_info *sq,
+	struct nvme_cq_info *cq, int nr_pair)
 {
 	int ret;
 	int i;
 
 	for (i = 0; i < nr_pair; i++) {
 		if (cq)
-			ret = ut_create_pair_io_queue(priv, sq[i], cq[i]);
+			ret = ut_create_pair_io_queue(priv, &sq[i], &cq[i]);
 		else
-			ret = ut_create_pair_io_queue(priv, sq[i], NULL);
+			ret = ut_create_pair_io_queue(priv, &sq[i], NULL);
 		
 		if (ret < 0)
 			return ret;
@@ -122,17 +122,17 @@ int ut_delete_pair_io_queue(struct case_data *priv, struct nvme_sq_info *sq,
 	return 0;
 }
 
-int ut_delete_pair_io_queues(struct case_data *priv, struct nvme_sq_info **sq,
-	struct nvme_cq_info **cq, int nr_pair)
+int ut_delete_pair_io_queues(struct case_data *priv, struct nvme_sq_info *sq,
+	struct nvme_cq_info *cq, int nr_pair)
 {
 	int ret;
 	int i;
 
 	for (i = 0; i < nr_pair; i++) {
 		if (cq)
-			ret = ut_delete_pair_io_queue(priv, sq[i], cq[i]);
+			ret = ut_delete_pair_io_queue(priv, &sq[i], &cq[i]);
 		else
-			ret = ut_delete_pair_io_queue(priv, sq[i], NULL);
+			ret = ut_delete_pair_io_queue(priv, &sq[i], NULL);
 		
 		if (ret < 0)
 			return ret;

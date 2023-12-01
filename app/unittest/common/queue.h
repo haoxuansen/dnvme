@@ -11,13 +11,13 @@
 
 int ut_create_pair_io_queue(struct case_data *priv, struct nvme_sq_info *sq,
 	struct nvme_cq_info *cq);
-int ut_create_pair_io_queues(struct case_data *priv, struct nvme_sq_info **sq,
-	struct nvme_cq_info **cq, int nr_pair);
+int ut_create_pair_io_queues(struct case_data *priv, struct nvme_sq_info *sq,
+	struct nvme_cq_info *cq, int nr_pair);
 
 int ut_delete_pair_io_queue(struct case_data *priv, struct nvme_sq_info *sq,
 	struct nvme_cq_info *cq);
-int ut_delete_pair_io_queues(struct case_data *priv, struct nvme_sq_info **sq,
-	struct nvme_cq_info **cq, int nr_pair);
+int ut_delete_pair_io_queues(struct case_data *priv, struct nvme_sq_info *sq,
+	struct nvme_cq_info *cq, int nr_pair);
 
 int ut_ring_sq_doorbell(struct case_data *priv, struct nvme_sq_info *sq);
 int ut_ring_sqs_doorbell(struct case_data *priv, struct nvme_sq_info **sq,
