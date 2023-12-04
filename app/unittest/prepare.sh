@@ -53,14 +53,10 @@ app_acquire_devinfo()
 	pci_cap=`sudo lspci -s "${RC_BDF_PATCH}" -vvv | grep " Express (v2)"`
 	pci_cap=${pci_cap#*[}
 	RC_PCI_CAP_OFFSET_EXP=${pci_cap%%]*}
-	RC_PCI_EXP_REG_DEVICE_CONTROL=
-		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x8))`
-	RC_PCI_EXP_REG_LINK_CAPABILITY=
-		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0xc))`
-	RC_PCI_EXP_REG_LINK_CONTROL=
-		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x10))`
-	RC_PCI_EXP_REG_LINK_CONTROL2=
-		`printf "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x30))`
+	printf -v RC_PCI_EXP_REG_DEVICE_CONTROL "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x8))
+	printf -v RC_PCI_EXP_REG_LINK_CAPABILITY "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0xc))
+	printf -v RC_PCI_EXP_REG_LINK_CONTROL "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x10))
+	printf -v RC_PCI_EXP_REG_LINK_CONTROL2 "%x" $((16#${RC_PCI_CAP_OFFSET_EXP}+0x30))
 
 	INFO "\tParse devinfo ok!"
 }
@@ -84,7 +80,7 @@ app_generate_autoheader()
 	echo "#define RC_PCI_EXP_REG_LINK_CAPABILITY \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CAPABILITY}\"">>${AUTO_HEADER}
 	echo "#define RC_PCI_EXP_REG_LINK_CONTROL \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CONTROL}\"">>${AUTO_HEADER}
 	echo "#define RC_PCI_EXP_REG_LINK_CONTROL2 \"${RC_BDF_PATCH} ${RC_PCI_EXP_REG_LINK_CONTROL2}\"">>${AUTO_HEADER}
-	echo "#define RC_PCI_HDR_REG_BRIDGE_CONTROL \"${RC_BDF_PATCH} {RC_PCI_HDR_REG_BRIDGE_CONTROL}\"">>${AUTO_HEADER}
+	echo "#define RC_PCI_HDR_REG_BRIDGE_CONTROL \"${RC_BDF_PATCH} ${RC_PCI_HDR_REG_BRIDGE_CONTROL}\"">>${AUTO_HEADER}
 	echo "">>${AUTO_HEADER}
 	echo "#endif /* __AUTO_HEADER_H_ */">>${AUTO_HEADER}
 
