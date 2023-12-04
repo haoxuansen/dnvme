@@ -715,7 +715,7 @@ class AppHomePage(object):
 		self._widget.setLayout(self._layout)
 
 		self._image = QtWidgets.QLabel()
-		self._image.setPixmap(QtGui.QPixmap('./assets/universe.jpg').scaled(768, 432))
+		self._image.setPixmap(QtGui.QPixmap(getSourcePath('./assets/universe.jpg')).scaled(768, 432))
 		self._layout.addWidget(self._image, 0, 0, 1, 1, _AlignCenter)
 
 	def hide(self) -> None:
@@ -875,7 +875,20 @@ class AppWindow(object):
 
 	def __checkSize(self, size: QtCore.QSize) -> bool:
 		return size.width() > 0 and size.height() > 0
-	
+
+def getSourcePath(filepath):
+	""" Get real source path in different situation (eg: pyinstaller)
+
+	:param filepath: The original path of the source file
+	:type filepath: str
+	:return: The actual path of the source file
+	:rtype: str
+	"""
+	if hasattr(sys, '_MEIPASS'):
+		return os.path.join(sys._MEIPASS, filepath)
+	else:
+		return os.path.join(os.path.abspath("."), filepath)
+
 def main():
 	logger.setFileEnable(False)
 	logger.setConsoleLevel(log.DEBUG)

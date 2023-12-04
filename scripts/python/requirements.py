@@ -24,10 +24,11 @@ def check_module():
 
 	modules = {
 		'colorlog': 'colorlog',
-		'PySide6': 'pyside6',
+		# 'PySide6': 'pyside6',
+		'PyQt5': 'pyqt5',
 		'qtawesome': 'qtawesome',
 		'tqdm': 'tqdm',
-		'typing': 'typing',
+		# 'typing': 'typing',
 	}
 
 	for mod in modules.keys():
