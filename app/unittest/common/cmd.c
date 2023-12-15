@@ -973,13 +973,13 @@ int ut_submit_io_random_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 }
 
 int ut_submit_io_random_cmds_to_sqs(struct case_data *priv, 
-	struct nvme_sq_info **sq, uint32_t select, int nr_cmd, int nr_sq)
+	struct nvme_sq_info *sq, uint32_t select, int nr_cmd, int nr_sq)
 {
 	int ret;
 	int i;
 
 	for (i = 0; i < nr_sq; i++) {
-		ret = ut_submit_io_random_cmds(priv, sq[i], select, nr_cmd);
+		ret = ut_submit_io_random_cmds(priv, &sq[i], select, nr_cmd);
 		if (ret < 0)
 			return ret;
 	}
@@ -1420,13 +1420,13 @@ int ut_send_io_random_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 }
 
 int ut_send_io_random_cmds_to_sqs(struct case_data *priv, 
-	struct nvme_sq_info **sq, uint32_t select, int nr_cmd, int nr_sq)
+	struct nvme_sq_info *sq, uint32_t select, int nr_cmd, int nr_sq)
 {
 	int ret;
 	int i;
 
 	for (i = 0; i < nr_sq; i++) {
-		ret = ut_send_io_random_cmds(priv, sq[i], select, nr_cmd);
+		ret = ut_send_io_random_cmds(priv, &sq[i], select, nr_cmd);
 		if (ret < 0)
 			return ret;
 	}

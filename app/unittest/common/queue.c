@@ -149,14 +149,14 @@ int ut_ring_sq_doorbell(struct case_data *priv, struct nvme_sq_info *sq)
 	return nvme_ring_sq_doorbell(ndev->fd, sq->sqid);
 }
 
-int ut_ring_sqs_doorbell(struct case_data *priv, struct nvme_sq_info **sq,
+int ut_ring_sqs_doorbell(struct case_data *priv, struct nvme_sq_info *sq,
 	int nr_sq)
 {
 	int ret;
 	int i;
 
 	for (i = 0; i < nr_sq; i++) {
-		ret = ut_ring_sq_doorbell(priv, sq[i]);
+		ret = ut_ring_sq_doorbell(priv, &sq[i]);
 		if (ret < 0)
 			return ret;
 	}

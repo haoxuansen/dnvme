@@ -473,12 +473,12 @@ static int __case_wrr_with_urgent_priority_class_arbitration(
 	if (ret < 0)
 		return ret;
 
-	ret = ut_submit_io_random_cmds_to_sqs(priv, &ndev->iosqs, 
+	ret = ut_submit_io_random_cmds_to_sqs(priv, ndev->iosqs, 
 		UT_CMD_SEL_ALL, nr_cmd, nr_pair);
 	if (ret < 0)
 		goto del_ioq;
 
-	ret = ut_ring_sqs_doorbell(priv, &ndev->iosqs, nr_pair);
+	ret = ut_ring_sqs_doorbell(priv, ndev->iosqs, nr_pair);
 	if (ret < 0)
 		goto del_ioq;
 	
