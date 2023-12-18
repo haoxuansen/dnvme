@@ -59,26 +59,18 @@ int nvme_maxio_set_param_fmt1(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_maxio_set_param_fmt1(ndev->fd, subcmd, param, opcode);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_maxio_set_param_fmt1(ndev->fd, subcmd, param, opcode), 
+		-EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 	
 	return 0;
 }
@@ -88,26 +80,18 @@ int nvme_maxio_set_param_fmt2(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_maxio_set_param_fmt2(ndev->fd, subcmd, param, opcode);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_maxio_set_param_fmt2(ndev->fd, subcmd, param, opcode),
+		-EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 	
 	return 0;
 }
@@ -133,26 +117,17 @@ int nvme_maxio_check_result_fmt1(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_maxio_check_result_fmt1(ndev->fd, subcmd, opcode);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_maxio_check_result_fmt1(ndev->fd, subcmd, opcode), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 	
 	return 0;
 }
@@ -178,26 +153,17 @@ int nvme_maxio_get_param_fmt1(struct nvme_dev_info *ndev, uint32_t subcmd,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_maxio_get_param_fmt1(ndev->fd, subcmd, opcode);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_maxio_get_param_fmt1(ndev->fd, subcmd, opcode), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	param->dw0 = le32_to_cpu(entry.result.u32);
 	return 0;
@@ -230,26 +196,18 @@ int nvme_maxio_nvme_case_check_result(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_maxio_nvme_case_check_result(ndev->fd, subcmd, rbuf, size);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_maxio_nvme_case_check_result(ndev->fd, subcmd, 
+		rbuf, size), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 	
 	return 0;
 }

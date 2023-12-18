@@ -42,26 +42,17 @@ int nvme_io_zone_manage_send(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_io_zone_manage_send(ndev->fd, wrap);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, wrap->sqid);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_io_zone_manage_send(ndev->fd, wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, wrap->sqid), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status),
+		-EPERM);
 	
 	return 0;
 }
@@ -98,26 +89,17 @@ int nvme_io_zone_manage_receive(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_io_zone_manage_receive(ndev->fd, wrap);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, wrap->sqid);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_io_zone_manage_receive(ndev->fd, wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, wrap->sqid), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status),
+		-EPERM);
 	
 	return 0;
 }
@@ -153,29 +135,21 @@ int nvme_io_zone_append(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_io_zone_append(ndev->fd, wrap);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, wrap->sqid);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_io_zone_append(ndev->fd, wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, wrap->sqid), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, wrap->cqid, 1, &entry, sizeof(entry)),
+		1, -ETIME);
 
 	if (wrap->check_none)
 		return 0;
 
-	ret = nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, wrap->sqid, cid, wrap->status),
+		-EPERM);
 	
 	return 0;
 }

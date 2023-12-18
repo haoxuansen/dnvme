@@ -139,26 +139,17 @@ int nvme_set_feat_arbitration(struct nvme_dev_info *ndev,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_set_feat_arbitration(ndev->fd, wrap);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_arbitration(ndev->fd, wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -167,26 +158,17 @@ int nvme_set_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_set_feat_hmb(ndev->fd, wrap);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_hmb(ndev->fd, wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -195,26 +177,17 @@ int nvme_get_feat_hmb(struct nvme_dev_info *ndev, struct nvme_hmb_wrapper *wrap)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_get_feat_hmb(ndev->fd, wrap);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_get_feat_hmb(ndev->fd, wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return le32_to_cpu(entry.result.u32) & 0x3;
 }
@@ -224,26 +197,17 @@ int nvme_set_feat_host_behavior(struct nvme_dev_info *ndev, uint32_t sel,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_set_feat_host_behavior(ndev->fd, sel, behavior);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_host_behavior(ndev->fd, sel, behavior), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -253,26 +217,17 @@ int nvme_get_feat_host_behavior(struct nvme_dev_info *ndev, uint32_t sel,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_get_feat_host_behavior(ndev->fd, sel, behavior);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_get_feat_host_behavior(ndev->fd, sel, behavior), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -282,26 +237,17 @@ int nvme_set_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_set_feat_iocs_profile(ndev->fd, sel, index);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_iocs_profile(ndev->fd, sel, index), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -315,26 +261,17 @@ int nvme_get_feat_iocs_profile(struct nvme_dev_info *ndev, uint32_t sel)
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_get_feat_iocs_profile(ndev->fd, sel);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_get_feat_iocs_profile(ndev->fd, sel), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return le32_to_cpu(entry.result.u32) & NVME_IOCS_CI_MASK;
 }
@@ -347,26 +284,17 @@ int nvme_set_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_set_feat_write_protect(ndev->fd, nsid, sel, state);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_write_protect(ndev->fd, nsid, sel, state), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -379,26 +307,17 @@ int nvme_get_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid,
 {
 	struct nvme_completion entry = {0};
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_get_feat_write_protect(ndev->fd, nsid, sel);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_get_feat_write_protect(ndev->fd, nsid, sel), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return le32_to_cpu(entry.result.u32) & NVME_NS_WPS_MASK;
 }

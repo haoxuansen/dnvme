@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/ioctl.h>
+#include <errno.h>
 
 #include "libbase.h"
 #include "libnvme.h"
@@ -83,20 +84,9 @@ int nvme_set_irq(int fd, enum nvme_irq_type type, uint16_t nr_irqs)
  */
 int nvme_switch_irq(int fd, enum nvme_irq_type type, uint16_t nr_irqs)
 {
-	int ret;
-
-	ret = nvme_disable_controller(fd);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_set_irq(fd, type, nr_irqs);
-	if (ret < 0)
-		return ret;
-	
-	ret = nvme_enable_controller(fd);
-	if (ret < 0)
-		return ret;
-
+	CHK_EXPR_NUM_LT0_RTN(nvme_disable_controller(fd), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(nvme_set_irq(fd, type, nr_irqs), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(nvme_enable_controller(fd), -EPERM);
 	return 0;
 }
 

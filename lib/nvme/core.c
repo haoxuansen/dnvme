@@ -159,26 +159,17 @@ static int request_io_queue_num(struct nvme_dev_info *ndev,
 	uint16_t iosq = 65534;
 	uint16_t iocq = 65534;
 	uint16_t cid;
-	int ret;
 
-	ret = nvme_cmd_set_feat_num_queues(ndev->fd, iosq, iocq);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_num_queues(ndev->fd, iosq, iocq), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS), 
+		-EPERM);
 
 	ctrl->nr_sq = (le32_to_cpu(entry.result.u32) & 0xffff) + 1;
 	ctrl->nr_cq = (le32_to_cpu(entry.result.u32) >> 16) + 1;
@@ -200,9 +191,8 @@ static int init_identify_ctrl_data(struct nvme_dev_info *ndev,
 		return -ENOMEM;
 	}
 
-	ret = nvme_identify_ctrl(ndev, id_ctrl);
-	if (ret < 0)
-		goto out;
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_identify_ctrl(ndev, id_ctrl), ret, -EPERM, out);
 
 	nvme_display_id_ctrl(id_ctrl);
 
@@ -237,17 +227,12 @@ static int init_ctrl_property(struct nvme_dev_info *ndev,
 		return -ENOMEM;
 	}
 
-	ret = nvme_read_ctrl_cap(fd, &prop->cap);
-	if (ret < 0)
-		goto out;
-
-	ret = nvme_read_ctrl_vs(fd, &prop->vs);
-	if (ret < 0)
-		goto out;
-
-	ret = nvme_read_ctrl_cc(fd, &prop->cc);
-	if (ret < 0)
-		goto out;
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_read_ctrl_cap(fd, &prop->cap), ret, -EPERM, out);
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_read_ctrl_vs(fd, &prop->vs), ret, -EPERM, out);
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_read_ctrl_cc(fd, &prop->cc), ret, -EPERM, out);
 
 	nvme_display_ctrl_property(prop);
 
@@ -281,9 +266,7 @@ static int init_id_cs_ctrl(struct nvme_dev_info *ndev,
 	if (nvme_version(ctrl) < NVME_VS(2, 0, 0))
 		return 0;
 
-	ret = nvme_read_ctrl_cc(ndev->fd, &prop->cc);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(nvme_read_ctrl_cc(ndev->fd, &prop->cc), -EPERM);
 	cc_css = NVME_CC_TO_CSS(prop->cc);
 
 	if ((cap_css & NVME_CAP_CSS_CSI) && (cc_css == NVME_CC_CSS_CSI)) {
@@ -299,10 +282,10 @@ static int init_id_cs_ctrl(struct nvme_dev_info *ndev,
 			goto out;
 		}
 
-		ret = nvme_get_feat_iocs_profile(ndev, NVME_FEAT_SEL_CUR);
-		if (ret < 0)
-			goto out;
-		
+		CHK_EXPR_NUM_LT0_GOTO(
+			nvme_get_feat_iocs_profile(ndev, NVME_FEAT_SEL_CUR),
+			ret, -EPERM, out);
+
 		vector = le64_to_cpu(ctrl->id_ctrl_csc->vector[ret]);
 		if (vector & BIT(NVME_CSI_NVM)) {
 			ctrl->id_ctrl_nvm = zalloc(sizeof(struct nvme_id_ctrl_nvm));
@@ -390,13 +373,12 @@ static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 			return -ENOMEM;
 		}
 
-		ret = request_io_queue_num(ndev, ctrl);
-		if (ret < 0)
-			goto stage1_free_ctrl;
-
-		ret = init_identify_ctrl_data(ndev, ctrl);
-		if (ret < 0)
-			goto stage1_free_ctrl;
+		CHK_EXPR_NUM_LT0_GOTO(
+			request_io_queue_num(ndev, ctrl),
+			ret, -EPERM, stage1_free_ctrl);
+		CHK_EXPR_NUM_LT0_GOTO(
+			init_identify_ctrl_data(ndev, ctrl),
+			ret, -EPERM, stage1_free_ctrl);
 
 		ndev->ctrl = ctrl;
 		break;
@@ -407,13 +389,11 @@ static int init_ctrl_instance(struct nvme_dev_info *ndev, int stage)
 			return -EFAULT;
 		}
 
-		ret = init_ctrl_property(ndev, ndev->ctrl);
-		if (ret < 0)
-			return ret;
-
-		ret = init_id_cs_ctrl(ndev, ndev->ctrl);
-		if (ret < 0)
-			goto stage2_exit_ctrl_prop;
+		CHK_EXPR_NUM_LT0_RTN(
+			init_ctrl_property(ndev, ndev->ctrl), -EPERM);
+		CHK_EXPR_NUM_LT0_GOTO(
+			init_id_cs_ctrl(ndev, ndev->ctrl), ret, -EPERM, 
+			stage2_exit_ctrl_prop);
 		break;
 
 	default:
@@ -865,37 +845,28 @@ static int nvme_init_stage1(struct nvme_dev_info *ndev)
 {
 	int ret;
 
-	ret = nvme_disable_controller_complete(ndev->fd);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_disable_controller_complete(ndev->fd), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_get_dev_info(ndev->fd, &ndev->dev_pub), -EPERM);
+	ndev->sock_fd = CHK_EXPR_NUM_LT0_RTN(nvme_gnl_connect(), -EPERM);
 
-	ret = nvme_get_dev_info(ndev->fd, &ndev->dev_pub);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE),
+		ret, -EPERM, out_gnl_disconnect);
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_set_irq(ndev->fd, NVME_INT_PIN, 1), 
+		ret, -EPERM, out_gnl_disconnect);
 
-	ret = nvme_gnl_connect();
-	if (ret < 0)
-		return ret;
-	ndev->sock_fd = ret;
-
-	ret = nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
-	if (ret < 0)
-		goto out_gnl_disconnect;
-
-	ret = nvme_set_irq(ndev->fd, NVME_INT_PIN, 1);
-	if (ret < 0)
-		goto out_gnl_disconnect;
 	ndev->irq_type = NVME_INT_PIN;
 	ndev->nr_irq = 1;
 
-	ret = nvme_enable_controller(ndev->fd);
-	if (ret < 0)
-		goto out_gnl_disconnect;
-
-	ret = init_ctrl_instance(ndev, NVME_INIT_STAGE1);
-	if (ret < 0)
-		goto out_gnl_disconnect;
-
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_enable_controller(ndev->fd),
+		ret, -EPERM, out_gnl_disconnect);
+	CHK_EXPR_NUM_LT0_GOTO(
+		init_ctrl_instance(ndev, NVME_INIT_STAGE1),
+		ret, -EPERM, out_gnl_disconnect);
 	return 0;
 
 out_gnl_disconnect:
@@ -917,17 +888,12 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 	struct pci_dev_instance *pdev;
 	int ret;
 
-	ret = nvme_disable_controller_complete(ndev->fd);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE);
-	if (ret < 0)
-		return ret;
-
-	ret = init_pci_dev_instance(ndev);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_disable_controller_complete(ndev->fd), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_create_aq_pair(ndev, NVME_AQ_MAX_SIZE, NVME_AQ_MAX_SIZE),
+		-EPERM);
+	CHK_EXPR_NUM_LT0_RTN(init_pci_dev_instance(ndev), -EPERM);
 	pdev = ndev->pdev;
 
 	ndev->irq_type = NVME_INT_MSIX;
@@ -936,25 +902,18 @@ static int nvme_init_stage2(struct nvme_dev_info *ndev)
 	else
 		ndev->nr_irq = ctrl->nr_cq + 1;
 
-	ret = nvme_set_irq(ndev->fd, ndev->irq_type, ndev->nr_irq);
-	if (ret < 0)
-		goto exit_pci_dev_instance;
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_set_irq(ndev->fd, ndev->irq_type, ndev->nr_irq), 
+		ret, -EPERM, exit_pci_dev_instance);
 
-	ret = nvme_enable_controller(ndev->fd);
-	if (ret < 0)
-		goto exit_pci_dev_instance;
-
-	ret = init_ctrl_instance(ndev, NVME_INIT_STAGE2);
-	if (ret < 0)
-		goto exit_pci_dev_instance;
-
-	ret = nvme_init_ioq_info(ndev);
-	if (ret < 0)
-		goto exit_ctrl_instance;
-
-	ret = init_ns_group(ndev);
-	if (ret < 0)
-		goto exit_ioq;
+	CHK_EXPR_NUM_LT0_GOTO(nvme_enable_controller(ndev->fd),
+		ret, -EPERM, exit_pci_dev_instance);
+	CHK_EXPR_NUM_LT0_GOTO(init_ctrl_instance(ndev, NVME_INIT_STAGE2),
+		ret, -EPERM, exit_pci_dev_instance);
+	CHK_EXPR_NUM_LT0_GOTO(nvme_init_ioq_info(ndev), 
+		ret, -EPERM, exit_ctrl_instance);
+	CHK_EXPR_NUM_LT0_GOTO(init_ns_group(ndev), 
+		ret, -EPERM, exit_ioq);
 
 	return 0;
 exit_ioq:
@@ -1027,13 +986,10 @@ int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz,
 	uint16_t nr_irq;
 	int ret;
 
-	ret = nvme_disable_controller_complete(ndev->fd);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_create_aq_pair(ndev, asqsz, acqsz);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_disable_controller_complete(ndev->fd), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_create_aq_pair(ndev, asqsz, acqsz), -EPERM);
 
 	if (type == NVME_INT_PIN || type == NVME_INT_MSI_SINGLE) {
 		nr_irq = 1;
@@ -1047,6 +1003,7 @@ int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz,
 
 	ret = nvme_set_irq(ndev->fd, type, nr_irq);
 	if (ret < 0) {
+		pr_err("failed to set irq!(%d)\n", ret);
 		ndev->irq_type = NVME_INT_NONE;
 		ndev->nr_irq = 0;
 		return ret;
@@ -1054,9 +1011,8 @@ int nvme_reinit(struct nvme_dev_info *ndev, uint32_t asqsz, uint32_t acqsz,
 	ndev->irq_type = type;
 	ndev->nr_irq = nr_irq;
 
-	ret = nvme_enable_controller(ndev->fd);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_enable_controller(ndev->fd), -EPERM);
 
 	return 0;
 }

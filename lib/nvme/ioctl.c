@@ -66,8 +66,10 @@ void *nvme_mmap(int fd, uint16_t id, uint32_t size, uint32_t type)
 
 	addr = mmap(NULL, size, PROT_READ | PROT_WRITE, 
 		MAP_SHARED, fd, pg_size * pgoff);
-	if (MAP_FAILED == addr)
+	if (MAP_FAILED == addr) {
+		pr_err("failed to mmap addr!\n");
 		return NULL;
+	}
 
 	return addr;
 }

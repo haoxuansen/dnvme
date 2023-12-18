@@ -122,14 +122,8 @@ int nvme_create_acq(struct nvme_dev_info *ndev, uint32_t elements)
  */
 int nvme_create_aq_pair(struct nvme_dev_info *ndev, uint32_t sqsz, uint32_t cqsz)
 {
-	int ret;
-
-	ret = nvme_create_acq(ndev, cqsz);
-	if (ret < 0)
-		return ret;
-	ret = nvme_create_asq(ndev, sqsz);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(nvme_create_acq(ndev, cqsz), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(nvme_create_asq(ndev, sqsz), -EPERM);
 	return 0;
 }
 
@@ -164,34 +158,24 @@ int nvme_create_iosq(struct nvme_dev_info *ndev, struct nvme_csq_wrapper *wrap)
 	struct nvme_completion entry = {0};
 	int fd = ndev->fd;
 	uint16_t cid;
-	int ret;
 
 	nvme_fill_prep_sq(&psq, wrap->sqid, wrap->cqid, wrap->elements, 
 		wrap->contig);
-	ret = nvme_prepare_iosq(fd, &psq);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(nvme_prepare_iosq(fd, &psq), -EPERM);
 	
 	nvme_cmd_fill_create_sq(&csq, wrap->sqid, wrap->cqid, wrap->elements,
 		wrap->contig, wrap->prio);
-	ret = nvme_cmd_create_iosq(fd, &csq, wrap->contig, wrap->buf, wrap->size);
-	if (ret < 0)
-		return ret;
-	cid = ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_create_iosq(fd, &csq, wrap->contig, wrap->buf, wrap->size),
+		-EPERM);
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(nvme_ring_sq_doorbell(fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
 	return 0;
 }
@@ -201,26 +185,15 @@ int nvme_delete_iosq(struct nvme_dev_info *ndev, uint16_t sqid)
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int fd = ndev->fd;
-	int ret;
 
-	ret = nvme_cmd_delete_iosq(fd, sqid);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(nvme_cmd_delete_iosq(fd, sqid), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(nvme_ring_sq_doorbell(fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 	
 	return 0;
 }
@@ -284,34 +257,23 @@ int nvme_create_iocq(struct nvme_dev_info *ndev, struct nvme_ccq_wrapper *wrap)
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int fd = ndev->fd;
-	int ret;
 
 	nvme_fill_prep_cq(&pcq, wrap->cqid, wrap->elements, wrap->contig, 
 		wrap->irq_en, wrap->irq_no);
-	ret = nvme_prepare_iocq(fd, &pcq);
-	if (ret < 0)
-		return ret;
+	CHK_EXPR_NUM_LT0_RTN(nvme_prepare_iocq(fd, &pcq), -EPERM);
 
 	nvme_cmd_fill_create_cq(&ccq, wrap->cqid, wrap->elements, wrap->contig,
 		wrap->irq_en, wrap->irq_no);
-	ret = nvme_cmd_create_iocq(fd, &ccq, wrap->contig, wrap->buf, wrap->size);
-	if (ret < 0)
-		return ret;
-	cid = ret;
-
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_create_iocq(fd, &ccq, wrap->contig, wrap->buf, wrap->size),
+		-EPERM);
+	CHK_EXPR_NUM_LT0_RTN(nvme_ring_sq_doorbell(fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS), 
+		-EPERM);
 
 	return 0;
 }
@@ -321,27 +283,16 @@ int nvme_delete_iocq(struct nvme_dev_info *ndev, uint16_t cqid)
 	struct nvme_completion entry = {0};
 	uint16_t cid;
 	int fd = ndev->fd;
-	int ret;
 
-	ret = nvme_cmd_delete_iocq(fd, cqid);
-	if (ret < 0)
-		return ret;
-	cid = ret;
+	cid = CHK_EXPR_NUM_LT0_RTN(nvme_cmd_delete_iocq(fd, cqid), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(nvme_ring_sq_doorbell(fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
 
-	ret = nvme_ring_sq_doorbell(fd, NVME_AQ_ID);
-	if (ret < 0)
-		return ret;
-
-	ret = nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry));
-	if (ret != 1) {
-		pr_err("expect reap 1, actual reaped %d!\n", ret);
-		return ret < 0 ? ret : -ETIME;
-	}
-
-	ret = nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS);
-	if (ret < 0)
-		return ret;
-	
 	return 0;
 }
 
@@ -397,7 +348,6 @@ int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
 	struct nvme_cq_info *cqs = ndev->iocqs;
 	uint16_t irq_no;
 	uint16_t i;
-	int ret;
 
 	// nvme_reinit_ioq_info_random(ndev);
 	nvme_swap_ioq_info_random(ndev);
@@ -413,30 +363,21 @@ int nvme_create_all_ioq(struct nvme_dev_info *ndev, uint32_t flag)
 			cqs[i].irq_no = irq_no;
 	}
 
-	ret = nvme_create_all_iocq(ndev, ndev->iocqs, ctrl->nr_cq);
-	if (ret < 0)
-		return ret;
-	
-	ret = nvme_create_all_iosq(ndev, ndev->iosqs, ctrl->nr_sq);
-	if (ret < 0)
-		return ret;
-
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_create_all_iocq(ndev, ndev->iocqs, ctrl->nr_cq), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_create_all_iosq(ndev, ndev->iosqs, ctrl->nr_sq), -EPERM);
 	return 0;
 }
 
 int nvme_delete_all_ioq(struct nvme_dev_info *ndev)
 {
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
-	int ret;
 
-	ret = nvme_delete_all_iosq(ndev, ndev->iosqs, ctrl->nr_sq);
-	if (ret < 0)
-		return ret;
-	
-	ret = nvme_delete_all_iocq(ndev, ndev->iocqs, ctrl->nr_cq);
-	if (ret < 0)
-		return ret;
-	
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_delete_all_iosq(ndev, ndev->iosqs, ctrl->nr_sq), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_delete_all_iocq(ndev, ndev->iocqs, ctrl->nr_cq), -EPERM);
 	return 0;
 }
 
@@ -651,14 +592,8 @@ int nvme_init_ioq_info(struct nvme_dev_info *ndev)
 {
 	int ret;
 
-	ret = nvme_alloc_iosq_info(ndev);
-	if (ret < 0)
-		return ret;
-	
-	ret = nvme_alloc_iocq_info(ndev);
-	if (ret < 0)
-		goto out;
-
+	CHK_EXPR_NUM_LT0_RTN(nvme_alloc_iosq_info(ndev), -EPERM);
+	CHK_EXPR_NUM_LT0_GOTO(nvme_alloc_iocq_info(ndev), ret, -EPERM, out);
 	return 0;
 out:
 	free(ndev->iosqs);

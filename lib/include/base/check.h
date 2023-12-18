@@ -94,6 +94,8 @@
 	CHK_EXPR_NUM_RTN(expr, val, errno, <=)
 #define CHK_EXPR_NUM_EQ_RTN(expr, val, errno) \
 	CHK_EXPR_NUM_RTN(expr, val, errno, ==)
+#define CHK_EXPR_NUM_NE_RTN(expr, val, errno) \
+	CHK_EXPR_NUM_RTN(expr, val, errno, !=)
 #define CHK_EXPR_NUM_GE_RTN(expr, val, errno) \
 	CHK_EXPR_NUM_RTN(expr, val, errno, >=)
 #define CHK_EXPR_NUM_GT_RTN(expr, val, errno) \
@@ -105,6 +107,8 @@
 	CHK_EXPR_NUM_GOTO(expr, val, ret, errno, label, <=)
 #define CHK_EXPR_NUM_EQ_GOTO(expr, val, ret, errno, label) \
 	CHK_EXPR_NUM_GOTO(expr, val, ret, errno, label, ==)
+#define CHK_EXPR_NUM_NE_GOTO(expr, val, ret, errno, label) \
+	CHK_EXPR_NUM_GOTO(expr, val, ret, errno, label, !=)
 #define CHK_EXPR_NUM_GE_GOTO(expr, val, ret, errno, label) \
 	CHK_EXPR_NUM_GOTO(expr, val, ret, errno, label, >=)
 #define CHK_EXPR_NUM_GT_GOTO(expr, val, ret, errno, label) \
@@ -116,6 +120,8 @@
 	CHK_EXPR_PTR_RTN(expr, val, errno, <=)
 #define CHK_EXPR_PTR_EQ_RTN(expr, val, errno) \
 	CHK_EXPR_PTR_RTN(expr, val, errno, ==)
+#define CHK_EXPR_PTR_NE_RTN(expr, val, errno) \
+	CHK_EXPR_PTR_RTN(expr, val, errno, !=)
 #define CHK_EXPR_PTR_GE_RTN(expr, val, errno) \
 	CHK_EXPR_PTR_RTN(expr, val, errno, >=)
 #define CHK_EXPR_PTR_GT_RTN(expr, val, errno) \
@@ -127,6 +133,8 @@
 	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, <=)
 #define CHK_EXPR_PTR_EQ_GOTO(expr, val, ret, errno, label) \
 	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, ==)
+#define CHK_EXPR_PTR_NE_GOTO(expr, val, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, !=)
 #define CHK_EXPR_PTR_GE_GOTO(expr, val, ret, errno, label) \
 	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, >=)
 #define CHK_EXPR_PTR_GT_GOTO(expr, val, ret, errno, label) \
