@@ -24,7 +24,10 @@ CUR_DIR_NAME := $(notdir $(CUR_DIR_PATH))
 
 CFLAGS := $(RULE_CFLAGS)
 LDFLAGS := $(RULE_LDFLAGS)
-LDFLAGS += -static
+# * "backtrace_symbols()" depends on "-rdynamic" flag
+LDFLAGS += -rdynamic
+# !WARNNING: "-static" flag may affect "-rdynamic", don't enable together!
+# LDFLAGS += -static
 LDLIBS := -lall
 # LDFLAGS += -dynamic
 # LDLIBS := -lbase -lnvme

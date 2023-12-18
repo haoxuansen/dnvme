@@ -47,6 +47,7 @@
 #include "base/types.h"
 #include "base/limits.h"
 #include "base/bitops.h"
+#include "base/check.h"
 #include "base/log.h"
 #include "base/minmax.h"
 #include "base/sizes.h"
@@ -87,5 +88,7 @@ int fill_data_with_random(void *buf, uint32_t size);
 int dump_data_to_console(void *buf, uint32_t size, const char *desc);
 int dump_data_to_file(void *buf, uint32_t size, const char *file);
 int dump_data_to_fmt_file(void *buf, uint32_t size, const char *fmt, ...);
+
+void dump_stack(int en_later);
 
 #endif /* !_UAPI_LIBBASE_H_ */

@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <time.h>
+#include <execinfo.h> ///< @backtrace ...
 
 #include "compiler.h"
 #include "libbase.h"
@@ -217,6 +218,32 @@ int dump_data_to_fmt_file(void *buf, uint32_t size, const char *fmt, ...)
 out:
 	free(file);
 	return ret;
+}
+
+void dump_stack(int en_later)
+{
+	static void *addr[64] = {NULL};
+	static int enable = 1;
+	char **string;
+	int i, nptr;
+
+	if (!enable) {
+		enable = en_later;
+		return;
+	}
+	enable = en_later;
+
+	nptr = backtrace(addr, ARRAY_SIZE(addr));
+	string = backtrace_symbols(addr, nptr);
+	if (!string) {
+		pr_warn("failed to convert addr to symbol!\n");
+		return;
+	}
+
+	for (i = 0; i < nptr; i++)
+		pr_debug("%s\n", string[i]);
+	
+	free(string);
 }
 
 static void __init libbase_init(void)
