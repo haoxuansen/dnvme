@@ -104,7 +104,7 @@ struct nvme_hmb_wrapper {
 
 	/* for set feature */
 	uint32_t	dw11;
-	uint32_t	hsize;
+	uint32_t	hsize; ///< unit: PAGE_SIZE(CC.MPS)
 	uint64_t	hmdla;
 	uint32_t	hmdlec;
 	/* for get feature */

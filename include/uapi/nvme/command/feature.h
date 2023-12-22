@@ -185,7 +185,7 @@ enum {
  */
 struct nvme_feat_hmb_descriptor {
 	__le64			addr;
-	__le32			size;
+	__le32			size; ///< unit: PAGE_SIZE(CC.MPS)
 	__u8			rsvd12[4];
 };
 
@@ -195,7 +195,7 @@ struct nvme_feat_hmb_descriptor {
  * @note Refer to "NVM Express Base Specification R2.0b - Figure 338"
  */
 struct nvme_feat_hmb_attribute {
-	__le32		hsize;
+	__le32		hsize; ///< unit: PAGE_SIZE(CC.MPS)
 	__le32		hmdlal;
 	__le32		hmdlau;
 	__le32		hmdlec;

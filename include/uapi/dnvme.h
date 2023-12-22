@@ -324,8 +324,9 @@ struct nvme_dev_public {
 
 struct nvme_hmb_alloc {
 	uint64_t	desc_list;	/* physical address */
+	uint32_t	page_size;	/* unit: Byte */
 	uint32_t	nr_desc;	/* desciptor entry number */
-	uint32_t	bsize[0];	/* buffer size */
+	uint32_t	bsize[0];	/* buffer size, unit: PAGE_SIZE */
 };
 
 struct nvme_hmb_access {

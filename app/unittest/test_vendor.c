@@ -2866,17 +2866,340 @@ static int case_fwdma_ut_reg2host_host2reg(struct nvme_tool *tool,
 }
 NVME_CASE_SYMBOL(case_fwdma_ut_reg2host_host2reg, "?");
 
+static int fwdma_ut_hmb_engine_test_1st(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_hmb_alloc *hmb_alloc;
+	struct nvme_hmb_wrapper wrap = {0};
+	uint32_t cc, hmminds, hmmaxd;
+	uint32_t page_size;
+	uint32_t min_buf_size;
+	uint32_t max_desc_entry;
+	uint32_t entry;
+	uint32_t total;
+	int i, ret;
+
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_read_ctrl_cc(ndev->fd, &cc), -EIO);
+	page_size = 1 << (12 + NVME_CC_TO_MPS(cc));
+
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_id_ctrl_hmminds(ndev->ctrl, &hmminds), -ENODEV);
+	min_buf_size = hmminds ? (hmminds * SZ_4K) : page_size;
+
+	hmmaxd = CHK_EXPR_NUM_LT0_RTN(
+		nvme_id_ctrl_hmmaxd(ndev->ctrl), -ENODEV);
+	max_desc_entry = hmmaxd ? hmmaxd : 8;
+	entry = rand() % max_desc_entry + 1;
+
+	hmb_alloc = CHK_EXPR_PTR_EQ0_RTN(
+		zalloc(sizeof(struct nvme_hmb_alloc) + 
+			sizeof(uint32_t) * entry), -ENOMEM);
+	hmb_alloc->nr_desc = entry;
+	hmb_alloc->page_size = page_size;
+
+	for (i = 0; i < entry; i++)
+		hmb_alloc->bsize[i] = DIV_ROUND_UP(min_buf_size, page_size);
+	
+	total = entry * ALIGN(min_buf_size, page_size);
+	if (total < SZ_2M) {
+		hmb_alloc->bsize[entry - 1] += 
+			DIV_ROUND_UP(SZ_2M - total, page_size);
+		total += ALIGN(SZ_2M - total, page_size);
+	}
+
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_alloc_host_mem_buffer(ndev->fd, hmb_alloc),
+		ret, -ENOMEM, free_hmb_alloc);
+
+	/* enable host memory buffer */
+	wrap.sel = NVME_FEAT_SEL_CUR;
+	wrap.dw11 = NVME_HOST_MEM_ENABLE;
+	wrap.hsize = total / page_size;
+	wrap.hmdla = hmb_alloc->desc_list;
+	wrap.hmdlec = entry;
+
+	CHK_EXPR_NUM_LT0_GOTO(
+		nvme_set_feat_hmb(ndev, &wrap), ret, -EPERM, free_hmb_buf);
+
+	free(hmb_alloc);
+	return 0;
+
+free_hmb_buf:
+	ret |= nvme_release_host_mem_buffer(ndev->fd);
+free_hmb_alloc:
+	free(hmb_alloc);
+	return ret;
+}
+
+static int fwdma_ut_hmb_engine_test_2nd(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+
+	sparam.dw11 = 1;
+	sparam.dw3 = rand() % 4;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	return 0;
+}
+
+static int fwdma_ut_hmb_engine_test_3rd(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+
+	sparam.dw11 = 2;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	sparam.dw11 = 3;
+	sparam.dw3 = rand() % 64 + 1;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+	
+	memset(&sparam, 0, sizeof(sparam));
+	sparam.dw11 = 4;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	sparam.dw11 = 5;
+	sparam.dw3 = rand() % 64 + 1;
+	sparam.dw12 = rand();
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x"
+		" dw12 0x%x", nvme_admin_maxio_fwdma_fwdma, sparam.dw3, 
+		sparam.dw11, sparam.dw12);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	memset(&sparam, 0, sizeof(sparam));
+	sparam.dw11 = 6;
+	sparam.dw3 = rand() % 1025;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+	
+	memset(&sparam, 0, sizeof(sparam));
+	sparam.dw11 = 7;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	memset(&sparam, 0, sizeof(sparam));
+	sparam.dw11 = 8;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	memset(&sparam, 0, sizeof(sparam));
+	sparam.dw11 = 9;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+	return 0;
+}
+
+static int fwdma_ut_hmb_engine_test_last(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_hmb_wrapper wrap = {0};
+
+	wrap.sel = NVME_FEAT_SEL_CUR;
+
+	/* disable host memory buffer and release resource */
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_set_feat_hmb(ndev, &wrap), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_release_host_mem_buffer(ndev->fd), -EPERM);
+	return 0;
+}
+
 static int case_fwdma_ut_hmb_engine_test(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	int ret;
+
+	ret = fwdma_ut_hmb_engine_test_1st(tool, priv);
+	if (ret < 0)
+		return ret;
+	ret = fwdma_ut_hmb_engine_test_2nd(tool, priv);
+	if (ret < 0)
+		goto out;
+	ret = fwdma_ut_hmb_engine_test_3rd(tool, priv);
+	if (ret < 0)
+		goto out;
+out:
+	ret |= fwdma_ut_hmb_engine_test_last(tool, priv);
+	return ret;
 }
 NVME_CASE_SYMBOL(case_fwdma_ut_hmb_engine_test, "?");
+
+static int fwdma_ut_fwdma_mix_case_check_1st(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint32_t method; ///< 0: AES, 1: SM4
+	uint32_t key_len; ///< 0: 128bits, 1: 256bits
+	uint32_t mode; ///< 1: XTS
+	uint32_t verify;
+	uint32_t key_type;
+	uint32_t data_len;
+	int ret;
+
+	method = rand() % 2;
+	key_len = (method == 1) ? 0 : (rand() % 2);
+	mode = rand() % 4;
+	verify = rand() % 2;
+	key_type = rand() % 2;
+
+	sparam.dw3 = (method & 0x1) | (key_len & 0x2) | (mode & 0xc) |
+		(verify & 0x10) | (key_type & 0x20);
+	sparam.dw11 = 1;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(8), &sparam);
+	if (ret < 0)
+		return ret;
+
+	if (mode == 1)
+		data_len = ALIGN(rand() % (SZ_32K - SZ_512) + 1, 16) + (SZ_512 - 16);
+	else
+		data_len = ALIGN(rand() % SZ_32K + 1, 16);
+
+	return data_len;
+}
+
+static int fwdma_ut_fwdma_mix_case_check_remain(struct nvme_tool *tool, 
+	struct case_data *priv, uint32_t data_len)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint64_t slba = 0;
+	int ret;
+
+	BUG_ON(tool->wbuf_size < SZ_32K);
+
+	sparam.dw11 = 2;
+	sparam.dw13 = lower_32_bits(slba);
+	sparam.dw14 = upper_32_bits(slba);
+	sparam.dw15 = data_len;
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw11 0x%x, dw13 0x%x"
+		" dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw11, sparam.dw13, 
+		sparam.dw14, sparam.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(8), &sparam);
+	if (ret < 0)
+		return ret;
+
+	sparam.dw11 = 3;
+	sparam.buf = tool->wbuf;
+	sparam.buf_size = SZ_32K;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw11 0x%x, dw13 0x%x"
+		" dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw11, sparam.dw13, 
+		sparam.dw14, sparam.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(8), &sparam);
+	if (ret < 0)
+		return ret;
+
+	sparam.dw11 = 4;
+	sparam.dw3 = rand() % 2;
+	if (sparam.dw3)
+		memset(sparam.buf, UINT_MAX, sparam.buf_size);
+	else
+		memset(sparam.buf, 0, sparam.buf_size);
+
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw3 0x%x dw11 0x%x "
+		"dw13 0x%x dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw3, sparam.dw11, 
+		sparam.dw13, sparam.dw14, sparam.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(8), &sparam);
+	if (ret < 0)
+		return ret;
+
+	sparam.dw11 = 5;
+	sparam.dw3 = 0;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw11 0x%x, dw13 0x%x"
+		" dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw11, sparam.dw13, 
+		sparam.dw14, sparam.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(8), &sparam);
+	if (ret < 0)
+		return ret;
+
+	sparam.dw11 = 6;
+	ut_rpt_record_case_step(rpt, 
+		"Send vendor command:0x%x - Set Param: dw11 0x%x, dw13 0x%x"
+		" dw14 0x%x, dw15 0x%x",
+		nvme_admin_maxio_fwdma_fwdma, sparam.dw11, sparam.dw13, 
+		sparam.dw14, sparam.dw15);
+	ret = nvme_maxio_fwdma_fwdma_set_param(ndev, SUBCMD(8), &sparam);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
 
 static int case_fwdma_ut_fwdma_mix_case_check(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	int ret;
+
+	ret = fwdma_ut_fwdma_mix_case_check_1st(tool, priv);
+	if (ret < 0)
+		return ret;
+	ret = fwdma_ut_fwdma_mix_case_check_remain(tool, priv, ret);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 NVME_CASE_SYMBOL(case_fwdma_ut_fwdma_mix_case_check, "?");
 
@@ -2893,6 +3216,90 @@ static int case_fwdma_ut_buf2buf_pad_data(struct nvme_tool *tool,
 	return -EOPNOTSUPP;
 }
 NVME_CASE_SYMBOL(case_fwdma_ut_buf2buf_pad_data, "?");
+
+static int case_host_enable_ltr_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_host_enable_ltr_message, "?");
+
+static int case_l1tol0_ltr_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l1tol0_ltr_message, "?");
+
+static int case_l0tol1_ltr_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l0tol1_ltr_message, "?");
+
+static int case_l0tol1cpm_ltr_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l0tol1cpm_ltr_message, "?");
+
+static int case_l0tol11_ltr_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l0tol11_ltr_message, "?");
+
+static int case_l0tol12_ltr_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l0tol12_ltr_message, "?");
+
+static int case_host_enable_ltr_over_max_mode(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_host_enable_ltr_over_max_mode, "?");
+
+static int case_l1_to_l0_ltr_over_max_mode(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l1_to_l0_ltr_over_max_mode, "?");
+
+static int case_l0_to_l1_ltr_over_max_mode(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_l0_to_l1_ltr_over_max_mode, "?");
+
+static int case_less_ltr_threshold_mode(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_less_ltr_threshold_mode, "?");
+
+static int case_drs_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_drs_message, "?");
+
+static int case_frs_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	return -EOPNOTSUPP;
+}
+NVME_CASE_SYMBOL(case_frs_message, "?");
 
 static int cfgwr_interrupt_single_dword(struct nvme_tool *tool, 
 	struct case_data *priv, uint32_t oft)

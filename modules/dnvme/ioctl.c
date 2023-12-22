@@ -615,10 +615,10 @@ static int dnvme_fill_hmb_descriptor(struct nvme_device *ndev,
 	for (i = 0; i < alloc->nr_desc; i++) {
 		hmb->desc[i].addr = cpu_to_le64(hmb->buf_addr + offset);
 		hmb->desc[i].size = cpu_to_le32(alloc->bsize[i]);
-		offset += alloc->bsize[i];
+		offset += (alloc->bsize[i] * alloc->page_size);
 
-		dnvme_info(ndev, "desc idx: %u, addr: 0x%llx, size: 0x%x\n", i, 
-			le64_to_cpu(hmb->desc[i].addr), 
+		dnvme_info(ndev, "desc idx: %u, addr: 0x%llx, pg_size: 0x%x\n",
+			i, le64_to_cpu(hmb->desc[i].addr), 
 			le32_to_cpu(hmb->desc[i].size));
 	}
 	hmb->desc_num = alloc->nr_desc;
@@ -644,6 +644,11 @@ int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb
 	if (copy_from_user(&head, uhmb, sizeof(head))) {
 		dnvme_err(ndev, "failed to copy from user space!\n");
 		return -EFAULT;
+	}
+
+	if (!head.page_size) {
+		dnvme_err(ndev, "Required to provide CC.MPS!\n");
+		return -EINVAL;
 	}
 
 	if (head.nr_desc > (PAGE_SIZE / sizeof(struct nvme_feat_hmb_descriptor))) {
@@ -674,7 +679,7 @@ int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb
 	}
 
 	for (i = 0; i < copy->nr_desc; i++)
-		buf_size += copy->bsize[i];
+		buf_size += (copy->bsize[i] * copy->page_size);
 
 	hmb->buf = dma_alloc_coherent(&pdev->dev, buf_size, &hmb->buf_addr, 
 		GFP_KERNEL);

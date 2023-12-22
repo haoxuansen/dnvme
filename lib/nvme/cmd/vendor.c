@@ -50,6 +50,13 @@ int nvme_cmd_maxio_set_param_fmt2(int fd, uint32_t subcmd,
 
 	cmd.sqid = NVME_AQ_ID;
 	cmd.cmd_buf_ptr = &common;
+	if (param->buf && param->buf_size) {
+		cmd.bit_mask = NVME_MASK_PRP1_PAGE | NVME_MASK_PRP1_LIST |
+			NVME_MASK_PRP2_PAGE | NVME_MASK_PRP2_LIST;
+		cmd.data_buf_ptr = param->buf;
+		cmd.data_buf_size = param->buf_size;
+		cmd.data_dir = DMA_BIDIRECTIONAL;
+	}
 
 	return nvme_submit_64b_cmd(fd, &cmd);
 }

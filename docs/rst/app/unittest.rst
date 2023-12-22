@@ -327,6 +327,105 @@ case_fwdma_buf2buf_bufpoint
 
 	主机不需要准备 Host Buffer.
 
+case_fwdma_ut_hmb_engine_test
+"""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_ut_hmb_engine_test
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 Set Feature - Host Memory Buffer 命令，配置并使能 HMB
+	a. 解析 controller 支持的 descriptor entry 数量上限 [#2]_ ，并取随机值配置。
+	#. 解析 desc entry 指向的单个 buffer 的大小 [#3]_ 。
+	#. 若所有 buffer 的总大小 ≥ 2MiB，则不作调整。否则，调整最后一个 desc entry 对应的 buffer size，使 buffer 的总大小为 2MiB。
+#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. cdw11 值为 1
+	#. param 值随机，各字段信息如下表所示
+	
+	.. csv-table:: Param Format
+		:header: "Bit(s)", "Name", "Description"
+
+		"0", "Encrption", "0: disable; 1: enable"
+		"1", "Verify", "0: disable; 1: enable"
+		"31:3", "Reserved"
+
+#. 主机继续发送若干条 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如 :ref:`label_case_fwdma_ut_hmb_engine_test` 中所示
+#. 主机发送 Set Feature - Host Memory Buffer 命令，disable HMB
+
+.. _label_case_fwdma_ut_hmb_engine_test:
+
+.. csv-table:: Vendor Command List
+	:header: "cdw11", "param", "cdw12", "note"
+
+	"2"
+	"3", "[1, 64]"
+	"4"
+	"5", "[1, 64]", "uint32_t 随机数", "Search single list mode"
+	"6", "[0, 1024]", "", "Search single normal mode"
+	"7", "", "", "Delete TLAA mode"
+	"8", "", "", "Delete TTLAA mode"
+	"9", "", "", "Reset mode"
+
+.. important::
+	1. cdw11: Vendor command sequence number，即第几条 vendor command
+
+.. note:: 
+	1. [n, m]: 表示取 n 到 m 之间的随机（整）数，包含 n 和 m。
+
+case_fwdma_ut_fwdma_mix_case_check
+""""""""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_ut_fwdma_mix_case_check
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. cdw11 值为 1
+	#. param 值随机，各字段信息如下表所示
+
+	.. csv-table:: Param Format
+		:header: "Bit(s)", "Name", "Description", "Note"
+
+		"0", "Method", "0: AES; 1: SM4", "选择 SM4 时，Key 的长度必须为 128bits"
+		"1", "Key Length", "0: 128bits; 1: 256bits"
+		"3:2", "Mode", "0: ECB; 1: XTS; 2: CBC; 3: CFB128", "选择 XTS 时，数据长度至少为 512Byte"
+		"4", "Verify", "0: disable; 1: enable"
+		"5", "Key Type", "0: ATA; 1: Range 0"
+		"31:6", "Reserved"
+
+2. 主机继续发送若干条 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如 :ref:`label_case_fwdma_ut_fwdma_mix_case_check` 中所示
+
+.. _label_case_fwdma_ut_fwdma_mix_case_check:
+
+.. csv-table:: Vendor Command List
+	:header: "cdw11", "param", "cdw6", "cdw7", "cdw13", "cdw14", "cdw15", "note"
+
+	"2", "", "", "", "SLBAL", "SLBAH", "data length"
+	"3", "", "PRP1", "PRP2", "SLBAL", "SLBAH", "data length" 
+	"4", "0 或 1", "PRP1", "PRP2", "SLBAL", "SLBAH", "data length", "param=0 或 1 时，需要将 PRP buffer 所有 bit 清 0 或置 1"
+	"5", "", "PRP1", "PRP2", "SLBAL", "SLBAH"
+	"6", "", "PRP1", "PRP2", "SLBAL", "SLBAH"
+
+.. important::
+	1. cdw11: Vendor command sequence number，即第几条 vendor command
+	#. cdw13: SLBA bit[31:0]
+	#. cdw14: SLBA bit[63:32]
+	#. cdw15: data length(unit: Byte)，必须按 16Byte 对齐，其最大值应小于等于 32KiB
+
+.. note:: 
+	1. 第 1 次会随机生成符合要求的 data length，后面的 command 均使用相同的 data length;
+	#. 所有 command 中使用的 PRP1 和 PRP2 为主机同一个 buffer, 固定长度为 32KiB
+
+case_host_enable_ltr_message
+""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_host_enable_ltr_message
+	:project: unittest
+
+| 操作步骤如下：
+
 
 case_cfgwr_interrupt
 """"""""""""""""""""
@@ -497,3 +596,5 @@ case_bdf_check
 
 
 .. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。
+.. [#2] 通过解析 Identify Controller Data Strucutre 中 HMMAXD 字段可以得知 controller 支持的 descriptor entry 数量上限。若 controller 未设置数量上限，则自定义设置为 8。
+.. [#3] 通过解析 Idenfity Controller Data Structure 中 HMMINDS 字段可以得知 descriptor entry 至少应指向多大的 buffer 空间。若 controller 未设置下限，则自定义设置为 PAGE_SIZE(CC.MPS)。

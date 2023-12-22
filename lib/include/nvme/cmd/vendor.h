@@ -16,6 +16,9 @@ struct nvme_maxio_set_param {
 	uint32_t	dw13;
 	uint32_t	dw14;
 	uint32_t	dw15;
+
+	void		*buf;
+	uint32_t	buf_size;
 };
 
 struct nvme_maxio_get_param {

@@ -533,7 +533,7 @@ static int subcase_hmb_work_normal(struct nvme_tool *tool)
 	struct test_data *test = &g_test;
 	struct nvme_hmb_alloc *hmb_alloc;
 	struct nvme_hmb_wrapper wrap = {0};
-	uint32_t size = ALIGN(test->min_buf_size, test->page_size);
+	uint32_t pg_size = DIV_ROUND_UP(test->min_buf_size, test->page_size);
 	uint32_t entry = rand() % test->max_desc_entry + 1;
 	uint32_t i;
 	int ret, tmp;
@@ -546,9 +546,10 @@ static int subcase_hmb_work_normal(struct nvme_tool *tool)
 		goto out;
 	}
 	hmb_alloc->nr_desc = entry;
+	hmb_alloc->page_size = test->page_size;
 
 	for (i = 0; i < entry; i++)
-		hmb_alloc->bsize[i] = size;
+		hmb_alloc->bsize[i] = pg_size;
 
 	ret = nvme_alloc_host_mem_buffer(ndev->fd, hmb_alloc);
 	if (ret < 0)
@@ -557,7 +558,7 @@ static int subcase_hmb_work_normal(struct nvme_tool *tool)
 	/* enable host memory buffer */
 	wrap.sel = NVME_FEAT_SEL_CUR;
 	wrap.dw11 = NVME_HOST_MEM_ENABLE;
-	wrap.hsize = entry * size;
+	wrap.hsize = entry * pg_size;
 	wrap.hmdla = hmb_alloc->desc_list;
 	wrap.hmdlec = entry;
 
@@ -607,7 +608,7 @@ static int subcase_hmb_double_enable(struct nvme_tool *tool)
 	struct nvme_hmb_alloc *hmb_alloc;
 	struct nvme_hmb_wrapper wrap = {0};
 	struct nvme_completion entry = {0};
-	uint32_t size = ALIGN(test->min_buf_size, test->page_size);
+	uint32_t pg_size = DIV_ROUND_UP(test->min_buf_size, test->page_size);
 	uint32_t nr_desc = rand() % test->max_desc_entry + 1;
 	uint32_t i;
 	uint16_t cid;
@@ -621,9 +622,10 @@ static int subcase_hmb_double_enable(struct nvme_tool *tool)
 		goto out;
 	}
 	hmb_alloc->nr_desc = nr_desc;
+	hmb_alloc->page_size = test->page_size;
 
 	for (i = 0; i < nr_desc; i++)
-		hmb_alloc->bsize[i] = size;
+		hmb_alloc->bsize[i] = pg_size;
 
 	ret = nvme_alloc_host_mem_buffer(ndev->fd, hmb_alloc);
 	if (ret < 0)
@@ -632,7 +634,7 @@ static int subcase_hmb_double_enable(struct nvme_tool *tool)
 	/* enable host memory buffer */
 	wrap.sel = NVME_FEAT_SEL_CUR;
 	wrap.dw11 = NVME_HOST_MEM_ENABLE;
-	wrap.hsize = nr_desc * size;
+	wrap.hsize = nr_desc * pg_size;
 	wrap.hmdla = hmb_alloc->desc_list;
 	wrap.hmdlec = nr_desc;
 
