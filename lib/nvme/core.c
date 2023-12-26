@@ -792,6 +792,8 @@ static int init_pci_dev_instance(struct nvme_dev_info *ndev)
 					&pdev->pm, sizeof(pdev->pm));
 	ret |= nvme_get_pci_capability(fd, PCI_CAP_ID_EXP,
 					&pdev->express, sizeof(pdev->express));
+	nvme_get_pcie_capability(fd, PCI_EXT_CAP_ID_LTR, &pdev->ltr, 
+		sizeof(pdev->ltr)); /* optional */
 	nvme_get_pcie_capability(fd, PCI_EXT_CAP_ID_L1SS, &pdev->l1ss, 
 		sizeof(pdev->l1ss)); /* optional */
 

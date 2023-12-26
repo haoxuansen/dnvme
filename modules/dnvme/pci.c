@@ -261,6 +261,21 @@ struct pci_cap_express *pci_get_express_cap(struct pci_dev *pdev, u8 offset)
 	return cap;
 }
 
+struct pci_ext_cap_ltr *pci_ext_get_ltr_cap(struct pci_dev *pdev, u16 offset)
+{
+	struct pci_ext_cap_ltr *cap;
+
+	if (offset < PCI_CFG_SPACE_SIZE)
+		return NULL;
+
+	cap = kzalloc(sizeof(*cap), GFP_KERNEL);
+	if (!cap)
+		return NULL;
+
+	cap->offset = offset;
+	return cap;
+}
+
 struct pci_ext_cap_l1ss *pci_ext_get_l1ss_cap(struct pci_dev *pdev, u16 offset)
 {
 	struct pci_ext_cap_l1ss *cap;

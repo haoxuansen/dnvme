@@ -37,12 +37,12 @@ NOTICE()
 
 WARN()
 {
-	echo $ECHO_E "${LOG_N_YELLOW}$1${LOG_N}"
+	echo $ECHO_E "${LOG_N_YELLOW}${FUNCNAME[1]}:$1${LOG_N}"
 }
 
 ERR()
 {
-	echo $ECHO_E "${LOG_N_RED}$1${LOG_N}"
+	echo $ECHO_E "${LOG_N_RED}${FUNCNAME[1]}:$1${LOG_N}"
 }
 
 # --------------------------------------------------------------------------- #

@@ -3220,84 +3220,840 @@ NVME_CASE_SYMBOL(case_fwdma_ut_buf2buf_pad_data, "?");
 static int case_host_enable_ltr_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_ctrl2;
+	int fd = ndev->fd;
+
+	if (!cap_ltr) {
+		pr_warn("device not support LTR capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* close device L1 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl &= ~PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+	/* close device LTR */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control2(fd, cap_exp, &dev_ctrl2), -EIO);
+	dev_ctrl2 &= ~PCI_EXP_DEVCTL2_LTR_EN;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control2(fd, cap_exp, dev_ctrl2), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(0), &sparam),
+		-EPERM);
+
+	msleep(100);
+
+	/* open device LTR */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control2(fd, cap_exp, &dev_ctrl2), -EIO);
+	dev_ctrl2 |= PCI_EXP_DEVCTL2_LTR_EN;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control2(fd, cap_exp, dev_ctrl2), -EIO);
+
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(0)), 
+		-EPERM);
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_host_enable_ltr_message, "?");
 
 static int case_l1tol0_ltr_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	char cmd[128];
+	int fd = ndev->fd;
+
+	if (!cap_ltr) {
+		pr_warn("device not support LTR capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* open device L1 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl |= PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+	/* open device link partner L1 */
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w=02:02",
+		RC_PCI_EXP_REG_LINK_CONTROL);
+	CHK_EXPR_NUM_LT0_RTN(call_system(cmd), -EPERM);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(1), &sparam),
+		-EPERM);
+
+	msleep(100);
+
+	/* close device L1 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl &= ~PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);	
+
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(1)), 
+		-EPERM);
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l1tol0_ltr_message, "?");
 
 static int case_l0tol1_ltr_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t cap_l1ss = ndev->pdev->l1ss.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_sts;
+	uint32_t l1ss_ctrl;
+	char cmd[128];
+	int fd = ndev->fd;
+
+	if (!cap_ltr || !cap_l1ss) {
+		pr_warn("device not support LTR/L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (RC_PCIE_L1SS_CAP_OFFSET) {
+		pr_warn("host not support L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* close device L1CPM & L1.1 & L1.2 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl &= ~PCI_EXP_LNKCTL_CLKREQ_EN;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l1ss_ctrl &= ~(PCI_L1SS_CTL1_ASPM_L1_2 | PCI_L1SS_CTL1_ASPM_L1_1);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+	/* close host L1CPM & L1.1 & L1.2 */
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.w=0:100",
+		RC_PCI_EXP_REG_LINK_CONTROL);
+	CHK_EXPR_NUM_LT0_RTN(call_system(cmd), -EPERM);
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.l=0:c",
+		RC_PCIE_L1SS_REG_CTRL1);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(2), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(2)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l0tol1_ltr_message, "?");
 
 static int case_l0tol1cpm_ltr_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t cap_l1ss = ndev->pdev->l1ss.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_sts;
+	uint32_t l1ss_ctrl;
+	int fd = ndev->fd;
+
+	if (!cap_ltr || !cap_l1ss) {
+		pr_warn("device not support LTR/L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* close device L1.1 & L1.2 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l1ss_ctrl &= ~(PCI_L1SS_CTL1_ASPM_L1_2 | PCI_L1SS_CTL1_ASPM_L1_1);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+	/* open device L1 & L1CPM */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl |= PCI_EXP_LNKCTL_CLKREQ_EN | PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(3), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(3)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l0tol1cpm_ltr_message, "?");
 
 static int case_l0tol11_ltr_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t cap_l1ss = ndev->pdev->l1ss.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_sts;
+	uint32_t l1ss_ctrl;
+	int fd = ndev->fd;
+
+	if (!cap_ltr || !cap_l1ss) {
+		pr_warn("device not support LTR/L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* close device L1.2, open device L1 & L1CPM & L1.1 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l1ss_ctrl &= ~PCI_L1SS_CTL1_ASPM_L1_2;
+	l1ss_ctrl |= PCI_L1SS_CTL1_ASPM_L1_1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl |= PCI_EXP_LNKCTL_CLKREQ_EN | PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(4), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(4)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l0tol11_ltr_message, "?");
 
 static int case_l0tol12_ltr_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t cap_l1ss = ndev->pdev->l1ss.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_sts;
+	uint32_t l1ss_ctrl;
+	int fd = ndev->fd;
+
+	if (!cap_ltr || !cap_l1ss) {
+		pr_warn("device not support LTR/L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* open device L1 & L1CPM & L1.1 & L1.2 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l1ss_ctrl |= PCI_L1SS_CTL1_ASPM_L1_2 | PCI_L1SS_CTL1_ASPM_L1_1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl |= PCI_EXP_LNKCTL_CLKREQ_EN | PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(5), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(5)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l0tol12_ltr_message, "?");
 
 static int case_host_enable_ltr_over_max_mode(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t lat_set = 0x1001; ///< 1ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_ctrl2;
+	int fd = ndev->fd;
+
+	if (!cap_ltr) {
+		pr_warn("device not support LTR capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* close device L1 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl &= ~PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+	/* close device LTR */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control2(fd, cap_exp, &dev_ctrl2), -EIO);
+	dev_ctrl2 &= ~PCI_EXP_DEVCTL2_LTR_EN;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control2(fd, cap_exp, dev_ctrl2), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(6), &sparam),
+		-EPERM);
+
+	msleep(100);
+	/* open device LTR */
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control2(fd, cap_exp, &dev_ctrl2), -EIO);
+	dev_ctrl2 |= PCI_EXP_DEVCTL2_LTR_EN;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control2(fd, cap_exp, dev_ctrl2), -EIO);
+	
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(6)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_host_enable_ltr_over_max_mode, "?");
 
 static int case_l1_to_l0_ltr_over_max_mode(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t lat_set = 0x1001; ///< 1ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t dev_sts;
+	int fd = ndev->fd;
+
+	if (!cap_ltr) {
+		pr_warn("device not support LTR capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(7), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(7)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l1_to_l0_ltr_over_max_mode, "?");
 
 static int case_l0_to_l1_ltr_over_max_mode(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t cap_l1ss = ndev->pdev->l1ss.offset;
+	uint16_t lat_set = 0x1001; ///< 1ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t link_ctrl;
+	uint16_t dev_sts;
+	uint32_t l1ss_ctrl;
+	int fd = ndev->fd;
+
+	if (!cap_ltr || !cap_l1ss) {
+		pr_warn("device not support LTR/L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* open device L1 & L1CPM & L1.1 & L1.2 */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l1ss_ctrl |= PCI_L1SS_CTL1_ASPM_L1_2 | PCI_L1SS_CTL1_ASPM_L1_1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_link_control(fd, cap_exp, &link_ctrl), -EIO);
+	link_ctrl |= PCI_EXP_LNKCTL_CLKREQ_EN | PCI_EXP_LNKCTL_ASPM_L1;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_link_control(fd, cap_exp, link_ctrl), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(8), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(8)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_l0_to_l1_ltr_over_max_mode, "?");
 
 static int case_less_ltr_threshold_mode(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t cap_ltr = ndev->pdev->ltr.offset;
+	uint16_t cap_l1ss = ndev->pdev->l1ss.offset;
+	uint16_t lat_set = 0x100f; ///< 15ms
+	uint16_t lat_snoop;
+	uint16_t lat_no_snoop;
+	uint16_t dev_sts;
+	uint32_t l1ss_ctrl;
+	uint32_t l12_th_value;
+	uint32_t l12_th_scale;
+	int fd = ndev->fd;
+
+	if (!cap_ltr || !cap_l1ss) {
+		pr_warn("device not support LTR/L1SS capacity!\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* backup register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_snoop_latency(fd, cap_ltr, &lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_read_max_no_snoop_latency(fd, cap_ltr, 
+			&lat_no_snoop), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l12_th_value = l1ss_ctrl & PCI_L1SS_CTL1_LTR_L12_TH_VALUE;
+	l12_th_scale = l1ss_ctrl & PCI_L1SS_CTL1_LTR_L12_TH_SCALE;
+	/* set device max snoop & no-snoop latency */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, lat_set), -EIO);
+	/* set device LTR_L1.2_THRESHOLD = 3ms */
+	l1ss_ctrl &= ~PCI_L1SS_CTL1_LTR_L12_TH_VALUE;
+	l1ss_ctrl |= (0x3 << 16);
+	l1ss_ctrl &= ~PCI_L1SS_CTL1_LTR_L12_TH_SCALE;
+	l1ss_ctrl |= (0x4 << 29);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(9), &sparam),
+		-EPERM);
+
+	msleep(100);
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_state(fd, cap_exp, &dev_sts), -EIO);
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(9)), 
+		-EPERM);
+
+	/* restore register */
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_snoop_latency(fd, cap_ltr, lat_snoop),
+		-EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_ltr_write_max_no_snoop_latency(fd, cap_ltr, 
+			lat_no_snoop), -EIO);
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_read_control(fd, cap_l1ss, &l1ss_ctrl), -EIO);
+	l1ss_ctrl &= ~PCI_L1SS_CTL1_LTR_L12_TH_VALUE;
+	l1ss_ctrl |= l12_th_value;
+	l1ss_ctrl &= ~PCI_L1SS_CTL1_LTR_L12_TH_SCALE;
+	l1ss_ctrl |= l12_th_scale;
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_l1ss_write_control(fd, cap_l1ss, l1ss_ctrl), -EIO);
+	return 0;
 }
 NVME_CASE_SYMBOL(case_less_ltr_threshold_mode, "?");
 
 static int case_drs_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	char cmd[128];
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(10), &sparam),
+		-EPERM);
+
+	msleep(100);
+
+	/* hot reset*/
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.b=40:40", 
+		RC_PCI_HDR_REG_BRIDGE_CONTROL);
+	CHK_EXPR_NUM_LT0_RTN(call_system(cmd), -EPERM);
+	msleep(10);
+	snprintf(cmd, sizeof(cmd), "setpci -s %s.b=0:40", 
+		RC_PCI_HDR_REG_BRIDGE_CONTROL);
+	CHK_EXPR_NUM_LT0_RTN(call_system(cmd), -EPERM);
+
+	msleep(100);
+
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_reinit(ndev, ndev->asq.nr_entry, ndev->acq.nr_entry,
+			ndev->irq_type), -ENODEV);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(10)), 
+		-EPERM);
+
+	return 0;
 }
 NVME_CASE_SYMBOL(case_drs_message, "?");
 
 static int case_frs_message(struct nvme_tool *tool, 
 	struct case_data *priv)
 {
-	return -EOPNOTSUPP;
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t dev_ctrl;
+	int fd = ndev->fd;
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_set_param(ndev, SUBCMD(11), &sparam),
+		-EPERM);
+
+	msleep(100);
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control(fd, cap_exp, &dev_ctrl), -EIO);
+	dev_ctrl |= PCI_EXP_DEVCTL_BCR_FLR;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control(fd, cap_exp, dev_ctrl), -EIO);
+
+	msleep(100);
+
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_reinit(ndev, ndev->asq.nr_entry, ndev->acq.nr_entry,
+			ndev->irq_type), -ENODEV);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_msg);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_message_check_result(ndev, SUBCMD(11)), 
+		-EPERM);
+
+	return 0;
 }
 NVME_CASE_SYMBOL(case_frs_message, "?");
 
@@ -3887,6 +4643,75 @@ static int case_data_rate_register_in_l12(struct nvme_tool *tool,
 	return 0;
 }
 NVME_CASE_SYMBOL(case_data_rate_register_in_l12, "?");
+
+static int case_hw_control_request_retry(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_exp = ndev->pdev->express.offset;
+	uint16_t dev_ctrl;
+	int fd = ndev->fd;
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_special);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_special_set_param(ndev, SUBCMD(2), &sparam),
+		-EPERM);
+
+	msleep(100);
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control(fd, cap_exp, &dev_ctrl), -EIO);
+	dev_ctrl |= PCI_EXP_DEVCTL_BCR_FLR;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control(fd, cap_exp, dev_ctrl), -EIO);
+	
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_special);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_special_check_result(ndev, SUBCMD(2)), -EPERM);
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_hw_control_request_retry, "?");
+
+static int case_d3_not_block_message(struct nvme_tool *tool, 
+	struct case_data *priv)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct case_report *rpt = &priv->rpt;
+	struct nvme_maxio_set_param sparam = {0};
+	uint8_t cap_pm = ndev->pdev->pm.offset;
+	uint16_t pm_ctrl;
+	int fd = ndev->fd;
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_pm_read_control_status(fd, cap_pm, &pm_ctrl), -EIO);
+	pm_ctrl &= ~PCI_PM_CTRL_STATE_MASK;
+	pm_ctrl |= PCI_PM_CTRL_STATE_D3HOT;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_pm_write_control_status(fd, cap_pm, pm_ctrl), -EIO);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Set Param",
+		nvme_admin_maxio_pcie_special);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_special_set_param(ndev, SUBCMD(4), &sparam),
+		-EPERM);
+	
+	msleep(100);
+
+	ut_rpt_record_case_step(rpt, "Send vendor command:0x%x - Check Result",
+		nvme_admin_maxio_pcie_special);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_maxio_pcie_special_check_result(ndev, SUBCMD(4)), -EPERM);
+
+	return 0;
+}
+NVME_CASE_SYMBOL(case_d3_not_block_message, "?");
 
 static int case_internal_cpld_mps_check(struct nvme_tool *tool, 
 	struct case_data *priv)

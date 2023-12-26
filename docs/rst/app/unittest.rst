@@ -421,11 +421,297 @@ case_fwdma_ut_fwdma_mix_case_check
 case_host_enable_ltr_message
 """"""""""""""""""""""""""""
 
+验证主机在使能 device LTR 后，device 是否有按配置值发送 LTR Message
+
 .. doxygenfunction:: case_host_enable_ltr_message
 	:project: unittest
 
 | 操作步骤如下：
 
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机关闭 device L1 => 配置 R[Link Control].F[ASPM Control].B[1] = 0
+#. 主机关闭 device LTR => 配置 R[Device Control 2].F[LTR Mechanism Enable] = 0
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机打开 device LTR => 配置 R[Device Control 2].F[LTR Mechanism Enable] = 1
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+case_l1tol0_ltr_message
+"""""""""""""""""""""""
+
+验证 device 从 L1 退出时是否有按配置值发送 LTR Message
+
+.. doxygenfunction:: case_l1tol0_ltr_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机打开 device L1 => 配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机打开 device link parter 的 L1 => 配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机关闭 device L1 => 配置 R[Link Control].F[ASPM Control].B[1] = 0
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1
+
+case_l0tol1_ltr_message
+"""""""""""""""""""""""
+
+验证 device 从 L0 进入 L1 前是否有按配置值发送 LTR Message
+
+.. doxygenfunction:: case_l0tol1_ltr_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机关闭 device 的 L1CPM/L1.1/L1.2
+	a. 配置 R[Link Control].F[Enable Clock Power Management] = 0 [#4]_
+	#. 配置 R[L1 PM Substates Control 1].F[ASPM L1.2 Enable] = 0 [#5]_
+	#. 配置 R[L1 PM Substates Control 1].F[ASPM L1.1 Enable] = 0
+#. 主机关闭 device link parter 的 L1 CPM、L1.1、L1.2
+#. 主机打开 device 的 L1，配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机打开 device link parter 的 L1，配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 R[Device Status] 值
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1
+
+case_l0tol1cpm_ltr_message
+""""""""""""""""""""""""""
+
+验证 device 从 L0 进入 L1CPM 前是否有按配置值发送 LTR Message
+
+.. doxygenfunction:: case_l0tol1cpm_ltr_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机关闭 device 的 L1.1、L1.2，打开 device 的 L1、L1CPM
+ 	a. 配置 R[L1 PM Substates Control 1].F[ASPM L1.2 Enable] = 0 [#5]_
+	#. 配置 R[L1 PM Substates Control 1].F[ASPM L1.1 Enable] = 0
+	#. 配置 R[Link Control].F[Enable Clock Power Management] = 1 [#4]_
+	#. 配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(3)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 R[Device Status] 值
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(3)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1 & L1CPM
+
+case_l0tol11_ltr_message
+""""""""""""""""""""""""
+
+验证 device 从 L0 进入 L1.1 前是否有按配置值发送 LTR Message
+
+.. doxygenfunction:: case_l0tol11_ltr_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机关闭 device 的 L1.2，打开 device 的 L1、L1CPM、L1.1
+ 	a. 配置 R[L1 PM Substates Control 1].F[ASPM L1.2 Enable] = 0 [#5]_
+	#. 配置 R[L1 PM Substates Control 1].F[ASPM L1.1 Enable] = 1
+	#. 配置 R[Link Control].F[Enable Clock Power Management] = 1 [#4]_
+	#. 配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(4)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 R[Device Status] 值
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(4)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1 & L1.1
+
+case_l0tol12_ltr_message
+""""""""""""""""""""""""
+
+验证 device 从 L0 进入 L1.2 前是否有按配置值发送 LTR Message
+
+.. doxygenfunction:: case_l0tol12_ltr_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机打开 device 的 L1、L1CPM、L1.1、L1.2
+ 	a. 配置 R[L1 PM Substates Control 1].F[ASPM L1.2 Enable] = 1 [#5]_
+	#. 配置 R[L1 PM Substates Control 1].F[ASPM L1.1 Enable] = 1
+	#. 配置 R[Link Control].F[Enable Clock Power Management] = 1 [#4]_
+	#. 配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(5)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 R[Device Status] 值
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(5)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1 & L1.2
+
+case_host_enable_ltr_over_max_mode
+""""""""""""""""""""""""""""""""""
+
+主机使能 device LTR 时，若配置值大于 max LTR latency，验证 device 是否有发送 latency 为 0 的 LTR Message
+
+.. doxygenfunction:: case_host_enable_ltr_over_max_mode
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 1ms => 配置 R[Max Snoop Latency] = 0x1001, R[Max No-Snoop Latency] = 0x1001
+#. 主机关闭 device 的 L1 => 配置 R[Link Control].F[ASPM Control].B[1] = 0
+#. 主机关闭 device 的 LTR => 配置 R[Device Control 2].F[LTR Mechanism Enable] = 0
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(6)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机打开 device 的 LTR => 配置 R[Device Control 2].F[LTR Mechanism Enable] = 1
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(6)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+case_l1_to_l0_ltr_over_max_mode
+"""""""""""""""""""""""""""""""
+
+若配置值大于 max LTR latency，验证 device 在退出 L1 后是否有发送 latency 为 0 的 LTR Message
+
+.. doxygenfunction:: case_l1_to_l0_ltr_over_max_mode
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 1ms => 配置 R[Max Snoop Latency] = 0x1001, R[Max No-Snoop Latency] = 0x1001
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 R[Device Status] 值
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1
+
+case_l0_to_l1_ltr_over_max_mode
+"""""""""""""""""""""""""""""""
+
+若配置值大于 max LTR latency，验证 device 在进入 L1.2 前是否有发送 latency 为 0 的 LTR Message
+
+.. doxygenfunction:: case_l0_to_l1_ltr_over_max_mode
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 1ms => 配置 R[Max Snoop Latency] = 0x1001, R[Max No-Snoop Latency] = 0x1001
+#. 主机打开 device 的 L1、L1CPM、L1.1、L1.2
+ 	a. 配置 R[L1 PM Substates Control 1].F[ASPM L1.2 Enable] = 1 [#5]_
+	#. 配置 R[L1 PM Substates Control 1].F[ASPM L1.1 Enable] = 1
+	#. 配置 R[Link Control].F[Enable Clock Power Management] = 1 [#4]_
+	#. 配置 R[Link Control].F[ASPM Control].B[1] = 1
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 R[Device Status] 值
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值：R[Max Snoop Latency]、R[Max No-Snoop Latency] [#4]_
+
+.. note:: 
+	1. Host 需要支持 ASPM L1
+
+case_less_ltr_threshold_mode
+""""""""""""""""""""""""""""
+
+若配置值小于 LTR threshold latency，验证 device 在进入 L1.2 前是否有发送 latency 为 LTR threshold latency 的 LTR Message
+
+.. doxygenfunction:: case_less_ltr_threshold_mode
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机备份 device 以下寄存器值
+ 	a. R[Max Snoop Latency] [#4]_
+	#. R[Max No-Snoop Latency]
+	#. R[L1 PM Substates Control 1].F[LTR_L1.2_THRESHOLD_Value] [#5]_
+	#. R[L1 PM Substates Control 1].F[LTR_L1.2_THRESHOLD_Scale]
+#. 主机设置 device Max Snoop/No-Snoop Latency 为 15ms => 配置 R[Max Snoop Latency] = 0x100F, R[Max No-Snoop Latency] = 0x100F
+#. 主机设置 device LTR_L1.2_THRESHOLD 为 3ms
+	a. 配置 R[L1 PM Substates Control 1].F[LTR_L1.2_THRESHOLD_Value] = 0x3
+	#. 配置 R[L1 PM Substates Control 1].F[LTR_L1.2_THRESHOLD_Scale] = 0x4
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(9)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机读取 deivce 寄存器值 => R[Device Status]
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(9)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+#. 主机还原 device 寄存器值
+ 	a. R[Max Snoop Latency] [#4]_
+	#. R[Max No-Snoop Latency]
+	#. R[L1 PM Substates Control 1].F[LTR_L1.2_THRESHOLD_Value] [#5]_
+	#. R[L1 PM Substates Control 1].F[LTR_L1.2_THRESHOLD_Scale]
+
+.. note:: 
+	1. Host 需要支持 ASPM L1 & L1.2
+
+case_drs_message
+""""""""""""""""
+
+验证 device 在 linkup 后是否立即发送 DRS Message。
+
+.. doxygenfunction:: case_drs_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(10)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机发起 linkdown (hot reset)
+	a. 配置 device link partner R[Bridge Control].F[Secondary Bus Reset] = 1
+	#. 等待 10ms
+	#. 配置 device link partner R[Bridge Control].F[Secondary Bus Reset] = 0
+#. 主机等待 100ms
+#. 主机重新初始化 device
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(10)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+case_frs_message
+""""""""""""""""
+
+验证 device 从 :math:`D0_{uninitiated}` 状态回到 :math:`D0_{active}` 后是否立即发送 FRS Message。
+
+.. doxygenfunction:: case_frs_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(11)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机发起 FLR => 配置 device R[Device Control].F[Initiate Function Level Reset] = 1
+#. 主机等待 100ms
+#. 主机重新初始化 device
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_msg` 命令，设置 subcmd 为 BIT(11)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
 
 case_cfgwr_interrupt
 """"""""""""""""""""
@@ -559,6 +845,35 @@ case_data_rate_register_in_l12
 #. 主机等待 100ms
 #. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
 
+case_hw_control_request_retry
+"""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_hw_control_request_retry
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机发起 FLR => 配置 device R[Device Control].F[Initiate Function Level Reset] = 1
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
+case_d3_not_block_message
+"""""""""""""""""""""""""
+
+验证 device 在 D3 状态下可正常收发 Message。
+
+.. doxygenfunction:: case_d3_not_block_message
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机将 device 设置成 D3 状态 => 配置 device R[Power Management Control/Status].F[PowerState] = 0x3 [#6]_
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(4)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+#. 主机等待 100ms
+#. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(4)，option 为 :enumerator:`NVME_MAXIO_OPT_CHECK_RESULT`
+
 case_internal_cpld_mps_check
 """"""""""""""""""""""""""""
 
@@ -598,3 +913,6 @@ case_bdf_check
 .. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。
 .. [#2] 通过解析 Identify Controller Data Strucutre 中 HMMAXD 字段可以得知 controller 支持的 descriptor entry 数量上限。若 controller 未设置数量上限，则自定义设置为 8。
 .. [#3] 通过解析 Idenfity Controller Data Structure 中 HMMINDS 字段可以得知 descriptor entry 至少应指向多大的 buffer 空间。若 controller 未设置下限，则自定义设置为 PAGE_SIZE(CC.MPS)。
+.. [#4] Latency Tolerance Reporting (LTR) Extended Capability
+.. [#5] L1 PM Substates Extended Capability
+.. [#6] Power Management Capability

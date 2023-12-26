@@ -49,6 +49,10 @@ struct pci_cap_msix {
 	uint32_t	pba;
 };
 
+struct pci_ext_cap_ltr {
+	uint16_t	offset;
+};
+
 struct pci_ext_cap_l1ss {
 	uint16_t	offset;
 };

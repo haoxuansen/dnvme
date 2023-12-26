@@ -533,6 +533,14 @@ static int dnvme_get_pcie_capability(struct nvme_device *ndev,
 	u16 offset;
 
 	switch (gcap->id) {
+	case PCI_EXT_CAP_ID_LTR:
+		if (!cap->ltr)
+			return -ENOENT;
+		if (gcap->size < sizeof(*cap->ltr))
+			return -ENOSPC;
+		if (copy_to_user(gcap->buf, cap->ltr, sizeof(*cap->ltr)))
+			return -EFAULT;
+		break;
 	case PCI_EXT_CAP_ID_L1SS:
 		if (!cap->l1ss)
 			return -ENOENT;

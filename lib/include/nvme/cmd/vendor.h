@@ -70,6 +70,13 @@ static inline int nvme_maxio_nvme_case_set_param(struct nvme_dev_info *ndev,
 		nvme_admin_maxio_nvme_case);
 }
 
+static inline int nvme_maxio_pcie_message_set_param(struct nvme_dev_info *ndev,
+	uint32_t subcmd, struct nvme_maxio_set_param *param)
+{
+	return nvme_maxio_set_param_fmt2(ndev, subcmd, param, 
+		nvme_admin_maxio_pcie_msg);
+}
+
 static inline int nvme_maxio_pcie_interrupt_set_param(struct nvme_dev_info *ndev,
 	uint32_t subcmd, struct nvme_maxio_set_param *param)
 {
@@ -122,6 +129,13 @@ static inline int nvme_maxio_nvme_hwwdma_check_result(struct nvme_dev_info *ndev
 {
 	return nvme_maxio_check_result_fmt1(ndev, subcmd, 
 		nvme_admin_maxio_nvme_hwwdma);
+}
+
+static inline int nvme_maxio_pcie_message_check_result(
+	struct nvme_dev_info *ndev, uint32_t subcmd)
+{
+	return nvme_maxio_check_result_fmt1(ndev, subcmd, 
+		nvme_admin_maxio_pcie_msg);
 }
 
 static inline int nvme_maxio_pcie_interrupt_check_result(

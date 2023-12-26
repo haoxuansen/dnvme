@@ -31,6 +31,7 @@ struct pci_dev_instance {
 	struct pci_cap_express	express;
 	struct pci_cap_msi	msi;
 	struct pci_cap_msix	msix;
+	struct pci_ext_cap_ltr	ltr;
 	struct pci_ext_cap_l1ss	l1ss;
 };
 

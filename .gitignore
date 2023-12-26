@@ -2,6 +2,7 @@
 .config.old
 .vscode
 diff.patch
+docs/rst/_build
 include/config
 release
 scripts/python/packages/__pycache__

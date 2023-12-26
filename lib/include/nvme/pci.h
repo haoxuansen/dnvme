@@ -130,6 +130,16 @@ static inline int pci_exp_read_link_status(int fd, uint8_t oft, uint16_t *val)
 	return pci_read_config_word(fd, oft + PCI_EXP_LNKSTA, val);
 }
 
+static inline int pci_exp_read_device_control2(int fd, uint8_t oft, uint16_t *val)
+{
+	return pci_read_config_word(fd, oft + PCI_EXP_DEVCTL2, val);
+}
+
+static inline int pci_exp_write_device_control2(int fd, uint8_t oft, uint16_t val)
+{
+	return pci_write_config_word(fd, oft + PCI_EXP_DEVCTL2, val);
+}
+
 static inline int pci_exp_read_link_control2(int fd, uint8_t oft, uint16_t *val)
 {
 	return pci_read_config_word(fd, oft + PCI_EXP_LNKCTL2, val);

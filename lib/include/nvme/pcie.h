@@ -15,6 +15,32 @@
 #include <stdint.h>
 #include "ioctl.h"
 
+/* ==================== Ext Cap: Latency Tolerance Reporting ==================== */
+
+static inline int pcie_ltr_read_max_snoop_latency(int fd, uint16_t oft, 
+	uint16_t *val)
+{
+	return pci_read_config_word(fd, oft + PCI_LTR_MAX_SNOOP_LAT, val); 
+}
+
+static inline int pcie_ltr_write_max_snoop_latency(int fd, uint16_t oft, 
+	uint16_t val)
+{
+	return pci_write_config_word(fd, oft + PCI_LTR_MAX_SNOOP_LAT, val);
+}
+
+static inline int pcie_ltr_read_max_no_snoop_latency(int fd, uint16_t oft,
+	uint16_t *val)
+{
+	return pci_read_config_word(fd, oft + PCI_LTR_MAX_NOSNOOP_LAT, val);
+}
+
+static inline int pcie_ltr_write_max_no_snoop_latency(int fd, uint16_t oft, 
+	uint16_t val)
+{
+	return pci_write_config_word(fd, oft + PCI_LTR_MAX_NOSNOOP_LAT, val);
+}
+
 /* ==================== Ext Cap: L1 PM Substates ==================== */
 
 static inline int pcie_l1ss_read_control(int fd, uint16_t oft, uint32_t *val)

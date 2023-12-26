@@ -717,6 +717,8 @@ static int dnvme_init_capability(struct nvme_device *ndev)
 		pci_find_capability(pdev, PCI_CAP_ID_PM));
 	cap->express = pci_get_express_cap(pdev,
 		pci_find_capability(pdev, PCI_CAP_ID_EXP));
+	cap->ltr = pci_ext_get_ltr_cap(pdev, 
+		pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_LTR));
 	cap->l1ss = pci_ext_get_l1ss_cap(pdev, 
 		pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_L1SS));
 
@@ -742,6 +744,10 @@ static void dnvme_deinit_capability(struct nvme_device *ndev)
 	if (cap->express) {
 		kfree(cap->express);
 		cap->express = NULL;
+	}
+	if (cap->ltr) {
+		kfree(cap->ltr);
+		cap->ltr = NULL;
 	}
 	if (cap->l1ss) {
 		kfree(cap->l1ss);
