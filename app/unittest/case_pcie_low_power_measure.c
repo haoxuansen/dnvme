@@ -55,8 +55,11 @@ static void test_sub(void)
     cq_parameter.irq_no = io_cq_id;
     cq_parameter.cq_id = io_cq_id;
     test_flag |= create_iocq(ndev->fd, &cq_parameter);
+    DBG_ON(test_flag < 0);
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+    DBG_ON(test_flag < 0);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    DBG_ON(test_flag < 0);
         
     pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     /**********************************************************************/
@@ -67,8 +70,11 @@ static void test_sub(void)
     sq_parameter.cq_id = io_cq_id;
     sq_parameter.sq_id = io_sq_id;
     test_flag |= create_iosq(ndev->fd, &sq_parameter);
+    DBG_ON(test_flag < 0);
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+    DBG_ON(test_flag < 0);
     test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+    DBG_ON(test_flag < 0);
     pr_info("\tcq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
     set_speed = 3; // gen1 gen2 gen3
@@ -97,7 +103,7 @@ static void test_sub(void)
     else
     {
         pr_err("Error: linked speed: Gen%d, width: X%d\n", cur_speed, cur_width);
-        test_flag = 1;
+        test_flag = -1;
     }
 
     scanf("%d", &cmds);
@@ -129,14 +135,18 @@ static void test_sub(void)
     //for (uint32_t index = 1; index < (sq_size/2); index++)
     {
         test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+	DBG_ON(test_flag < 0);
         cmd_cnt++;
         test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	DBG_ON(test_flag < 0);
         cmd_cnt++;
     }
     /**********************************************************************/
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+    DBG_ON(test_flag < 0);
         
     test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+    DBG_ON(test_flag < 0);
         
     pr_color(LOG_N_PURPLE, "\tcq:%d reaped ok! reap_num:%d\n", io_cq_id, reap_num);
     /**********************************************************************/

@@ -100,8 +100,11 @@ static int sub_case_int_pin(void)
 	cq_parameter.irq_no = 0; // 0's based
 	pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
 	test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
@@ -111,8 +114,11 @@ static int sub_case_int_pin(void)
 	sq_parameter.contig = 1;
 	sq_parameter.sq_prio = MEDIUM_PRIO;
 	test_flag |= create_iosq(ndev->fd, &sq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	/**********************************************************************/
@@ -126,23 +132,33 @@ static int sub_case_int_pin(void)
 	if ((wr_slba + wr_nlb) < nsze)
 	{
 		test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+		DBG_ON(test_flag < 0);
 		cmd_cnt++;
 		test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+		DBG_ON(test_flag < 0);
 		cmd_cnt++;
 	}
 	}
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+	DBG_ON(test_flag < 0);
 
 	/**********************************************************************/
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 	/**********************************************************************/
 	return test_flag;
@@ -172,8 +188,11 @@ static int sub_case_int_msi_single(void)
 	cq_parameter.irq_no = 0; // 0's based
 	pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
 	test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
@@ -183,8 +202,11 @@ static int sub_case_int_msi_single(void)
 	sq_parameter.contig = 1;
 	sq_parameter.sq_prio = MEDIUM_PRIO;
 	test_flag |= create_iosq(ndev->fd, &sq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	/**********************************************************************/
@@ -198,26 +220,36 @@ static int sub_case_int_msi_single(void)
 		if ((wr_slba + wr_nlb) < nsze)
 		{
 			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+			DBG_ON(test_flag < 0);
 			cmd_cnt++;
 			test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+			DBG_ON(test_flag < 0);
 			cmd_cnt++;
 		}
 	}
 	if (cmd_cnt > 0)
 	{
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 		test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 
 	/**********************************************************************/
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 	/**********************************************************************/
 	return test_flag;
@@ -251,8 +283,11 @@ static int sub_case_int_msi_multi(void)
 	cq_parameter.irq_no = io_cq_id;
 	pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
 	test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
@@ -262,8 +297,11 @@ static int sub_case_int_msi_multi(void)
 	sq_parameter.contig = 1;
 	sq_parameter.sq_prio = MEDIUM_PRIO;
 	test_flag |= create_iosq(ndev->fd, &sq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 	/**********************************************************************/
 	wr_slba = 0;
@@ -276,27 +314,37 @@ static int sub_case_int_msi_multi(void)
 		if ((wr_slba + wr_nlb) < nsze)
 		{
 			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+			DBG_ON(test_flag < 0);
 			cmd_cnt++;
 			test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+			DBG_ON(test_flag < 0);
 			cmd_cnt++;
 		}
 	}
 	if (cmd_cnt > 0)
 	{
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 		test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 	//pr_info("  cq:%d io cmd reaped ok! reap_num:%d\n", io_cq_id, reap_num);
 
 	/**********************************************************************/
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 	return test_flag;
 }
@@ -326,8 +374,11 @@ static int sub_case_int_msix(void)
 	cq_parameter.irq_no = io_cq_id;
 	pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
 	test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	pr_info("create sq: %d, assoc cq: %d\n", io_sq_id, io_cq_id);
@@ -337,8 +388,11 @@ static int sub_case_int_msix(void)
 	sq_parameter.contig = 1;
 	sq_parameter.sq_prio = MEDIUM_PRIO;
 	test_flag |= create_iosq(ndev->fd, &sq_parameter);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 	/**********************************************************************/
 	wr_slba = 0;
@@ -351,25 +405,35 @@ static int sub_case_int_msix(void)
 		if ((wr_slba + wr_nlb) < nsze)
 		{
 			test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+			DBG_ON(test_flag < 0);
 			cmd_cnt++;
 			test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+			DBG_ON(test_flag < 0);
 			cmd_cnt++;
 		}
 	}
 	if (cmd_cnt > 0)
 	{
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 		test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 	/**********************************************************************/
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
 	test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
 	test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 	test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 	pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 	return test_flag;
 }
@@ -413,6 +477,7 @@ static int sub_case_int_n_queue(void)
 			if ((wr_slba + wr_nlb) < nsze)
 			{
 				test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				DBG_ON(test_flag < 0);
 				sqs[i].cmd_cnt++;
 			}
 		}
@@ -421,11 +486,13 @@ static int sub_case_int_n_queue(void)
 	{
 		io_sq_id = sqs[i].sqid;
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 	}
 	for (uint16_t i = 0; i < queue_num; i++)
 	{
 		io_cq_id = sqs[i].cqid;
 		test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 
 	nvme_delete_all_ioq(ndev);
@@ -471,6 +538,7 @@ static int sub_case_multi_cq_map_one_int_vct(void)
 			if ((wr_slba + wr_nlb) < nsze)
 			{
 				test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				DBG_ON(test_flag < 0);
 				sqs[i].cmd_cnt++;
 			}
 		}
@@ -479,11 +547,13 @@ static int sub_case_multi_cq_map_one_int_vct(void)
 	{
 		io_sq_id = sqs[i].sqid;
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 	}
 	for (uint16_t i = 0; i < queue_num; i++)
 	{
 		io_cq_id = sqs[i].cqid;
 		test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 
 	nvme_delete_all_ioq(ndev);

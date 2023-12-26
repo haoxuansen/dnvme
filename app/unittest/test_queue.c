@@ -273,16 +273,18 @@ out:
  * 
  * @return 0 on success, otherwise a negative errno.
  */
-static int case_queue_iocmd_to_asq(struct nvme_tool *tool, struct case_data *priv)
+static int case_queue_iocmd_to_asq(struct nvme_tool *tool, 
+	struct case_data *priv)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
+	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	struct case_config_effect effect = {0};
 	int ret;
 
-	ret = init_test_data(ndev, &g_test);
-	if (ret < 0)
-		return ret;
+	priv->cfg.effect = &effect;
+	effect.nsid = le32_to_cpu(ns_grp->act_list[0]);
 
-	ret = send_io_read_cmd(tool, &ndev->asq, 0, 8, 0);
+	ret = ut_send_io_read_cmd_random_region(priv, &ndev->asq);
 	if (ret < 0) {
 		pr_debug("ASQ failed to execute IO read cmd!\n");
 	} else {
@@ -290,7 +292,7 @@ static int case_queue_iocmd_to_asq(struct nvme_tool *tool, struct case_data *pri
 		return -EPERM;
 	}
 
-	ret = send_io_write_cmd(tool, &ndev->asq, 0, 8, 0);
+	ret = ut_send_io_write_cmd_random_d_r(priv, &ndev->asq);
 	if (ret < 0) {
 		pr_debug("ASQ failed to execute IO write cmd!\n");
 	} else {

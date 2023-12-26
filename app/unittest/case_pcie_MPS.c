@@ -156,6 +156,7 @@ static int case_pcie_MPS(struct nvme_tool *tool, struct case_data *priv)
     cq_parameter.irq_en = 1;
     cq_parameter.irq_no = io_cq_id;
     test_flag |= create_iocq(ndev->fd, &cq_parameter);
+    DBG_ON(test_flag < 0);
     pr_info("Ringing Doorbell for NVME_AQ_ID\n");
     nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 1, &reap_num);
@@ -168,6 +169,7 @@ static int case_pcie_MPS(struct nvme_tool *tool, struct case_data *priv)
     sq_parameter.contig = 1;
     sq_parameter.sq_prio = MEDIUM_PRIO;
     test_flag |= create_iosq(ndev->fd, &sq_parameter);
+    DBG_ON(test_flag < 0);
     pr_info("Ringing Doorbell for NVME_AQ_ID\n");
     nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
     cq_gain(NVME_AQ_ID, 1, &reap_num);

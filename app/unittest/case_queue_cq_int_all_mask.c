@@ -106,6 +106,7 @@ static int sub_case_int_queue_mask(void)
 			if ((wr_slba + wr_nlb) < nsze)
 			{
 				test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				DBG_ON(test_flag < 0);
 				sqs[i].cmd_cnt++;
 			}
 		}
@@ -115,6 +116,7 @@ static int sub_case_int_queue_mask(void)
 		io_sq_id = sqs[i].sqid;
 		io_cq_id = sqs[i].cqid;
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 		nvme_mask_irq(ndev->fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
 	}
 	usleep(10000);
@@ -123,6 +125,7 @@ static int sub_case_int_queue_mask(void)
 		io_cq_id = sqs[i].cqid;
 		nvme_unmask_irq(ndev->fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
 		test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 	nvme_delete_all_ioq(ndev);
 	return test_flag;
@@ -188,6 +191,7 @@ static int sub_case_pending_bit(void)
 			if ((wr_slba + wr_nlb) < nsze)
 			{
 				test_flag |= nvme_send_iocmd(ndev->fd, true, io_sq_id, wr_nsid, wr_slba, wr_nlb, tool->wbuf);
+				DBG_ON(test_flag < 0);
 				sqs[i].cmd_cnt++;
 			}
 		}
@@ -196,6 +200,7 @@ static int sub_case_pending_bit(void)
 	{
 		io_sq_id = sqs[i].sqid;
 		test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+		DBG_ON(test_flag < 0);
 		nvme_mask_irq(ndev->fd, io_cq_id);  /////////////////////////////////////////////////nvme_mask_irq
 	}
 	sleep(10);
@@ -208,6 +213,7 @@ static int sub_case_pending_bit(void)
 		}
 		nvme_unmask_irq(ndev->fd, io_cq_id); /////////////////////////////////////////////////nvme_unmask_irq
 		test_flag |= cq_gain(io_cq_id, sqs[i].cmd_cnt, &reap_num);
+		DBG_ON(test_flag < 0);
 	}
 
 	nvme_delete_all_ioq(ndev);

@@ -85,7 +85,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked width: X%d\n", u32_tmp_data);
+        pr_err("Error: linked width: X%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -114,7 +114,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked width: X%d\n", u32_tmp_data);
+        pr_err("Error: linked width: X%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -143,7 +143,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked width: X%d\n", u32_tmp_data);
+        pr_err("Error: linked width: X%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -171,7 +171,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked width: X%d\n", u32_tmp_data);
+        pr_err("Error: linked width: X%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -200,7 +200,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked width: X%d\n", u32_tmp_data);
+        pr_err("Error: linked width: X%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -226,7 +226,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked speed: Gen%d\n", u32_tmp_data);
+        pr_err("Error: linked speed: Gen%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -252,7 +252,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked speed: Gen%d\n", u32_tmp_data);
+        pr_err("Error: linked speed: Gen%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -278,7 +278,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked speed: Gen%d\n", u32_tmp_data);
+        pr_err("Error: linked speed: Gen%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -304,7 +304,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked speed: Gen%d\n", u32_tmp_data);
+        pr_err("Error: linked speed: Gen%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -330,7 +330,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked speed: Gen%d\n", u32_tmp_data);
+        pr_err("Error: linked speed: Gen%d\n", u32_tmp_data);
         test_flag = -1;
     }
 
@@ -356,7 +356,7 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("Error: linked speed: Gen%d\n", u32_tmp_data);
+        pr_err("Error: linked speed: Gen%d\n", u32_tmp_data);
         test_flag = -1;
     }
 }

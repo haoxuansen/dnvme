@@ -84,8 +84,8 @@ static void test_sub(void)
     }
     else
     {
-        pr_info("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
-        test_flag = 1;
+        pr_err("linked status error: Gen%d, X%d\n", cur_speed, cur_width);
+        test_flag = -1;
     }
 }
 

@@ -65,5 +65,7 @@ int log_print(uint8_t level, const char *fmt, ...);
 #define WARN_ON(cond) \
 	((cond) ? pr_warn("%s:%d: %s: Assertion '!(%s)' failed.\n", __FILE__, \
 		__LINE__, __func__, #cond) : 0)
+#define DBG_ON(cond) \
+	((cond) ? dump_stack(0) : 0)
 
 #endif /* !_UAPI_LIB_BASE_LOG_H_ */

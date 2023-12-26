@@ -290,8 +290,11 @@ static void test_sub(void)
         cq_parameter.irq_en = 1;
         cq_parameter.irq_no = io_cq_id;
         test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -302,7 +305,9 @@ static void test_sub(void)
         sq_parameter.sq_prio = LOW_PRIO;
         create_iosq(ndev->fd, &sq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
@@ -320,7 +325,9 @@ static void test_sub(void)
         cq_parameter.irq_no = io_cq_id;
         create_iocq(ndev->fd, &cq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -331,7 +338,9 @@ static void test_sub(void)
         sq_parameter.sq_prio = MEDIUM_PRIO;
         create_iosq(ndev->fd, &sq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
@@ -349,7 +358,9 @@ static void test_sub(void)
         cq_parameter.irq_no = io_cq_id;
         create_iocq(ndev->fd, &cq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -360,7 +371,9 @@ static void test_sub(void)
         sq_parameter.sq_prio = URGENT_PRIO;
         create_iosq(ndev->fd, &sq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
@@ -378,8 +391,10 @@ static void test_sub(void)
         cq_parameter.irq_no = io_cq_id;
         create_iocq(ndev->fd, &cq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -390,7 +405,9 @@ static void test_sub(void)
         sq_parameter.sq_prio = HIGH_PRIO;
         create_iosq(ndev->fd, &sq_parameter);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
@@ -404,12 +421,14 @@ static void test_sub(void)
     {
         io_sq_id = 1;
         test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	DBG_ON(test_flag < 0);
         cmd_cnt++;
     }
     for (index = 0; index < sq2_cmd_num; index++)
     {
         io_sq_id = 2;
         test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	DBG_ON(test_flag < 0);
         cmd_cnt++;
     }
 
@@ -418,12 +437,14 @@ static void test_sub(void)
     {
         io_sq_id = 3;
         test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	DBG_ON(test_flag < 0);
         cmd_cnt++;
     }
     for (index = 0; index < sq4_cmd_num; index++)
     {
         io_sq_id = 4;
         test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	DBG_ON(test_flag < 0);
         cmd_cnt++;
     }
 
@@ -461,15 +482,19 @@ static void test_sub(void)
     // sleep(20);
     io_sq_id = 3;
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+    DBG_ON(test_flag < 0);
 
     io_sq_id = 1;
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+    DBG_ON(test_flag < 0);
 
     io_sq_id = 2;
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+    DBG_ON(test_flag < 0);
 
     io_sq_id = 4;
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+    DBG_ON(test_flag < 0);
 
     // io_sq_id = 5;
     // test_flag |= nvme_ring_sq_doorbell(g_fd, io_sq_id);
@@ -498,6 +523,7 @@ static void test_sub(void)
 
     arb_parameter.expect_num = cmd_cnt;
     test_flag |= arb_reap_all_cq_2(4, &arb_parameter);
+    DBG_ON(test_flag < 0);
 
     /*******************************************************************************************************************************/
     pr_info("delete all sq\n");
@@ -507,14 +533,20 @@ static void test_sub(void)
         io_sq_id = q_index;
         /**********************************************************************/
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
 
         pr_div("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
@@ -579,8 +611,11 @@ static int case_command_arbitration(struct nvme_tool *tool, struct case_data *pr
     Arbit_LPW = 10;  //u8 This is a 0’s based value.
     Arbit_AB = 4;    //2^n Arbitration Burst (AB):
     test_flag |= nvme_set_feature_cmd(ndev->fd, 1, NVME_FEAT_ARBITRATION, ((Arbit_LPW << 8) | (Arbit_AB & 0x07)), ((Arbit_HPW << 8) | Arbit_MPW));
+    DBG_ON(test_flag < 0);
     test_flag |= nvme_ring_sq_doorbell(ndev->fd, 0);
+    DBG_ON(test_flag < 0);
     test_flag |= cq_gain(0, 1, &reap_num);
+    DBG_ON(test_flag < 0);
 
     /**********************************************************************/
     cq_entry = send_get_feature(ndev->fd, NVME_FEAT_ARBITRATION);

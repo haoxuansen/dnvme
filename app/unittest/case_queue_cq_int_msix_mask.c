@@ -118,7 +118,9 @@ static void test_all_cq_cmd(uint32_t msi_mask_flag)
         cq_parameter.irq_no = irq_no_arr[q_index - 1];
         //pr_info("create cq: %d, irq_no:%d\n", io_cq_id, cq_parameter.irq_no);
         test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         //admin error(mask bit0)
         if (check_admin_status == 1)
         {
@@ -137,6 +139,7 @@ static void test_all_cq_cmd(uint32_t msi_mask_flag)
         else
         {
             test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	    DBG_ON(test_flag < 0);
         }
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
 
@@ -147,9 +150,12 @@ static void test_all_cq_cmd(uint32_t msi_mask_flag)
         sq_parameter.contig = 1;
         sq_parameter.sq_prio = MEDIUM_PRIO;
         test_flag |= create_iosq(ndev->fd, &sq_parameter);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
 
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
         /**********************************************************************/
@@ -160,12 +166,15 @@ static void test_all_cq_cmd(uint32_t msi_mask_flag)
         for (index = 0; index < 5; index++)
         {
             test_flag |= nvme_io_write_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->wbuf);
+	    DBG_ON(test_flag < 0);
             cmd_cnt++;
             test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	    DBG_ON(test_flag < 0);
             cmd_cnt++;
             //wr_slba += wr_nlb;
         }
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+	DBG_ON(test_flag < 0);
         //check msi int bit error
         if (check_status == 1)
         {
@@ -185,15 +194,22 @@ static void test_all_cq_cmd(uint32_t msi_mask_flag)
         {
             pr_info("check msi int %d mask ongoing!!\n", q_index);
             test_flag |= cq_gain(io_sq_id, cmd_cnt, &reap_num);
+	    DBG_ON(test_flag < 0);
         }
         /**********************************************************************/
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
     }

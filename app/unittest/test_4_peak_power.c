@@ -102,8 +102,11 @@ static uint8_t test_sub(void)
         cq_parameter.irq_no = io_cq_id;
         cq_parameter.cq_id = io_cq_id;
         test_flag |= create_iocq(ndev->fd, &cq_parameter);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
         pr_info("==>SQID:%d\n", io_sq_id);
@@ -114,8 +117,11 @@ static uint8_t test_sub(void)
         sq_parameter.cq_id = io_cq_id;
         sq_parameter.sq_id = io_sq_id;
         test_flag |= create_iosq(ndev->fd, &sq_parameter);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         /**********************************************************************/
     }
@@ -129,6 +135,7 @@ static uint8_t test_sub(void)
         for (uint32_t i = 0; i < 1000; i++)
         {
             test_flag |= nvme_io_read_cmd(ndev->fd, 0, io_sq_id, wr_nsid, wr_slba, wr_nlb, 0, tool->rbuf);
+	    DBG_ON(test_flag < 0);
             cmd_cnt++;
         }
     }
@@ -136,11 +143,13 @@ static uint8_t test_sub(void)
     {
         io_sq_id = index;
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, io_sq_id);
+	DBG_ON(test_flag < 0);
     }
     for (index = 1; index <= nr_sq; index++)
     {
         io_cq_id = index;
         test_flag |= cq_gain(io_cq_id, cmd_cnt, &reap_num);
+	DBG_ON(test_flag < 0);
     }
     gettimeofday(&curr_time, NULL);
     perf_ms = (curr_time.tv_sec * 1000 + curr_time.tv_usec / 1000) - (last_time.tv_sec * 1000 + last_time.tv_usec / 1000);
@@ -153,13 +162,19 @@ static uint8_t test_sub(void)
         io_cq_id = index;
         //pr_color(LOG_N_PURPLE, "  Deleting SQID:%x\n", io_sq_id);
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_sq, io_sq_id);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
         //pr_color(LOG_N_PURPLE, "  Deleting CQID:%x\n", io_cq_id);
         test_flag |= ioctl_delete_ioq(ndev->fd, nvme_admin_delete_cq, io_cq_id);
+	DBG_ON(test_flag < 0);
         test_flag |= nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID);
+	DBG_ON(test_flag < 0);
         test_flag |= cq_gain(NVME_AQ_ID, 1, &reap_num);
+	DBG_ON(test_flag < 0);
         //pr_info("  cq:%d reaped ok! reap_num:%d\n", NVME_AQ_ID, reap_num);
     }
     return test_flag;
