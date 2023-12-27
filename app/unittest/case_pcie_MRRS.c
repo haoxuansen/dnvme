@@ -88,6 +88,27 @@ static void set_pcie_mrrs_512(void)
     pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
 }
 
+static int set_pcie_mrrs_1024(void)
+{
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t cap_exp = pdev->express.offset;
+	uint16_t dev_ctrl;
+	int fd = ndev->fd;
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control(fd, cap_exp, &dev_ctrl), -EIO);
+	dev_ctrl &= ~PCI_EXP_DEVCTL_READRQ;
+	dev_ctrl |= PCI_EXP_DEVCTL_READRQ_1024B;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control(fd, cap_exp, dev_ctrl), -EIO);
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL), -EPERM);
+	return 0;
+}
+
 static void pcie_packet(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
@@ -185,6 +206,11 @@ static void test_sub(void)
 
     pr_info("\nMRRS: 512 byte\n");
     set_pcie_mrrs_512();
+    pcie_packet();
+    scanf("%d", &cmds);
+
+    /************************** 1024 byte *********************/
+    set_pcie_mrrs_1024();
     pcie_packet();
     scanf("%d", &cmds);
 

@@ -96,6 +96,27 @@ static void set_pcie_mps_256(void)
     pr_info("\nEP Max Payload Size support 256 byte, 0x%x\n", u32_tmp_data);
 }
 
+static int set_pcie_mps_512(void)
+{
+	struct nvme_tool *tool = g_nvme_tool;
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct pci_dev_instance *pdev = ndev->pdev;
+	uint8_t cap_exp = pdev->express.offset;
+	uint16_t dev_ctrl;
+	int fd = ndev->fd;
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_read_device_control(fd, cap_exp, &dev_ctrl), -EIO);
+	dev_ctrl &= ~PCI_EXP_DEVCTL_PAYLOAD;
+	dev_ctrl |= PCI_EXP_DEVCTL_PAYLOAD_512B;
+	CHK_EXPR_NUM_LT0_RTN(
+		pci_exp_write_device_control(fd, cap_exp, dev_ctrl), -EIO);
+
+	CHK_EXPR_NUM_LT0_RTN(
+		pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL), -EPERM);
+	return 0;
+}
+
 static void pcie_packet(void)
 {
 	struct nvme_tool *tool = g_nvme_tool;
@@ -129,6 +150,12 @@ static void test_sub(void)
     /************************** 256 byte *********************/
     pr_info("\nMPS: 256 byte\n");
     set_pcie_mps_256();
+    pcie_packet();
+    scanf("%d", &cmds);
+
+    /************************** 512 byte *********************/
+    if (set_pcie_mps_512() < 0)
+    	return;
     pcie_packet();
     scanf("%d", &cmds);
 }
