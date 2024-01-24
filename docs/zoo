@@ -28,9 +28,13 @@ parse_param()
 
 doc_doxygen_preprocess()
 {
-	local file=$UNITTEST_DIR/test_*.c
+	local file1=$UNITTEST_DIR/test_*.c
+	local file2=$UNITTEST_DIR/vendor/*.c
 
-	for item in $file; do
+	for item in $file1; do
+		cp $item ${item/.c/.cc}
+	done
+	for item in $file2; do
 		cp $item ${item/.c/.cc}
 	done
 }
@@ -38,6 +42,7 @@ doc_doxygen_preprocess()
 doc_doxygen_postprocess()
 {
 	rm $UNITTEST_DIR/test_*.cc
+	rm $UNITTEST_DIR/vendor/*.cc
 }
 
 doc_doxygen()

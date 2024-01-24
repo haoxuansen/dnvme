@@ -158,6 +158,7 @@ static int ut_deal_io_read_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 
 	wrap.slba = slba;
 	wrap.nlb = nlb;
+	wrap.control = effect->cmd.read.control;
 	wrap.buf = buf;
 	wrap.size = nlb * blk_size;
 	wrap.check_none = effect->check_none;
@@ -226,6 +227,7 @@ static int ut_deal_io_write_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 
 	wrap.slba = slba;
 	wrap.nlb = nlb;
+	wrap.control = effect->cmd.read.control;
 	wrap.buf = buf;
 	wrap.size = nlb * blk_size;
 	wrap.control = effect->cmd.write.dtype << 4;
@@ -541,6 +543,11 @@ int ut_submit_io_read_cmd_random_region(struct case_data *priv,
 	else
 		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
 
+	if (rand() % 2)
+		effect->cmd.read.control |= NVME_RW_FUA;
+	else
+		effect->cmd.read.control &= ~NVME_RW_FUA;
+
 	return ut_submit_io_read_cmd(priv, sq, slba, nlb);
 }
 
@@ -633,6 +640,11 @@ int ut_submit_io_write_cmd_random_d_r(struct case_data *priv,
 		nlb = effect->cmd.write.nlb;
 	else
 		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+
+	if (rand() % 2)
+		effect->cmd.write.control |= NVME_RW_FUA;
+	else
+		effect->cmd.write.control &= ~NVME_RW_FUA;
 
 	return ut_submit_io_write_cmd_random_data(priv, sq, slba, nlb);
 }
@@ -1019,6 +1031,11 @@ int ut_send_io_read_cmd_random_region(struct case_data *priv,
 	else
 		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
 
+	if (rand() % 2)
+		effect->cmd.read.control |= NVME_RW_FUA;
+	else
+		effect->cmd.read.control &= ~NVME_RW_FUA;
+
 	return ut_send_io_read_cmd(priv, sq, slba, nlb);
 }
 
@@ -1086,6 +1103,11 @@ int ut_send_io_write_cmd_random_d_r(struct case_data *priv,
 		nlb = effect->cmd.write.nlb;
 	else
 		nlb = rand() % min_t(uint64_t, nsze / 2, 256) + 1;
+
+	if (rand() % 2)
+		effect->cmd.write.control |= NVME_RW_FUA;
+	else
+		effect->cmd.write.control &= ~NVME_RW_FUA;
 
 	return ut_send_io_write_cmd_random_data(priv, sq, slba, nlb);
 }
@@ -1308,8 +1330,8 @@ int ut_send_io_fused_cw_cmd(struct case_data *priv,
 	memset(&effect->cmd, 0, sizeof(effect->cmd));
 	effect->cmd.write.flags = NVME_CMD_FUSE_SECOND | bkup.flags;
 	if (bkup.buf2) {
-		effect->cmd.compare.buf = bkup.buf2;
-		effect->cmd.compare.size = bkup.buf2_size;
+		effect->cmd.write.buf = bkup.buf2;
+		effect->cmd.write.size = bkup.buf2_size;
 	}
 
 	ret = ut_submit_io_write_cmd(priv, sq, slba, nlb);

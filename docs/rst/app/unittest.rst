@@ -271,153 +271,6 @@ case_ftl_interface_selectable_by_multi_mode
 	#. [Read, Write] 表示从 Read 和 Write 中随机选择 1 条命令发送
 	#. 上述 I/O command 默认不检查 CQ Entry 中的内容。
 
-case_fwdma_buf2buf_test
-"""""""""""""""""""""""
-
-.. doxygenfunction:: case_fwdma_buf2buf_test
-	:project: unittest
-
-| 操作步骤如下：
-
-- 循环执行以下步骤 1000 次
-	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
-		a. param: 随机选择 opcode
-			- bit[0]: 0 表示 opcode 2, 1 表示 opcode 10
-		#. cdw13: SLBA bits[31:00], :math:`SLBA + data\_len < NSZE`
-		#. cdw14: SLBA bits[63:32]
-		#. cdw15: data_len(unit: Byte), 要求按 4B 对齐，且小于 128KB
-
-.. note::
-
-	主机不需要准备 Host Buffer.
-
-
-case_fwdma_buf2buf_bufpoint
-"""""""""""""""""""""""""""
-
-.. doxygenfunction:: case_fwdma_buf2buf_bufpoint
-	:project: unittest
-
-| 操作步骤如下：
-
-- 循环执行以下步骤 1000 次
-	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_GET_PARAM`
-	#. 主机解析前一条 vendor command 对应的 CQ entry 数据
-		a. dw0: bit0=0 表示 buf_size 为 4KB，bit0=1 表示 buf_size 为 8 KB
-	#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
-		a. :ref:`param <label_case_fwdma_buf2buf_bufpoint>`: bit[0], bit[1], bit[2] 随机选择，bit[3] 由前面解析到的 buf_size 决定，若前面为 4KB, 则实际配置 8KB，反之亦然 
-		#. cdw13: SLBA bits[31:00], :math:`SLBA + buf\_size < NSZE`
-		#. cdw14: SLBA bits[63:32]
-		#. cdw15: cdw15: data_len(unit: Byte), 要求按 4B 对齐, :math:`buf\_oft + data\_len < buf\_size`
-
-.. _label_case_fwdma_buf2buf_bufpoint:
-
-.. csv-table:: Fields for Parameter
-	:header: "Field", "Name", "Description"
-	:widths: 10, 30, 60
-
-	"bit[0]", "Opcode", "0 表示 opcode2，1 表示 opcode10"
-	"bit[1]", "Target Address Type", "0 表示 bufpoint 模式，1 表示物理地址模式"
-	"bit[2]", "Source Buffer Release Mode", "0 表示 FW 释放 source buffer，1 表示  :abbr:`DPU (Data Path Unit)` 释放 source buffer"
-	"bit[3]", "buf_size: Buffer Size", "0 表示 4KB，1 表示 8KB"
-	"bit[15:4]", "Reserved"
-	"bit[31:16]", "buf_oft: Buffer Offset", "偏移地址，单位：Byte"
-
-.. note::
-
-	主机不需要准备 Host Buffer.
-
-case_fwdma_ut_hmb_engine_test
-"""""""""""""""""""""""""""""
-
-.. doxygenfunction:: case_fwdma_ut_hmb_engine_test
-	:project: unittest
-
-| 操作步骤如下：
-
-1. 主机发送 Set Feature - Host Memory Buffer 命令，配置并使能 HMB
-	a. 解析 controller 支持的 descriptor entry 数量上限 [#2]_ ，并取随机值配置。
-	#. 解析 desc entry 指向的单个 buffer 的大小 [#3]_ 。
-	#. 若所有 buffer 的总大小 ≥ 2MiB，则不作调整。否则，调整最后一个 desc entry 对应的 buffer size，使 buffer 的总大小为 2MiB。
-#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
-	a. cdw11 值为 1
-	#. param 值随机，各字段信息如下表所示
-	
-	.. csv-table:: Param Format
-		:header: "Bit(s)", "Name", "Description"
-
-		"0", "Encrption", "0: disable; 1: enable"
-		"1", "Verify", "0: disable; 1: enable"
-		"31:3", "Reserved"
-
-#. 主机继续发送若干条 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如 :ref:`label_case_fwdma_ut_hmb_engine_test` 中所示
-#. 主机发送 Set Feature - Host Memory Buffer 命令，disable HMB
-
-.. _label_case_fwdma_ut_hmb_engine_test:
-
-.. csv-table:: Vendor Command List
-	:header: "cdw11", "param", "cdw12", "note"
-
-	"2"
-	"3", "[1, 64]"
-	"4"
-	"5", "[1, 64]", "uint32_t 随机数", "Search single list mode"
-	"6", "[0, 1024]", "", "Search single normal mode"
-	"7", "", "", "Delete TLAA mode"
-	"8", "", "", "Delete TTLAA mode"
-	"9", "", "", "Reset mode"
-
-.. important::
-	1. cdw11: Vendor command sequence number，即第几条 vendor command
-
-.. note:: 
-	1. [n, m]: 表示取 n 到 m 之间的随机（整）数，包含 n 和 m。
-
-case_fwdma_ut_fwdma_mix_case_check
-""""""""""""""""""""""""""""""""""
-
-.. doxygenfunction:: case_fwdma_ut_fwdma_mix_case_check
-	:project: unittest
-
-| 操作步骤如下：
-
-1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
-	a. cdw11 值为 1
-	#. param 值随机，各字段信息如下表所示
-
-	.. csv-table:: Param Format
-		:header: "Bit(s)", "Name", "Description", "Note"
-
-		"0", "Method", "0: AES; 1: SM4", "选择 SM4 时，Key 的长度必须为 128bits"
-		"1", "Key Length", "0: 128bits; 1: 256bits"
-		"3:2", "Mode", "0: ECB; 1: XTS; 2: CBC; 3: CFB128", "选择 XTS 时，数据长度至少为 512Byte"
-		"4", "Verify", "0: disable; 1: enable"
-		"5", "Key Type", "0: ATA; 1: Range 0"
-		"31:6", "Reserved"
-
-2. 主机继续发送若干条 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如 :ref:`label_case_fwdma_ut_fwdma_mix_case_check` 中所示
-
-.. _label_case_fwdma_ut_fwdma_mix_case_check:
-
-.. csv-table:: Vendor Command List
-	:header: "cdw11", "param", "cdw6", "cdw7", "cdw13", "cdw14", "cdw15", "note"
-
-	"2", "", "", "", "SLBAL", "SLBAH", "data length"
-	"3", "", "PRP1", "PRP2", "SLBAL", "SLBAH", "data length" 
-	"4", "0 或 1", "PRP1", "PRP2", "SLBAL", "SLBAH", "data length", "param=0 或 1 时，需要将 PRP buffer 所有 bit 清 0 或置 1"
-	"5", "", "PRP1", "PRP2", "SLBAL", "SLBAH"
-	"6", "", "PRP1", "PRP2", "SLBAL", "SLBAH"
-
-.. important::
-	1. cdw11: Vendor command sequence number，即第几条 vendor command
-	#. cdw13: SLBA bit[31:0]
-	#. cdw14: SLBA bit[63:32]
-	#. cdw15: data length(unit: Byte)，必须按 16Byte 对齐，其最大值应小于等于 32KiB
-
-.. note:: 
-	1. 第 1 次会随机生成符合要求的 data length，后面的 command 均使用相同的 data length;
-	#. 所有 command 中使用的 PRP1 和 PRP2 为主机同一个 buffer, 固定长度为 32KiB
-
 case_host_enable_ltr_message
 """"""""""""""""""""""""""""
 
@@ -908,6 +761,334 @@ case_bdf_check
 #. 主机发送 :enumerator:`nvme_admin_maxio_pcie_special` 命令，设置 subcmd 为 BIT(6)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如下：
 	- param: bit[15:8] Bus Number, bit[7:3] Device Number, bit[2:0] Function Number 
 
+case_fwdma_buf2buf_test
+"""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_buf2buf_test
+	:project: unittest
+
+| 操作步骤如下：
+
+- 循环执行以下步骤 1000 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(0)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
+		a. param: 随机选择 opcode
+			- bit[0]: 0 表示 opcode 2, 1 表示 opcode 10
+		#. cdw13: SLBA bits[31:00], :math:`SLBA + data\_len < NSZE`
+		#. cdw14: SLBA bits[63:32]
+		#. cdw15: data_len(unit: Byte), 要求按 4B 对齐，且小于 128KB
+
+.. note::
+
+	主机不需要准备 Host Buffer.
+
+
+case_fwdma_buf2buf_bufpoint
+"""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_buf2buf_bufpoint
+	:project: unittest
+
+| 操作步骤如下：
+
+- 循环执行以下步骤 1000 次
+	1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_GET_PARAM`
+	#. 主机解析前一条 vendor command 对应的 CQ entry 数据
+		a. dw0: bit0=0 表示 buf_size 为 4KB，bit0=1 表示 buf_size 为 8 KB
+	#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(1)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，command 其它字段要求如下：
+		a. :ref:`param <label_case_fwdma_buf2buf_bufpoint>`: bit[0], bit[1], bit[2] 随机选择，bit[3] 由前面解析到的 buf_size 决定，若前面为 4KB, 则实际配置 8KB，反之亦然 
+		#. cdw13: SLBA bits[31:00], :math:`SLBA + buf\_size < NSZE`
+		#. cdw14: SLBA bits[63:32]
+		#. cdw15: cdw15: data_len(unit: Byte), 要求按 4B 对齐, :math:`buf\_oft + data\_len < buf\_size`
+
+.. _label_case_fwdma_buf2buf_bufpoint:
+
+.. csv-table:: Fields for Parameter
+	:header: "Field", "Name", "Description"
+	:widths: 10, 30, 60
+
+	"bit[0]", "Opcode", "0 表示 opcode2，1 表示 opcode10"
+	"bit[1]", "Target Address Type", "0 表示 bufpoint 模式，1 表示物理地址模式"
+	"bit[2]", "Source Buffer Release Mode", "0 表示 FW 释放 source buffer，1 表示  :abbr:`DPU (Data Path Unit)` 释放 source buffer"
+	"bit[3]", "buf_size: Buffer Size", "0 表示 4KB，1 表示 8KB"
+	"bit[15:4]", "Reserved"
+	"bit[31:16]", "buf_oft: Buffer Offset", "偏移地址，单位：Byte"
+
+.. note::
+
+	主机不需要准备 Host Buffer.
+
+case_fwdma_ut_hmb_engine_test
+"""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_ut_hmb_engine_test
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 Set Feature - Host Memory Buffer 命令，配置并使能 HMB
+	a. 解析 controller 支持的 descriptor entry 数量上限 [#2]_ ，并取随机值配置。
+	#. 解析 desc entry 指向的单个 buffer 的大小 [#3]_ 。
+	#. 若所有 buffer 的总大小 ≥ 2MiB，则不作调整。否则，调整最后一个 desc entry 对应的 buffer size，使 buffer 的总大小为 2MiB。
+#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. cdw11 值为 1
+	#. param 值随机，各字段信息如下表所示
+	
+	.. csv-table:: Param Format
+		:header: "Bit(s)", "Name", "Description"
+
+		"0", "Encrption", "0: disable; 1: enable"
+		"1", "Verify", "0: disable; 1: enable"
+		"31:3", "Reserved"
+
+#. 主机继续发送若干条 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(7)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如 :ref:`label_case_fwdma_ut_hmb_engine_test` 中所示
+#. 主机发送 Set Feature - Host Memory Buffer 命令，disable HMB
+
+.. _label_case_fwdma_ut_hmb_engine_test:
+
+.. csv-table:: Vendor Command List
+	:header: "cdw11", "param", "cdw12", "note"
+
+	"2"
+	"3", "[1, 64]"
+	"4"
+	"5", "[1, 64]", "uint32_t 随机数", "Search single list mode"
+	"6", "[0, 1024]", "", "Search single normal mode"
+	"7", "", "", "Delete TLAA mode"
+	"8", "", "", "Delete TTLAA mode"
+	"9", "", "", "Reset mode"
+
+.. important::
+	1. cdw11: Vendor command sequence number，即第几条 vendor command
+
+.. note:: 
+	1. [n, m]: 表示取 n 到 m 之间的随机（整）数，包含 n 和 m。
+
+case_fwdma_ut_fwdma_mix_case_check
+""""""""""""""""""""""""""""""""""
+
+.. doxygenfunction:: case_fwdma_ut_fwdma_mix_case_check
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+	a. cdw11 值为 1
+	#. param 值随机，各字段信息如下表所示
+
+	.. csv-table:: Param Format
+		:header: "Bit(s)", "Name", "Description", "Note"
+
+		"0", "Method", "0: AES; 1: SM4", "选择 SM4 时，Key 的长度必须为 128bits"
+		"1", "Key Length", "0: 128bits; 1: 256bits"
+		"3:2", "Mode", "0: ECB; 1: XTS; 2: CBC; 3: CFB128", "选择 XTS 时，数据长度至少为 512Byte"
+		"4", "Verify", "0: disable; 1: enable"
+		"5", "Key Type", "0: ATA; 1: Range 0"
+		"31:6", "Reserved"
+
+2. 主机继续发送若干条 :enumerator:`nvme_admin_maxio_fwdma_fwdma` 命令，设置 subcmd 为 BIT(8)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`，参数如 :ref:`label_case_fwdma_ut_fwdma_mix_case_check` 中所示
+
+.. _label_case_fwdma_ut_fwdma_mix_case_check:
+
+.. csv-table:: Vendor Command List
+	:header: "cdw11", "param", "cdw6", "cdw7", "cdw13", "cdw14", "cdw15", "note"
+
+	"2", "", "", "", "SLBAL", "SLBAH", "data length"
+	"3", "", "PRP1", "PRP2", "SLBAL", "SLBAH", "data length" 
+	"4", "0 或 1", "PRP1", "PRP2", "SLBAL", "SLBAH", "data length", "param=0 或 1 时，需要将 PRP buffer 所有 bit 清 0 或置 1"
+	"5", "", "PRP1", "PRP2", "SLBAL", "SLBAH"
+	"6", "", "PRP1", "PRP2", "SLBAL", "SLBAH"
+
+.. important::
+	1. cdw11: Vendor command sequence number，即第几条 vendor command
+	#. cdw13: SLBA bit[31:0]
+	#. cdw14: SLBA bit[63:32]
+	#. cdw15: data length(unit: Byte)，必须按 16Byte 对齐，其最大值应小于等于 32KiB
+
+.. note:: 
+	1. 第 1 次会随机生成符合要求的 data length，后面的 command 均使用相同的 data length;
+	#. 所有 command 中使用的 PRP1 和 PRP2 为主机同一个 buffer, 固定长度为 32KiB
+
+case_dpu_mix
+""""""""""""
+
+.. doxygenfunction:: case_dpu_mix
+	:project: unittest
+
+| 操作步骤如下：
+
+1. 重复执行以下操作 n 次
+	1. 主机解析 device 支持的 namespace 并随机选取任意个 namespace 进行测试
+	#. 主机发送 :enumerator:`nvme_admin_maxio_fwdma_dpu` 命令，设置 subcmd 为 BIT(2)，option 为 :enumerator:`NVME_MAXIO_OPT_SET_PARAM`
+		a. 初始化配置参数如表 :ref:`label_case_dpu_mix_1` 中所示
+		b. cmd param 字段记录配置参数的长度，单位：Byte
+	#. 主机创建已选取 namespace 若干倍的 I/O queue (eg: 选取 4 个 namespace，创建 4/8/12... 个 I/O queue)，每个 namespace 关联相同数量的 I/O queue；
+	#. 主机遍历选取的 namespace 及其关联的 I/O queue，每条 I/O queue 随机提交 512 条命令（每提交一条后就敲 doorbell 处理）：
+		a. Write + Read 命令：写入数据随机，读写区域相同，读写结束后主机对比读写的数据内容是否完全一致; 随机添加 FUA Flag
+		#. Copy 命令：先 write 随机数，再 copy，最后 read 取回后比较数据内容
+		#. Fused 命令(Compare + Write)
+		#. Compare 命令
+	#. 主机遍历选取的 namespace 及其关联的 I/O queue，每条 I/O queue 随机提交 512 条命令（全部提交后再敲 doorbell 处理）：
+		a. Write Command: 随机添加 FUA Flag
+		#. Read Command
+		#. Copy Command
+		#. Fused Command: Compare + Write
+		#. Compare Command
+
+.. note:: 
+	1. device 当前支持的 namespace 最大数量为 16，支持的 I/O queue 最大数量为 64
+	2. 若指定提交的 command 数量大于 SQ entry 数量，则以 SQ entry 数量为准
+
+.. _label_case_dpu_mix_1:
+
+.. table:: DPU MIX Configuration Data Structure
+	:align: center
+
+	+---------+-------------------------------+-------------------------------+-------------------------------+-------------------------------+
+	| Offset  |             Byte3             |             Byte2             |             Byte1             |             Byte0             |
+	|  (DW)   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+	|         | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	+=========+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+
+	| 0       | Reserved                                                                                                                      |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| 1       | Reserved                                                                                                                      |
+	+---------+---------------------------------------------------------------------------------------------------------------------------+---+
+	| 2       | Reserved                                                                                                                  |MC |
+	+---------+---------------------------------------------------------------------------------------------------------------------------+---+
+	| 3       | Namespace Configuration Entry 0                                                                                               |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| 4       | Namespace Configuration Entry 1                                                                                               |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| ...     | ...                                                                                                                           |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| 66      | Namespace Configuration Entry 63                                                                                              |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| 67      | SQM Configuration                                                                                                             |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| 131:68  | HWDMA Configuration for WDMA                                                                                                  |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+	| 195:132 | HWDMA Configuration for RDMA                                                                                                  |
+	+---------+-------------------------------------------------------------------------------------------------------------------------------+
+
+.. _label_case_dpu_mix_2:
+
+.. csv-table:: DPU MIX Configuration Data Structure Field Details
+	:header: "Field", "Description"
+	:widths: 30, 70
+
+	"MC", "Multi cmd, 0b: Disable, 1b: Enable"
+	"Namespace Configuration Entry", "仅 namespace enable 时有效，参见 :ref:`label_case_dpu_mix_3`"
+	"SQM Configuration", "参见 :ref:`label_case_dpu_mix_5`"
+	"HWDMA Configuration for WDMA", "参见 :ref:`label_case_dpu_mix_6`"
+	"HWDMA Configuration for RDMA", "参见 :ref:`label_case_dpu_mix_7`"
+
+.. _label_case_dpu_mix_3:
+
+.. table:: Namespace Configuration Entry
+
+	+--------+-------------------------------+-------------------------------+-------------------------------+-------------------------------+
+	| Offset |             Byte3             |             Byte2             |             Byte1             |             Byte0             |
+	|        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+	|        | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	+========+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+===+
+	| DW0    |En | Reserved  | Key Comb      |OPL|DPU| Key Fmt   | Key Type  | NSID                                                          |
+	+--------+---+-----------+---------------+---+---+-----------+-----------+---------------------------------------------------------------+
+
+.. _label_case_dpu_mix_4:
+
+.. csv-table:: Namespace Configuration Entry Field Details
+	:header: "Bit", "Field", "Description"
+
+	"15:0", "NSID", "Namespace Identifier"
+	"18:16", "Key Type", "1: Select ATA Key, 2: Select Opal Key"
+	"21:19", "Key Fmt", "Key Entry Format, 1: 256bits, 2: 512bits"
+	"22", "DPU", "0b: Disable MPI, 1b: Enable MPI"
+	"23", "OPL", "Opal, 0b: Disable, 1b: Enable"
+	"27:24", "Key Comb", "若 Key Entry Format 为 256bits，则 1: AES/ECB/128, 2: AES/XTS/128, 3: SM4/ECB/128, 4: SM4/XTS/128"
+	"", "", "若 Key Entry Format 为 512bits，则 1: AES/ECB/128, 2: AES/ECB/256, 3: AES/XTS/256, 4: SM4/ECB/128"
+	"30:28", "Reserved"
+	"31", "En", "Namespace Enable, 0: Disable, 1: Enable"
+
+
+.. _label_case_dpu_mix_5:
+
+.. csv-table:: SQM Configuration
+	:header: "Bit", "Description"
+
+	"0", "Write cmd 是否提前回 CQ, 0: Disable, 1: Enable"
+	"1", "Write cmd PCQ 是否打开，0: Disable, 1: Enable"
+	"2", "Fused cmd 支持是否打开，0: Disable, 1: Enable"
+	"3", "Atomic/Consist 功能是否打开，0: Disable, 1: Enable"
+	"4", "FUA PCQ 是否打开，0: Disable, 1: Enable"
+
+.. _label_case_dpu_mix_6:
+
+.. csv-table:: HWDMA Configuration for WDMA
+	:header: "DW", "Bit", "Field", "Description"
+
+	"0", "3:0 [#9]_", "multi cmd switch condition", "0: just cut FTL Link for multi CMD"
+	"", "", "", "1: cut FTL Link List for multi CMD when there is also no new CMD after current FTL"
+	"", "", "", "2: cut FTL Link List for multi CMD only when current FTL is the last FTL of a CMD"
+	"0", "5:4", "FTL Interface Enable", "0: 打开 intfc0, 1: 打开 intfc1，2: 打开 intfc0 和 intfc1"
+	"0", "7:6", "Special Mode", "Enable Multi CMD 时选项如下： 0 - default mode, 1 - LAA bit mode"
+	"", "", "", "Disable Multi CMD 时选项如下：0 - default mode"
+	"0", "15:8", "Reserved"
+	"0", "31:16", "cmd pop burst cnt", "随机值 [0, 10]，预留 [0, 511]"
+	"1", "3:0", "intfc0 laa_mask [#7]_ ", "随机值 [0, 2]"
+	"1", "7:4", "Reserved"
+	"1", "15:8", "intfc0 laa_shift [#7]_ ", "随机值 [0, 3]，预留 [0, 127]"
+	"1", "31:16", "Reserved"
+	"2", "3:0", "intfc1 laa_mask [#8]_ ", "随机值 [0, 2]"
+	"2", "7:4", "Reserved"
+	"2", "15:8", "intfc1 laa_shift [#8]_ ", "随机值 [0, 3]，预留 [0, 127]"
+	"2", "31:16", "Reserved"
+	"3", "31:0", "Reserved"
+	"19:4", "", "16 DWs 随机值"
+	"20", "11:0", "ftl_wreq_max_pending_au_num", "随机值 [64, 128]" 
+	"20", "21:12", "ftl_wreq_max_size", "随机值 [1, 64]"
+	"20", "24:22", "ftl_wreq_ff_depth", "随机值 [0, 7]"
+	"20", "25", "ftl_wreq_fuse_cmd_cut_en", "支持 Fused CMD 时选项如下：0 - Disable, 1 - Enable"
+	"", "", "", "不支持 Fused CMD 时选项如下：0 - Disable"
+	"20", "31:26", "Reserved"
+	"21 [#9]_ ", "0", "Reserved"
+	"21", "10:1", "ftl_wreq_max_cmd", "随机值 [1, @ftl_wreq_max_size]"
+	"21", "18:11", "ftl_wreq_cmd_limit", "随机值 [0, 5]"
+	"21", "28:19", "ftl_wreq_min_size", "随机值 [1, @ftl_wreq_max_size]"
+	"21", "31:29", "ftl_wreq_ff_thr", "随机值 [0, 7]"
+	"63:22", "", "Reserved"
+
+.. _label_case_dpu_mix_7:
+
+.. csv-table:: HWDMA Configuration for RDMA
+	:header: "DW", "Bit", "Field", "Description"
+
+	"0", "3:0", "Reserved"
+	"0", "5:4", "FTL Interface Enable", "0: 打开 intfc0, 1: 打开 intfc1，2: 打开 intfc0 和 intfc1"
+	"0", "7:6", "Special Mode", "Enable Multi CMD 时选项如下： 0 - default mode, 1 - LAA bit mode"
+	"", "", "", "Disable Multi CMD 时选项如下：0 - default mode"
+	"0", "15:8", "Reserved"
+	"0", "31:16", "cmd pop burst cnt", "随机值 [0, 10]，预留 [0, 511]"
+	"1", "3:0", "intfc0 laa_mask [#7]_ ", "随机值 [0, 2]"
+	"1", "7:4", "Reserved"
+	"1", "15:8", "intfc0 laa_shift [#7]_ ", "随机值 [0, 3]，预留 [0, 127]"
+	"1", "31:16", "Reserved"
+	"2", "3:0", "intfc1 laa_mask [#8]_ ", "随机值 [0, 2]"
+	"2", "7:4", "Reserved"
+	"2", "15:8", "intfc1 laa_shift [#8]_ ", "随机值 [0, 3]，预留 [0, 127]"
+	"2", "31:16", "Reserved"
+	"3", "31:0", "Reserved"
+	"19:4", "", "16 DWs 随机值"
+	"20", "11:0", "ftl_rreq_max_pending_au_num", "随机值 [@ftl_rreq_max_size, 256]"
+	"20", "21:12", "ftl_rreq_max_size", "随机值 [1, 256]"
+	"20", "24:22", "ftl_rreq_ff_depth", "随机值 [0, 7]"
+	"20", "31:25", "Reserved"
+	"21 [#9]_ ", "0", "Reserved"
+	"21", "10:1", "ftl_rreq_max_cmd", "随机值 [1, @ftl_rreq_max_size]"
+	"21", "18:11", "ftl_rreq_cmd_limit", "随机值 [0, 5]"
+	"21", "28:19", "ftl_rreq_min_size", "随机值 [1, @ftl_rreq_max_size]"
+	"21", "31:29", "ftl_rreq_ff_thr", "随机值 [0, 7]"
+	"63:22", "", "Reserved"
+
+
 
 
 .. [#1] 由于 copy 命令需要为 desc 分配额外的资源，它在使用结束后需要手动释放资源。故目前不支持一次性提交多个随机的 copy 命令。
@@ -916,3 +1097,7 @@ case_bdf_check
 .. [#4] Latency Tolerance Reporting (LTR) Extended Capability
 .. [#5] L1 PM Substates Extended Capability
 .. [#6] Power Management Capability
+.. [#7] 当 FTL Interface Enable 打开 intfc0 且 Special Mode 选择 LAA bit mode 时需要配置此字段。
+.. [#8] 当 FTL Interface Enable 打开 intfc1 且 Special Mode 选择 LAA bit mode 时需要配置此字段。
+.. [#9] 仅 Enable Multi CMD 时该字段有效，其它情况下 Reserved
+

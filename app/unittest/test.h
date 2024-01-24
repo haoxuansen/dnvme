@@ -97,6 +97,7 @@ struct config_rwc_cmd {
 	uint32_t	nlb;
 	uint16_t	dspec;
 	uint8_t 	flags;
+	uint16_t	control;
 	uint32_t	dtype:4;
 
 	uint32_t	use_nlb:1;

@@ -98,6 +98,13 @@ static inline int nvme_maxio_fwdma_fwdma_set_param(struct nvme_dev_info *ndev,
 		nvme_admin_maxio_fwdma_fwdma);
 }
 
+static inline int nvme_maxio_fwdma_dpu_set_param(struct nvme_dev_info *ndev,
+	uint32_t subcmd, struct nvme_maxio_set_param *param)
+{
+	return nvme_maxio_set_param_fmt2(ndev, subcmd, param, 
+		nvme_admin_maxio_fwdma_dpu);
+}
+
 int nvme_cmd_maxio_check_result_fmt1(int fd, uint32_t subcmd, 
 	uint8_t opcode);
 int nvme_maxio_check_result_fmt1(struct nvme_dev_info *ndev, 
