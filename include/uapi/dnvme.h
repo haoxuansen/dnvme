@@ -233,9 +233,6 @@ struct nvme_64b_cmd {
 	uint32_t	meta_id;   /* Meta buffer ID when NVME_MASK_MPTR is set */
 
 	uint32_t	use_bit_bucket:1;
-	uint32_t	use_user_cid:1;
-	uint32_t	use_user_meta:1; /* just for injecting error */
-	uint32_t	use_user_prp:1; /* just for injecting error */
 
 	uint32_t			nr_bit_bucket;
 	struct nvme_sgl_bit_bucket	*bit_bucket;

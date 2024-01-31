@@ -146,7 +146,6 @@ struct case_config_effect {
 
 	uint32_t	check_none:1;
 	uint32_t	inject_nsid:1;
-	uint32_t	inject_prp:1;
 	union {
 		struct config_rwc_cmd	read;
 		struct config_rwc_cmd	write;
@@ -158,8 +157,6 @@ struct case_config_effect {
 	} cmd;
 	struct {
 		uint32_t	nsid;
-		uint64_t	prp1;
-		uint64_t	prp2;
 	} inject;
 };
 

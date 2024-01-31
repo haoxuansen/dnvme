@@ -206,26 +206,13 @@ int nvme_cmd_io_rw_common(int fd, struct nvme_rwc_wrapper *wrap, uint8_t opcode)
 
 	rwc.opcode = opcode;
 	rwc.flags = wrap->flags;
-
-	if (wrap->use_user_cid) {
-		cmd.use_user_cid = 1;
-		rwc.command_id = wrap->cid;
-	}
 	rwc.nsid = cpu_to_le32(wrap->nsid);
 	rwc.cdw2 = cpu_to_le32(wrap->dw2);
 	rwc.cdw3 = cpu_to_le32(wrap->dw3);
 
-	if (wrap->use_user_meta) {
-		cmd.use_user_meta = 1;
-		rwc.metadata = cpu_to_le64(wrap->meta_addr);
-	} else if (wrap->meta_id) {
+	if (wrap->meta_id) {
 		cmd.meta_id = wrap->meta_id;
 		cmd.bit_mask |= NVME_MASK_MPTR;
-	}
-	if (wrap->use_user_prp) {
-		cmd.use_user_prp = 1;
-		rwc.dptr.prp1 = cpu_to_le64(wrap->prp1);
-		rwc.dptr.prp2 = cpu_to_le64(wrap->prp2);
 	}
 
 	rwc.slba = cpu_to_le64(wrap->slba);
@@ -327,13 +314,6 @@ int nvme_cmd_io_copy(int fd, struct nvme_copy_wrapper *wrap)
 	copy.opcode = nvme_cmd_copy;
 	copy.flags = wrap->flags;
 	copy.nsid = cpu_to_le32(wrap->nsid);
-
-	if (wrap->use_user_prp) {
-		cmd.use_user_prp = 1;
-		copy.dptr.prp1 = cpu_to_le64(wrap->prp1);
-		copy.dptr.prp2 = cpu_to_le64(wrap->prp2);
-	}
-
 	copy.slba = cpu_to_le64(wrap->slba);
 	copy.ranges = wrap->ranges;
 	copy.desc_fmt = wrap->desc_fmt | (wrap->prinfor << 4);

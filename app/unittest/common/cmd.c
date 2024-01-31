@@ -163,12 +163,6 @@ static int ut_deal_io_read_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	wrap.size = nlb * blk_size;
 	wrap.check_none = effect->check_none;
 
-	if (effect->inject_prp) {
-		wrap.use_user_prp = 1;
-		wrap.prp1 = effect->inject.prp1;
-		wrap.prp2 = effect->inject.prp2;
-	}
-
 	BUG_ON(wrap.size > buf_size);
 	memset(wrap.buf, 0, wrap.size);
 
@@ -234,12 +228,6 @@ static int ut_deal_io_write_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	wrap.dspec = effect->cmd.write.dspec;
 	wrap.check_none = effect->check_none;
 
-	if (effect->inject_prp) {
-		wrap.use_user_prp = 1;
-		wrap.prp1 = effect->inject.prp1;
-		wrap.prp2 = effect->inject.prp2;
-	}
-
 	BUG_ON(wrap.size > buf_size);
 	if (flag & UT_CMD_F_DATA_RANDOM)
 		fill_data_with_random(wrap.buf, wrap.size);
@@ -302,12 +290,6 @@ static int ut_deal_io_compare_cmd(struct case_data *priv,
 	wrap.buf = buf;
 	wrap.size = nlb * blk_size;
 	wrap.check_none = effect->check_none;
-
-	if (effect->inject_prp) {
-		wrap.use_user_prp = 1;
-		wrap.prp1 = effect->inject.prp1;
-		wrap.prp2 = effect->inject.prp2;
-	}
 
 	BUG_ON(wrap.size > buf_size);
 
@@ -404,11 +386,6 @@ static int ut_deal_io_copy_cmd(struct case_data *priv,
 	wrap.prinfow = effect->cmd.copy.prinfow;
 	wrap.dspec = effect->cmd.copy.dspec;
 	wrap.check_none = effect->check_none;
-	if (effect->inject_prp) {
-		wrap.use_user_prp = 1;
-		wrap.prp1 = effect->inject.prp1;
-		wrap.prp2 = effect->inject.prp2;
-	}
 
 	switch (flag & UT_CMD_F_OPTION_MASK) {
 	case UT_CMD_F_OPTION_SUBMIT:
@@ -490,7 +467,8 @@ static int ut_deal_io_zone_append_cmd(struct case_data *priv,
 /**
  * @brief Submit I/O read command: read data from specified region
  * 
- * @return 0 on success, otherwise a negative errno
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
  * @note If user doesn't provide read buffer, then use default buffer 
  * 	prepared in nvme tool.
  */
@@ -518,7 +496,8 @@ int ut_submit_io_read_cmds(struct case_data *priv, struct nvme_sq_info *sq,
  * @brief Submit I/O read command to read random region in the specified 
  * 	namespace.
  * 
- * @return 0 on success, otherwise a negative errno
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
  * @note If user doesn't provide read buffer, then use default buffer 
  * 	prepared in nvme tool.
  */
@@ -585,7 +564,8 @@ out:
 /**
  * @brief Submit I/O write command: write data to specified region
  * 
- * @return 0 on success, otherwise a negative errno
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
  * @note If user doesn't provide write buffer, then use default buffer 
  * 	prepared in nvme tool.
  */
@@ -609,6 +589,10 @@ int ut_submit_io_write_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 	return 0;
 }
 
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_write_cmd_random_data(struct case_data *priv, 
 	struct nvme_sq_info *sq, uint64_t slba, uint32_t nlb)
 {
@@ -619,7 +603,8 @@ int ut_submit_io_write_cmd_random_data(struct case_data *priv,
 /**
  * @brief Submit I/O write command: write random data to random region
  * 
- * @return 0 on success, otherwise a negative errno
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
  */
 int ut_submit_io_write_cmd_random_d_r(struct case_data *priv,
 	struct nvme_sq_info *sq)
@@ -680,6 +665,10 @@ out:
 	return ret;
 }
 
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_compare_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
@@ -700,6 +689,10 @@ int ut_submit_io_compare_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 	return 0;
 }
 
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_compare_cmd_random_region(struct case_data *priv, 
 	struct nvme_sq_info *sq)
 {
@@ -755,6 +748,10 @@ out:
 	return ret;
 }
 
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_verify_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	uint64_t slba, uint32_t nlb)
 {
@@ -775,6 +772,10 @@ int ut_submit_io_verify_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 	return 0;
 }
 
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_verify_cmd_random_region(struct case_data *priv, 
 	struct nvme_sq_info *sq)
 {
@@ -816,6 +817,10 @@ int ut_submit_io_verify_cmd_random_region(struct case_data *priv,
 	return ut_submit_io_verify_cmd(priv, sq, slba, nlb);
 }
 
+/**
+ * @return The assigned command identifier if success, otherwise a negative
+ *  errno.
+ */
 int ut_submit_io_copy_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	struct copy_resource *copy)
 {
@@ -1452,6 +1457,33 @@ int ut_send_io_random_cmds_to_sqs(struct case_data *priv,
 		if (ret < 0)
 			return ret;
 	}
+	return 0;
+}
+
+int ut_modify_cmd_prp(struct case_data *priv, struct nvme_sq_info *sq, 
+	uint16_t cid, uint64_t prp1, uint64_t prp2)
+{
+	struct nvme_dev_info *ndev = priv->tool->ndev;
+	struct nvme_cmd_tamper tamper = {0};
+	struct nvme_common_command *cmd = NULL;
+	int ret;
+
+	tamper.sqid = sq->sqid;
+	tamper.cid = cid;
+	tamper.option = NVME_TAMPER_OPT_INQUIRY;
+	ret = nvme_tamper_cmd(ndev->fd, &tamper);
+	if (ret < 0)
+		return ret;
+
+	cmd = &tamper.cmd;
+	cmd->dptr.prp1 = cpu_to_le64(prp1);
+	cmd->dptr.prp2 = cpu_to_le64(prp2);
+	tamper.option = NVME_TAMPER_OPT_MODIFY;
+
+	ret = nvme_tamper_cmd(ndev->fd, &tamper);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 

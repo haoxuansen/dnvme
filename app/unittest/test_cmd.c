@@ -60,14 +60,12 @@ struct test_data {
 
 	uint8_t		flags;
 	uint16_t	control;
-	uint16_t	cid;
 
 	/* capability */
 	uint32_t	is_sup_sgl:1;
 	uint32_t	is_sup_sgl_bit_bucket:1;
 	/* configuration */
 	uint32_t	is_use_sgl_bit_bucket:1;
-	uint32_t	is_use_custom_cid:1;
 
 	uint32_t	nr_bit_bucket;
 	struct nvme_sgl_bit_bucket	*bit_bucket;
@@ -82,8 +80,6 @@ static void test_data_reset_cmd_fields(struct test_data *data)
 	data->is_use_sgl_bit_bucket = 0;
 	data->nr_bit_bucket = 0;
 	data->bit_bucket = NULL;
-	data->is_use_custom_cid = 0;
-	data->cid = 0;
 }
 
 /**
@@ -190,10 +186,6 @@ static int submit_io_read_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.size = wrap.nlb * test->lbads;
 	wrap.control = test->control;
 
-	if (test->is_use_custom_cid) {
-		wrap.use_user_cid = 1;
-		wrap.cid = test->cid;
-	}
 	BUG_ON(wrap.size > tool->rbuf_size);
 	memset(wrap.buf, 0, wrap.size);
 
@@ -217,10 +209,6 @@ static int submit_io_write_cmd(struct nvme_tool *tool, struct nvme_sq_info *sq,
 	wrap.size = wrap.nlb * test->lbads;
 	wrap.control = test->control;
 
-	if (test->is_use_custom_cid) {
-		wrap.use_user_cid = 1;
-		wrap.cid = test->cid;
-	}
 	BUG_ON(wrap.size > tool->wbuf_size);
 	fill_data_with_random(wrap.buf, wrap.size);
 
@@ -496,6 +484,28 @@ out:
 	return ret;
 }
 
+static int modify_cmd_identifier(int fd, uint16_t sqid, 
+	uint16_t cid_old, uint16_t cid_new)
+{
+	struct nvme_cmd_tamper tamper = {0};
+	struct nvme_common_command *cmd = NULL;
+
+	tamper.sqid = sqid;
+	tamper.cid = cid_old;
+	tamper.option = NVME_TAMPER_OPT_INQUIRY;
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_tamper_cmd(fd, &tamper), -EPERM);
+
+	cmd = &tamper.cmd;
+	cmd->command_id = cid_new;
+	tamper.option = NVME_TAMPER_OPT_MODIFY;
+	
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_tamper_cmd(fd, &tamper), -EPERM);
+
+	return 0;
+}
+
 /**
  * @brief Read command shall process success
  * 
@@ -570,16 +580,14 @@ static int subcase_read_invlid_cid(struct nvme_tool *tool,
 	cid = ret;
 
 	for (i = 1; i < nr_cmd; i++) {
-		if (i == inject) {
-			test->is_use_custom_cid = 1;
-			test->cid = cid;
-		}
 		ret = prepare_io_read_cmd(tool, sq);
 		if (ret < 0)
 			return ret;
 
-		if (i == inject)
-			test->is_use_custom_cid = 0;
+		if (i == inject) {
+			CHK_EXPR_NUM_LT0_RTN(modify_cmd_identifier(
+				ndev->fd, sq->sqid, ret, cid), -EPERM);
+		}
 	}
 	pr_debug("nr_cmd: %u, inject idx: %u, cid: %u\n", nr_cmd, inject, cid);
 
@@ -771,16 +779,14 @@ static int subcase_write_invlid_cid(struct nvme_tool *tool,
 	cid = ret;
 
 	for (i = 1; i < nr_cmd; i++) {
-		if (i == inject) {
-			test->is_use_custom_cid = 1;
-			test->cid = cid;
-		}
 		ret = prepare_io_write_cmd(tool, sq);
 		if (ret < 0)
 			return ret;
 
-		if (i == inject)
-			test->is_use_custom_cid = 0;
+		if (i == inject) {
+			CHK_EXPR_NUM_LT0_RTN(modify_cmd_identifier(
+				ndev->fd, sq->sqid, ret, cid), -EPERM);
+		}
 	}
 	pr_debug("nr_cmd: %u, inject idx: %u, cid: %u\n", nr_cmd, inject, cid);
 

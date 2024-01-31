@@ -141,3 +141,6 @@ int ut_send_io_random_cmds(struct case_data *priv, struct nvme_sq_info *sq,
 int ut_send_io_random_cmds_to_sqs(struct case_data *priv, 
 	struct nvme_sq_info *sq, uint32_t select, int nr_cmd, int nr_sq);
 
+int ut_modify_cmd_prp(struct case_data *priv, struct nvme_sq_info *sq, 
+	uint16_t cid, uint64_t prp1, uint64_t prp2);
+

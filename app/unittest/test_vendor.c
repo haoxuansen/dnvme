@@ -1832,6 +1832,7 @@ static int cmd_sanity_check_according_by_protocol_sn34(
 	struct case_report *rpt = &priv->rpt;
 	struct case_config_effect effect = {0};
 	struct nvme_maxio_set_param param = {0};
+	uint16_t cid;
 	int ret;
 
 	priv->cfg.effect = &effect;
@@ -1847,14 +1848,79 @@ static int cmd_sanity_check_according_by_protocol_sn34(
 	if (ret < 0)
 		return ret;
 
-	effect.check_none = 1;
-	effect.inject_prp = 1;
-	effect.inject.prp1 = 1;
-	effect.inject.prp2 = 1;
-	ret = ut_send_io_random_cmd(priv, sq, UT_CMD_SEL_IO_READ |
-		UT_CMD_SEL_IO_WRITE | UT_CMD_SEL_IO_COMPARE |
-		UT_CMD_SEL_IO_COPY | UT_CMD_SEL_IO_FUSED_CW);
-	return ret;
+	switch (rand() % 5) {
+	case 0:
+		ret = ut_submit_io_read_cmd_random_region(priv, sq);
+		break;
+	case 1:
+		ret = ut_submit_io_write_cmd_random_d_r(priv, sq);
+		break;
+	case 2:
+		ret = ut_submit_io_compare_cmd_random_region(priv, sq);
+		break;
+	case 3: /* copy */
+	{
+		struct copy_resource *copy = NULL;
+		uint64_t nsze;
+		uint64_t slba;
+		uint32_t nlb;
+
+		CHK_EXPR_NUM_LT0_RTN(
+			nvme_id_ns_nsze(ns_grp, effect.nsid, &nsze), -EPERM);
+		slba = rand() % (nsze / 2);
+		nlb = rand() % min_t(uint64_t, nsze - slba, 256) + 1;
+
+		copy = ut_alloc_copy_resource(1, NVME_COPY_DESC_FMT_32B);
+		if (!copy)
+			return -ENOMEM;
+		copy->slba = 0;
+		copy->entry[0].slba = slba;
+		copy->entry[0].nlb = nlb;
+
+		ret = ut_submit_io_copy_cmd(priv, sq, copy);
+		if (ret < 0)
+			return ret;
+		cid = ret;
+		CHK_EXPR_NUM_LT0_RTN(
+			ut_modify_cmd_prp(priv, sq, cid, 1, 1), -EPERM);
+		CHK_EXPR_NUM_LT0_RTN(ut_ring_sq_doorbell(priv, sq), -EPERM);
+		CHK_EXPR_NUM_LT0_RTN(
+			ut_reap_cq_entry_no_check_by_id(priv, sq->cqid, 1), -EPERM);
+		return 0;
+	}
+		
+	case 4: /* fused_cw */
+		effect.cmd.compare.flags = NVME_CMD_FUSE_FIRST;
+		ret = ut_submit_io_compare_cmd_random_region(priv, sq);
+		if (ret < 0)
+			return ret;
+		cid = ret;
+		CHK_EXPR_NUM_LT0_RTN(
+			ut_modify_cmd_prp(priv, sq, cid, 1, 1), -EPERM);
+
+		memset(&effect.cmd, 0, sizeof(effect.cmd));
+		effect.cmd.write.flags = NVME_CMD_FUSE_SECOND;
+		ret = ut_submit_io_write_cmd_random_d_r(priv, sq);
+		if (ret < 0)
+			return ret;
+		cid = ret;
+		CHK_EXPR_NUM_LT0_RTN(
+			ut_modify_cmd_prp(priv, sq, cid, 1, 1), -EPERM);
+		CHK_EXPR_NUM_LT0_RTN(ut_ring_sq_doorbell(priv, sq), -EPERM);
+		CHK_EXPR_NUM_LT0_RTN(ut_reap_cq_entry_no_check_by_id(
+			priv, sq->cqid, 2), -EPERM);
+		return 0;
+	}
+
+	if (ret < 0)
+		return ret;
+	cid = ret;
+
+	CHK_EXPR_NUM_LT0_RTN(ut_modify_cmd_prp(priv, sq, cid, 1, 1), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(ut_ring_sq_doorbell(priv, sq), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		ut_reap_cq_entry_no_check_by_id(priv, sq->cqid, 1), -EPERM);
+	return 0;
 }
 
 static int cmd_sanity_check_according_by_protocol_sn35(
