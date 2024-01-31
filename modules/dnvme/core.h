@@ -60,6 +60,9 @@ struct nvme_prps {
 	void		**prp_list;
 	dma_addr_t	*pg_addr;
 	u32		nr_pages;
+	u32		nr_entry; /* The number of PRP entry in PRP List */
+
+	u32		is_sgl:1;
 
 	u8	*buf; /* K.V.A for pinned down pages */
 
@@ -75,7 +78,6 @@ struct nvme_prps {
 /**
  * @brief Snapshot of the command sent by user.
  * 
- * @id: Command identifier is assigned by driver.
  * @sqid: Specify the SQ to process the command.
  * @target_qid: Target queue ID used for Create/Delete Q's, never == 0
  * @opcode: Command operation code specified in NVMe specification
@@ -83,9 +85,10 @@ struct nvme_prps {
  * @prps: see @nvme_prps for details
  */
 struct nvme_cmd {
-	u16	id;
+	u16	cid; /**< command identifier is assigned by driver */
 	u16	sqid;
 	u16	target_qid;
+	u16	idx; /**< SQ entry index */
 	u8	opcode;
 	struct list_head	entry;
 	struct nvme_prps	*prps;
@@ -354,6 +357,7 @@ void dnvme_release_prps(struct nvme_device *ndev, struct nvme_prps *prps);
 void dnvme_delete_cmd_list(struct nvme_device *ndev, struct nvme_sq *sq);
 
 int dnvme_submit_64b_cmd(struct nvme_device *ndev, struct nvme_64b_cmd __user *ucmd);
+int dnvme_tamper_cmd(struct nvme_device *ndev, struct nvme_cmd_tamper __user *utamper);
 
 /* ==================== Related to "meta.c" ==================== */
 

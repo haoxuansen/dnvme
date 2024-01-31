@@ -49,6 +49,7 @@ enum {
 	NVME_GET_CAPABILITY,
 	NVME_SET_DEV_STATE,
 	NVME_SUBMIT_64B_CMD,
+	NVME_TAMPER_CMD,
 
 	NVME_CREATE_ADMIN_QUEUE,
 	NVME_PREPARE_IOSQ,
@@ -240,6 +241,41 @@ struct nvme_64b_cmd {
 	struct nvme_sgl_bit_bucket	*bit_bucket;
 };
 
+struct nvme_prp_list {
+	uint32_t	nr_entry;
+	uint64_t	entry[0];
+};
+
+struct nvme_cmd_tamper {
+	uint16_t	sqid;
+	uint16_t	cid;
+
+	uint8_t		option;
+#define NVME_TAMPER_OPT_INQUIRY		1
+#define NVME_TAMPER_OPT_FETCH		2
+#define NVME_TAMPER_OPT_MODIFY		3
+
+	/* Only valid if @option is INQUIRY */
+	uint32_t	inq_prp_list:1;
+	uint32_t	inq_prp_page:1;
+	/* Only valid if @option is FETCH */
+	uint32_t	fet_prp_list:1;
+	uint32_t	fet_prp_page:1;
+	/* Only valid if @option is MODIFY */
+	uint32_t	mdf_prp_list:1;
+	uint32_t	mdf_prp_page:1;
+
+	uint32_t	prp_list_size;
+	uint32_t	prp_page_size;
+
+	struct nvme_common_command	cmd;
+	/*
+	 * if @option isn't INQUIRY, data size = prp_list_size + prp_page_size
+	 * see "struct nvme_prp_list" for details
+	 */
+	char		data[0];
+};
+
 /**
  * @brief Inquiry the number of ready CQ entries and save it.
  *
@@ -373,6 +409,8 @@ struct nvme_hmb_access {
 
 #define NVME_IOCTL_SUBMIT_64B_CMD \
 	_IOWR('N', NVME_SUBMIT_64B_CMD, struct nvme_64b_cmd)
+#define NVME_IOCTL_TAMPER_CMD \
+	_IOWR('N', NVME_TAMPER_CMD, struct nvme_cmd_tamper)
 
 #define NVME_IOCTL_INQUIRY_CQE		_IOWR('N', NVME_INQUIRY_CQE, struct nvme_inquiry)
 #define NVME_IOCTL_REAP_CQE		_IOWR('N', NVME_REAP_CQE, struct nvme_reap)

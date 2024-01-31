@@ -140,6 +140,8 @@ static inline void nvme_cmd_fill_create_cq(struct nvme_create_cq *ccq,
 
 int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd);
 
+int nvme_tamper_cmd(int fd, struct nvme_cmd_tamper *tamper);
+
 int nvme_cmd_keep_alive(int fd);
 
 int nvme_cmd_create_iosq(int fd, struct nvme_create_sq *csq, uint8_t contig,

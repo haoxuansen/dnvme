@@ -783,6 +783,7 @@ prp_list:
 		ccmd->dptr.prp2 = cpu_to_le64(prp_dma[0]);
 	}
 
+	prps->nr_entry = 0;
 	for (j = 0, k = 0; buf_len > 0;) {
 		WARN_ON(j >= nr_pages || !sg); /* sanity check */
 
@@ -792,10 +793,12 @@ prp_list:
 			/* PRP list last entry pointer to next PRP list */
 			j++;
 			prp_entry[k] = cpu_to_le64(prp_dma[j]);
+			prps->nr_entry++;
 			trace_dnvme_setup_prps(k, prp_dma[j], PAGE_SIZE);
 			k = 0;
 		} else {
 			prp_entry[k] = cpu_to_le64(dma_addr);
+			prps->nr_entry++;
 			trace_dnvme_setup_prps(k, dma_addr, PAGE_SIZE - pg_oft);
 			buf_len -= (PAGE_SIZE - pg_oft);
 			dma_len -= (PAGE_SIZE - pg_oft);
@@ -852,9 +855,10 @@ static int dnvme_add_cmd_node(struct nvme_device *ndev, struct nvme_64b_cmd *cmd
 		return -ENOMEM;
 	}
 
-	node->id = ccmd->command_id;
+	node->cid = ccmd->command_id;
 	node->opcode = ccmd->opcode;
 	node->sqid = cmd->sqid;
+	node->idx = sq->pub.tail_ptr_virt;
 
 	if (cmd->sqid == NVME_AQ_ID) {
 		struct nvme_create_sq *csq;
@@ -954,10 +958,13 @@ static int dnvme_prepare_64b_cmd(struct nvme_device *ndev,
 	if (ret < 0)
 		goto out_free_prp;
 
-	if (dnvme_use_sgls(ccmd, cmd))
+	if (dnvme_use_sgls(ccmd, cmd)) {
 		ret = dnvme_cmd_setup_sgl(ndev, cmd, ccmd, prps);
-	else
+		prps->is_sgl = 1;
+	} else {
 		ret = dnvme_setup_prps(ndev, cmd, ccmd, prps);
+		prps->is_sgl = 0;
+	}
 
 	if (ret < 0)
 		goto out_unmap_page;
@@ -1294,6 +1301,278 @@ out2:
 	sq->next_cid--;
 out:
 	kfree(cmd_buf);
+	return ret;
+}
+
+static u32 dnvme_tamper_cmd_get_prp_list_size(struct nvme_cmd *cmd)
+{
+	if (cmd->prps && !cmd->prps->is_sgl && cmd->prps->nr_entry) {
+		return sizeof(u64) * cmd->prps->nr_entry;
+	} else {
+		return 0;
+	}
+}
+
+static u32 dnvme_tamper_cmd_get_prp_page_size(struct nvme_cmd *cmd)
+{
+	/* !TODO: Not support yet! */
+	return 0;
+}
+
+static int dnvme_tamper_cmd_fetch_cmd(struct nvme_sq *sq, struct nvme_cmd *cmd,
+	struct nvme_cmd_tamper *tamper)
+{
+	WARN_ON(sizeof(tamper->cmd) != (1 << sq->pub.sqes));
+	if (sq->contig) {
+		memcpy(&tamper->cmd, (sq->buf + ((u32)cmd->idx << sq->pub.sqes)), 
+			sizeof(tamper->cmd));
+	} else {
+		struct nvme_prps *prps = sq->prps;
+
+		memcpy(&tamper->cmd, (prps->buf + ((u32)cmd->idx << sq->pub.sqes)),
+			sizeof(tamper->cmd));
+	}
+	return 0;
+}
+
+static int dnvme_tamper_cmd_fetch_prp_list(struct nvme_cmd *cmd,
+	struct nvme_prp_list *list)
+{
+	struct nvme_prps *prps = cmd->prps;
+	__le64 *ptr = NULL;
+	u32 i, j;
+	u32 cnt = 0;
+
+	list->nr_entry = prps->nr_entry;
+
+	for (i = 0; i < prps->nr_pages; i++) {
+		ptr = prps->prp_list[i];
+
+		for (j = 0; j < NVME_PRPS_PER_PAGE; j++) {
+			list->entry[cnt] = le64_to_cpu(ptr[j]);
+			if (++cnt >= prps->nr_entry)
+				return 0;
+		}
+	}
+
+	return 0;
+}
+
+static int dnvme_tamper_cmd_modify_cmd(struct nvme_sq *sq, struct nvme_cmd *cmd,
+	struct nvme_cmd_tamper *tamper)
+{
+	struct pci_dev *pdev = sq->ndev->pdev;
+
+	WARN_ON(sizeof(tamper->cmd) != (1 << sq->pub.sqes));
+	if (sq->contig) {
+		memcpy((sq->buf + ((u32)cmd->idx << sq->pub.sqes)), 
+			&tamper->cmd, sizeof(tamper->cmd));
+	} else {
+		struct nvme_prps *prps = sq->prps;
+
+		memcpy((prps->buf + ((u32)cmd->idx << sq->pub.sqes)), 
+			&tamper->cmd, sizeof(tamper->cmd));
+		dma_sync_sg_for_device(&pdev->dev, prps->sg, 
+			prps->num_map_pgs, prps->data_dir);
+	}
+	return 0;
+}
+
+static int dnvme_tamper_cmd_modify_prp_list(struct nvme_cmd *cmd,
+	struct nvme_prp_list *list)
+{
+	struct nvme_prps *prps = cmd->prps;
+	__le64 *ptr = NULL;
+	u32 i, j;
+	u32 cnt = 0;
+
+	list->nr_entry = prps->nr_entry;
+
+	for (i = 0; i < prps->nr_pages; i++) {
+		ptr = prps->prp_list[i];
+
+		for (j = 0; j < NVME_PRPS_PER_PAGE; j++) {
+			ptr[j] = cpu_to_le64(list->entry[cnt]);
+			if (++cnt >= prps->nr_entry)
+				return 0;
+		}
+	}
+
+	return 0;
+}
+
+static int dnvme_tamper_cmd_inquiry(struct nvme_device *ndev, 
+	struct nvme_cmd_tamper *tamper, void __user *utamper)
+{
+	struct nvme_sq *sq = NULL;
+	struct nvme_cmd *cmd = NULL;
+
+	sq = dnvme_find_sq(ndev, tamper->sqid);
+	if (!sq) {
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->sqid);
+		return -EBADSLT;
+	}
+
+	cmd = dnvme_find_cmd(sq, tamper->cid);
+	if (!cmd) {
+		dnvme_err(ndev, "cmd:%u not found in SQ:%u!\n", 
+			tamper->cid, tamper->sqid);
+		return -ENOENT;
+	}
+	
+	dnvme_tamper_cmd_fetch_cmd(sq, cmd, tamper);
+
+	if (tamper->inq_prp_list)
+		tamper->prp_list_size = dnvme_tamper_cmd_get_prp_list_size(cmd);
+	if (tamper->inq_prp_page)
+		tamper->prp_page_size = dnvme_tamper_cmd_get_prp_page_size(cmd);
+
+	if (copy_to_user(utamper, tamper, sizeof(tamper))) {
+		dnvme_err(ndev, "failed to copy to user space!\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int dnvme_tamper_cmd_fetch(struct nvme_device *ndev, 
+	struct nvme_cmd_tamper *tamper, void __user *utamper)
+{
+	struct nvme_sq *sq = NULL;
+	struct nvme_cmd *cmd = NULL;
+	struct nvme_cmd_tamper *all_tamp = NULL;
+	struct nvme_prp_list *list = NULL;
+	u32 size = sizeof(struct nvme_cmd_tamper);
+	int ret;
+
+	sq = dnvme_find_sq(ndev, tamper->sqid);
+	if (!sq) {
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->sqid);
+		return -EBADSLT;
+	}
+
+	cmd = dnvme_find_cmd(sq, tamper->cid);
+	if (!cmd) {
+		dnvme_err(ndev, "cmd:%u not found in SQ:%u!\n", 
+			tamper->cid, tamper->sqid);
+		return -ENOENT;
+	}
+
+	if (tamper->fet_prp_list) {
+		if (tamper->prp_list_size != dnvme_tamper_cmd_get_prp_list_size(cmd)) {
+			dnvme_err(ndev, "invalid prp list size!\n");
+			return -EINVAL;
+		}
+		size += tamper->prp_list_size;
+	}
+
+	all_tamp = kzalloc(size, GFP_KERNEL);
+	if (!all_tamp) {
+		dnvme_err(ndev, "failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+	list = (struct nvme_prp_list *)all_tamp->data;
+
+	memcpy(all_tamp, tamper, sizeof(*tamper));
+	dnvme_tamper_cmd_fetch_cmd(sq, cmd, all_tamp);
+	if (tamper->fet_prp_list && tamper->prp_list_size)
+		dnvme_tamper_cmd_fetch_prp_list(cmd, list);
+
+	if (copy_to_user(utamper, all_tamp, size)) {
+		dnvme_err(ndev, "failed to copy to user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = 0;
+out:
+	kfree(all_tamp);
+	return ret;
+}
+
+static int dnvme_tamper_cmd_modify(struct nvme_device *ndev, 
+	struct nvme_cmd_tamper *tamper, void __user *utamper)
+{
+	struct nvme_sq *sq = NULL;
+	struct nvme_cmd *cmd = NULL;
+	struct nvme_cmd_tamper *all_tamp = NULL;
+	struct nvme_prp_list *list = NULL;
+	u32 size = sizeof(struct nvme_cmd_tamper);
+	int ret;
+
+	sq = dnvme_find_sq(ndev, tamper->sqid);
+	if (!sq) {
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", cmd->sqid);
+		return -EBADSLT;
+	}
+
+	cmd = dnvme_find_cmd(sq, tamper->cid);
+	if (!cmd) {
+		dnvme_err(ndev, "cmd:%u not found in SQ:%u!\n", 
+			tamper->cid, tamper->sqid);
+		return -ENOENT;
+	}
+
+	if (tamper->fet_prp_list) {
+		if (tamper->prp_list_size != dnvme_tamper_cmd_get_prp_list_size(cmd)) {
+			dnvme_err(ndev, "invalid prp list size!\n");
+			return -EINVAL;
+		}
+		size += tamper->prp_list_size;
+	}
+
+	all_tamp = kzalloc(size, GFP_KERNEL);
+	if (!all_tamp) {
+		dnvme_err(ndev, "failed to alloc memory!\n");
+		return -ENOMEM;
+	}
+	list = (struct nvme_prp_list *)all_tamp->data;
+
+	if (copy_from_user(all_tamp, utamper, size)) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (tamper->fet_prp_list && tamper->prp_list_size)
+		dnvme_tamper_cmd_modify_prp_list(cmd, list);
+
+	dnvme_tamper_cmd_modify_cmd(sq, cmd, tamper);
+
+	ret = 0;
+out:
+	kfree(all_tamp);
+	return ret;
+}
+
+int dnvme_tamper_cmd(struct nvme_device *ndev, struct nvme_cmd_tamper __user *utamper)
+{
+	struct nvme_cmd_tamper tamper;
+	int ret;
+
+	if (copy_from_user(&tamper, utamper, sizeof(tamper))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	switch (tamper.option) {
+	case NVME_TAMPER_OPT_INQUIRY:
+		ret = dnvme_tamper_cmd_inquiry(ndev, &tamper, utamper);
+		break;
+
+	case NVME_TAMPER_OPT_FETCH:
+		ret = dnvme_tamper_cmd_fetch(ndev, &tamper, utamper);
+		break;
+
+	case NVME_TAMPER_OPT_MODIFY:
+		ret = dnvme_tamper_cmd_modify(ndev, &tamper, utamper);
+		break;
+
+	default:
+		dnvme_err(ndev, "invalid option:%u!\n", tamper.option);
+		ret = -EINVAL;
+	}
+
 	return ret;
 }
 

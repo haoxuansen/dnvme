@@ -297,6 +297,10 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_submit_64b_cmd(ndev, argp);
 		break;
 
+	case NVME_IOCTL_TAMPER_CMD:
+		ret = dnvme_tamper_cmd(ndev, argp);
+		break;
+
 	case NVME_IOCTL_EMPTY_CMD_LIST:
 	{
 		struct nvme_sq *sq = dnvme_find_sq(ndev, (u16)arg);

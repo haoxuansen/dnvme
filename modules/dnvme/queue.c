@@ -59,15 +59,15 @@ int dnvme_check_qid_unique(struct nvme_device *ndev,
  * @brief Find the cmd node in SQ list by the given ID
  * 
  * @param sq submission queue
- * @param id command identify
+ * @param cid command identify
  * @return pointer to the cmd node on success. Otherwise returns NULL.
  */
-struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 id)
+struct nvme_cmd *dnvme_find_cmd(struct nvme_sq *sq, u16 cid)
 {
 	struct nvme_cmd *cmd;
 
 	list_for_each_entry(cmd, &sq->cmd_list, entry) {
-		if (id == cmd->id)
+		if (cid == cmd->cid)
 			return cmd;
 	}
 	return NULL;
@@ -609,7 +609,7 @@ static int handle_queue_cmd_completion(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	int ret = 0;
 
 	dnvme_vdbg(ndev, "Queue:%u, CMD:%u, Free:%s\n", cmd->target_qid,
-		cmd->id, free_queue ? "true" : "false");
+		cmd->cid, free_queue ? "true" : "false");
 
 	if (!free_queue)
 		goto del_cmd;

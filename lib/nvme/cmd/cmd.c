@@ -47,6 +47,21 @@ int nvme_submit_64b_cmd(int fd, struct nvme_64b_cmd *cmd)
 }
 
 /**
+ * @brief Tamper with commands already added to SQ 
+ */
+int nvme_tamper_cmd(int fd, struct nvme_cmd_tamper *tamper)
+{
+	int ret;
+
+	ret = ioctl(fd, NVME_IOCTL_TAMPER_CMD, tamper);
+	if (ret < 0) {
+		pr_err("failed to tamper cmd!(%d)\n", ret);
+		return ret;
+	}
+	return 0;
+}
+
+/**
  * @return The assigned command identifier if success, otherwise a negative
  *  errno.
  */
