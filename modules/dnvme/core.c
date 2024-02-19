@@ -513,6 +513,7 @@ static void dnvme_unmap_resource(struct nvme_device *ndev)
 static int dnvme_init_irq(struct nvme_device *ndev)
 {
 	ndev->irq_set.irq_type = NVME_INT_NONE;
+	ndev->irq_set.irq_name = dnvme_irq_type_name(ndev->irq_set.irq_type);
 	ndev->irq_set.nr_irq = 0;
 	return 0;
 }

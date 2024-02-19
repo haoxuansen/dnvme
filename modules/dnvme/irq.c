@@ -25,6 +25,7 @@
 #include "io.h"
 #include "queue.h"
 #include "irq.h"
+#include "trace.h"
 
 /**
  * @brief This property is used to mask nvme_interrupt when using pin-based
@@ -112,6 +113,23 @@ static bool pba_bits_is_set(void __iomem *pba_tbl, struct msix_entry *arr,
 			return true;
 	}
 	return false;
+}
+
+const char *dnvme_irq_type_name(enum nvme_irq_type type)
+{
+	switch (type) {
+	case NVME_INT_NONE:
+		return "NONE";
+	case NVME_INT_PIN:
+		return "PIN";
+	case NVME_INT_MSI_SINGLE:
+	case NVME_INT_MSI_MULTI:
+		return "MSI";
+	case NVME_INT_MSIX:
+		return "MSI-X";
+	default:
+		return "unknown";
+	}
 }
 
 /**
@@ -1024,6 +1042,7 @@ int dnvme_set_interrupt(struct nvme_device *ndev, struct nvme_interrupt __user *
 
 	/* update active irq info */
 	irq_set->irq_type = irq.irq_type;
+	irq_set->irq_name = dnvme_irq_type_name(irq.irq_type);
 	irq_set->nr_irq = irq.num_irqs;
 
 	return 0;
@@ -1075,6 +1094,8 @@ irqreturn_t dnvme_interrupt(int int_vec, void *data)
 	struct nvme_irq_set *irq_set = (struct nvme_irq_set *)data;
 	struct nvme_device *ndev = dnvme_irq_to_device(irq_set);
 	struct nvme_work *wk_node;
+
+	trace_dnvme_interrupt(irq_set, int_vec);
 
 	wk_node = find_work_node_by_vec(irq_set, int_vec);
 	if (!wk_node) {

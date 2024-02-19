@@ -221,6 +221,7 @@ struct nvme_irq_set {
 	} msix;
 
 	enum nvme_irq_type	irq_type;
+	const char		*irq_name;
 	u16			nr_irq;
 
 	struct workqueue_struct	*wq;

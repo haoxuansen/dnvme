@@ -15,6 +15,8 @@
 #include "core.h"
 #include "dnvme.h"
 
+const char *dnvme_irq_type_name(enum nvme_irq_type type);
+
 int dnvme_reset_isr_flag(struct nvme_device *ndev, u16 irq_no);
 
 int dnvme_create_icq_node(struct nvme_irq_set *irq_set, u16 cq_id, u16 irq_no);
