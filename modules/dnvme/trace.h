@@ -17,6 +17,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/kernel.h>
+#include <asm/io.h>
 #include "nvme.h"
 
 DECLARE_EVENT_CLASS(nvme_log_proc,
@@ -155,6 +156,7 @@ DECLARE_EVENT_CLASS(nvme_log_cqe,
 	TP_PROTO(struct nvme_completion *cqe),
 	TP_ARGS(cqe),
 	TP_STRUCT__entry(
+		__field(u64, addr_phys)
 		__field(u64, result)
 		__field(u16, sq_head)
 		__field(u16, sq_id)
@@ -162,14 +164,15 @@ DECLARE_EVENT_CLASS(nvme_log_cqe,
 		__field(u16, status)
 	),
 	TP_fast_assign(
+		__entry->addr_phys = virt_to_phys(cqe);
 		__entry->result = le64_to_cpu(cqe->result.u64);
 		__entry->sq_head = le16_to_cpu(cqe->sq_head);
 		__entry->sq_id = le16_to_cpu(cqe->sq_id);
 		__entry->cid = cqe->command_id;
 		__entry->status = le16_to_cpu(cqe->status);
 	),
-	TP_printk("result:%016llx sq_head:%04x sq_id:%04x cid:%04x status:%04x",
-		__entry->result, __entry->sq_head, __entry->sq_id, 
+	TP_printk("|%016llx| result:%016llx sq_head:%04x sq_id:%04x cid:%04x status:%04x",
+		__entry->addr_phys, __entry->result, __entry->sq_head, __entry->sq_id, 
 		__entry->cid, __entry->status)
 );
 

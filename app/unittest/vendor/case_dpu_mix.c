@@ -135,6 +135,11 @@ static void dpu_mix_check_size(void)
 	BUILD_BUG_ON(sizeof(struct utc_dpu_mix_param) != UTC_DPU_MIX_PARAM_SIZE);
 }
 
+static void dpu_mix_clear_config(struct case_config_effect *cfg)
+{
+	memset(&cfg->cmd, 0, sizeof(cfg->cmd));
+}
+
 static void dpu_mix_init_ns_map(struct nvme_tool *tool, uint64_t *bitmap)
 {
 	struct nvme_dev_info *ndev = tool->ndev;
@@ -235,6 +240,7 @@ static int dpu_mix_init_param(struct nvme_tool *tool,
 {
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
+	uint8_t key_fmt = rand() % 2 + 1;
 	int bit;
 	int i;
 
@@ -250,7 +256,7 @@ static int dpu_mix_init_param(struct nvme_tool *tool,
 
 		param->ns[i].nsid = le32_to_cpu(ns_grp->act_list[bit]);
 		param->ns[i].k_type = rand() % 2 + 1;
-		param->ns[i].k_fmt = rand() % 2 + 1;
+		param->ns[i].k_fmt = key_fmt;
 		param->ns[i].dpu = rand() % 2;
 		param->ns[i].opal = rand() % 2;
 		param->ns[i].k_comb = rand() % 4 + 1;
@@ -320,11 +326,6 @@ static int dpu_mix_deinit_queue(struct case_data *priv, uint32_t nr_q_pair)
 	struct nvme_dev_info *ndev = tool->ndev;
 
 	return ut_delete_pair_io_queues(priv, ndev->iosqs, NULL, nr_q_pair);
-}
-
-static void dpu_mix_clear_config(struct case_config_effect *cfg)
-{
-	memset(&cfg->cmd, 0, sizeof(cfg->cmd));
 }
 
 static int dpu_mix_send_write_cmd(struct case_data *priv, struct nvme_sq_info *sq)
@@ -619,16 +620,14 @@ static int dpu_mix_travel_mode1(struct case_data *priv, uint32_t nr_ns,
 	struct nvme_tool *tool = priv->tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
-	struct case_config_effect effect = {0};
+	struct case_config_effect *effect = priv->cfg.effect;
 	int rate;
 	int i, j;
-
-	priv->cfg.effect = &effect;
 
 	rate = nr_q_pair / nr_ns;
 	for (i = 0; i < rate; i++) {
 		for (j = 0; j < nr_ns; j++) {
-			effect.nsid = le32_to_cpu(ns_grp->act_list[j]);
+			effect->nsid = le32_to_cpu(ns_grp->act_list[j]);
 			CHK_EXPR_NUM_LT0_RTN(dpu_mix_queue_cmds_send_1by1(
 				priv, i * nr_ns + j), -EPERM);
 		}
@@ -643,16 +642,14 @@ static int dpu_mix_travel_mode2(struct case_data *priv, uint32_t nr_ns,
 	struct nvme_tool *tool = priv->tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
-	struct case_config_effect effect = {0};
+	struct case_config_effect *effect = priv->cfg.effect;
 	int rate;
 	int i, j;
-
-	priv->cfg.effect = &effect;
 
 	rate = nr_q_pair / nr_ns;
 	for (i = 0; i < rate; i++) {
 		for (j = 0; j < nr_ns; j++) {
-			effect.nsid = le32_to_cpu(ns_grp->act_list[j]);
+			effect->nsid = le32_to_cpu(ns_grp->act_list[j]);
 			CHK_EXPR_NUM_LT0_RTN(dpu_mix_queue_cmds_submit_together(
 				priv, i * nr_ns + j), -EPERM);
 		}
@@ -681,7 +678,9 @@ static int dpu_mix_work(struct case_data *priv, struct utc_dpu_mix_param *param)
 
 	dpu_mix_init_ns_map(tool, &ns_map);
 	ns_cnt = dpu_mix_init_param(tool, param, ns_map);
-	dpu_mix_send_param(priv, param);
+	ret = dpu_mix_send_param(priv, param);
+	if (ret < 0)
+		return ret;
 
 	ret = dpu_mix_init_queue(priv, &nr_q_pair, ns_cnt);
 	if (ret < 0)
@@ -707,11 +706,15 @@ static int case_dpu_mix(struct nvme_tool *tool, struct case_data *priv)
 
 	dpu_mix_check_size();
 
-	param = zalloc(sizeof(*param));
-	if (!param) {
+	ret = posix_memalign((void **)&param, NVME_TOOL_RW_BUF_ALIGN, sizeof(*param));
+	if (ret) {
 		pr_err("failed to alloc memory!\n");
 		return -ENOMEM;
 	}
+
+	ret = ut_case_alloc_config_effect(&priv->cfg);
+	if (ret < 0)
+		goto rls_param;
 
 	do {
 		ret = dpu_mix_work(priv, param);
@@ -719,6 +722,8 @@ static int case_dpu_mix(struct nvme_tool *tool, struct case_data *priv)
 			break;
 	} while (--loop > 0);
 
+	ut_case_release_config_effect(&priv->cfg);
+rls_param:
 	free(param);
 	return ret;
 }

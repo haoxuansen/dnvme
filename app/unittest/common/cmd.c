@@ -864,8 +864,8 @@ int ut_submit_io_fused_cw_cmd(struct case_data *priv, struct nvme_sq_info *sq,
 	memset(&effect->cmd, 0, sizeof(effect->cmd));
 	effect->cmd.write.flags = NVME_CMD_FUSE_SECOND | bkup.flags;
 	if (bkup.buf2) {
-		effect->cmd.compare.buf = bkup.buf2;
-		effect->cmd.compare.size = bkup.buf2_size;
+		effect->cmd.write.buf = bkup.buf2;
+		effect->cmd.write.size = bkup.buf2_size;
 	}
 
 	ret = ut_submit_io_write_cmd(priv, sq, slba, nlb);

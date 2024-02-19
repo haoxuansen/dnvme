@@ -1008,6 +1008,8 @@ case_dpu_mix
 	"30:28", "Reserved"
 	"31", "En", "Namespace Enable, 0: Disable, 1: Enable"
 
+.. attention:: 
+	1. 所有 namespace 配置的 Key Fmt 值必须相同，暂不支持独立配置
 
 .. _label_case_dpu_mix_5:
 
