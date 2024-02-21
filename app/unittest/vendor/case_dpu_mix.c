@@ -55,7 +55,8 @@ struct utc_dpu_mix_hw_wdma {
 	uint32_t	req_fuse_cmd_cut_en:1;
 	uint32_t	dw20_26_31:6;
 
-	uint32_t	req_max_cmd:11;
+	uint32_t	dw21_0:1;
+	uint32_t	req_max_cmd:10;
 	uint32_t	req_cmd_limit:8;
 	uint32_t	req_min_size:10;
 	uint32_t	req_ff_thr:3;
@@ -92,7 +93,8 @@ struct utc_dpu_mix_hw_rdma {
 	uint32_t	req_ff_depth:3;
 	uint32_t	dw20_25_31:7;
 
-	uint32_t	req_max_cmd:11;
+	uint32_t	dw21_0:1;
+	uint32_t	req_max_cmd:10;
 	uint32_t	req_cmd_limit:8;
 	uint32_t	req_min_size:10;
 	uint32_t	req_ff_thr:3;

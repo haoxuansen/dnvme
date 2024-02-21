@@ -183,21 +183,19 @@ DEFINE_EVENT(nvme_log_cqe, handle_cmd_completion,
 	TP_ARGS(cqe)
 );
 
+/* Timestamp is automatically recorded, so there is no need to repeatedly record */
 DECLARE_EVENT_CLASS(nvme_log_irq,
 	TP_PROTO(struct nvme_irq_set *irq_set, int vec),
 	TP_ARGS(irq_set, vec),
 	TP_STRUCT__entry(
 		__string(name, irq_set->irq_name)
 		__field(int, vec)
-		__field(ktime_t, time)
 	),
 	TP_fast_assign(
 		__assign_str(name, irq_set->irq_name);
 		__entry->vec = vec;
-		__entry->time = ktime_get_boottime();
 	),
-	TP_printk("[%lld.%lld] %8s %d", __entry->time / NSEC_PER_SEC, 
-		__entry->time % NSEC_PER_SEC, __get_str(name), __entry->vec)
+	TP_printk("%8s %d", __get_str(name), __entry->vec)
 );
 
 DEFINE_EVENT(nvme_log_irq, dnvme_interrupt, 
