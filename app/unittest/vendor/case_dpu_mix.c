@@ -91,7 +91,9 @@ struct utc_dpu_mix_hw_rdma {
 	uint32_t	req_max_pend:12;
 	uint32_t	req_max_size:10;
 	uint32_t	req_ff_depth:3;
-	uint32_t	dw20_25_31:7;
+	uint32_t	req_lba_bdry:4;
+	uint32_t	req_lba_bdry_cut_en:1;
+	uint32_t	dw20_30_31:2;
 
 	uint32_t	dw21_0:1;
 	uint32_t	req_max_cmd:10;
@@ -124,6 +126,7 @@ struct utc_dpu_mix_param {
 		uint32_t	fused_cmd:1;
 		uint32_t	atomic:1;
 		uint32_t	pcq_fua:1;
+		uint32_t	rsvd5_31:27;
 	} sqm;
 	struct utc_dpu_mix_hw_wdma	wdma;
 	struct utc_dpu_mix_hw_rdma	rdma;
@@ -223,6 +226,11 @@ static void dpu_mix_init_rdma_param(struct utc_dpu_mix_param *param)
 	rdma->req_max_size = rand() % 256 + 1;
 	rdma->req_max_pend = rand() % (257 - rdma->req_max_size) + rdma->req_max_size;
 	rdma->req_ff_depth = rand() % 8;
+
+	if (!param->mc) {
+		rdma->req_lba_bdry = rand() % 16;
+		rdma->req_lba_bdry_cut_en = 1;
+	}
 
 	if (param->mc) {
 		rdma->req_max_cmd = rand() % rdma->req_max_size + 1;

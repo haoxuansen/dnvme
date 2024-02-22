@@ -1051,7 +1051,7 @@ case_dpu_mix
 	"20", "25", "ftl_wreq_fuse_cmd_cut_en", "支持 Fused CMD 时选项如下：0 - Disable, 1 - Enable"
 	"", "", "", "不支持 Fused CMD 时选项如下：0 - Disable"
 	"20", "31:26", "Reserved"
-	"21", "0", "Reserved"
+	"21 [#9]_", "0", "Reserved"
 	"21", "10:1", "ftl_wreq_max_cmd", "随机值 [1, @ftl_wreq_max_size]"
 	"21", "18:11", "ftl_wreq_cmd_limit", "随机值 [0, 5]"
 	"21", "28:19", "ftl_wreq_min_size", "随机值 [1, @ftl_wreq_max_size]"
@@ -1082,8 +1082,10 @@ case_dpu_mix
 	"20", "11:0", "ftl_rreq_max_pending_au_num", "随机值 [@ftl_rreq_max_size, 256]"
 	"20", "21:12", "ftl_rreq_max_size", "随机值 [1, 256]"
 	"20", "24:22", "ftl_rreq_ff_depth", "随机值 [0, 7]"
-	"20", "31:25", "Reserved"
-	"21", "0", "Reserved"
+	"20", "28:25 [#10]_", "ftl_rreq_lba_bdry", "随机值 [0, 15]"
+	"20", "29 [#10]_", "ftl_rreq_lba_bdry_cut_en", "固定值 0x1"
+	"20", "31:30", "Reserved"
+	"21 [#9]_", "0", "Reserved"
 	"21", "10:1", "ftl_rreq_max_cmd", "随机值 [1, @ftl_rreq_max_size]"
 	"21", "18:11", "ftl_rreq_cmd_limit", "随机值 [0, 5]"
 	"21", "28:19", "ftl_rreq_min_size", "随机值 [1, @ftl_rreq_max_size]"
@@ -1102,4 +1104,5 @@ case_dpu_mix
 .. [#7] 当 FTL Interface Enable 打开 intfc0 且 Special Mode 选择 LAA bit mode 时需要配置此字段。
 .. [#8] 当 FTL Interface Enable 打开 intfc1 且 Special Mode 选择 LAA bit mode 时需要配置此字段。
 .. [#9] 仅 Enable Multi CMD 时该字段有效，其它情况下 Reserved
+.. [#10] 仅 Disable Multi CMD 时该字段有效，其它情况下 Reserved
 
