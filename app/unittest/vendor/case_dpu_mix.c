@@ -552,7 +552,7 @@ static int dpu_mix_queue_cmds_send_1by1(struct case_data *priv, uint32_t q_idx)
 	if (sq->nr_entry / 2 < nr_cmd)
 		nr_cmd = sq->nr_entry / 2;
 
-	while (--nr_cmd < 0) {
+	while (--nr_cmd >= 0) {
 		select = rand() % 4;
 		switch (select) {
 		case 0:
