@@ -447,8 +447,8 @@ static int dpu_mix_send_copy_cmd(struct case_data *priv, struct nvme_sq_info *sq
 
 	for (i = 0; i < nr_desc; i++) {
 		copy->entry[i].slba = blk_slice * i + rand() % blk_slice;
-		copy->entry[i].nlb = 
-			rand() % (blk_slice * (i + 1) - copy->entry[i].slba) + 1;
+		copy->entry[i].nlb = rand() % min_t(uint64_t, entry_nlb_limit, 
+			blk_slice * (i + 1) - copy->entry[i].slba) + 1;
 		nlb_total += copy->entry[i].nlb;
 	}
 	copy->slba = nsze >> 1;
