@@ -625,19 +625,28 @@ static int dpu_mix_queue_cqe_reap_together(struct case_data *priv,
 }
 
 static int dpu_mix_travel_mode1(struct case_data *priv, uint32_t nr_ns, 
-	uint32_t nr_q_pair)
+	uint32_t nr_q_pair, uint64_t ns_map)
 {
 	struct nvme_tool *tool = priv->tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t bitmap;
+	int bit;
 	int rate;
 	int i, j;
 
 	rate = nr_q_pair / nr_ns;
 	for (i = 0; i < rate; i++) {
+		bitmap = ns_map;
 		for (j = 0; j < nr_ns; j++) {
-			effect->nsid = le32_to_cpu(ns_grp->act_list[j]);
+			bit = ffsll(bitmap) - 1;
+			if (bit < 0)
+				break;
+
+			bitmap ^= BIT_ULL(bit);
+
+			effect->nsid = le32_to_cpu(ns_grp->act_list[bit]);
 			CHK_EXPR_NUM_LT0_RTN(dpu_mix_queue_cmds_send_1by1(
 				priv, i * nr_ns + j), -EPERM);
 		}
@@ -647,19 +656,28 @@ static int dpu_mix_travel_mode1(struct case_data *priv, uint32_t nr_ns,
 }
 
 static int dpu_mix_travel_mode2(struct case_data *priv, uint32_t nr_ns, 
-	uint32_t nr_q_pair)
+	uint32_t nr_q_pair, uint64_t ns_map)
 {
 	struct nvme_tool *tool = priv->tool;
 	struct nvme_dev_info *ndev = tool->ndev;
 	struct nvme_ns_group *ns_grp = ndev->ns_grp;
 	struct case_config_effect *effect = priv->cfg.effect;
+	uint64_t bitmap;
+	int bit;
 	int rate;
 	int i, j;
 
 	rate = nr_q_pair / nr_ns;
 	for (i = 0; i < rate; i++) {
+		bitmap = ns_map;
 		for (j = 0; j < nr_ns; j++) {
-			effect->nsid = le32_to_cpu(ns_grp->act_list[j]);
+			bit = ffsll(bitmap) - 1;
+			if (bit < 0)
+				break;
+
+			bitmap ^= BIT_ULL(bit);
+
+			effect->nsid = le32_to_cpu(ns_grp->act_list[bit]);
 			CHK_EXPR_NUM_LT0_RTN(dpu_mix_queue_cmds_submit_together(
 				priv, i * nr_ns + j), -EPERM);
 		}
@@ -697,10 +715,10 @@ static int dpu_mix_work(struct case_data *priv, struct utc_dpu_mix_param *param)
 		return ret;
 
 	CHK_EXPR_NUM_LT0_GOTO(
-		dpu_mix_travel_mode1(priv, ns_cnt, nr_q_pair), 
+		dpu_mix_travel_mode1(priv, ns_cnt, nr_q_pair, ns_map), 
 		ret, -EPERM, deinit_queue);
 	CHK_EXPR_NUM_LT0_GOTO(
-		dpu_mix_travel_mode2(priv, ns_cnt, nr_q_pair), 
+		dpu_mix_travel_mode2(priv, ns_cnt, nr_q_pair, ns_map), 
 		ret, -EPERM, deinit_queue);
 
 deinit_queue:
