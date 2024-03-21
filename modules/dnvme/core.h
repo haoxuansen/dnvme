@@ -60,7 +60,11 @@ struct nvme_prps {
 	void		**prp_list;
 	dma_addr_t	*pg_addr;
 	u32		nr_pages;
-	u32		nr_entry; /* The number of PRP entry in PRP List */
+	/*
+	 * If use PRP List, record the number of PRP entry
+	 * If use SGL, record the number of SGL descriptor
+	 */
+	u32		nr_entry;
 
 	u32		is_sgl:1;
 

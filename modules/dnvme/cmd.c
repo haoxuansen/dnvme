@@ -505,6 +505,7 @@ static int dnvme_cmd_setup_sgl(struct nvme_device *ndev,
 		ret = -EPERM;
 		goto free_bit_bucket;
 	}
+	prps->nr_entry = nr_desc;
 	
 	nr_seg = DIV_ROUND_UP(sizeof(struct nvme_sgl_desc) * nr_desc, 
 		PAGE_SIZE - sizeof(struct nvme_sgl_desc));
@@ -1314,6 +1315,15 @@ static u32 dnvme_tamper_cmd_get_prp_page_size(struct nvme_cmd *cmd)
 	return 0;
 }
 
+static u32 dnvme_tamper_cmd_get_sgl_seg_size(struct nvme_cmd *cmd)
+{
+	if (cmd->prps && cmd->prps->is_sgl && cmd->prps->nr_entry) {
+		return sizeof(struct nvme_sgl_desc) * cmd->prps->nr_entry;
+	} else {
+		return 0;
+	}
+}
+
 static int dnvme_tamper_cmd_fetch_cmd(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	struct nvme_cmd_tamper *tamper)
 {
@@ -1330,10 +1340,10 @@ static int dnvme_tamper_cmd_fetch_cmd(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	return 0;
 }
 
-static int dnvme_tamper_cmd_fetch_prp_list(struct nvme_cmd *cmd,
-	struct nvme_prp_list *list)
+static int dnvme_tamper_cmd_fetch_prp_list(struct nvme_cmd *cmd, void *data)
 {
 	struct nvme_prps *prps = cmd->prps;
+	struct nvme_prp_list *list = data;
 	__le64 *ptr = NULL;
 	u32 i, j;
 	u32 cnt = 0;
@@ -1345,6 +1355,28 @@ static int dnvme_tamper_cmd_fetch_prp_list(struct nvme_cmd *cmd,
 
 		for (j = 0; j < NVME_PRPS_PER_PAGE; j++) {
 			list->entry[cnt] = le64_to_cpu(ptr[j]);
+			if (++cnt >= prps->nr_entry)
+				return 0;
+		}
+	}
+
+	return 0;
+}
+
+static int dnvme_tamper_cmd_fetch_sgl_seg(struct nvme_cmd *cmd, void *data)
+{
+	struct nvme_prps *prps = cmd->prps;
+	struct nvme_sgl_seg *seg = data;
+	struct nvme_sgl_desc *ptr = NULL;
+	u32 i, j;
+	u32 cnt = 0;
+
+	seg->nr_desc = prps->nr_entry;
+	for (i = 0; i < prps->nr_pages; i++) {
+		ptr = prps->prp_list[i];
+
+		for (j = 0; j < NVME_SGES_PER_PAGE; j++) {
+			seg->desc[cnt] = ptr[j];
 			if (++cnt >= prps->nr_entry)
 				return 0;
 		}
@@ -1373,21 +1405,44 @@ static int dnvme_tamper_cmd_modify_cmd(struct nvme_sq *sq, struct nvme_cmd *cmd,
 	return 0;
 }
 
-static int dnvme_tamper_cmd_modify_prp_list(struct nvme_cmd *cmd,
-	struct nvme_prp_list *list)
+static int dnvme_tamper_cmd_modify_prp_list(struct nvme_cmd *cmd, void *data)
 {
 	struct nvme_prps *prps = cmd->prps;
+	struct nvme_prp_list *list = data;
 	__le64 *ptr = NULL;
 	u32 i, j;
 	u32 cnt = 0;
 
-	list->nr_entry = prps->nr_entry;
+	WARN_ON(list->nr_entry != prps->nr_entry);
 
 	for (i = 0; i < prps->nr_pages; i++) {
 		ptr = prps->prp_list[i];
 
 		for (j = 0; j < NVME_PRPS_PER_PAGE; j++) {
 			ptr[j] = cpu_to_le64(list->entry[cnt]);
+			if (++cnt >= prps->nr_entry)
+				return 0;
+		}
+	}
+
+	return 0;
+}
+
+static int dnvme_tamper_cmd_modify_sgl_seg(struct nvme_cmd *cmd, void *data)
+{
+	struct nvme_prps *prps = cmd->prps;
+	struct nvme_sgl_seg *seg = data;
+	struct nvme_sgl_desc *ptr = NULL;
+	u32 i, j;
+	u32 cnt = 0;
+
+	WARN_ON(seg->nr_desc != prps->nr_entry);
+
+	for (i = 0; i < prps->nr_pages; i++) {
+		ptr = prps->prp_list[i];
+
+		for (j = 0; i < NVME_SGES_PER_PAGE; j++) {
+			ptr[j] = seg->desc[cnt];
 			if (++cnt >= prps->nr_entry)
 				return 0;
 		}
@@ -1421,6 +1476,8 @@ static int dnvme_tamper_cmd_inquiry(struct nvme_device *ndev,
 		tamper->prp_list_size = dnvme_tamper_cmd_get_prp_list_size(cmd);
 	if (tamper->inq_prp_page)
 		tamper->prp_page_size = dnvme_tamper_cmd_get_prp_page_size(cmd);
+	if (tamper->inq_sgl_seg)
+		tamper->sgl_seg_size = dnvme_tamper_cmd_get_sgl_seg_size(cmd);
 
 	if (copy_to_user(utamper, tamper, sizeof(tamper))) {
 		dnvme_err(ndev, "failed to copy to user space!\n");
@@ -1436,7 +1493,6 @@ static int dnvme_tamper_cmd_fetch(struct nvme_device *ndev,
 	struct nvme_sq *sq = NULL;
 	struct nvme_cmd *cmd = NULL;
 	struct nvme_cmd_tamper *all_tamp = NULL;
-	struct nvme_prp_list *list = NULL;
 	u32 size = sizeof(struct nvme_cmd_tamper);
 	int ret;
 
@@ -1453,6 +1509,11 @@ static int dnvme_tamper_cmd_fetch(struct nvme_device *ndev,
 		return -ENOENT;
 	}
 
+	if (tamper->fet_prp_list && tamper->fet_sgl_seg) {
+		dnvme_err(ndev, "don't fetch both PRP and SGL!\n");
+		return -EINVAL;
+	}
+
 	if (tamper->fet_prp_list) {
 		if (tamper->prp_list_size != dnvme_tamper_cmd_get_prp_list_size(cmd)) {
 			dnvme_err(ndev, "invalid prp list size!\n");
@@ -1460,18 +1521,26 @@ static int dnvme_tamper_cmd_fetch(struct nvme_device *ndev,
 		}
 		size += tamper->prp_list_size;
 	}
+	if (tamper->fet_sgl_seg) {
+		if (tamper->sgl_seg_size != dnvme_tamper_cmd_get_sgl_seg_size(cmd)) {
+			dnvme_err(ndev, "invalid sgl seg size!\n");
+			return -EINVAL;
+		}
+		size += tamper->sgl_seg_size;
+	}
 
 	all_tamp = kzalloc(size, GFP_KERNEL);
 	if (!all_tamp) {
 		dnvme_err(ndev, "failed to alloc memory!\n");
 		return -ENOMEM;
 	}
-	list = (struct nvme_prp_list *)all_tamp->data;
 
 	memcpy(all_tamp, tamper, sizeof(*tamper));
 	dnvme_tamper_cmd_fetch_cmd(sq, cmd, all_tamp);
 	if (tamper->fet_prp_list && tamper->prp_list_size)
-		dnvme_tamper_cmd_fetch_prp_list(cmd, list);
+		dnvme_tamper_cmd_fetch_prp_list(cmd, all_tamp->data);
+	if (tamper->fet_sgl_seg && tamper->sgl_seg_size)
+		dnvme_tamper_cmd_fetch_sgl_seg(cmd, all_tamp->data);
 
 	if (copy_to_user(utamper, all_tamp, size)) {
 		dnvme_err(ndev, "failed to copy to user space!\n");
@@ -1491,7 +1560,6 @@ static int dnvme_tamper_cmd_modify(struct nvme_device *ndev,
 	struct nvme_sq *sq = NULL;
 	struct nvme_cmd *cmd = NULL;
 	struct nvme_cmd_tamper *all_tamp = NULL;
-	struct nvme_prp_list *list = NULL;
 	u32 size = sizeof(struct nvme_cmd_tamper);
 	int ret;
 
@@ -1521,7 +1589,6 @@ static int dnvme_tamper_cmd_modify(struct nvme_device *ndev,
 		dnvme_err(ndev, "failed to alloc memory!\n");
 		return -ENOMEM;
 	}
-	list = (struct nvme_prp_list *)all_tamp->data;
 
 	if (copy_from_user(all_tamp, utamper, size)) {
 		dnvme_err(ndev, "failed to copy from user space!\n");
@@ -1529,8 +1596,10 @@ static int dnvme_tamper_cmd_modify(struct nvme_device *ndev,
 		goto out;
 	}
 
-	if (tamper->fet_prp_list && tamper->prp_list_size)
-		dnvme_tamper_cmd_modify_prp_list(cmd, list);
+	if (tamper->mdf_prp_list && tamper->prp_list_size)
+		dnvme_tamper_cmd_modify_prp_list(cmd, all_tamp->data);
+	if (tamper->mdf_sgl_seg && tamper->sgl_seg_size)
+		dnvme_tamper_cmd_modify_sgl_seg(cmd, all_tamp->data);
 
 	dnvme_tamper_cmd_modify_cmd(sq, cmd, tamper);
 

@@ -243,6 +243,11 @@ struct nvme_prp_list {
 	uint64_t	entry[0];
 };
 
+struct nvme_sgl_seg {
+	uint32_t	nr_desc;
+	struct nvme_sgl_desc desc[0];
+};
+
 struct nvme_cmd_tamper {
 	uint16_t	sqid;
 	uint16_t	cid;
@@ -255,20 +260,26 @@ struct nvme_cmd_tamper {
 	/* Only valid if @option is INQUIRY */
 	uint32_t	inq_prp_list:1;
 	uint32_t	inq_prp_page:1;
+	uint32_t	inq_sgl_seg:1;
 	/* Only valid if @option is FETCH */
 	uint32_t	fet_prp_list:1;
 	uint32_t	fet_prp_page:1;
+	uint32_t	fet_sgl_seg:1;
 	/* Only valid if @option is MODIFY */
 	uint32_t	mdf_prp_list:1;
 	uint32_t	mdf_prp_page:1;
+	uint32_t	mdf_sgl_seg:1;
 
 	uint32_t	prp_list_size;
 	uint32_t	prp_page_size;
+	uint32_t	sgl_seg_size;
 
 	struct nvme_common_command	cmd;
 	/*
-	 * if @option isn't INQUIRY, data size = prp_list_size + prp_page_size
-	 * see "struct nvme_prp_list" for details
+	 * If @option is FETCH or MODIFY, cmd use PRP, then:
+	 *      Size = sizeof(struct nvme_prp_list) + @prp_list_size + @prp_page_size;
+	 * If @option is FETCH or MODIFY, cmd use SGL, then:
+	 *      Size = sizeof(struct nvme_sgl_seg) + @sgl_seg_size
 	 */
 	char		data[0];
 };
