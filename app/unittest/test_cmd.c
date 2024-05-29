@@ -938,13 +938,14 @@ static int subcase_copy_success(struct nvme_tool *tool,
 	struct test_cmd_copy *copy = NULL;
 	struct test_data *test = &g_test;
 	uint32_t sum = 0;
-	uint64_t start = 0;
 	uint32_t entry;
 	uint32_t i;
-	uint16_t limit = min((test->nsze / 4), (uint64_t)256);
+	uint64_t part;
+	uint16_t limit;
 	int ret;
 
 	entry = rand() % test->msrc + 1; /* 1~msrc */
+	part = test->nsze / 2 / entry;
 
 	copy = zalloc(sizeof(struct test_cmd_copy) +
 			entry * sizeof(struct source_range));
@@ -975,16 +976,14 @@ static int subcase_copy_success(struct nvme_tool *tool,
 				pr_warn("NLB total is larger than MCL! try again?\n");
 
 			for (i = 0, sum = 0; i < copy->ranges; i++) {
-				copy->entry[i].slba = rand() % (test->nsze / 4);
+				copy->entry[i].slba = part * i + rand() % part;
+				limit = min_t(uint64_t, part * (i + 1) - copy->entry[i].slba, 256);
 				copy->entry[i].nlb = rand() % min(test->mssrl, limit) + 1;
 				sum += copy->entry[i].nlb;
-
-				if (start < (copy->entry[i].slba + copy->entry[i].nlb))
-					start = copy->entry[i].slba + copy->entry[i].nlb;
 			}
 		} while (test->mcl < sum);
 
-		copy->slba = rand() % (test->nsze / 4) + start;
+		copy->slba = test->nsze / 2;
 
 	} while ((copy->slba + sum) > test->nsze);
 
