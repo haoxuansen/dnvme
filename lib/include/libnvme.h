@@ -14,6 +14,7 @@
 
 #include <stdint.h> /* for "uint32_t" ... */
 #include <sys/mman.h> /** for "@mmap" */
+#include <stdbool.h>
 
 #include "byteorder.h"
 #include "pci_caps.h"

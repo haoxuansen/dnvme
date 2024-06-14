@@ -7,7 +7,6 @@
 #ifndef _LINUX_NVME_H
 #define _LINUX_NVME_H
 
-#include <stdbool.h>
 #include <linux/types.h>
 #include <linux/uuid.h>
 
@@ -55,12 +54,12 @@ enum nvme_subsys_type {
 
 #include "nvme/command.h"
 
-static inline bool nvme_is_fabrics(struct nvme_command *cmd)
+static inline int nvme_is_fabrics(struct nvme_command *cmd)
 {
 	return cmd->common.opcode == nvme_admin_fabrics;
 }
 
-static inline bool nvme_is_write(struct nvme_command *cmd)
+static inline int nvme_is_write(struct nvme_command *cmd)
 {
 	/*
 	 * What a mess...

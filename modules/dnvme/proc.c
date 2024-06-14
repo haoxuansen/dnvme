@@ -10,6 +10,8 @@
  */
 #define DEBUG
 
+#include <linux/version.h>
+
 #include "trace.h"
 #include "proc.h"
 #include "pci.h"
@@ -302,7 +304,11 @@ static ssize_t dnvme_proc_read(struct file *file, char __user *buf,
 	size_t size, loff_t *fpos)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+	struct nvme_device *ndev = pde_data(inode);
+#else
 	struct nvme_device *ndev = PDE_DATA(inode);
+#endif
 	struct device *dev = &ndev->dev;
 
 	dnvme_info(ndev, "echo \"dump cfg\" > /proc/nvme/%s "
@@ -321,7 +327,11 @@ static ssize_t dnvme_proc_write(struct file *file, const char __user *buf,
 	size_t size, loff_t *fpos)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+	struct nvme_device *ndev = pde_data(inode);
+#else
 	struct nvme_device *ndev = PDE_DATA(inode);
+#endif
 	char *args[CMD_SEG_MAX] = {NULL};
 	char *cmd;
 	char *tmp;

@@ -197,8 +197,11 @@ static int dnvme_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (IS_ERR(ndev))
 		return PTR_ERR(ndev);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+	vm_flags_set(vma, VM_IO | VM_DONTEXPAND | VM_DONTDUMP);
+#else
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-
+#endif
 	ret = mmap_parse_vmpgoff(ndev, vma->vm_pgoff, &map_addr, &map_size);
 	if (ret < 0)
 		goto out;
@@ -653,11 +656,12 @@ static int dnvme_set_dma_mask(struct pci_dev *pdev)
 	int ret;
 	struct device *dev = &pdev->dev;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
 	if (dma_supported(&pdev->dev, DMA_BIT_MASK(64)) == 0) {
 		dev_err(dev, "The device unable to address 64 bits of DMA\n");
 		return -EPERM;
 	}
-
+#endif
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret < 0) {
 		dev_err(dev, "Request 64-bit DMA has been rejected!\n");
@@ -898,7 +902,11 @@ static int __init dnvme_init(void)
 		goto out_exit_gnl;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+	nvme_class = class_create("nvme");
+#else
 	nvme_class = class_create(THIS_MODULE, "nvme");
+#endif
 	if (IS_ERR(nvme_class)) {
 		ret = PTR_ERR(nvme_class);
 		pr_err("failed to create class!(%d)\n", ret);
