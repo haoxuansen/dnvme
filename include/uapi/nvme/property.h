@@ -56,7 +56,7 @@ enum {
 
 /* NVME_REG_CAP */
 #define NVME_CAP_MQES(cap)		((cap) & 0xffff)
-/* bit[16] Configuous Queues Required */
+/* bit[16] Contiguous Queues Required */
 #define NVME_CAP_CQR(cap)		(((cap) >> 16) & 0x1)
 
 #define NVME_CAP_AMS(cap)		(((cap) >> 17) & 0x3)

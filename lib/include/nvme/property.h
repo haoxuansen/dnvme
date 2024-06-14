@@ -10,6 +10,11 @@
  */
 
 
+static inline bool nvme_cap_support_discontig_queue(struct nvme_ctrl_instance *ctrl)
+{
+	return NVME_CAP_CQR(ctrl->prop->cap) ? false : true;
+}
+
 /**
  * @brief Get the minimum host memory page size(in Byte) that the controller
  *  supports.

@@ -76,7 +76,7 @@
 		_ret;						\
 	})
 
-#define CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, cond) \
+#define CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, cond) \
 	({							\
 		void *_ret;					\
 		CHK_EXPR_VAL(expr, val, cond, _ret);		\
@@ -84,7 +84,7 @@
 			ret = errno;				\
 			goto label;				\
 		} else {					\
-			ret = _ret;				\
+			ptr = _ret;				\
 		}						\
 	})
 
@@ -127,18 +127,18 @@
 #define CHK_EXPR_PTR_GT_RTN(expr, val, errno) \
 	CHK_EXPR_PTR_RTN(expr, val, errno, >)
 
-#define CHK_EXPR_PTR_LT_GOTO(expr, val, ret, errno, label) \
-	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, <)
-#define CHK_EXPR_PTR_LE_GOTO(expr, val, ret, errno, label) \
-	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, <=)
-#define CHK_EXPR_PTR_EQ_GOTO(expr, val, ret, errno, label) \
-	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, ==)
-#define CHK_EXPR_PTR_NE_GOTO(expr, val, ret, errno, label) \
-	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, !=)
-#define CHK_EXPR_PTR_GE_GOTO(expr, val, ret, errno, label) \
-	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, >=)
-#define CHK_EXPR_PTR_GT_GOTO(expr, val, ret, errno, label) \
-	CHK_EXPR_PTR_GOTO(expr, val, ret, errno, label, >)
+#define CHK_EXPR_PTR_LT_GOTO(expr, val, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, <)
+#define CHK_EXPR_PTR_LE_GOTO(expr, val, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, <=)
+#define CHK_EXPR_PTR_EQ_GOTO(expr, val, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, ==)
+#define CHK_EXPR_PTR_NE_GOTO(expr, val, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, !=)
+#define CHK_EXPR_PTR_GE_GOTO(expr, val, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, >=)
+#define CHK_EXPR_PTR_GT_GOTO(expr, val, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_GOTO(expr, val, ptr, ret, errno, label, >)
 
 #define CHK_EXPR_NUM_LT0_RTN(expr, errno) \
 	CHK_EXPR_NUM_LT_RTN(expr, 0, errno)
@@ -147,8 +147,8 @@
 
 #define CHK_EXPR_PTR_EQ0_RTN(expr, errno) \
 	CHK_EXPR_PTR_EQ_RTN(expr, NULL, errno)
-#define CHK_EXPR_PTR_EQ0_GOTO(expr, ret, errno, label) \
-	CHK_EXPR_PTR_EQ_GOTO(expr, NULL, ret, errno, label)
+#define CHK_EXPR_PTR_EQ0_GOTO(expr, ptr, ret, errno, label) \
+	CHK_EXPR_PTR_EQ_GOTO(expr, NULL, ptr, ret, errno, label)
 
 
 #define CHK_M_EXPR_VAL(expr, val, cond, ret, msg, ...) \

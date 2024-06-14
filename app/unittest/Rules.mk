@@ -32,7 +32,7 @@ CFLAGS += -include $(CUR_DIR_PATH)/auto_header.h
 # Targets
 # --------------------------------------------------------------------------- #
 
-DIRS := . ./common ./vendor
+DIRS := . ./common ./vendor ./queue
 SRCS := $(foreach dir,$(DIRS),$(wildcard $(dir)/*.c))
 OBJS := $(SRCS:.c=.o)
 TARGET := nvmetool

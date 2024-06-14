@@ -31,7 +31,7 @@ int ut_create_pair_io_queue(struct case_data *priv, struct nvme_sq_info *sq,
 		cq = nvme_find_iocq_info(ndev, sq->cqid);
 		if (!cq) {
 			pr_err("failed to find iocq(%u)!\n", sq->cqid);
-			return -ENOMEM;
+			return -ENOENT;
 		}
 	}
 
