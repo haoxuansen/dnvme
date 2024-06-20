@@ -57,6 +57,7 @@ static int case_traverse_discontig_queue(struct nvme_tool *tool,
 	ret = ut_case_alloc_config_effect(&priv->cfg);
 	if (ret < 0)
 		return ret;
+	effect = priv->cfg.effect;
 	effect->nsid = le32_to_cpu(ns_grp->act_list[0]);
 
 	CHK_EXPR_PTR_EQ0_GOTO(nvme_find_iocq_info(ndev, sq->cqid),
