@@ -60,6 +60,16 @@ static int __unused test_crc16_custom(void)
 	return 0;
 }
 
+static int __unused test_crc16_usb(void)
+{
+	uint8_t data[8] = { 0x81, 0x06, 0, 0x22, 0x3, 0, 0x67, 0x1};
+	uint16_t crc;
+
+	crc = crc16_usb(data, sizeof(data));
+	pr_info("CRC: 0x%x\n", crc);
+	return 0;
+}
+
 /**
  * @brief Test SCSI SBC-3 CRC16
  * 
@@ -289,6 +299,7 @@ int main(int argc, char *argv[])
 	int ret;
 
 	ret = test_crc8_maxim();
+	ret = test_crc16_usb();
 	ret = test_crc16_scsi_sbc3();
 	ret = test_crc16_custom();
 	ret = test_crc32_castagnoli();

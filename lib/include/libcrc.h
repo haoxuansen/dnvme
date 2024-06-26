@@ -45,6 +45,7 @@ uint8_t crc8_calculate(struct crc_config *cfg, uint8_t *data, uint32_t size);
 uint8_t crc8_maxim(uint8_t *data, uint32_t size);
 
 uint16_t crc16_calculate(struct crc_config *cfg, uint8_t *data, uint32_t size);
+uint16_t crc16_usb(uint8_t *data, uint32_t size);
 uint16_t crc16_t10_dif(uint8_t *data, uint32_t size);
 
 uint32_t crc32_calculate(struct crc_config *cfg, uint8_t *data, uint32_t size);

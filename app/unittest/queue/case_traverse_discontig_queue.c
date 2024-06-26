@@ -22,12 +22,14 @@ static int traverse_discontig_queue(struct case_data *priv,
 	struct nvme_sq_info *sq, struct nvme_cq_info *cq)
 {
 	uint32_t remain = sq->nr_entry;
-	uint32_t every = cq->nr_entry / 2;
+	uint32_t every = min_t(uint32_t, sq->nr_entry / 2, cq->nr_entry / 2);
 	uint32_t submit;
 
+	pr_debug("SQ entry: %d, CQ entry: %d\n", sq->nr_entry, cq->nr_entry);
 	while (remain) {
 		submit = remain > every ? every : remain;
 
+		pr_debug("Submit %d cmds ...\n", submit);
 		CHK_EXPR_NUM_LT0_RTN(
 			ut_submit_io_read_cmds(priv, sq, 0, 8, submit), -EIO);
 		CHK_EXPR_NUM_LT0_RTN(

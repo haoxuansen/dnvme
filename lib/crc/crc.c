@@ -224,6 +224,37 @@ uint16_t crc16_calculate(struct crc_config *cfg, uint8_t *data, uint32_t size)
 }
 
 /**
+ * @brief Calculate CRC-16 value by using CRC-16/USB
+ * 
+ *  Name	: "CRC-16/USB"
+ *  Width	: 16
+ * 	Poly	: 8005h
+ *  Init	: FFFFh
+ *  RefIn	: True
+ *  RefOut	: True
+ *  XorOut	: FFFFh
+ *  Check	: 
+ * 
+ * @param data Data to be calculated
+ * @param size @data size
+ * @return The calculated CRC-16 value
+ */
+uint16_t crc16_usb(uint8_t *data, uint32_t size)
+{
+	struct crc_config cfg = {0};
+
+	cfg.name = "CRC-16/USB";
+	cfg.width = 16;
+	cfg.poly.gen16 = 0x8005;
+	cfg.init.crc16 = U16_MAX;
+	cfg.xorout.xor16 = U16_MAX;
+	cfg.refin = 1;
+	cfg.refout = 1;
+
+	return crc16_calculate(&cfg, data, size);
+}
+
+/**
  * @brief Calculate CRC-16 value by using CRC-16/T10-DIF
  * 
  * 	Name	: "CRC-16/T10-DIF"
