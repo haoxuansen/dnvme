@@ -34,4 +34,6 @@ int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb
 int dnvme_release_hmb(struct nvme_device *ndev);
 int dnvme_access_hmb(struct nvme_device *ndev, struct nvme_hmb_access __user *uhmb);
 
+int dnvme_test_iops(struct nvme_device * ndev, struct nt_iops __user *uiops);
+
 #endif /* !_DNVME_IOCTL_H_ */

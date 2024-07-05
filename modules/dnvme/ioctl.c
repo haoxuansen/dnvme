@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/ktime.h>
 
 #include "pci_ids_ext.h"
 #include "dnvme.h"
@@ -798,6 +799,107 @@ int dnvme_access_hmb(struct nvme_device *ndev, struct nvme_hmb_access __user *uh
 		dnvme_err(ndev, "access option(%u) is unknown!\n", access.option);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static u32 __dnvme_test_iops_polling(struct nvme_sq *sq, struct nvme_cq *cq)
+{
+	struct nvme_completion *entry = NULL;
+	void *cq_addr = cq->buf;
+	u32 remain = 0;
+	u8 phase = cq->pub.pbit_new_entry;
+	u16 sq_head;
+	u32 cq_head = cq->pub.head_ptr;
+
+	cq->pub.tail_ptr = cq->pub.head_ptr;
+	entry = (struct nvme_completion *)cq_addr + cq->pub.tail_ptr;
+
+	while (NVME_CQE_STATUS_TO_PHASE(entry->status) == phase) {
+		remain++;
+		cq->pub.tail_ptr++;
+
+		/* Q wrapped around? */
+		if (cq->pub.tail_ptr >= cq->pub.elements) {
+			phase ^= 1;
+			cq->pub.tail_ptr = 0;
+		}
+		sq_head = le16_to_cpu(entry->sq_head);
+		entry = (struct nvme_completion *)cq_addr + cq->pub.tail_ptr;
+	}
+
+	/* No CQ entry is ready or too less ? */
+	if (!remain || remain < 256)
+		return 0;
+
+	/* update CQ head and SQ tail doorbell */
+	cq_head += remain;
+	if (cq_head >= cq->pub.elements) {
+		cq->pub.pbit_new_entry = !cq->pub.pbit_new_entry;
+		cq_head = cq_head % cq->pub.elements;
+	}
+	cq->pub.head_ptr = (u16)cq_head;
+	dnvme_writel(cq->db, 0, cq->pub.head_ptr);
+
+	if (sq_head) {
+		dnvme_writel(sq->db, 0, sq_head - 1);
+	} else {
+		dnvme_writel(sq->db, 0, sq->pub.elements - 1);
+	}
+
+	return remain;
+}
+
+int dnvme_test_iops(struct nvme_device *ndev, struct nt_iops __user *uiops)
+{
+	struct nt_iops iops;
+	struct nvme_sq *sq = NULL;
+	struct nvme_cq *cq = NULL;
+	struct nvme_command *cmd = NULL;
+	ktime_t start;
+	ktime_t end;
+	u32 total = 0;
+
+	if (copy_from_user(&iops, uiops, sizeof(struct nt_iops))) {
+		dnvme_err(ndev, "failed to copy from user space!\n");
+		return -EFAULT;
+	}
+
+	sq = dnvme_find_sq(ndev, iops.sqid);
+	if (!sq) {
+		dnvme_err(ndev, "SQ(%u) doesn't exist!\n", iops.sqid);
+		return -EBADSLT;
+	}
+
+	cq = dnvme_find_cq(ndev, iops.cqid);
+	if (!cq) {
+		dnvme_err(ndev, "CQ(%u) doesn't exist!\n", iops.cqid);
+		return -EBADSLT;
+	}
+
+	/* SQ has filled (sq->elements - 1) cmds, now fill last entry */
+	if (sq->contig) {
+		memcpy((sq->buf + ((u32)(sq->pub.elements - 1) << sq->pub.sqes)), 
+			sq->buf, 1 << sq->pub.sqes);
+	} else {
+		dnvme_err(ndev, "not support discontiguous queue!");
+		return -EPERM;
+	}
+
+	cmd = sq->buf + ((u32)sq->pub.tail_ptr_virt << sq->pub.sqes);
+	cmd->common.command_id = sq->pub.elements;
+
+	dnvme_writel(sq->db, 0, sq->pub.elements - 1);
+	start = ktime_get();
+	end = ktime_add_ms(start, iops.time);
+	while (ktime_before(ktime_get(), end)) {
+		total += __dnvme_test_iops_polling(sq, cq);
+	}
+	end = ktime_get();
+
+	dnvme_info(ndev, "time => start(us):%lld, end:%lld, cost:%lld\n", 
+		ktime_to_us(start), ktime_to_us(end), ktime_to_us(end) - ktime_to_us(start));
+	dnvme_info(ndev, "cmd => deal:%u\n", total);
 
 	return 0;
 }

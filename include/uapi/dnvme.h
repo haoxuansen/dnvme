@@ -72,6 +72,10 @@ enum {
 	NVME_ACCESS_HMB,
 };
 
+enum {
+	NVME_TEST_IOPS = 0,
+};
+
 enum nvme_region {
 	NVME_PCI_CONFIG,
 	NVME_BAR0_BAR1,
@@ -383,6 +387,12 @@ struct nvme_hmb_access {
 #define NVME_HMB_OPT_WRITE	2
 };
 
+struct nt_iops {
+	uint16_t	sqid;
+	uint16_t	cqid;
+	int		time; /* ms */
+};
+
 #define NVME_IOCTL_GET_SQ_INFO \
 	_IOWR('N', NVME_GET_SQ_INFO, struct nvme_sq_public)
 #define NVME_IOCTL_GET_CQ_INFO \
@@ -441,5 +451,8 @@ struct nvme_hmb_access {
 	_IO('N', NVME_RELEASE_HMB)
 #define NVME_IOCTL_ACCESS_HMB \
 	_IOWR('N', NVME_ACCESS_HMB, struct nvme_hmb_access)
+
+#define NT_IOCTL_IOPS \
+	_IOWR('T', NVME_TEST_IOPS, struct nt_iops)
 
 #endif /* !_UAPI_DNVME_H_ */
