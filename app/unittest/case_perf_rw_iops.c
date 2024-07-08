@@ -99,7 +99,7 @@ static inline int submit_write_4k_cmds(struct case_data *priv,
 }
 
 static int ring_dbl_and_wait_for_period(struct case_data *priv, 
-	struct nvme_sq_info *sq, int wait_ms)
+	struct nvme_sq_info *sq, int wait_ms, bool write)
 {
 	struct nvme_dev_info *ndev = priv->tool->ndev;
 	struct nt_iops iops = {0};
@@ -114,6 +114,8 @@ static int ring_dbl_and_wait_for_period(struct case_data *priv,
 		pr_err("ERR-%d: do iops!\n", ret);
 		return ret;
 	}
+	pr_info("%s Perf: %u KIOPS\n", write ? "Write" : "Read",
+		iops.perf);
 	return 0;
 }
 
@@ -147,7 +149,7 @@ static int case_perf_read_iops(struct nvme_tool *tool,
 	if (ret < 0)
 		goto rls_buf;
 
-	ret = ring_dbl_and_wait_for_period(priv, sq, 2000);
+	ret = ring_dbl_and_wait_for_period(priv, sq, 2000, false);
 rls_buf:
 	release_iops_buffer();
 del_queue:
@@ -183,7 +185,7 @@ static int case_perf_write_iops(struct nvme_tool *tool,
 	if (ret < 0)
 		goto rls_buf;
 
-	ret = ring_dbl_and_wait_for_period(priv, sq, 2000);
+	ret = ring_dbl_and_wait_for_period(priv, sq, 2000, true);
 rls_buf:
 	release_iops_buffer();
 del_queue:

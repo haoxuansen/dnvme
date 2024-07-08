@@ -858,6 +858,7 @@ int dnvme_test_iops(struct nvme_device *ndev, struct nt_iops __user *uiops)
 	struct nvme_command *cmd = NULL;
 	ktime_t start;
 	ktime_t end;
+	ktime_t cost;
 	u32 total = 0;
 
 	if (copy_from_user(&iops, uiops, sizeof(struct nt_iops))) {
@@ -896,10 +897,17 @@ int dnvme_test_iops(struct nvme_device *ndev, struct nt_iops __user *uiops)
 		total += __dnvme_test_iops_polling(sq, cq);
 	}
 	end = ktime_get();
+	cost = end - start;
 
-	dnvme_info(ndev, "time => start(us):%lld, end:%lld, cost:%lld\n", 
-		ktime_to_us(start), ktime_to_us(end), ktime_to_us(end) - ktime_to_us(start));
-	dnvme_info(ndev, "cmd => deal:%u\n", total);
+	dnvme_dbg(ndev,  "Total Cmds : %u\n", total);
+	dnvme_dbg(ndev,  "Cost Time  : %lld us\n", ktime_to_us(cost));
+	dnvme_info(ndev, "Performance: %lld KIOPS\n", total / ktime_to_ms(cost));
+
+	iops.perf = total / ktime_to_ms(cost);
+	if (copy_to_user(uiops, &iops, sizeof(struct nt_iops))) {
+		dnvme_err(ndev, "failed to copy to user space!\n");
+		return -EFAULT;
+	}
 
 	return 0;
 }

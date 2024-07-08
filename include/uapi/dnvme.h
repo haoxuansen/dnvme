@@ -391,6 +391,7 @@ struct nt_iops {
 	uint16_t	sqid;
 	uint16_t	cqid;
 	int		time; /* ms */
+	uint32_t	perf; /* kiops */
 };
 
 #define NVME_IOCTL_GET_SQ_INFO \
