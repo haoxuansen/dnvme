@@ -61,6 +61,19 @@ int log_print(uint8_t level, const char *fmt, ...);
 #define pr_color(color, fmt, ...) \
 	printf(LOG_N color fmt, ##__VA_ARGS__)
 
+#define pr_red(fmt, ...) \
+	printf(LOG_N LOG_B_RED fmt, ##__VA_ARGS__)
+#define pr_green(fmt, ...) \
+	printf(LOG_N LOG_B_GREEN fmt, ##__VA_ARGS__)
+#define pr_yellow(fmt, ...) \
+	printf(LOG_N LOG_B_YELLOW fmt, ##__VA_ARGS__)
+#define pr_blue(fmt, ...) \
+	printf(LOG_N LOG_B_BLUE fmt, ##__VA_ARGS__)
+#define pr_cyan(fmt, ...) \
+	printf(LOG_N LOG_B_CYAN fmt, ##__VA_ARGS__)
+#define pr_white(fmt, ...) \
+	printf(LOG_N LOG_B_WHITE fmt, ##__VA_ARGS__)
+
 #define BUG_ON(cond)			assert(!(cond))
 #define WARN_ON(cond) \
 	((cond) ? pr_warn("%s:%d: %s: Assertion '!(%s)' failed.\n", __FILE__, \

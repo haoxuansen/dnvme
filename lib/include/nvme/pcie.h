@@ -70,6 +70,10 @@ static inline int pcie_do_link_down(int fd)
 }
 
 int pcie_retrain_link(char *lc);
+int pcie_set_link_speed(char *lc2, int speed);
+
+int pcie_check_link_speed_width(int fd, uint8_t expcap, int speed, int width);
+int pcie_get_link_speed_width(int fd, uint8_t expcap, int *speed, int *width);
 
 int pcie_set_power_state(int fd, uint8_t pmcap, uint16_t ps);
 
