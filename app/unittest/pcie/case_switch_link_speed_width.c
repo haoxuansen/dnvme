@@ -21,19 +21,53 @@
 
 #define PCIE_INTERNAL_REG1		0x8c0
 
-static int set_link_width(struct case_data *priv, int width)
+static int set_link_width(struct nvme_dev_info *ndev, int width)
 {
-	struct nvme_dev_info *ndev = priv->tool->ndev;
 	uint32_t reg;
 	int ret;
 
 	ret = pci_read_config_dword(ndev->fd, PCIE_INTERNAL_REG1, &reg);
 	if (ret < 0)
 		return ret;
-	
+
 	reg &= 0xffffff80;
 	reg |= (0x40 + width);
 	ret = pci_write_config_dword(ndev->fd, PCIE_INTERNAL_REG1, reg);
+	if (ret < 0)
+		return ret;
+
+	/* EP will auto retrain after cfg, wait switching finish */
+	msleep(10);
+	return 0;
+}
+
+static int switch_link_width(struct nvme_dev_info *ndev, int width)
+{
+	struct pci_dev_instance *pdev = ndev->pdev;
+	int ret;
+
+	ret = set_link_width(ndev, width);
+	if (ret < 0)
+		return ret;
+	
+	ret = pcie_check_link_speed_width(ndev->fd, pdev->express.offset, 0, width);
+	if (ret < 0)
+		return ret;
+	
+	return 0;
+}
+
+static int switch_link_speed(struct nvme_dev_info *ndev, int speed)
+{
+	struct pci_dev_instance *pdev = ndev->pdev;
+	int ret;
+
+	ret = pcie_set_link_speed(RC_PCI_EXP_REG_LINK_CONTROL2, speed);
+	ret |= pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
+	if (ret < 0)
+		return ret;
+
+	ret = pcie_check_link_speed_width(ndev->fd, pdev->express.offset, speed, 0);
 	if (ret < 0)
 		return ret;
 	
@@ -43,17 +77,14 @@ static int set_link_width(struct case_data *priv, int width)
 static int switch_link_speed_width(struct case_data *priv, int speed, int width)
 {
 	struct nvme_dev_info *ndev = priv->tool->ndev;
-	struct pci_dev_instance *pdev = ndev->pdev;
 	int ret;
 
 	pr_debug("Set PCIe Link Gen%dx%d ...\n", speed, width);
-	ret = pcie_set_link_speed(RC_PCI_EXP_REG_LINK_CONTROL2, speed);
-	ret |= set_link_width(priv, width);
-	ret |= pcie_retrain_link(RC_PCI_EXP_REG_LINK_CONTROL);
+
+	ret = switch_link_width(ndev, width);
 	if (ret < 0)
 		return ret;
-	
-	ret = pcie_check_link_speed_width(ndev->fd, pdev->express.offset, speed, width);
+	ret = switch_link_speed(ndev, speed);
 	if (ret < 0)
 		return ret;
 

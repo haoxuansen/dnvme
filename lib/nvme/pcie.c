@@ -47,27 +47,8 @@ int pcie_retrain_link(char *lc)
 	if (ret < 0)
 		return ret;
 
-	msleep(100);
+	msleep(10);
 	return 0;
-}
-
-int pcie_check_link_speed_width(int fd, uint8_t expcap, int speed, int width)
-{
-	uint16_t status;
-
-	CHK_EXPR_NUM_LT0_RTN(
-		pci_exp_read_link_status(fd, expcap, &status), -EPERM);
-	
-	if (speed && (status & PCI_EXP_LNKSTA_CLS) != speed)
-		goto err;
-	if (width && ((status & PCI_EXP_LNKSTA_NLW) >> 4) != width)
-		goto err;
-
-	return 0;
-err:
-	pr_err("ERR: Cur link_sts 0x%x; Expect speed %d width %d\n", 
-		status, speed, width);
-	return -EPERM;
 }
 
 int pcie_get_link_speed_width(int fd, uint8_t expcap, int *speed, int *width)
@@ -80,6 +61,28 @@ int pcie_get_link_speed_width(int fd, uint8_t expcap, int *speed, int *width)
 	*speed = status & PCI_EXP_LNKSTA_CLS;
 	*width = (status & PCI_EXP_LNKSTA_NLW) >> 4;
 	return 0;
+}
+
+int pcie_check_link_speed_width(int fd, uint8_t expcap, int speed, int width)
+{
+	int cur_spd, cur_width;
+	int ret;
+
+	ret = pcie_get_link_speed_width(fd, expcap, &cur_spd, &cur_width);
+	if (ret < 0)
+		return ret;
+
+	if (speed && cur_spd != speed)
+		goto err;
+	if (width && cur_width != width)
+		goto err;
+
+	return 0;
+err:
+	pr_err("ERR: Cur Link Gen%dx%d, Expect Gen%dx%d\n", 
+		cur_spd, cur_width, speed ? speed : cur_spd, 
+		width ? width : cur_width);
+	return -EPERM;
 }
 
 /**
