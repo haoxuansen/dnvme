@@ -1,58 +1,74 @@
 
-LOG_N="\033[0m"
-LOG_N_BLACK="\033[1;30m"
-LOG_B_BLACK="\033[0;30m"
-LOG_N_RED="\033[1;31m"
-LOG_B_RED="\033[0;31m"
-LOG_N_GREEN="\033[1;32m"
-LOG_B_GREEN="\033[0;32m"
-LOG_N_YELLOW="\033[1;33m"
-LOG_B_YELLOW="\033[0;33m"
-LOG_N_BLUE="\033[1;34m"
-LOG_B_BLUE="\033[0;34m"
-LOG_N_PURPLE="\033[1;35m"
-LOG_B_PURPLE="\033[0;35m"
-LOG_N_CYAN="\033[1;36m"
-LOG_B_CYAN="\033[0;36m"
-LOG_N_WHITE="\033[1;37m"
+if [ -z $TOP_DIR ]; then
+	TOP_DIR=`pwd`/..
+fi
+
+if [ -z $SHELL_TYPE ]; then
+	# defualt cfg for "/bin/bash"
+	ECHO_E=-e
+else
+	# cfg for "/bin/sh"
+	ECHO_E=
+fi
+
+. $TOP_DIR/scripts/color.sh
 
 # --------------------------------------------------------------------------- #
 # Function
 # --------------------------------------------------------------------------- #
 
-DEBUG()
+pr_err()
+{
+	echo $ECHO_E "${LOG_B_RED}${FUNCNAME[1]}:$1${LOG_N}"
+}
+
+pr_warn()
+{
+	echo $ECHO_E "${LOG_B_YELLOW}${FUNCNAME[1]}:$1${LOG_N}"
+}
+
+pr_notice()
+{
+	echo $ECHO_E "${LOG_B_BLUE}$1${LOG_N}"
+}
+
+pr_info()
+{
+	echo $ECHO_E "${LOG_B_GREEN}$1${LOG_N}"
+}
+
+pr_debug()
 {
 	echo $ECHO_E "$1"
 }
 
+# obsolete
+DEBUG()
+{
+	pr_debug $1
+}
+
+# obsolete
 INFO()
 {
-	echo $ECHO_E "${LOG_N_GREEN}$1${LOG_N}"
+	pr_info $1
 }
 
+# obsolete
 NOTICE()
 {
-	echo $ECHO_E "${LOG_N_BLUE}$1${LOG_N}"
+	pr_notice $1
 }
 
+# obsolete
 WARN()
 {
-	echo $ECHO_E "${LOG_N_YELLOW}${FUNCNAME[1]}:$1${LOG_N}"
+	pr_warn $1
 }
 
+# obsolete
 ERR()
 {
-	echo $ECHO_E "${LOG_N_RED}${FUNCNAME[1]}:$1${LOG_N}"
+	pr_err $1
 }
 
-# --------------------------------------------------------------------------- #
-# Configuration
-# --------------------------------------------------------------------------- #
-
-if [[ $CONFIG_SHELL_TYPE = "sh" ]]; then
-	# /bin/sh
-	ECHO_E=
-else
-	# /bin/bash
-	ECHO_E=-e
-fi
