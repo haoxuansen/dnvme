@@ -593,6 +593,78 @@ out:
 }
 
 /**
+ * @brief Create and use non-continuous host memory buffer.
+ * 
+ * @return 0 on success, otherwise a negative errno.
+ */
+static int subcase_hmb_non_continuous(struct nvme_tool *tool)
+{
+	struct nvme_dev_info *ndev = tool->ndev;
+	struct test_data *test = &g_test;
+	struct nvme_hmb_alloc *hmb_alloc;
+	struct nvme_hmb_wrapper wrap = {0};
+	uint32_t pg_size = DIV_ROUND_UP(test->min_buf_size, test->page_size);
+	uint32_t entry = rand() % test->max_desc_entry + 1;
+	uint32_t skip = 0;
+	uint32_t i;
+	int ret, tmp;
+
+	hmb_alloc = zalloc(sizeof(struct nvme_hmb_alloc) + 
+		sizeof(uint32_t) * entry);
+	if (!hmb_alloc) {
+		pr_err("failed to alloc memory!\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+	hmb_alloc->nr_desc = entry;
+	hmb_alloc->page_size = test->page_size;
+
+	for (i = 0; i < entry; i++) {
+		hmb_alloc->bsize[i] = pg_size;
+		if (i > 0 && (rand() % 2)) {
+			hmb_alloc->bsize[i] |= NVME_HMB_ALLOC_SKIP_FILL_DESC;
+			skip++;
+		}
+	}
+
+	ret = nvme_alloc_host_mem_buffer(ndev->fd, hmb_alloc);
+	if (ret < 0)
+		goto free_hmb_alloc;
+
+	/* enable host memory buffer */
+	wrap.sel = NVME_FEAT_SEL_CUR;
+	wrap.dw11 = NVME_HOST_MEM_ENABLE;
+	wrap.hsize = (entry - skip) * pg_size;
+	wrap.hmdla = hmb_alloc->desc_list;
+	wrap.hmdlec = entry - skip;
+
+	ret = nvme_set_feat_hmb(ndev, &wrap);
+	if (ret < 0)
+		goto free_hmb_buf;
+
+// disable_hmb:
+	memset(&wrap, 0, sizeof(wrap));
+	wrap.sel = NVME_FEAT_SEL_CUR;
+
+	tmp = nvme_set_feat_hmb(ndev, &wrap);
+	if (tmp < 0) {
+		ret |= tmp;
+		/* skip release if device still using HMB? */
+		goto free_hmb_alloc;
+	}
+
+free_hmb_buf:
+	tmp = nvme_release_host_mem_buffer(ndev->fd);
+	if (tmp < 0)
+		ret |= tmp;
+free_hmb_alloc:
+	free(hmb_alloc);
+out:
+	nvme_record_subcase_result(__func__, ret);
+	return ret;
+}
+
+/**
  * @brief Enable the host memory buffer repeatly
  * 
  * @return 0 on success, otherwise a negative errno.
@@ -696,6 +768,7 @@ static int case_host_mem_buffer(struct nvme_tool *tool, struct case_data *priv)
 		return ret;
 
 	ret |= subcase_hmb_work_normal(tool);
+	ret |= subcase_hmb_non_continuous(tool);
 	ret |= subcase_hmb_double_enable(tool);
 
 	nvme_display_subcase_report();

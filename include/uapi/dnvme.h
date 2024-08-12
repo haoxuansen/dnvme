@@ -375,6 +375,8 @@ struct nvme_hmb_alloc {
 	uint32_t	page_size;	/* unit: Byte */
 	uint32_t	nr_desc;	/* desciptor entry number */
 	uint32_t	bsize[0];	/* buffer size, unit: PAGE_SIZE */
+#define NVME_HMB_ALLOC_BUF_SIZE_MASK		U16_MAX
+#define NVME_HMB_ALLOC_SKIP_FILL_DESC		BIT(31)
 };
 
 struct nvme_hmb_access {

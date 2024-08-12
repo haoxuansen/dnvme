@@ -618,19 +618,25 @@ int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *
 static int dnvme_fill_hmb_descriptor(struct nvme_device *ndev, 
 	struct nvme_hmb *hmb, struct nvme_hmb_alloc *alloc)
 {
-	unsigned int i;
+	u32 i;
+	u32 cnt = 0;
+	u32 size;
 	size_t offset = 0;
 
 	for (i = 0; i < alloc->nr_desc; i++) {
-		hmb->desc[i].addr = cpu_to_le64(hmb->buf_addr + offset);
-		hmb->desc[i].size = cpu_to_le32(alloc->bsize[i]);
-		offset += (alloc->bsize[i] * alloc->page_size);
+		size = (alloc->bsize[i] & NVME_HMB_ALLOC_BUF_SIZE_MASK) * alloc->page_size;
 
-		dnvme_info(ndev, "desc idx: %u, addr: 0x%llx, pg_size: 0x%x\n",
-			i, le64_to_cpu(hmb->desc[i].addr), 
-			le32_to_cpu(hmb->desc[i].size));
+		if (!(alloc->bsize[i] & NVME_HMB_ALLOC_SKIP_FILL_DESC)) {
+			hmb->desc[cnt].addr = cpu_to_le64(hmb->buf_addr + offset);
+			hmb->desc[cnt].size = cpu_to_le32(size);
+			dnvme_info(ndev, "desc idx: %u, addr: 0x%llx, pg_size: 0x%x\n",
+				i, le64_to_cpu(hmb->desc[cnt].addr), 
+				le32_to_cpu(hmb->desc[cnt].size));
+			cnt++;
+		}
+		offset += (alloc->bsize[i] * alloc->page_size);
 	}
-	hmb->desc_num = alloc->nr_desc;
+	hmb->desc_num = cnt;
 	return 0;
 }
 
@@ -687,8 +693,10 @@ int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb
 		goto out;
 	}
 
-	for (i = 0; i < copy->nr_desc; i++)
-		buf_size += (copy->bsize[i] * copy->page_size);
+	for (i = 0; i < copy->nr_desc; i++) {
+		buf_size += ((copy->bsize[i] & NVME_HMB_ALLOC_BUF_SIZE_MASK) * 
+			copy->page_size);
+	}
 
 	hmb->buf = dma_alloc_coherent(&pdev->dev, buf_size, &hmb->buf_addr, 
 		GFP_KERNEL);
