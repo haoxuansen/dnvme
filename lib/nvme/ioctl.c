@@ -186,18 +186,6 @@ int nvme_set_device_state(int fd, enum nvme_state state)
 	return 0;
 }
 
-int nvme_access_host_mem_buffer(int fd, struct nvme_hmb_access *access)
-{
-	int ret;
-
-	ret = ioctl(fd, NVME_IOCTL_ACCESS_HMB, access);
-	if (ret < 0) {
-		pr_err("failed to access hmb!(%d)\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
 int nvme_alloc_host_mem_buffer(int fd, struct nvme_hmb_alloc *alloc)
 {
 	int ret;

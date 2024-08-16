@@ -69,7 +69,6 @@ enum {
 
 	NVME_ALLOC_HMB,
 	NVME_RELEASE_HMB,
-	NVME_ACCESS_HMB,
 };
 
 enum {
@@ -375,18 +374,6 @@ struct nvme_hmb_alloc {
 	uint32_t	page_size;	/* unit: Byte */
 	uint32_t	nr_desc;	/* desciptor entry number */
 	uint32_t	bsize[0];	/* buffer size, unit: PAGE_SIZE */
-#define NVME_HMB_ALLOC_BUF_SIZE_MASK		U16_MAX
-#define NVME_HMB_ALLOC_SKIP_FILL_DESC		BIT(31)
-};
-
-struct nvme_hmb_access {
-	void __user 	*buf;
-	uint32_t	length; /* buf length */
-	uint32_t	offset;	/* HMB offset */
-
-	uint32_t	option;
-#define NVME_HMB_OPT_READ	1
-#define NVME_HMB_OPT_WRITE	2
 };
 
 struct nt_iops {
@@ -452,8 +439,6 @@ struct nt_iops {
 	_IOWR('N', NVME_ALLOC_HMB, struct nvme_hmb_alloc)
 #define NVME_IOCTL_RELEASE_HMB \
 	_IO('N', NVME_RELEASE_HMB)
-#define NVME_IOCTL_ACCESS_HMB \
-	_IOWR('N', NVME_ACCESS_HMB, struct nvme_hmb_access)
 
 #define NT_IOCTL_IOPS \
 	_IOWR('T', NVME_TEST_IOPS, struct nt_iops)

@@ -271,15 +271,19 @@ struct nvme_cmb {
 	unsigned int	cqda:1;
 };
 
+struct nvme_hmb_buffer {
+	void		*virt_addr;
+	dma_addr_t	phy_addr;
+	size_t		size;
+};
+
 struct nvme_hmb {
 	struct nvme_feat_hmb_descriptor	*desc;
 	dma_addr_t	desc_addr;
 	size_t		desc_size;
 	unsigned int	desc_num;
 
-	void		*buf;
-	dma_addr_t	buf_addr;
-	size_t		buf_size;
+	struct nvme_hmb_buffer	buf[0];
 };
 
 /**

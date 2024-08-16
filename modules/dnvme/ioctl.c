@@ -615,40 +615,104 @@ int dnvme_get_dev_info(struct nvme_device *ndev, struct nvme_dev_public __user *
 	return 0;
 }
 
-static int dnvme_fill_hmb_descriptor(struct nvme_device *ndev, 
-	struct nvme_hmb *hmb, struct nvme_hmb_alloc *alloc)
+static int dnvme_fill_hmb_descriptor(struct nvme_device *ndev)
 {
-	u32 i;
-	u32 cnt = 0;
-	u32 size;
-	size_t offset = 0;
+	struct nvme_hmb *hmb = ndev->hmb;
+	int i;
 
-	for (i = 0; i < alloc->nr_desc; i++) {
-		size = (alloc->bsize[i] & NVME_HMB_ALLOC_BUF_SIZE_MASK) * alloc->page_size;
-
-		if (!(alloc->bsize[i] & NVME_HMB_ALLOC_SKIP_FILL_DESC)) {
-			hmb->desc[cnt].addr = cpu_to_le64(hmb->buf_addr + offset);
-			hmb->desc[cnt].size = cpu_to_le32(size);
-			dnvme_info(ndev, "desc idx: %u, addr: 0x%llx, pg_size: 0x%x\n",
-				i, le64_to_cpu(hmb->desc[cnt].addr), 
-				le32_to_cpu(hmb->desc[cnt].size));
-			cnt++;
-		}
-		offset += (alloc->bsize[i] * alloc->page_size);
+	for (i = 0; i < hmb->desc_num; i++) {
+		hmb->desc[i].addr = cpu_to_le64(hmb->buf[i].phy_addr);
+		hmb->desc[i].size = cpu_to_le32(hmb->buf[i].size);
 	}
-	hmb->desc_num = cnt;
 	return 0;
 }
 
-int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb)
+static int dnvme_alloc_hmb_buffer(struct nvme_device *ndev, 
+	struct nvme_hmb_alloc *need)
 {
 	struct pci_dev *pdev = ndev->pdev;
+	struct nvme_hmb *hmb = ndev->hmb;
+	size_t buf_size;
+	int ret;
+	int i;
+
+	for (i = 0; i < need->nr_desc; i++) {
+		buf_size = need->page_size * need->bsize[i];
+		hmb->buf[i].virt_addr = dma_alloc_coherent(&pdev->dev, 
+			buf_size, &hmb->buf[i].phy_addr, GFP_KERNEL);
+		if (!hmb->buf[i].virt_addr) {
+			dnvme_err(ndev, "failed to alloc host memory buffer with "
+				"size 0x%lx!\n", buf_size);
+			ret = -ENOMEM;
+			goto out;
+		}
+		memset(hmb->buf[i].virt_addr, 0, buf_size);
+		hmb->buf[i].size = buf_size;
+		dnvme_info(ndev, "HMB buffer addr: 0x%llx, size: 0x%lx\n",
+			hmb->buf[i].phy_addr, hmb->buf[i].size);
+	}
+	return 0;
+
+out:
+	for (i--; i >= 0; i--) {
+		dma_free_coherent(&pdev->dev, hmb->buf[i].size, 
+			hmb->buf[i].virt_addr, hmb->buf[i].phy_addr);
+		hmb->buf[i].virt_addr = NULL;
+	}
+	return ret;
+}
+
+static void dnvme_release_hmb_buffer(struct nvme_device *ndev)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nvme_hmb *hmb = ndev->hmb;
+	int i;
+
+	for (i = 0; i < hmb->desc_num; i++) {
+		dma_free_coherent(&pdev->dev, hmb->buf[i].size, 
+			hmb->buf[i].virt_addr, hmb->buf[i].phy_addr);
+		hmb->buf[i].virt_addr = NULL;
+	}
+}
+
+static int dnvme_alloc_hmb_desc(struct nvme_device *ndev, 
+	struct nvme_hmb_alloc *need)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nvme_hmb *hmb = ndev->hmb;
+
+	/* !TODO: try to remove the limit size of desc */
+	hmb->desc = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, 
+		&hmb->desc_addr, GFP_KERNEL);
+	if (!hmb->desc) {
+		dnvme_err(ndev, "failed to alloc host memory descriptor with "
+			"size 0x%lx!\n", PAGE_SIZE);
+		return -ENOMEM;
+	}
+
+	memset(hmb->desc, 0, PAGE_SIZE);
+	hmb->desc_size = PAGE_SIZE;
+	hmb->desc_num = need->nr_desc;
+	dnvme_info(ndev, "HMB desc addr: 0x%llx, size: 0x%lx\n", 
+		hmb->desc_addr, PAGE_SIZE);
+	return 0;
+}
+
+static void dnvme_release_hmb_desc(struct nvme_device *ndev)
+{
+	struct pci_dev *pdev = ndev->pdev;
+	struct nvme_hmb *hmb = ndev->hmb;
+
+	dma_free_coherent(&pdev->dev, hmb->desc_size, hmb->desc, hmb->desc_addr);
+}
+
+
+int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb)
+{
 	struct nvme_hmb_alloc head;
 	struct nvme_hmb_alloc *copy;
 	struct nvme_hmb *hmb;
 	size_t size;
-	size_t buf_size = 0;
-	u32 i;
 	int ret;
 
 	if (ndev->hmb) {
@@ -686,62 +750,42 @@ int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb
 		goto out;
 	}
 
-	hmb = kzalloc(sizeof(*hmb), GFP_KERNEL);
+	hmb = kzalloc(sizeof(struct nvme_hmb) + 
+		copy->nr_desc * sizeof(struct nvme_hmb_buffer), GFP_KERNEL);
 	if (!hmb) {
-		dnvme_err(ndev, "failed to alloc memory!\n");
+		dnvme_err(ndev, "failed to alloc nvme_hmb!\n");
 		ret = -ENOMEM;
 		goto out;
 	}
+	ndev->hmb = hmb;
 
-	for (i = 0; i < copy->nr_desc; i++) {
-		buf_size += ((copy->bsize[i] & NVME_HMB_ALLOC_BUF_SIZE_MASK) * 
-			copy->page_size);
-	}
-
-	hmb->buf = dma_alloc_coherent(&pdev->dev, buf_size, &hmb->buf_addr, 
-		GFP_KERNEL);
-	if (!hmb->buf) {
-		dnvme_err(ndev, "failed to alloc host memory buffer with "
-			"size 0x%lx!\n", buf_size);
-		ret = -ENOMEM;
-		goto out2;
-	}
-	memset(hmb->buf, 0, buf_size);
-	hmb->buf_size = buf_size;
-	dnvme_info(ndev, "HMB buffer addr: 0x%llx, size: 0x%lx\n",
-		hmb->buf_addr, hmb->buf_size);
-
-	hmb->desc = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, 
-		&hmb->desc_addr, GFP_KERNEL);
-	if (!hmb->desc) {
-		dnvme_err(ndev, "failed to alloc host memory descriptor with "
-			"size 0x%lx!\n", PAGE_SIZE);
-		ret = -ENOMEM;
+	ret = dnvme_alloc_hmb_buffer(ndev, copy);
+	if (ret < 0)
 		goto free_hmb;
-	}
-	memset(hmb->desc, 0, PAGE_SIZE);
-	hmb->desc_size = PAGE_SIZE;
-	dnvme_info(ndev, "HMB desc addr: 0x%llx, size: 0x%lx\n", 
-		hmb->desc_addr, PAGE_SIZE);
 
-	dnvme_fill_hmb_descriptor(ndev, hmb, copy);
+	ret = dnvme_alloc_hmb_desc(ndev, copy);
+	if (ret < 0)
+		goto free_hmb_buf;
+
+	dnvme_fill_hmb_descriptor(ndev);
 
 	head.desc_list = hmb->desc_addr;
 	if (copy_to_user(uhmb, &head, sizeof(head))) {
 		dnvme_err(ndev, "failed to copy to user space!\n");
 		ret = -EFAULT;
-		goto free_desc;
+		goto free_hmb_desc;
 	}
-	ndev->hmb = hmb;
 
 	kfree(copy);
 	return 0;
-free_desc:
-	dma_free_coherent(&pdev->dev, hmb->desc_size, hmb->desc, hmb->desc_addr);
+
+free_hmb_desc:
+	dnvme_release_hmb_desc(ndev);
+free_hmb_buf:
+	dnvme_release_hmb_buffer(ndev);
 free_hmb:
-	dma_free_coherent(&pdev->dev, hmb->buf_size, hmb->buf, hmb->buf_addr);
-out2:
 	kfree(hmb);
+	ndev->hmb = NULL;
 out:
 	kfree(copy);
 	return ret;
@@ -749,65 +793,16 @@ out:
 
 int dnvme_release_hmb(struct nvme_device *ndev)
 {
-	struct pci_dev *pdev = ndev->pdev;
 	struct nvme_hmb *hmb;
 
-	if (!ndev->hmb)
+	if (!ndev->hmb) {
+		dnvme_warn(ndev, "HMB double free?\n");
 		return 0;
-
-	hmb = ndev->hmb;
-	dma_free_coherent(&pdev->dev, hmb->desc_size, hmb->desc, hmb->desc_addr);
-	dma_free_coherent(&pdev->dev, hmb->buf_size, hmb->buf, hmb->buf_addr);
+	}
+	dnvme_release_hmb_desc(ndev);
+	dnvme_release_hmb_buffer(ndev);
 	kfree(hmb);
 	ndev->hmb = NULL;
-
-	return 0;
-}
-
-int dnvme_access_hmb(struct nvme_device *ndev, struct nvme_hmb_access __user *uhmb)
-{
-	struct nvme_hmb_access access;
-	struct nvme_hmb *hmb = ndev->hmb;
-
-	if (!hmb) {
-		dnvme_err(ndev, "host memory buffer not exist!\n");
-		return -EPERM;
-	}
-
-	if (copy_from_user(&access, uhmb, sizeof(struct nvme_hmb_access))) {
-		dnvme_err(ndev, "failed to copy from user space!\n");
-		return -EFAULT;
-	}
-
-	if (access.offset > hmb->buf_size || access.length > hmb->buf_size ||
-		(access.offset + access.length) > hmb->buf_size) {
-		dnvme_err(ndev, "access offset:0x%x, len:0x%x, HMB len:0x%lx!\n",
-			access.offset, access.length, hmb->buf_size);
-		return -EINVAL;
-	}
-
-	switch (access.option) {
-	case NVME_HMB_OPT_READ:
-		if (copy_to_user(access.buf, hmb->buf + access.offset, 
-				access.length)) {
-			dnvme_err(ndev, "failed to copy to user space!\n");
-			return -EFAULT;
-		}
-		break;
-
-	case NVME_HMB_OPT_WRITE:
-		if (copy_from_user(hmb->buf + access.offset, access.buf, 
-				access.length)) {
-			dnvme_err(ndev, "failed to copy from user space!\n");
-			return -EFAULT;
-		}
-		break;
-
-	default:
-		dnvme_err(ndev, "access option(%u) is unknown!\n", access.option);
-		return -EINVAL;
-	}
-
 	return 0;
 }
 

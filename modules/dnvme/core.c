@@ -352,9 +352,6 @@ static long dnvme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = dnvme_release_hmb(ndev);
 		break;
 
-	case NVME_IOCTL_ACCESS_HMB:
-		ret = dnvme_access_hmb(ndev, argp);
-		break;
 	case NT_IOCTL_IOPS:
 		ret = dnvme_test_iops(ndev, argp);
 		break;

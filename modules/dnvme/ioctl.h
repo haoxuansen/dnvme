@@ -32,7 +32,6 @@ int dnvme_prepare_cq(struct nvme_device *ndev, struct nvme_prep_cq __user *uprep
 
 int dnvme_alloc_hmb(struct nvme_device *ndev, struct nvme_hmb_alloc __user *uhmb);
 int dnvme_release_hmb(struct nvme_device *ndev);
-int dnvme_access_hmb(struct nvme_device *ndev, struct nvme_hmb_access __user *uhmb);
 
 int dnvme_test_iops(struct nvme_device * ndev, struct nt_iops __user *uiops);
 

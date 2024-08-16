@@ -91,7 +91,6 @@ static inline int nvme_reset_subsystem(int fd)
 	return nvme_set_device_state(fd, NVME_ST_SUBSYSTEM_RESET);
 }
 
-int nvme_access_host_mem_buffer(int fd, struct nvme_hmb_access *access);
 int nvme_alloc_host_mem_buffer(int fd, struct nvme_hmb_alloc *alloc);
 int nvme_release_host_mem_buffer(int fd);
 
