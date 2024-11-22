@@ -13,7 +13,7 @@
 
 #define DEF_LOOP_NUM		1
 #define DEF_GROUP_NUM		256
-#define DEF_WRITE_SIZE		SZ_1M /* block size align */
+#define DEF_WRITE_SIZE		SZ_4K /* block size align */
 
 struct cmd_group {
 	int			id;
