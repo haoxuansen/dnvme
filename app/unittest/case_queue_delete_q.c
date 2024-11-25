@@ -349,8 +349,9 @@ static int sub_case_del_cq_before_sq(void)
 
 static int check_sq_head(struct nvme_completion *entries, int reaped)
 {
+	/* Maybe no cmd has fetched by device before queue deleted */
 	if (reaped <= 0)
-		return -EPERM;
+		return 0; 
 
 	pr_debug("sq_head: %u, reaped: %d\n", 
 		le16_to_cpu(entries[reaped - 1].sq_head), reaped);
