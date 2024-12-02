@@ -80,7 +80,7 @@ extensions = [
 	'breathe',
 	# 'exhale',
 	'hoverxref.extension',
-	'sphinx_copybutton',
+	# 'sphinx_copybutton',
 	'sphinx_design',
 	'sphinx-mathjax-offline',
 	# 'sphinx_tabs.tabs',
@@ -173,7 +173,7 @@ if 'sphinx_togglebutton' in extensions:
 try:
 	import sphinx_rtd_theme
 	html_theme = 'sphinx_rtd_theme'
-	html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+	# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 except ImportError:
 	sys.stderr.write('Warning: The Sphinx \'sphinx_rtd_theme\' HTML \
 		theme was not found. Make sure you have the theme installed \
@@ -219,7 +219,7 @@ html_title = project + ' v' + version
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "./image/aircraft.svg"
+html_logo = "./image/aircraft.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32

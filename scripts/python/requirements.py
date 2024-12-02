@@ -35,7 +35,7 @@ def check_module():
 		try:
 			import mod
 		except ModuleNotFoundError:
-			direct = cmd + ' install ' + modules[mod]
+			direct = cmd + ' install ' + modules[mod] + ' --default-time=1000'
 			print(direct)
 			os.system(direct)
 
