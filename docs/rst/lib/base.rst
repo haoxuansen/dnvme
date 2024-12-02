@@ -12,6 +12,7 @@ Overview
 	:header: "Function", "Description", "Note"
 	:widths: 30, 60, 10
 
+	"zalloc", "申请指定大小的内存空间，并将其初始化为 0"
 	"call_system", "功能和 system 函数相同，增加了错误检查"
 	"fill_data_with_incseq", "初始化 buf，从 0 开始以递增(+1)的方式填充数据"
 	"fill_data_with_decseq", "初始化 buf，从 0xff 开始以递减(-1)的方式填充数据"
