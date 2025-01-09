@@ -48,7 +48,7 @@ int dnvme_check_qid_unique(struct nvme_device *ndev,
 	} else if (type == NVME_CQ) {
 		cq = dnvme_find_cq(ndev, id);
 		if (cq) {
-			dnvme_err(ndev, "SQ ID(%u) already exists!\n", id);
+			dnvme_err(ndev, "CQ ID(%u) already exists!\n", id);
 			return -EEXIST;
 		}
 	}

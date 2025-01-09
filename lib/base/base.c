@@ -179,7 +179,7 @@ int dump_data_to_file(void *buf, uint32_t size, const char *file)
         int fd = -1;
         ssize_t ret;
  
-        fd = open(file, O_CREAT | O_RDWR);
+        fd = open(file, O_CREAT | O_RDWR, 0664);
         if (fd < 0) {
                 pr_err("failed to open %s: %s!\n", file, strerror(errno));
                 return fd; 
