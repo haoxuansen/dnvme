@@ -9,15 +9,38 @@ source $TOP_DIR/scripts/log.sh
 # Function
 # --------------------------------------------------------------------------- #
 
+usage()
+{
+	pr_notice "SYNOPSYS:"
+	pr_info "\t./zoo [options]"
+	pr_notice "OPTIONS:"
+	pr_debug "\t-d,--dev=<STRING>  : NVMe device(default:/dev/nvme0)"
+	pr_debug "\t-h,--help          : Display help message"
+}
+
 # $1: parameter to be parsed
 parse_param()
 {
 	local key=${1%%=*}
 	local value=${1#*=}
 
-	if [[ "$key" = "devnode" ]]; then
+	if [ "$key" = "--dev" ] || [ "$key" = "-d" ]; then
 		NVME_DEV_NODE=$value
+	elif [ "$key" = "--help" ] || [ "$key" = "-h" ]; then
+		usage
+		exit 1
 	fi
+}
+
+enable_coredump()
+{
+	echo "$RELEASE_DIR/core-%e-%p-%t" > /proc/sys/kernel/core_pattern
+	ulimit -c unlimited
+}
+
+disable_coredump()
+{
+	ulimit -c 0
 }
 
 display_configuration()
@@ -39,6 +62,7 @@ for arg in $@ ; do
 	parse_param $arg
 done
 
+enable_coredump
 display_configuration
 
 make distclean
