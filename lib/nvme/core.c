@@ -666,7 +666,7 @@ static int init_ns_group(struct nvme_dev_info *ndev)
 	struct nvme_ctrl_instance *ctrl = ndev->ctrl;
 	struct nvme_ns_group *ns_grp;
 	uint32_t nn;
-	uint32_t i;
+	int i;
 	uint32_t nsid;
 	uint32_t last = 0;
 	__le32 *ns_list;
@@ -733,7 +733,7 @@ static int init_ns_group(struct nvme_dev_info *ndev)
 	return 0;
 
 exit_ns_instance:
-	for (i--; i > 0; i--) {
+	for (i--; i >= 0; i--) {
 		nsid = le32_to_cpu(ns_list[i]);
 		deinit_ns_instance(&ns_grp->ns[nsid - 1]);
 	}
