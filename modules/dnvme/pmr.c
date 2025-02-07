@@ -54,10 +54,11 @@ static int dnvme_pmr_enable_cba(struct nvme_device *ndev, struct nvme_pmr *pmr)
 		return 0;
 	}
 
-	pmr->addr = pci_resource_start(pdev, pmr->bir);
+	pmr->res_addr = pci_resource_start(pdev, pmr->bir);
+	pmr->bus_addr = pci_bus_address(pdev, pmr->bir);
 	pmr->size = pci_resource_len(pdev, pmr->bir);
-	pmrmscu = upper_32_bits(pmr->addr);
-	pmrmscl = lower_32_bits(pmr->addr) | NVME_PMRMSCL_CMSE;
+	pmrmscu = upper_32_bits(pmr->bus_addr);
+	pmrmscl = lower_32_bits(pmr->bus_addr) | NVME_PMRMSCL_CMSE;
 
 	if (pmrmscl & NVME_PMRMSCL_RSVD) {
 		dnvme_err(ndev, "PMRMSCL reserved field is not zero!\n");
@@ -172,7 +173,7 @@ int dnvme_map_pmr(struct nvme_device *ndev)
 		goto out_disable_cba;
 
 	dnvme_info(ndev, "PMR BIR:%u, Addr:0x%llx, Size:0x%llx\n", pmr->bir,
-		pmr->addr, pmr->size);
+		pmr->bus_addr, pmr->size);
 
 	ndev->pmr = pmr;
 	return 0;

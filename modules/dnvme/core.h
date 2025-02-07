@@ -16,6 +16,7 @@
 #include <linux/cdev.h>
 #include <linux/proc_fs.h>
 #include <linux/xarray.h>
+#include <linux/pci.h>
 
 #include "pci_caps.h"
 #include "dnvme.h"
@@ -239,7 +240,8 @@ struct nvme_pmr {
 	u32		bir; /* base indicator register */
 	u32		timeout; /* ms */
 
-	resource_size_t	addr;
+	resource_size_t res_addr;
+	pci_bus_addr_t bus_addr;
 	resource_size_t size;
 
 	unsigned int	cmss:1;
