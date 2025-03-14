@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e -x
+
 TOP_DIR=`pwd`
 RELEASE_DIR=$TOP_DIR/release
 
