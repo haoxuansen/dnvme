@@ -9,6 +9,8 @@
  * 
  */
 
+#if IS_ENABLED(CONFIG_DNVME_TRACE)
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM nvme
 
@@ -214,3 +216,20 @@ DEFINE_EVENT(nvme_log_irq, dnvme_interrupt,
 #define TRACE_INCLUDE_FILE trace
 
 #include <trace/define_trace.h>
+#else
+
+#ifndef _DNVME_TRACE_H_
+#define _DNVME_TRACE_H_
+
+#define trace_dnvme_sgl_set_data(a)
+#define trace_dnvme_sgl_set_bit_bucket(a)
+#define trace_dnvme_sgl_set_seg(a)
+#define trace_dnvme_setup_prps(a, b, c)
+#define trace_dnvme_submit_64b_cmd(a, b, c)
+#define trace_dnvme_interrupt(a, b)
+#define trace_dnvme_proc_write(a, b)
+#define trace_handle_cmd_completion(a)
+
+#endif /* !_DNVME_TRACE_H_ */
+
+#endif /* !IS_ENABLED(CONFIG_DNVME_TRACE) */

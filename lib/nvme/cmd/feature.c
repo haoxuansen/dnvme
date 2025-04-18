@@ -322,3 +322,21 @@ int nvme_get_feat_write_protect(struct nvme_dev_info *ndev, uint32_t nsid,
 	return le32_to_cpu(entry.result.u32) & NVME_NS_WPS_MASK;
 }
 
+int nvme_set_feat_power_mgmt(struct nvme_dev_info *ndev, uint8_t ps, uint8_t wh)
+{
+	struct nvme_completion entry = {0};
+	uint16_t cid;
+
+	cid = CHK_EXPR_NUM_LT0_RTN(
+		nvme_cmd_set_feat_power_mgmt(ndev->fd, ps, wh), -EPERM);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_ring_sq_doorbell(ndev->fd, NVME_AQ_ID), -EPERM);
+	CHK_EXPR_NUM_NE_RTN(
+		nvme_gnl_cmd_reap_cqe(ndev, NVME_AQ_ID, 1, &entry, sizeof(entry)),
+		1, -ETIME);
+	CHK_EXPR_NUM_LT0_RTN(
+		nvme_valid_cq_entry(&entry, NVME_AQ_ID, cid, NVME_SC_SUCCESS),
+		-EPERM);
+
+	return 0;
+}

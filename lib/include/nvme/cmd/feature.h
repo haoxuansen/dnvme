@@ -43,6 +43,7 @@ static inline int nvme_cmd_set_feat_power_mgmt(int fd, uint8_t ps, uint8_t wh)
 	return nvme_cmd_set_feature(fd, 0, NVME_FEAT_POWER_MGMT, 
 		NVME_POWER_MGMT_FOR_WH(wh) | NVME_POWER_MGMT_FOR_PS(ps));
 }
+int nvme_set_feat_power_mgmt(struct nvme_dev_info *ndev, uint8_t ps, uint8_t wh);
 
 static inline int nvme_cmd_get_feat_power_mgmt(int fd, uint32_t sel)
 {

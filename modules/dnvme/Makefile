@@ -18,7 +18,9 @@ dnvme-y					+= pci.o
 dnvme-y					+= pmr.o
 dnvme-y					+= proc.o
 dnvme-y					+= queue.o
+ifneq ($(CONFIG_DNVME_TRACE),)
 dnvme-y					+= trace.o
+endif
 ifneq ($(CONFIG_DNVME_DEBUG),)
 dnvme-y					+= debug.o
 endif
