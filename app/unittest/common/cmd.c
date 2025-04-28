@@ -1085,7 +1085,7 @@ int ut_send_io_write_cmd_random_data(struct case_data *priv,
 	struct nvme_sq_info *sq, uint64_t slba, uint32_t nlb)
 {
 	return ut_deal_io_write_cmd(priv, sq, slba, nlb, 
-		UT_CMD_F_OPTION_SUBMIT | UT_CMD_F_DATA_RANDOM);
+		UT_CMD_F_OPTION_SEND | UT_CMD_F_DATA_RANDOM);
 }
 
 int ut_send_io_write_cmd_random_d_r(struct case_data *priv,
